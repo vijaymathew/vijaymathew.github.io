@@ -33,7 +33,7 @@
 <pre>   untrusted request
          │
    ┌─────▼─────┐   BOUNDARY — parse, don't validate            (Ch 4)
-   │  parser   │   request ──► Result[Draft]
+   │  parser   │   request ──► Result[Draft, String]
    └─────┬─────┘
          │  a trustworthy Draft
    ┌─────▼───────────────  OPEN EDGE  ───────────────────  (Ch 9–13) ┐
@@ -72,17 +72,17 @@
 <p>Here is the seam the entire book has pointed at — the one routine through which every price, from every rule that will ever exist, must pass to become part of an order. It is written from the core's side. It does not know or ask how the quote was computed; it states the terms and admits only what meets them.</p>
 
 <pre><code>-- The membrane: the open edge proposes a quote; the closed core admits it, or not.
-function admit_quote(draft: Draft, quote: Money): Result[Placed]
+function admit_quote(draft: Draft, quote: Money): Result[Placed, String]
   require
     same_currency: quote.currency = draft.currency
   do
     if quote &lt; Money.zero then
-      result := create Err[Placed].make("quote is negative")
+      result := create Err[Placed, String].make("quote is negative")
     elsif quote &lt; draft.floor_price then
-      result := create Err[Placed].make("quote below floor")
+      result := create Err[Placed, String].make("quote below floor")
     else
       -- on success, Placed's own invariant guarantees a consistent order
-      result := create Ok[Placed].make(create Placed.make(draft.items, quote))
+      result := create Ok[Placed, String].make(create Placed.make(draft.items, quote))
     end
   end</code></pre>
 
@@ -95,17 +95,17 @@ function admit_quote(draft: Draft, quote: Money): Result[Placed]
 <p>Now the whole placement, as one pure function that threads the request through every region. Each line is a chapter; the comments name them.</p>
 
 <pre><code>function place_order(request: Order_Request, rule: Price_Expr,
-                     routes: Array[Term], now: Instant): Result[Placement]
+                     routes: Array[Term], now: Instant): Result[Placement, String]
   do
     match parse_order(request) of                       -- 1. boundary: parse (Ch 4)
       when Err as bad then
-        result := create Err[Placement].make(bad.message)
+        result := create Err[Placement, String].make(bad.error)
       when Ok as parsed then
         let draft: Draft := parsed.value
         let quote: Money := rule.eval_for(draft)        -- 2. open edge: price it (Ch 10)
         match admit_quote(draft, quote) of              -- 3. membrane: admit it (Ch 2, 9)
           when Err as rejected then
-            result := create Err[Placement].make(rejected.message)
+            result := create Err[Placement, String].make(rejected.error)
           when Ok as ok then
             result := plan_fulfillment(ok.value, routes, now)   -- 4. core decides (Ch 5,6,13)
         end
@@ -113,18 +113,18 @@ function admit_quote(draft: Draft, quote: Money): Result[Placed]
   end
 
 function plan_fulfillment(placed: Placed, routes: Array[Term],
-                          now: Instant): Result[Placement]
+                          now: Instant): Result[Placement, String]
   do
     match route(order_term(placed), routes) of          -- 4a. routing by search (Ch 13)
       when Err as e then
-        result := create Err[Placement].make("unfulfillable: " + e.message)
+        result := create Err[Placement, String].make("unfulfillable: " + e.error)
       when Ok as sol then
         let fx: Array[Effect] := []                     -- 4b. effects as data (Ch 6)
         fx.add(create Charge_Payment.make(placed.total))
         fx.add(create Reserve_Stock.make(warehouse_of(sol.value), placed.items))
         fx.add(create Send_Confirmation.make(placed.customer_email))
         fx.add(create Record_Order.make(placed))
-        result := create Ok[Placement].make(create Placement.make(placed, fx))
+        result := create Ok[Placement, String].make(create Placement.make(placed, fx))
     end
   end</code></pre>
 

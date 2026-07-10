@@ -49,7 +49,17 @@ end</code></pre>
 <section id="sum-types" class="level2" data-number="3.2">
 <h2 class="anchored" data-anchor-id="sum-types"><span class="header-section-number">3.2</span> Sum Types: One of Several Shapes</h2>
 
-<p>A sum type says a value is <em>exactly one</em> of a fixed set of shapes, and each shape carries only the data that makes sense for it. In Nex this is a <code>sealed deferred</code> parent with a closed set of subclasses — closed because <code>sealed</code> tells the compiler that no other shapes exist, so it can reason about the whole set.</p>
+<p>A sum type says a value is <em>exactly one</em> of a fixed set of shapes, and each shape carries only the data that makes sense for it. Nex writes this directly with <code>union</code>: a name for the whole, then one line per shape naming the data that shape holds.</p>
+
+<pre><code>union Order
+  Draft(items: Array[Line_Item])
+  Placed(items: Array[Line_Item], total: Money)
+  Shipped(items: Array[Line_Item], tracking: Tracking_Id)
+end</code></pre>
+
+<p>This is a <em>closed</em> set: <code>union</code> tells the compiler that no other shapes exist, so it can reason about the whole. Under the surface each variant becomes a distinct type — <code>Draft</code>, <code>Placed</code>, <code>Shipped</code> — and <code>Order</code> is their sealed parent; the concise form simply spares you writing the parent and each subclass by hand. You construct a variant by name, <code>create Placed.make(xs, t)</code>, and read its data as ordinary fields.</p>
+
+<p>But shape is only part of what a placed order must satisfy. A <code>Placed</code> should have at least one line, and its <code>total</code> should equal the sum of those lines — and those are not facts about <em>shape</em>, they are <em>relationships among values</em>. The <code>union</code> form states shape and nothing more; it synthesises no contracts. When a variant must also hold a relationship, write that hierarchy in the longhand the <code>union</code> is shorthand for, and hang the contract on the variant that needs it:</p>
 
 <pre><code>sealed deferred class Order
 end
@@ -89,7 +99,7 @@ class Shipped
   end
 end</code></pre>
 
-<p>Look at what has become impossible. A <code>Draft</code> has no <code>total</code> and no <code>tracking</code> field — not "null", but <em>absent</em>, so no code can read a draft's tracking id because there is nothing to read. A <code>Shipped</code> has a tracking id and no way to exist without one. The illegal combinations of §3.1 are not rejected at runtime; they cannot be constructed, because there is no shape that holds them. The vocabulary no longer contains the forbidden sentences.</p>
+<p>The two forms describe the same three shapes; the longhand only adds what <code>union</code> leaves out — the <code>require</code> and <code>invariant</code> that make <code>Placed</code>'s <em>relationships</em> as unbreakable as its shape. This is the book's own thesis surfacing in the language: reach for the concise <code>union</code> by default, and drop to the open longhand exactly where a shape needs a contract. Look now at what has become impossible. A <code>Draft</code> has no <code>total</code> and no <code>tracking</code> field — not "null", but <em>absent</em>, so no code can read a draft's tracking id because there is nothing to read. A <code>Shipped</code> has a tracking id and no way to exist without one. The illegal combinations of §3.1 are not rejected at runtime; they cannot be constructed, because there is no shape that holds them. The vocabulary no longer contains the forbidden sentences.</p>
 
 <p>Notice also where <em>types stop and contracts begin</em>. That an order is one of three shapes is structural — the type carries it. But "a placed order has at least one line" and "its total equals the sum of its lines" are not structural facts about shape; they are <em>relationships among values</em>, and no arrangement of fields can express them. So the sum type hands them to contracts: the <code>require</code> refuses to build a bad <code>Placed</code> in the first place, and the <code>invariant</code> guarantees no later operation can drift it into an inconsistent one. This is the division of labour from Chapter 2, now doing structural work: the type makes the <em>kinds</em> unrepresentable; the contract makes the illegal <em>relationships</em> unreachable.</p>
 </section>
@@ -97,26 +107,19 @@ end</code></pre>
 <section id="constrained-types" class="level2" data-number="3.3">
 <h2 class="anchored" data-anchor-id="constrained-types"><span class="header-section-number">3.3</span> Constrained Types: Giving a Value a Standard</h2>
 
-<p>The same move works one level down, on individual values. A <code>Line_Item</code>'s quantity is not just any integer — it is a positive one; a quantity of zero or minus three is not a small bug but a meaningless value. Rather than let a bare <code>Integer</code> carry it and re-check positivity everywhere, we give the quantity its own type whose invariant is the standard it must always meet:</p>
+<p>The same move works one level down, on individual values. A <code>Line_Item</code>'s quantity is not just any integer — it is a positive one; a quantity of zero or minus three is not a small bug but a meaningless value. Rather than let a bare <code>Integer</code> carry it and re-check positivity everywhere, we give the quantity its own type — an <code>Integer</code> narrowed by the standard it must always meet:</p>
 
-<pre><code>-- A Quantity cannot exist unless it is positive. Every holder can assume it.
-class Quantity
-  create
-    of(n: Integer)
-      require
-        positive: n > 0
-      do
-        value := n
-      end
-  feature
-    value: Integer
-  invariant
-    positive: value > 0
-end</code></pre>
+<pre><code>-- A Quantity is an Integer that is known to be positive.
+declare type Quantity = Integer where n: n &gt; 0</code></pre>
 
-<p>Once a value is a <code>Quantity</code>, its positivity travels with it. A function that takes a <code>Quantity</code> never checks that it is positive, because an object of that type cannot have been constructed otherwise — the invariant is the type's promise to every routine that will ever hold it. The check happens <em>once</em>, at the single gate of the constructor, and never again. This is the same economy as a sum type, applied to a scalar: pay for the constraint at construction, collect the guarantee everywhere else.</p>
+<p>This is a <em>refinement type</em>: the base type <code>Integer</code>, narrowed by a predicate. It is not a wrapper class — a <code>Quantity</code> <em>is</em> an <code>Integer</code> at runtime, with no field to unwrap and no boxing to pay for. What the refinement adds is a single, enforced promise: the predicate <code>n &gt; 0</code> is checked at every point where a plain <code>Integer</code> is <em>narrowed</em> into a <code>Quantity</code> — a typed binding, a parameter, a returned value. Widening back the other way is free, because a positive integer is still an integer.</p>
 
-<p>This pattern — wrapping a primitive in a type that enforces its standard — is how you retire "primitive obsession", the habit of representing every domain quantity as a raw <code>Integer</code> or <code>String</code>. A raw string can be an email address, a currency code, a typo, or an SQL injection; a <code>Currency_Code</code> whose constructor accepts only the codes that exist can be none of those. Each such type is a small door closed for good.</p>
+<pre><code>let q: Quantity := 5          -- checked here: asserts 5 &gt; 0
+let doubled: Integer := q * 2 -- free: a Quantity is already an Integer</code></pre>
+
+<p>Once a value is a <code>Quantity</code>, its positivity travels with it. A function that takes a <code>Quantity</code> never checks that it is positive, because a bare integer could not have crossed into that type otherwise — the predicate is the type's promise to every routine that will ever hold it. The check happens <em>once</em>, at the narrowing gate, and never again. This is the same economy as a sum type, applied to a scalar: pay for the constraint where the value enters, collect the guarantee everywhere else — and, unlike a wrapper class, without a single <code>.value</code> to thread through the arithmetic.</p>
+
+<p>This pattern — giving a primitive a type that enforces its standard — is how you retire "primitive obsession", the habit of representing every domain quantity as a raw <code>Integer</code> or <code>String</code>. A numeric bound like "positive" is a refinement, a one-liner; a value drawn from a fixed set is better a small class or a <code>distinct</code> type. A raw string can be an email address, a currency code, a typo, or an SQL injection; a <code>Currency_Code</code> that admits only the codes that exist can be none of those. Each such type is a small door closed for good.</p>
 
 </section>
 

@@ -35,24 +35,10 @@
 <p>So we close the one and open the other. An expression is one of a tiny, sealed set of forms: a literal value, a reference to a name, or an application of an operator to arguments. That is the whole syntax, and it will never grow — which means the evaluator can <code>match</code> it exhaustively, with the compiler proving every form is handled.</p>
 
 <pre><code>-- The syntax is closed: exactly three forms, sealed and exhaustively handled.
-sealed deferred class Expr
-end
-
-class Lit inherit Expr                    -- a literal price
-  feature value: Money
-  create make(v: Money) do value := v end
-end
-
-class Ref inherit Expr                    -- a name, resolved in the environment
-  feature name: String
-  create make(n: String) do name := n end
-end
-
-class Apply inherit Expr                  -- operator applied to argument expressions
-  feature
-    operator: String                      -- the operator is named, resolved at runtime
-    args: Array[Expr]
-  create make(op: String, xs: Array[Expr]) do operator := op  args := xs end
+union Expr
+  Lit(value: Money)                       -- a literal price
+  Ref(name: String)                       -- a name, resolved in the environment
+  Apply(operator: String, args: Array[Expr])  -- operator (named, resolved at runtime) applied to args
 end</code></pre>
 
 <p>Notice the deliberate asymmetry, which is the whole book in miniature. The <em>syntax</em> is sealed — a closed core the evaluator reasons about completely. The <em>operators</em>, named by the strings inside <code>Apply</code>, are open — a vocabulary that grows without limit. Constraint in the structure, flexibility in the vocabulary, and the seam between them guarded, as we are about to see, by contract.</p>

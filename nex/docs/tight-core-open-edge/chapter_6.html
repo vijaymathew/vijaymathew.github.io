@@ -33,16 +33,16 @@
 <p>Here is the placement step from Chapter 5, written the way it is usually written — with the effects performed inline, right where the decision is made:</p>
 
 <pre><code>-- Impure: the core reaches into the world. Every guarantee of Part II is now void.
-function place(d: Draft): Result[Placed]
+function place(d: Draft): Result[Placed, String]
   do
     if d.items.length > 0 then
       let placed: Placed := create Placed.make(d.items, sum_of(d.items))
       gateway.charge(placed.total)                 -- network, money, can fail
       mailer.send_confirmation(d.customer_email)    -- and if this throws mid-way?
       database.save(placed)                         -- ordering, partial failure
-      result := create Ok[Placed].make(placed)
+      result := create Ok[Placed, String].make(placed)
     else
-      result := create Err[Placed].make("cannot place an empty order")
+      result := create Err[Placed, String].make("cannot place an empty order")
     end
   end</code></pre>
 
@@ -57,25 +57,10 @@ function place(d: Draft): Result[Placed]
 <p>Instead of performing effects, the core <em>describes</em> them. It returns a value that says what should happen, and leaves the happening to someone else. An effect becomes data — a sum type, once again — and the core's job is to produce a list of these descriptions alongside the new state.</p>
 
 <pre><code>-- What the system should do, as values the core can compute and a test can inspect.
-sealed deferred class Effect
-end
-
-class Charge_Payment
-  inherit Effect
-  feature amount: Money
-  create make(a: Money) do amount := a end
-end
-
-class Send_Confirmation
-  inherit Effect
-  feature recipient: Email_Address
-  create make(r: Email_Address) do recipient := r end
-end
-
-class Record_Order
-  inherit Effect
-  feature order: Placed
-  create make(o: Placed) do order := o end
+union Effect
+  Charge_Payment(amount: Money)
+  Send_Confirmation(recipient: Email_Address)
+  Record_Order(order: Placed)
 end</code></pre>
 
 <p>Now <code>place</code> returns the placed order paired with the effects it decided on — and performs none of them:</p>
@@ -88,7 +73,7 @@ end</code></pre>
 end
 
 -- Pure: computes a decision and a to-do list. Touches nothing.
-function place(d: Draft): Result[Placement]
+function place(d: Draft): Result[Placement, String]
   do
     if d.items.length > 0 then
       let placed: Placed := create Placed.make(d.items, sum_of(d.items))
@@ -96,9 +81,9 @@ function place(d: Draft): Result[Placement]
       fx.add(create Charge_Payment.make(placed.total))
       fx.add(create Send_Confirmation.make(d.customer_email))
       fx.add(create Record_Order.make(placed))
-      result := create Ok[Placement].make(create Placement.make(placed, fx))
+      result := create Ok[Placement, String].make(create Placement.make(placed, fx))
     else
-      result := create Err[Placement].make("cannot place an empty order")
+      result := create Err[Placement, String].make("cannot place an empty order")
     end
   end</code></pre>
 
@@ -136,7 +121,7 @@ perform(e: Effect, gateway: Payment_Gateway, mailer: Mailer, store: Order_Store)
 <p>The remedy is the same in spirit but simpler: pass them in. A transition that needs the current time takes a <code>now: Instant</code> parameter; one that needs a fresh order id takes it as an argument. The <em>reading</em> of the clock happens in the shell, where effects belong, and the pure core receives the reading as an ordinary value.</p>
 
 <pre><code>-- Time enters as an argument, not as a call to a global clock.
-function place(d: Draft, now: Instant): Result[Placement]
+function place(d: Draft, now: Instant): Result[Placement, String]
   -- ... placed_at := now, deadlines computed from now, all pure ...</code></pre>
 
 <p>This looks like a small bookkeeping change and is in fact a significant one. A workflow whose time is an input can be tested at any date — year-end, a leap second, the exact moment a promotion expires — by passing that instant, with no need to travel through time or freeze a global. Determinism is restored not by pretending the clock does not exist, but by moving the one place it is read out to the edge and letting its value flow in.</p>

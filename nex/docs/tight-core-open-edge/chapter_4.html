@@ -32,7 +32,7 @@
 
 <p>To <strong>validate</strong> is to ask a yes-or-no question and keep the same value either way. A function <code>is_valid_quantity(raw: Integer): Boolean</code> inspects its argument, returns <code>true</code>, and hands you back... the same raw <code>Integer</code> you started with. The knowledge it gained — that this number is positive — evaporates the moment it returns. The next function that receives the integer knows nothing, and must ask again.</p>
 
-<p>To <strong>parse</strong> is to ask the same question but <em>keep the answer in the type</em>. A function <code>parse_quantity(raw: Integer): Result[Quantity]</code> either fails or returns a <code>Quantity</code> — and a <code>Quantity</code>, by Chapter 3's construction, cannot exist unless it is positive. The value it returns <em>is</em> the proof. No later function has to re-establish positivity, because holding a <code>Quantity</code> already means it.</p>
+<p>To <strong>parse</strong> is to ask the same question but <em>keep the answer in the type</em>. A function <code>parse_quantity(raw: Integer): Result[Quantity, String]</code> either fails or returns a <code>Quantity</code> — and a <code>Quantity</code>, by Chapter 3's construction, cannot exist unless it is positive. The value it returns <em>is</em> the proof. No later function has to re-establish positivity, because holding a <code>Quantity</code> already means it.</p>
 
 <p>The difference is not stylistic. Validation throws away evidence; parsing preserves it by moving it from a transient check into a durable type. This is why re-validation spreads through validate-style codebases like damp: because the type never changed, every layer distrusts the value equally, and the same check reappears at every level — the "shotgun parser", where input is picked at again and again because no single act ever converted it for good.</p>
 
@@ -44,22 +44,15 @@
 
 <p>Parsing can fail — that is the whole reason it exists — so we need a way to return failure that a caller cannot ignore. Throwing an exception is the wrong tool here: an exception is an <em>invisible</em> exit that does not show up in the type, so a caller who forgets to handle it compiles cleanly and crashes at runtime. At a trust boundary, failure is not exceptional; it is expected, and it should be as visible as success.</p>
 
-<p>So we make failure a value. <code>Result</code> is a sum type — exactly the construction from Chapter 3 — with two shapes: a success carrying a value, and a failure carrying an explanation.</p>
+<p>So we make failure a value. <code>Result</code> is a sum type — exactly the construction from Chapter 3 — with two shapes: a success carrying a value, and a failure carrying an explanation. It is common enough that Nex ships it in the standard library, so we bring it in rather than redeclare it:</p>
 
-<pre><code>sealed deferred class Result[T]
-end
+<pre><code>intern data/Result
 
-class Ok[T]
-  inherit Result[T]
-  feature value: T
-  create make(v: T) do value := v end
-end
+-- Result[T, E] is one of:
+--   Ok(value: T)    -- success, holding a value of type T
+--   Err(error: E)   -- failure, holding an error of type E</code></pre>
 
-class Err[T]
-  inherit Result[T]
-  feature message: String
-  create make(m: String) do message := m end
-end</code></pre>
+<p>A <code>Result</code> carries two type parameters: <code>T</code>, the value a success holds, and <code>E</code>, the error a failure holds. Our parsers explain themselves in prose, so <code>E</code> is <code>String</code> throughout this chapter — a <code>Result[Quantity, String]</code> is "a quantity, or a sentence saying why not." Keeping the error in its own parameter, separate from the value type, is what lets a failure travel upward untouched: an <code>Err</code> produced deep in a parse is not tied to the success type at its level, so it flows out through every enclosing parser without being taken apart and rebuilt (§4.5).</p>
 
 <p>Because <code>Result</code> is sealed, a caller who receives one must <code>match</code> on it, and the compiler will not let them read the success value without also confronting the failure case (§3.4). Failure stops being a footnote and becomes a branch the type system insists you handle. The parser's whole contract — <em>this might not work, and here is why</em> — is now written in its return type, where no caller can miss it.</p>
 </section>
@@ -69,17 +62,18 @@ end</code></pre>
 
 <p>A parser is a function from a loose type to a precise one, failing when the loose value has no precise counterpart. Here is the smallest one, turning a raw integer into a <code>Quantity</code>:</p>
 
-<pre><code>function parse_quantity(raw: Integer): Result[Quantity]
+<pre><code>function parse_quantity(raw: Integer): Result[Quantity, String]
   do
-    if raw > 0 then
-      result := create Ok[Quantity].make(create Quantity.of(raw))
+    if raw &gt; 0 then
+      let q: Quantity := raw                        -- narrow once, here at the gate
+      result := create Ok[Quantity, String].make(q)
     else
-      result := create Err[Quantity].make(
+      result := create Err[Quantity, String].make(
         "quantity must be positive, got " + raw.to_string)
     end
   end</code></pre>
 
-<p>The positivity check happens <em>here</em>, once, at the gate. On the success path it produces a <code>Quantity</code> — and from that point on, the fact "this is positive" is carried by the type, not re-derived. The parser is the single place in the entire system where a raw integer is allowed to become a quantity, and it is the single place that check needs to live.</p>
+<p>The positivity check happens <em>here</em>, once, at the gate — the moment a bare <code>Integer</code> is narrowed into a <code>Quantity</code>. On the success path it produces a <code>Quantity</code> — and from that point on, the fact "this is positive" is carried by the type, not re-derived. The parser is the single place in the entire system where a raw integer is allowed to become a quantity, and it is the single place that check needs to live.</p>
 
 <p>Everything upstream of the gate deals in loose types and distrust; everything downstream deals in precise types and trust. The parser is the pivot between the two worlds — the one function permitted to doubt, so that no function after it has to.</p>
 </section>
@@ -111,18 +105,19 @@ reserve_stock(sku: Sku, qty: Quantity)
 <section id="parsers-compose" class="level2" data-number="4.5">
 <h2 class="anchored" data-anchor-id="parsers-compose"><span class="header-section-number">4.5</span> Parsers Compose</h2>
 
-<p>Real input is structured — a line item is a SKU <em>and</em> a quantity; an order is a list of line items — so parsers must combine. The rule of composition is that a compound parse succeeds only if every part succeeds, and reports the first failure otherwise. A larger parser is built by sequencing smaller ones and short-circuiting on the first <code>Err</code>:</p>
+<p>Real input is structured — a line item is a SKU <em>and</em> a quantity; an order is a list of line items — so parsers must combine. The rule of composition is that a compound parse succeeds only if every part succeeds, and reports the first failure otherwise. Done by hand, sequencing two parsers means matching the first result, and on its failure branch building a fresh <code>Err</code> to carry the reason up — the same rewrapping at every level. The standard library names that pattern once. <code>result_map</code> transforms the success value and leaves any failure untouched:</p>
 
-<pre><code>function parse_line_item(raw_sku: String, raw_qty: Integer): Result[Line_Item]
+<pre><code>function parse_line_item(raw_sku: String, raw_qty: Integer): Result[Line_Item, String]
   do
-    match parse_quantity(raw_qty) of
-      when Ok as q then
-        result := create Ok[Line_Item].make(
-          create Line_Item.make(raw_sku, q.value))
-      when Err as e then
-        result := create Err[Line_Item].make(e.message)   -- carry the reason up
-    end
+    -- on success, build the Line_Item; any Err flows straight through
+    result := result_map(
+      parse_quantity(raw_qty),
+      fn (q: Quantity): Line_Item do
+        result := create Line_Item.make(raw_sku, q)
+      end)
   end</code></pre>
+
+<p>Notice what did <em>not</em> have to be written: the failure branch. Because the error lives in its own type parameter, the <code>Err</code> from <code>parse_quantity</code> is already a <code>Result[Line_Item, String]</code>'s kind of failure — the same <code>String</code> channel — so <code>result_map</code> passes it through with no rebuilding. When the next step can <em>itself</em> fail, reach for <code>result_and_then</code>, whose function returns a <code>Result</code> and which short-circuits on the first <code>Err</code>; and when a lower layer's error type differs from the caller's, <code>result_map_err</code> translates the one channel into the other. Between them these three — map the value, chain a fallible step, translate the error — collapse the hand-written match-and-rewrap to a single expression.</p>
 
 <p>Each parser converts one loose input into one precise value or a reason it could not; combining them yields a parser for the whole record with the same shape. Assemble line-item parsers the same way and you get <code>parse_order</code>, whose success case is a value the constrained core will accept without a second look — because by the time it exists, every constituent check has already been paid. This is the pipeline the next chapter builds on: once the boundary hands the core a trustworthy value, the domain logic is just a sequence of total functions over precise types.</p>
 

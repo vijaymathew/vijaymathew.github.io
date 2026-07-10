@@ -35,14 +35,14 @@
 <pre><code>-- Every stratum, from the core to the outermost concern, is a Handler.
 deferred class Handler
   feature
-    handle(d: Draft): Result[Placement] do end   -- each layer overrides
+    handle(d: Draft): Result[Placement, String] do end   -- each layer overrides
 end
 
 -- The base: the domain work itself, wrapping nothing.
 class Core_Handler inherit Handler
   create make() do end
   feature
-    handle(d: Draft): Result[Placement]
+    handle(d: Draft): Result[Placement, String]
       do
         result := place(d)          -- the pure transition from Chapter 5
       end
@@ -61,7 +61,7 @@ end</code></pre>
   feature
     inner: Handler
     logger: Logger
-    handle(d: Draft): Result[Placement]
+    handle(d: Draft): Result[Placement, String]
       do
         logger.info("placing order with " + d.items.length.to_string + " item(s)")
         result := inner.handle(d)                    -- delegate downward
@@ -69,7 +69,7 @@ end</code></pre>
           when Ok as ok then
             logger.info("placed, total " + ok.order.total.to_string)
           when Err as e then
-            logger.warn("rejected: " + e.message)
+            logger.warn("rejected: " + e.error)
         end
       end
 end</code></pre>
@@ -90,9 +90,9 @@ let pipeline: Handler :=
       metrics),
     logger)
 
-let outcome: Result[Placement] := pipeline.handle(draft)</code></pre>
+let outcome: Result[Placement, String] := pipeline.handle(draft)</code></pre>
 
-<p>From the caller's side, <code>pipeline</code> is just a <code>Handler</code> — the same type as the bare <code>Core_Handler</code>. The caller cannot tell, and need not care, whether it holds one layer or ten; it calls <code>handle</code> and gets a <code>Result[Placement]</code>. That is the sense in which layering stays closed: however tall the stack, the outside sees a single value of the interface type, fully checked by the compiler.</p>
+<p>From the caller's side, <code>pipeline</code> is just a <code>Handler</code> — the same type as the bare <code>Core_Handler</code>. The caller cannot tell, and need not care, whether it holds one layer or ten; it calls <code>handle</code> and gets a <code>Result[Placement, String]</code>. That is the sense in which layering stays closed: however tall the stack, the outside sees a single value of the interface type, fully checked by the compiler.</p>
 
 <p>This is stratified design in the sense Sussman and Hanson describe it: each stratum is a <em>complete</em> version of the behavior. Peel off the logging layer and the metrics-wrapped core is still a working <code>Handler</code>. Peel off metrics too and the bare core still works. A layer refines what is beneath it without being necessary to it, so you can run any suffix of the stack and get a coherent system — which is precisely what makes the strata independently testable: wrap a stub <code>Handler</code> to test a layer in isolation, or run the core alone to test the domain without any of the operational dressing.</p>
 </section>
@@ -110,7 +110,7 @@ let outcome: Result[Placement] := pipeline.handle(draft)</code></pre>
 
 <p>There is one obligation a layer carries that the type system states only in part. Because a layer is substitutable for the handler it wraps — both are <code>Handler</code> — any caller relying on the base's behavior must not be surprised by the wrapper. A layer may <em>add</em> to what happens; it must not <em>break</em> what the base promised. A logging layer that swallowed an <code>Err</code> and returned a fabricated <code>Ok</code> would type-check perfectly and corrupt the system.</p>
 
-<p>This is the substitutability principle, and it is a contract, not a type. The interface guarantees the <em>shape</em> — a layer returns a <code>Result[Placement]</code> — but "the layer preserves the outcome the base computed, adding only its own concern" is a behavioral promise the compiler cannot see. State it where such promises belong: as a postcondition on <code>handle</code> that every layer must honor, so that wrapping a well-behaved handler yields a well-behaved handler. A well-formed stratum is one whose contract implies the contract of what it wraps. Keep that, and a tower of layers is as trustworthy as its base; break it in any single layer, and the tower silently lies.</p>
+<p>This is the substitutability principle, and it is a contract, not a type. The interface guarantees the <em>shape</em> — a layer returns a <code>Result[Placement, String]</code> — but "the layer preserves the outcome the base computed, adding only its own concern" is a behavioral promise the compiler cannot see. State it where such promises belong: as a postcondition on <code>handle</code> that every layer must honor, so that wrapping a well-behaved handler yields a well-behaved handler. A well-formed stratum is one whose contract implies the contract of what it wraps. Keep that, and a tower of layers is as trustworthy as its base; break it in any single layer, and the tower silently lies.</p>
 </section>
 
 <section id="end-of-the-bridge" class="level2" data-number="8.6">

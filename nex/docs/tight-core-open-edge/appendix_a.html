@@ -79,40 +79,45 @@ if prices.contains("pear") then ... end</code></pre>
 </section>
 
 <section id="sum-types" class="level2" data-number="A.4">
-<h2 class="anchored" data-anchor-id="sum-types"><span class="header-section-number">A.4</span> Sum Types: <code>sealed deferred</code> and <code>match</code></h2>
+<h2 class="anchored" data-anchor-id="sum-types"><span class="header-section-number">A.4</span> Sum Types: <code>union</code> and <code>match</code></h2>
 
-<p>A <em>sum type</em> — a value that is exactly one of a fixed set of shapes — is written as a <code>sealed deferred</code> parent class with one subclass per shape. <code>deferred</code> means the parent cannot be instantiated directly; <code>sealed</code> means the set of subclasses is closed, so the compiler knows them all. Subclasses use <code>inherit</code>.</p>
+<p>A <em>sum type</em> — a value that is exactly one of a fixed set of shapes — is written with <code>union</code>: the name of the whole, then one line per shape naming the data that shape carries.</p>
 
-<pre><code>sealed deferred class Shape
-end
-
-class Circle
-  inherit Shape
-  feature radius: Real
-  create make(r: Real) do radius := r end
-end
-
-class Square
-  inherit Shape
-  feature side: Real
-  create make(s: Real) do side := s end
+<pre><code>union Shape
+  Circle(radius: Real)
+  Square(side: Real)
 end</code></pre>
 
-<p>You take a sum type apart with <code>match</code>, which dispatches on the runtime shape. Each <code>when</code> binds the value at its specific type. Because <code>Shape</code> is sealed, the compiler requires every case to be handled — a missing one is a compile error.</p>
+<p>This is a <em>closed</em> set: the compiler knows every shape, so it can check that code handles them all. Each variant becomes a distinct type you build by name — <code>create Circle.make(2.0)</code> — and read as ordinary fields. Under the surface <code>union</code> expands to a <code>sealed deferred</code> parent class (a parent that cannot be instantiated and whose subclasses are closed) with one <code>inherit</code>ing subclass per shape; you can write that longhand yourself, and the book does so for the one type — the order state — whose variants also carry contracts, which <code>union</code> does not synthesize.</p>
+
+<p>You take a sum type apart with <code>match</code>, which dispatches on the runtime shape. Because <code>Shape</code> is closed, the compiler requires every case to be handled — a missing one is a compile error.</p>
 
 <pre><code>function area(s: Shape): Real
   do
     match s of
-      when Circle as c then result := 3.14159 * c.radius * c.radius
-      when Square as sq then result := sq.side * sq.side
+      when Circle(radius) then result := 3.14159 * radius * radius   -- destructure the field
+      when Square(side) then result := side * side
     end
   end</code></pre>
 
-<p>An <code>else</code> branch may cover the rest, but it switches off the exhaustiveness check, so the book uses it sparingly. A non-sealed <code>deferred</code> class is instead an <em>open</em> interface — new subclasses may be added anywhere — which is how the combinator and generic-operation chapters keep their vocabularies extensible.</p>
+<p>A <code>when</code> pattern both selects a shape and reads into it: <code>Circle(radius)</code> binds the <code>radius</code> field to a local of the same name. You can rename a field (<code>Circle(radius: r)</code>), ignore one (<code>_</code>), require it to equal a literal, add a Boolean <em>guard</em> that falls through when false (<code>when Circle(radius) if radius &gt; 0 then …</code>), and nest a pattern inside a field. Binding the whole value instead is still available as <code>when Circle as c then … c.radius …</code>. An <code>else</code> branch may cover the rest, but it switches off the exhaustiveness check, so the book uses it sparingly. A non-sealed <code>deferred</code> class is instead an <em>open</em> interface — new subclasses may be added anywhere — which is how the combinator and generic-operation chapters keep their vocabularies extensible.</p>
+
+<p>Two sum types are common enough that the standard library ships them, brought in with <code>intern</code>: <code>Result[T, E]</code> — <code>Ok(value: T)</code> or <code>Err(error: E)</code>, for a value or an error — and <code>Option[T]</code> — <code>Some(value: T)</code> or <code>None</code>. Their combinators (<code>result_map</code>, <code>result_and_then</code>, <code>result_map_err</code>, and the <code>option_*</code> pair) let a fallible pipeline be threaded without a <code>match</code> at every step.</p>
 </section>
 
-<section id="contracts" class="level2" data-number="A.5">
-<h2 class="anchored" data-anchor-id="contracts"><span class="header-section-number">A.5</span> Contracts: the Heart of the Book</h2>
+<section id="refinements" class="level2" data-number="A.5">
+<h2 class="anchored" data-anchor-id="refinements"><span class="header-section-number">A.5</span> Refinement Types: a Base Type With a Rule</h2>
+
+<p>A <em>refinement type</em> is an existing type narrowed by a predicate, declared in one line with <code>declare type … where</code>. It is not a new class and carries no wrapper: at runtime the value <em>is</em> its base type.</p>
+
+<pre><code>declare type Quantity = Integer where n: n &gt; 0        -- a positive integer
+declare type Percentage = Real where p: p &gt;= 0.0 and p &lt;= 100.0</code></pre>
+
+<p>The <code>where n: …</code> binds the value under test to <code>n</code> and gives a Boolean rule over it. The rule is checked wherever a plain value is <em>narrowed</em> into the refinement — a typed <code>let</code>, a parameter, a returned value — and never again; a <code>Quantity</code> flows back into any <code>Integer</code> slot for free, because it already is one. So a routine that asks for a <code>Quantity</code> can trust it is positive without re-checking, exactly as with a constrained class but with no <code>.value</code> to unwrap. The check is a contract, and strips out of production builds like every other contract.</p>
+</section>
+
+<section id="contracts" class="level2" data-number="A.6">
+<h2 class="anchored" data-anchor-id="contracts"><span class="header-section-number">A.6</span> Contracts: the Heart of the Book</h2>
 
 <p>Contracts are ordinary syntax in Nex, not a library. There are four forms, and Chapter 2 develops them in full; here is just enough to read them.</p>
 
@@ -136,8 +141,8 @@ end</code></pre>
 <p>The clause names (<code>positive</code>, <code>sufficient</code>, <code>reduced</code>) are part of the design: a violated contract reports which named promise broke.</p>
 </section>
 
-<section id="loops-and-functions" class="level2" data-number="A.6">
-<h2 class="anchored" data-anchor-id="loops-and-functions"><span class="header-section-number">A.6</span> Functions, Loops, and Type Conversion</h2>
+<section id="loops-and-functions" class="level2" data-number="A.7">
+<h2 class="anchored" data-anchor-id="loops-and-functions"><span class="header-section-number">A.7</span> Functions, Loops, and Type Conversion</h2>
 
 <p>A free-standing function is written with <code>function</code>. The loop form is <code>from … until … do … end</code>, with optional <code>invariant</code> and <code>variant</code> clauses; the <code>from</code> block initializes, the loop runs until its condition holds. A <code>for</code>-each over a collection is <code>across xs as x do … end</code>.</p>
 

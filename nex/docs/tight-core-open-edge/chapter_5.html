@@ -51,13 +51,13 @@ advance(o: Order)
 <p>Now model the same process on the sum type from §3.2. Each transition becomes a function from one shape to the next, and the signature carries the whole contract of the step.</p>
 
 <pre><code>-- Draft -> Placed. Can fail (an empty draft), so it returns a Result.
-function place(d: Draft): Result[Placed]
+function place(d: Draft): Result[Placed, String]
   do
     if d.items.length > 0 then
-      result := create Ok[Placed].make(
+      result := create Ok[Placed, String].make(
         create Placed.make(d.items, sum_of(d.items)))
     else
-      result := create Err[Placed].make("cannot place an empty order")
+      result := create Err[Placed, String].make("cannot place an empty order")
     end
   end
 
@@ -69,7 +69,7 @@ function ship(p: Placed, tracking: Tracking_Id): Shipped
     items_preserved: result.items = p.items
   end</code></pre>
 
-<p>Read the signatures before the bodies. <code>place</code> takes a <code>Draft</code> and returns a <code>Result[Placed]</code>: the input type says it operates on drafts and nothing else; the <code>Result</code> says it might fail. <code>ship</code> takes a <code>Placed</code> and returns a <code>Shipped</code> with no <code>Result</code> in sight: it cannot fail, because by the time you hold a <code>Placed</code>, everything shipping needs is already guaranteed. The <em>presence or absence</em> of <code>Result</code> in the return type is itself documentation — it tells the caller, at a glance, whether this step is one that can go wrong.</p>
+<p>Read the signatures before the bodies. <code>place</code> takes a <code>Draft</code> and returns a <code>Result[Placed, String]</code>: the input type says it operates on drafts and nothing else; the <code>Result</code> says it might fail. <code>ship</code> takes a <code>Placed</code> and returns a <code>Shipped</code> with no <code>Result</code> in sight: it cannot fail, because by the time you hold a <code>Placed</code>, everything shipping needs is already guaranteed. The <em>presence or absence</em> of <code>Result</code> in the return type is itself documentation — it tells the caller, at a glance, whether this step is one that can go wrong.</p>
 
 <p>And look at what the type of <code>ship</code> forbids: you cannot call it on a <code>Draft</code>, because <code>ship</code> demands a <code>Placed</code> and the compiler will not coerce one into the other. The illegal transition "ship an order that was never placed" — the exact bug the tangled <code>advance</code> left wide open — is now a type error. The state machine's legal edges are encoded as the argument types of its transition functions, and the illegal edges simply do not typecheck.</p>
 </section>
@@ -90,13 +90,13 @@ function ship(p: Placed, tracking: Tracking_Id): Shipped
 <p>With the steps as functions, the whole workflow is their composition. Data flows in one direction; each stage consumes the trustworthy output of the last and produces the input of the next; failure short-circuits exactly as it did for parsers in §4.5.</p>
 
 <pre><code>-- The whole process, read top to bottom: place, then ship.
-function fulfill(d: Draft, tracking: Tracking_Id): Result[Shipped]
+function fulfill(d: Draft, tracking: Tracking_Id): Result[Shipped, String]
   do
     match place(d) of
       when Ok as placed then
-        result := create Ok[Shipped].make(ship(placed.value, tracking))
+        result := create Ok[Shipped, String].make(ship(placed.value, tracking))
       when Err as e then
-        result := create Err[Shipped].make(e.message)   -- placing failed; stop here
+        result := create Err[Shipped, String].make(e.error)   -- placing failed; stop here
     end
   end</code></pre>
 

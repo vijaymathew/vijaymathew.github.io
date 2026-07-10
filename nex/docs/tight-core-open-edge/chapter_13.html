@@ -33,24 +33,10 @@
 <p>The data is a small, sealed set of forms — a closed structure, exactly as with the evaluator's syntax in Chapter 11. A term is a <em>variable</em> (an unknown to be solved for), an <em>atom</em> (a ground constant like a warehouse id), or a <em>compound</em> (a functor with argument terms, like <code>route(Warehouse, Carrier, Cost)</code>).</p>
 
 <pre><code>-- The structure is closed; the unknowns inside it are what we solve for.
-sealed deferred class Term
-end
-
-class Var inherit Term                       -- an unknown
-  feature name: String
-  create make(n: String) do name := n end
-end
-
-class Atom inherit Term                       -- a ground constant
-  feature value: String
-  create make(v: String) do value := v end
-end
-
-class Compound inherit Term                   -- functor applied to argument terms
-  feature
-    functor: String
-    args: Array[Term]
-  create make(f: String, xs: Array[Term]) do functor := f  args := xs end
+union Term
+  Var(name: String)                            -- an unknown
+  Atom(value: String)                          -- a ground constant
+  Compound(functor: String, args: Array[Term]) -- functor applied to argument terms
 end</code></pre>
 
 <p>A <strong>substitution</strong> is the partial knowledge here, playing the role the range played for propagators: a map from variable names to the terms they have been bound to. Two operations use it — <code>resolve</code>, which follows a term through the current bindings until it reaches an unbound variable or a non-variable, and <code>bind</code>, which extends it with one more binding. Like the propagator's merge, a substitution only ever accumulates.</p>
@@ -61,13 +47,13 @@ end</code></pre>
 
 <p>Unification takes two terms and a substitution, and returns either an extended substitution that makes the two terms identical, or a failure. Failure is <em>data</em> — a <code>Result</code>, as in Chapter 4 — not an exception, because failing to unify is an ordinary, expected outcome that the search above will handle.</p>
 
-<pre><code>function unify(a: Term, b: Term, s: Substitution): Result[Substitution]
+<pre><code>function unify(a: Term, b: Term, s: Substitution): Result[Substitution, String]
   do
     let x: Term := s.resolve(a)          -- follow existing bindings first
     let y: Term := s.resolve(b)
     match x of
-      when Var as v then
-        result := create Ok[Substitution].make(s.bind(v.name, y))   -- bind the unknown
+      when Var(name) then
+        result := create Ok[Substitution, String].make(s.bind(name, y))   -- bind the unknown
       when Atom as ax then
         result := unify_atom(ax, y, s)
       when Compound as cx then
@@ -75,25 +61,23 @@ end</code></pre>
     end
   end</code></pre>
 
-<p>The rules are simple and total over the sealed structure. A variable unifies with anything, by binding to it. Two atoms unify only if they are equal; otherwise it is a <em>clash</em>, and clash is a failure, not a crash:</p>
+<p>A <code>match</code> clause reads straight into a variant's payload: <code>Var(name)</code> both selects the variable case and binds its <code>name</code> field to a local, with no intermediate <code>v.name</code> — the pattern is the shape it destructures. The rules are simple and total over the sealed structure. A variable unifies with anything, by binding to it. Two atoms unify only if they are equal; otherwise it is a <em>clash</em>, and clash is a failure, not a crash. Here a <em>guard</em> — an <code>if</code> after the pattern — separates the agreeing atoms from the clashing ones, falling through to the next clause when it does not hold:</p>
 
-<pre><code>function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution]
+<pre><code>function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution, String]
   do
     match y of
-      when Var as v then
-        result := create Ok[Substitution].make(s.bind(v.name, ax))
-      when Atom as ay then
-        if ax.value = ay.value then
-          result := create Ok[Substitution].make(s)
-        else
-          result := create Err[Substitution].make("clash: " + ax.value + " vs " + ay.value)
-        end
+      when Var(name) then
+        result := create Ok[Substitution, String].make(s.bind(name, ax))
+      when Atom(value: v) if v = ax.value then
+        result := create Ok[Substitution, String].make(s)              -- atoms agree
+      when Atom(value: v) then
+        result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
       when Compound as c then
-        result := create Err[Substitution].make("atom does not match a structure")
+        result := create Err[Substitution, String].make("atom does not match a structure")
     end
   end</code></pre>
 
-<p>Two compounds unify when their functors and arities match and their arguments unify pairwise — threading the substitution through, so a binding learned from the first argument constrains the rest. That recursion, and the <em>occurs-check</em> that stops a variable being bound to a structure containing itself, are what keep unification from producing a circular or inconsistent answer. They are the structural analogue of the propagator's <code>ordered</code> invariant: guardrails that catch an inconsistency the moment it would enter.</p>
+<p>The guarded <code>Atom</code> clause narrows to the agreeing case; the unguarded <code>Atom</code> clause beneath it catches the rest, so the match stays exhaustive over the closed structure even with a guard in play. Two compounds unify when their functors and arities match and their arguments unify pairwise — threading the substitution through, so a binding learned from the first argument constrains the rest. That recursion, and the <em>occurs-check</em> that stops a variable being bound to a structure containing itself, are what keep unification from producing a circular or inconsistent answer. They are the structural analogue of the propagator's <code>ordered</code> invariant: guardrails that catch an inconsistency the moment it would enter.</p>
 </section>
 
 <section id="routing-by-unification" class="level2" data-number="13.3">
@@ -110,12 +94,12 @@ end</code></pre>
 <p>Usually several routes unify with an order, and not all of them will hold up: a route may match structurally but the warehouse is out of stock, or the carrier cannot meet the deadline. So we <em>search</em> — try a candidate, check whether its bindings satisfy the domain constraints, and if not, <em>backtrack</em> and try the next. This is the nondeterminism at the heart of logic programming: commit tentatively, and undo on failure.</p>
 
 <pre><code>-- Try each route; the first whose bindings satisfy every constraint wins.
-function route(order: Term, routes: Array[Term]): Result[Substitution]
+function route(order: Term, routes: Array[Term]): Result[Substitution, String]
   do
     from
       let i: Integer := 0
       let found: Boolean := false
-      result := create Err[Substitution].make("no eligible route")
+      result := create Err[Substitution, String].make("no eligible route")
     invariant
       in_range: 0 &lt;= i and i &lt;= routes.length
     variant
@@ -126,7 +110,7 @@ function route(order: Term, routes: Array[Term]): Result[Substitution]
       match unify(order, routes.get(i), create Substitution.make()) of
         when Ok as s then
           if satisfies_constraints(s.value) then
-            result := create Ok[Substitution].make(s.value)   -- commit to this route
+            result := create Ok[Substitution, String].make(s.value)   -- commit to this route
             found := true
           end
           -- else: bindings don't satisfy stock/deadline — fall through and backtrack
@@ -143,7 +127,7 @@ function route(order: Term, routes: Array[Term]): Result[Substitution]
 <section id="runtime-guardrails" class="level2" data-number="13.5">
 <h2 class="anchored" data-anchor-id="runtime-guardrails"><span class="header-section-number">13.5</span> The Technique That Lives on Guardrails</h2>
 
-<p>Unification and search are the most open construction in the book, and it is worth being exact about how little the type system can promise inside them. The bindings are discovered at runtime; whether any assignment exists is unknown until the search runs; whether the search even <em>terminates</em> is not a fact any signature carries. Everything the compiler proved through Part II — exhaustive states, total functions, values well-formed by construction — is, in the interior of a search, simply unavailable. The type of <code>route</code> tells you it returns a <code>Result[Substitution]</code>; it cannot tell you the substitution is any good.</p>
+<p>Unification and search are the most open construction in the book, and it is worth being exact about how little the type system can promise inside them. The bindings are discovered at runtime; whether any assignment exists is unknown until the search runs; whether the search even <em>terminates</em> is not a fact any signature carries. Everything the compiler proved through Part II — exhaustive states, total functions, values well-formed by construction — is, in the interior of a search, simply unavailable. The type of <code>route</code> tells you it returns a <code>Result[Substitution, String]</code>; it cannot tell you the substitution is any good.</p>
 
 <p>So the guarantees are carried, almost in their entirety, by runtime guardrails — and every one of them is visible in the code above. Failure is <em>data</em>, so a clash or a dead end is an ordinary value the search consumes, not a crash. The <code>variant</code> <code>routes.length - i</code> is a proof of <em>termination</em>: a search that cannot decrease its bound cannot run forever, which is the single most important thing to guarantee about any search. And <code>satisfies_constraints</code> is the domain <em>postcondition</em> that a committed solution must meet — the guardrail that turns "unifies structurally" into "is actually a route we can honor", refusing to return an answer that type-checks but cannot ship.</p>
 
