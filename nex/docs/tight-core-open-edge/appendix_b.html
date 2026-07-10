@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appendix B · The Complete Capstone — Tight Core, Open Edge</title>
+<meta name="description" content="The running order-and-fulfillment system in one listing — constrained core, open pricing edge, contract membrane, routing by search, and the shell.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="appendix_a.html">App. A</a><a href="appendix_b.html" class="active">App. B</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix B</span>
+<h1 class="opener-title">The Complete Capstone</h1>
+<p class="opener-lede">Chapter 15 walked the running system in fragments. Here it is whole, in one listing — every region in the order it was built, so the seams and the membrane are visible on one page.</p>
+</div>
+<article class="prose">
+
+<p>This appendix collects the running example into a single coherent program: a tightly-modelled order core, an open pricing engine, a contract membrane between them, fulfillment routing by unification and search, and a thin imperative shell. It is organized bottom-up — leaf types first, orchestration last — so each section depends only on the ones above it.</p>
+
+<p>To keep the listing about the architecture rather than about currency arithmetic and string parsing, two things at the very edges are taken as given, with the exact interface the rest of the code relies on. Everything else is complete.</p>
+
+<section id="assumed" class="level2" data-number="B.1">
+<h2 class="anchored" data-anchor-id="assumed"><span class="header-section-number">B.1</span> Assumed Leaf Types and Boundary Parser</h2>
+
+<p>The primitive value types are treated as a small library. <code>Money</code> is an amount with a currency, supporting <code>+</code>, <code>-</code>, the comparisons, a currency-agnostic <code>Money.zero</code>, and two domain operations used by pricing: <code>less_percent(pct)</code> and <code>times(n)</code>. <code>Sku</code>, <code>Email_Address</code>, <code>Tracking_Id</code>, and <code>Instant</code> are opaque identifiers and timestamps.</p>
+
+<pre><code>-- Assumed value types (a small supporting library):
+--   Money           : + - = &lt; &lt;= &gt; &gt;= ; .currency: String ; Money.zero
+--                     less_percent(pct: Integer): Money ; times(n: Integer): Money
+--   Sku, Email_Address, Tracking_Id, Instant : opaque
+--
+-- Assumed boundary parser (Chapter 4), built from field parsers like parse_quantity:
+--   parse_order(request: Order_Request): Result[Draft]
+--     -- turns an untrusted request into a validated Draft, or an Err with a reason</code></pre>
+</section>
+
+<section id="core" class="level2" data-number="B.2">
+<h2 class="anchored" data-anchor-id="core"><span class="header-section-number">B.2</span> The Constrained Core (Chapters 3&ndash;5)</h2>
+
+<p>A <code>Quantity</code> cannot be non-positive; a <code>Line_Item</code> pairs a SKU with a quantity and a unit price; an <code>Order</code> is exactly one of three shapes. <code>Placed</code>'s invariant is the membrane form from Chapter 15 — a non-negative total in a well-formed order — not the pre-pricing <code>total = sum</code> simplification of Chapter 3.</p>
+
+<pre><code>class Quantity
+  create
+    of(n: Integer)
+      require positive: n &gt; 0
+      do value := n end
+  feature
+    value: Integer
+  invariant
+    positive: value &gt; 0
+end
+
+class Line_Item
+  create make(s: Sku, q: Quantity, unit: Money) do sku := s  quantity := q  unit_price := unit end
+  feature
+    sku: Sku
+    quantity: Quantity
+    unit_price: Money
+    subtotal(): Money do result := unit_price.times(quantity.value) end
+end
+
+function sum_of(items: Array[Line_Item]): Money
+  do
+    result := Money.zero
+    across items as it do
+      result := result + it.subtotal
+    end
+  end
+
+sealed deferred class Order
+end
+
+class Draft
+  inherit Order
+  create make(xs: Array[Line_Item], ccy: String, floor: Money,
+              email: Email_Address, dest: String)
+    do items := xs  currency := ccy  floor_price := floor
+       customer_email := email  zone := dest end
+  feature
+    items: Array[Line_Item]
+    currency: String
+    floor_price: Money
+    customer_email: Email_Address
+    zone: String
+end
+
+class Placed
+  inherit Order
+  create make(xs: Array[Line_Item], t: Money, email: Email_Address, dest: String)
+    require not_empty: xs.length &gt; 0
+    do items := xs  total := t  customer_email := email  zone := dest end
+  feature
+    items: Array[Line_Item]
+    total: Money
+    customer_email: Email_Address
+    zone: String
+  invariant
+    not_empty:     items.length &gt; 0
+    non_negative:  total &gt;= Money.zero
+end
+
+class Shipped
+  inherit Order
+  create make(xs: Array[Line_Item], t: Tracking_Id) do items := xs  tracking := t end
+  feature
+    items: Array[Line_Item]
+    tracking: Tracking_Id
+end
+
+-- The one total transition into shipment: you cannot ship what was never placed.
+function ship(p: Placed, t: Tracking_Id): Shipped
+  do
+    result := create Shipped.make(p.items, t)
+  ensure
+    items_preserved: result.items = p.items
+  end</code></pre>
+</section>
+
+<section id="result" class="level2" data-number="B.3">
+<h2 class="anchored" data-anchor-id="result"><span class="header-section-number">B.3</span> Result (Chapter 4)</h2>
+
+<pre><code>sealed deferred class Result[T]
+end
+
+class Ok[T]
+  inherit Result[T]
+  feature value: T
+  create make(v: T) do value := v end
+end
+
+class Err[T]
+  inherit Result[T]
+  feature message: String
+  create make(m: String) do message := m end
+end</code></pre>
+</section>
+
+<section id="edge" class="level2" data-number="B.4">
+<h2 class="anchored" data-anchor-id="edge"><span class="header-section-number">B.4</span> The Open Pricing Edge (Chapters 7 &amp; 10)</h2>
+
+<p>Pricing is a small open language of expressions evaluated against a <code>Draft</code>, with conditions drawn from a specification algebra. Both interfaces are <code>deferred</code> and unsealed, so new terms and new conditions are added without editing anything.</p>
+
+<pre><code>-- Specifications: an open algebra of conditions on a draft (Chapter 7).
+deferred class Spec[T]
+  feature holds(item: T): Boolean do end
+end
+
+class Over_Amount inherit Spec[Draft]
+  create make(m: Money) do threshold := m end
+  feature
+    threshold: Money
+    holds(d: Draft): Boolean do result := sum_of(d.items) &gt;= threshold end
+end
+
+-- Pricing expressions: an open language, evaluated to a Money (Chapter 10).
+deferred class Price_Expr
+  feature eval(d: Draft): Money do end
+end
+
+class Base inherit Price_Expr
+  create make() do end
+  feature eval(d: Draft): Money do result := sum_of(d.items) end
+end
+
+class Percent_Off inherit Price_Expr
+  create make(pct: Integer, inner: Price_Expr) do percent := pct  base := inner end
+  feature
+    percent: Integer
+    base: Price_Expr
+    eval(d: Draft): Money
+      require valid_percent: percent &gt;= 0 and percent &lt;= 100
+      do result := base.eval(d).less_percent(percent) end
+      ensure no_increase: result &lt;= base.eval(d)
+  end
+
+class When inherit Price_Expr
+  create make(s: Spec[Draft], t: Price_Expr, e: Price_Expr)
+    do condition := s  yes := t  no := e end
+  feature
+    condition: Spec[Draft]
+    yes: Price_Expr
+    no: Price_Expr
+    eval(d: Draft): Money
+      do
+        if condition.holds(d) then result := yes.eval(d)
+        else result := no.eval(d) end
+      end
+end
+
+class Floored inherit Price_Expr
+  create make(inner: Price_Expr) do base := inner end
+  feature
+    base: Price_Expr
+    eval(d: Draft): Money
+      do
+        let p: Money := base.eval(d)
+        if p &lt; d.floor_price then result := d.floor_price else result := p end
+      ensure respects_floor: result &gt;= d.floor_price
+  end</code></pre>
+</section>
+
+<section id="membrane" class="level2" data-number="B.5">
+<h2 class="anchored" data-anchor-id="membrane"><span class="header-section-number">B.5</span> The Membrane (Chapters 2, 9, 15)</h2>
+
+<p>The one gate through which every price, from any rule that will ever exist, must pass to become part of an order. Written from the core's side; it states the terms and admits only what meets them.</p>
+
+<pre><code>function admit_quote(draft: Draft, quote: Money): Result[Placed]
+  require
+    same_currency: quote.currency = draft.currency
+  do
+    if quote &lt; Money.zero then
+      result := create Err[Placed].make("quote is negative")
+    elsif quote &lt; draft.floor_price then
+      result := create Err[Placed].make("quote below floor")
+    else
+      -- on success, Placed's own invariant guarantees a consistent order
+      result := create Ok[Placed].make(
+        create Placed.make(draft.items, quote, draft.customer_email, draft.zone))
+    end
+  end</code></pre>
+</section>
+
+<section id="effects" class="level2" data-number="B.6">
+<h2 class="anchored" data-anchor-id="effects"><span class="header-section-number">B.6</span> Effects as Data (Chapter 6)</h2>
+
+<pre><code>sealed deferred class Effect
+end
+
+class Charge_Payment inherit Effect
+  feature amount: Money
+  create make(a: Money) do amount := a end
+end
+
+class Reserve_Stock inherit Effect
+  feature
+    warehouse: String
+    items: Array[Line_Item]
+  create make(w: String, xs: Array[Line_Item]) do warehouse := w  items := xs end
+end
+
+class Send_Confirmation inherit Effect
+  feature recipient: Email_Address
+  create make(r: Email_Address) do recipient := r end
+end
+
+class Record_Order inherit Effect
+  feature order: Placed
+  create make(o: Placed) do order := o end
+end
+
+class Placement
+  feature
+    order: Placed
+    effects: Array[Effect]
+  create make(o: Placed, fx: Array[Effect]) do order := o  effects := fx end
+end</code></pre>
+</section>
+
+<section id="routing" class="level2" data-number="B.7">
+<h2 class="anchored" data-anchor-id="routing"><span class="header-section-number">B.7</span> Fulfillment by Unification and Search (Chapter 13)</h2>
+
+<p>Terms are a closed structure with open unknowns; unification finds the substitution that makes two terms agree; the search tries each ground route fact against the order's query and keeps the first that satisfies the domain.</p>
+
+<pre><code>sealed deferred class Term
+end
+
+class Var inherit Term
+  feature name: String
+  create make(n: String) do name := n end
+end
+
+class Atom inherit Term
+  feature value: String
+  create make(v: String) do value := v end
+end
+
+class Compound inherit Term
+  feature
+    functor: String
+    args: Array[Term]
+  create make(f: String, xs: Array[Term]) do functor := f  args := xs end
+end
+
+class Substitution
+  create make() do bindings := {} end
+  feature
+    bindings: Map[String, Term]
+
+    bind(vname: String, t: Term): Substitution
+      do bindings.put(vname, t)  result := this end
+
+    resolve(t: Term): Term
+      do
+        match t of
+          when Var as v then
+            if bindings.contains(v.name) then result := resolve(bindings.get(v.name))
+            else result := v end
+          else
+            result := t
+        end
+      end
+end
+
+function unify(a: Term, b: Term, s: Substitution): Result[Substitution]
+  do
+    let x: Term := s.resolve(a)
+    let y: Term := s.resolve(b)
+    match x of
+      when Var as v then result := create Ok[Substitution].make(s.bind(v.name, y))
+      when Atom as ax then result := unify_atom(ax, y, s)
+      when Compound as cx then result := unify_compound(cx, y, s)
+    end
+  end
+
+function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution]
+  do
+    match y of
+      when Var as v then result := create Ok[Substitution].make(s.bind(v.name, ax))
+      when Atom as ay then
+        if ax.value = ay.value then result := create Ok[Substitution].make(s)
+        else result := create Err[Substitution].make("clash: " + ax.value + " vs " + ay.value) end
+      when Compound as c then result := create Err[Substitution].make("atom vs structure")
+    end
+  end
+
+function unify_compound(cx: Compound, y: Term, s: Substitution): Result[Substitution]
+  do
+    match y of
+      when Var as v then result := create Ok[Substitution].make(s.bind(v.name, cx))
+      when Atom as a then result := create Err[Substitution].make("structure vs atom")
+      when Compound as cy then
+        if cx.functor = cy.functor and cx.args.length = cy.args.length then
+          result := unify_args(cx.args, cy.args, s, 0)
+        else
+          result := create Err[Substitution].make("functor / arity mismatch")
+        end
+    end
+  end
+
+function unify_args(xs: Array[Term], ys: Array[Term], s: Substitution, i: Integer): Result[Substitution]
+  do
+    if i &gt;= xs.length then
+      result := create Ok[Substitution].make(s)
+    else
+      match unify(xs.get(i), ys.get(i), s) of
+        when Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)
+        when Err as e then result := create Err[Substitution].make(e.message)
+      end
+    end
+  end
+
+-- The order's routing query: known zone, unknown warehouse/carrier/cost.
+function routing_query(o: Placed): Term
+  do
+    let args: Array[Term] := []
+    args.add(create Atom.make(o.zone))
+    args.add(create Var.make("Warehouse"))
+    args.add(create Var.make("Carrier"))
+    args.add(create Var.make("Cost"))
+    result := create Compound.make("route", args)
+  end
+
+-- A domain guardrail on a committed solution (a real one checks stock and deadline).
+function satisfies_constraints(s: Substitution): Boolean
+  do result := s.bindings.contains("Warehouse") end
+
+function warehouse_of(s: Substitution): String
+  do
+    match s.resolve(create Var.make("Warehouse")) of
+      when Atom as a then result := a.value
+      else result := "unknown"
+    end
+  end
+
+-- Try each route fact; the first whose bindings satisfy every constraint wins.
+function route(query: Term, routes: Array[Term]): Result[Substitution]
+  do
+    from
+      let i: Integer := 0
+      let found: Boolean := false
+      result := create Err[Substitution].make("no eligible route")
+    invariant
+      in_range: 0 &lt;= i and i &lt;= routes.length
+    variant
+      routes.length - i
+    until
+      i &gt;= routes.length or found
+    do
+      match unify(query, routes.get(i), create Substitution.make()) of
+        when Ok as s then
+          if satisfies_constraints(s.value) then
+            result := create Ok[Substitution].make(s.value)
+            found := true
+          end
+        when Err as e then
+          -- structural mismatch: backtrack, try the next route
+      end
+      i := i + 1
+    end
+  end</code></pre>
+</section>
+
+<section id="orchestration" class="level2" data-number="B.8">
+<h2 class="anchored" data-anchor-id="orchestration"><span class="header-section-number">B.8</span> The Orchestration (Chapter 15)</h2>
+
+<p>One pure function threads a request through every region: parse, price, admit, route, and decide the effects. It performs nothing.</p>
+
+<pre><code>function place_order(request: Order_Request, rule: Price_Expr,
+                     routes: Array[Term], now: Instant): Result[Placement]
+  do
+    match parse_order(request) of                        -- 1. boundary (Ch 4)
+      when Err as bad then
+        result := create Err[Placement].make(bad.message)
+      when Ok as parsed then
+        let draft: Draft := parsed.value
+        let quote: Money := rule.eval(draft)              -- 2. open edge (Ch 10)
+        match admit_quote(draft, quote) of                -- 3. membrane (Ch 2, 9)
+          when Err as rejected then
+            result := create Err[Placement].make(rejected.message)
+          when Ok as ok then
+            result := plan_fulfillment(ok.value, routes, now)   -- 4. core decides
+        end
+    end
+  end
+
+function plan_fulfillment(placed: Placed, routes: Array[Term],
+                          now: Instant): Result[Placement]
+  do
+    match route(routing_query(placed), routes) of         -- 4a. routing (Ch 13)
+      when Err as e then
+        result := create Err[Placement].make("unfulfillable: " + e.message)
+      when Ok as sol then
+        let fx: Array[Effect] := []                        -- 4b. effects as data (Ch 6)
+        fx.add(create Charge_Payment.make(placed.total))
+        fx.add(create Reserve_Stock.make(warehouse_of(sol.value), placed.items))
+        fx.add(create Send_Confirmation.make(placed.customer_email))
+        fx.add(create Record_Order.make(placed))
+        result := create Ok[Placement].make(create Placement.make(placed, fx))
+    end
+  end</code></pre>
+</section>
+
+<section id="shell" class="level2" data-number="B.9">
+<h2 class="anchored" data-anchor-id="shell"><span class="header-section-number">B.9</span> The Imperative Shell (Chapters 6 &amp; 8)</h2>
+
+<p>The only region that touches the world: it calls the pure core, then performs the returned effects. A real deployment wraps this in the logging and metrics layers of Chapter 8; the effect loop itself is this small.</p>
+
+<pre><code>perform(e: Effect, gateway: Payment_Gateway, mailer: Mailer,
+        store: Order_Store, warehouse: Warehouse_Api)
+  do
+    match e of
+      when Charge_Payment as c then gateway.charge(c.amount)
+      when Reserve_Stock as r then warehouse.reserve(r.warehouse, r.items)
+      when Send_Confirmation as s then mailer.send(s.recipient)
+      when Record_Order as rec then store.save(rec.order)
+    end
+  end
+
+-- Drive one request: decide purely, then perform.
+function handle_request(request: Order_Request, rule: Price_Expr, routes: Array[Term],
+                        now: Instant, gateway: Payment_Gateway, mailer: Mailer,
+                        store: Order_Store, warehouse: Warehouse_Api): Result[Placed]
+  do
+    match place_order(request, rule, routes, now) of
+      when Err as e then
+        result := create Err[Placed].make(e.message)
+      when Ok as placement then
+        across placement.value.effects as fx do
+          perform(fx, gateway, mailer, store, warehouse)
+        end
+        result := create Ok[Placed].make(placement.value.order)
+    end
+  end</code></pre>
+</section>
+
+<section id="together" class="level2" data-number="B.10">
+<h2 class="anchored" data-anchor-id="together"><span class="header-section-number">B.10</span> Putting It Together</h2>
+
+<p>Finally, the open edge configured as data — a pricing rule and a table of routes — and one request driven through the whole system. Note that every extension point is a value: a new promotion is a new <code>Price_Expr</code>, a new route is a new fact appended to <code>routes</code>, and neither touches the core or the membrane.</p>
+
+<pre><code>-- A pricing rule, as data: 10% off large orders, never below the floor.
+let rule: Price_Expr :=
+  create Floored.make(
+    create When.make(
+      create Over_Amount.make(big_order_threshold),
+      create Percent_Off.make(10, create Base.make()),
+      create Base.make()))
+
+-- Route facts, as data: (zone, warehouse, carrier, cost).
+function route_fact(zone: String, wh: String, carrier: String, cost: String): Term
+  do
+    let args: Array[Term] := []
+    args.add(create Atom.make(zone))
+    args.add(create Atom.make(wh))
+    args.add(create Atom.make(carrier))
+    args.add(create Atom.make(cost))
+    result := create Compound.make("route", args)
+  end
+
+let routes: Array[Term] := []
+-- routes.add(route_fact("zone-a", "wh-1", "ups", "500"))
+-- routes.add(route_fact("zone-b", "wh-2", "fedex", "650"))
+
+let outcome: Result[Placed] :=
+  handle_request(incoming, rule, routes, now,
+                 gateway, mailer, store, warehouse)</code></pre>
+
+<p>That is the whole system: a core the compiler proves correct, an edge that grows by adding data, and a single contract holding the two apart and together. Constraint and flexibility, one codebase, no contradiction.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="appendix_a.html"><span class="label">&larr; Appendix A</span><span class="ttl">Reading Nex</span></a></div><div class="next"><a href="appendix_c.html"><span class="label">Appendix C &rarr;</span><span class="ttl">Sources &amp; Further Reading</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

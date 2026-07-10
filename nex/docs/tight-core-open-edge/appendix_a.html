@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appendix A · Reading Nex — Tight Core, Open Edge</title>
+<meta name="description" content="A short orientation to the Nex constructs used in this book, for readers who know another typed language.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="appendix_a.html" class="active">App. A</a><a href="appendix_b.html">App. B</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix A</span>
+<h1 class="opener-title">Reading Nex</h1>
+<p class="opener-lede">You do not need to know Nex to follow this book. This appendix is a short orientation to the handful of constructs the listings use, for a reader who already knows another typed language.</p>
+</div>
+<article class="prose">
+
+<p>Nex is an object-oriented language with static types, generics, and Design by Contract built into its ordinary syntax. If you have written Java, C#, Swift, Kotlin, F#, or TypeScript, almost everything here will look familiar; this appendix just names the pieces so nothing in a listing is a surprise. It is a reading guide, not a tutorial — enough to follow the code, no more.</p>
+
+<section id="basics" class="level2" data-number="A.1">
+<h2 class="anchored" data-anchor-id="basics"><span class="header-section-number">A.1</span> Comments, Values, and Names</h2>
+
+<p>Comments begin with <code>--</code> and run to the end of the line. A local variable is introduced with <code>let</code>, given a type after a colon, and assigned with <code>:=</code>. Plain assignment also uses <code>:=</code>. Equality is <code>=</code>, and inequality is <code>/=</code>.</p>
+
+<pre><code>-- a line comment
+let total: Integer := 3 + 4          -- declare with a type, assign with :=
+let greeting: String := "hello"
+total := total + 1                   -- reassignment
+</code></pre>
+
+<p>Booleans combine with the words <code>and</code>, <code>or</code>, and <code>not</code>; comparisons are the usual <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>.</p>
+</section>
+
+<section id="classes" class="level2" data-number="A.2">
+<h2 class="anchored" data-anchor-id="classes"><span class="header-section-number">A.2</span> Classes: <code>create</code> and <code>feature</code></h2>
+
+<p>A class groups data and behavior. Constructors live under <code>create</code> and are named (there is no single unnamed constructor); fields and methods live under <code>feature</code>. You build an instance with the keyword <code>create</code> followed by the class and constructor name. Inside a method, <code>this</code> refers to the current object, and the return value is assigned to the special name <code>result</code>.</p>
+
+<pre><code>class Counter
+  create
+    make(start: Integer) do value := start end
+  feature
+    value: Integer
+    increment() do value := value + 1 end
+    current(): Integer do result := value end     -- 'result' is the return value
+end
+
+let c: Counter := create Counter.make(0)           -- construct with 'create'
+c.increment()
+let n: Integer := c.current                          -- a no-argument call needs no ()</code></pre>
+
+<p>A method that takes no arguments may be called without parentheses — <code>c.current</code> rather than <code>c.current()</code> — which is why field-like reads in the book often have no trailing <code>()</code>.</p>
+</section>
+
+<section id="generics" class="level2" data-number="A.3">
+<h2 class="anchored" data-anchor-id="generics"><span class="header-section-number">A.3</span> Generics, Arrays, and Maps</h2>
+
+<p>Type parameters go in square brackets: <code>class Box[T]</code>, and a concrete instance is <code>create Box[Integer].make(...)</code>. The two built-in collections the book uses are <code>Array[T]</code> and <code>Map[K, V]</code>.</p>
+
+<pre><code>let xs: Array[Integer] := [1, 2, 3]        -- array literal
+xs.add(4)                                   -- append
+let first: Integer := xs.get(0)             -- read by index
+let count: Integer := xs.length             -- size
+
+let prices: Map[String, Integer] := {}      -- empty map
+prices.put("apple", 150)
+let p: Integer := prices.get("apple")
+if prices.contains("pear") then ... end</code></pre>
+
+<p>The empty-map literal is <code>{}</code>; a populated one is <code>{"apple": 150, "pear": 120}</code>. <code>Any</code> is the top type every value inherits, used where the book deliberately steps outside static typing (Chapter 9 onward).</p>
+</section>
+
+<section id="sum-types" class="level2" data-number="A.4">
+<h2 class="anchored" data-anchor-id="sum-types"><span class="header-section-number">A.4</span> Sum Types: <code>sealed deferred</code> and <code>match</code></h2>
+
+<p>A <em>sum type</em> — a value that is exactly one of a fixed set of shapes — is written as a <code>sealed deferred</code> parent class with one subclass per shape. <code>deferred</code> means the parent cannot be instantiated directly; <code>sealed</code> means the set of subclasses is closed, so the compiler knows them all. Subclasses use <code>inherit</code>.</p>
+
+<pre><code>sealed deferred class Shape
+end
+
+class Circle
+  inherit Shape
+  feature radius: Real
+  create make(r: Real) do radius := r end
+end
+
+class Square
+  inherit Shape
+  feature side: Real
+  create make(s: Real) do side := s end
+end</code></pre>
+
+<p>You take a sum type apart with <code>match</code>, which dispatches on the runtime shape. Each <code>when</code> binds the value at its specific type. Because <code>Shape</code> is sealed, the compiler requires every case to be handled — a missing one is a compile error.</p>
+
+<pre><code>function area(s: Shape): Real
+  do
+    match s of
+      when Circle as c then result := 3.14159 * c.radius * c.radius
+      when Square as sq then result := sq.side * sq.side
+    end
+  end</code></pre>
+
+<p>An <code>else</code> branch may cover the rest, but it switches off the exhaustiveness check, so the book uses it sparingly. A non-sealed <code>deferred</code> class is instead an <em>open</em> interface — new subclasses may be added anywhere — which is how the combinator and generic-operation chapters keep their vocabularies extensible.</p>
+</section>
+
+<section id="contracts" class="level2" data-number="A.5">
+<h2 class="anchored" data-anchor-id="contracts"><span class="header-section-number">A.5</span> Contracts: the Heart of the Book</h2>
+
+<p>Contracts are ordinary syntax in Nex, not a library. There are four forms, and Chapter 2 develops them in full; here is just enough to read them.</p>
+
+<ul>
+<li><strong><code>require</code></strong> — a <em>precondition</em>: what the caller must ensure before calling. Each clause has a name.</li>
+<li><strong><code>ensure</code></strong> — a <em>postcondition</em>: what the routine guarantees on return. <code>old e</code> refers to the value of <code>e</code> on entry.</li>
+<li><strong><code>invariant</code></strong> — a property of an object that holds before and after every method (written at the end of the class), or a property preserved across a loop.</li>
+<li><strong><code>variant</code></strong> — an integer that strictly decreases each loop iteration, proving the loop ends.</li>
+</ul>
+
+<pre><code>withdraw(amount: Money)
+  require
+    positive: amount &gt; Money.zero
+    sufficient: amount &lt;= balance
+  do
+    balance := balance - amount
+  ensure
+    reduced: balance = old balance - amount
+  end</code></pre>
+
+<p>The clause names (<code>positive</code>, <code>sufficient</code>, <code>reduced</code>) are part of the design: a violated contract reports which named promise broke.</p>
+</section>
+
+<section id="loops-and-functions" class="level2" data-number="A.6">
+<h2 class="anchored" data-anchor-id="loops-and-functions"><span class="header-section-number">A.6</span> Functions, Loops, and Type Conversion</h2>
+
+<p>A free-standing function is written with <code>function</code>. The loop form is <code>from … until … do … end</code>, with optional <code>invariant</code> and <code>variant</code> clauses; the <code>from</code> block initializes, the loop runs until its condition holds. A <code>for</code>-each over a collection is <code>across xs as x do … end</code>.</p>
+
+<pre><code>function sum(xs: Array[Integer]): Integer
+  do
+    from
+      let i: Integer := 0
+      result := 0
+    invariant
+      in_range: 0 &lt;= i and i &lt;= xs.length
+    variant
+      xs.length - i                     -- proves termination
+    until
+      i &gt;= xs.length
+    do
+      result := result + xs.get(i)
+      i := i + 1
+    end
+  end</code></pre>
+
+<p>Finally, <code>convert value to name: Type</code> attempts a runtime downcast: on success <code>name</code> is bound to the converted value, on failure to <code>nil</code>. The book uses it at the points where an open, table-dispatched design has to recover a concrete type the compiler no longer tracks (Chapter 9). A leading <code>?</code> on a type, as in <code>?T</code>, marks it <em>detachable</em> — it may hold <code>nil</code>.</p>
+
+<p>That is the whole vocabulary. With it, every listing in the book should read straightforwardly; where a construct does something subtle, the surrounding chapter explains it in place.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_15.html"><span class="label">&larr; Chapter 15</span><span class="ttl">Capstone: One System, Both Disciplines</span></a></div><div class="next"><a href="appendix_b.html"><span class="label">Appendix B &rarr;</span><span class="ttl">The Complete Capstone</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>
