@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Ways Software Gets Hard — Tight Core, Open Edge</title>
+<meta name="description" content="Constraint versus flexibility as opposing responses to complexity, and contracts as the hinge between them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_1.html" class="active">Ch. 1</a><a href="chapter_2.html">Ch. 2</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 1 · Part I</span>
+<h1 class="opener-title">Two Ways Software Gets Hard</h1>
+<p class="opener-lede">Software rots for two different reasons, and the two disciplines that fight them pull in opposite directions. This chapter names the conflict the rest of the book is built to resolve.</p>
+</div>
+<article class="prose">
+
+<p>Every experienced programmer has felt software get harder over time, but not everyone has noticed that it gets harder in two distinct ways — ways that call for opposite responses, and that a single codebase usually suffers from at once.</p>
+
+<p>The first kind of hardness is <em>being wrong</em>. The program compiles and ships, but the model underneath it does not match the world it claims to describe. An order can be in the state <em>shipped</em> while its list of items is empty. A discount can be applied twice because nothing in the code says it may only be applied once. A temperature reading arrives as the string <code>"N/A"</code> and flows, unremarked, into an average. None of these are crashes. They are a model that permits things the domain forbids — and every one of them will eventually reach a customer.</p>
+
+<p>The second kind of hardness is <em>being rigid</em>. The model is correct, but the code is built so that changing it means editing it — often in many places at once. A new payment method means touching the checkout screen, the receipt formatter, the refund path, and three <code>if</code> statements that nobody remembers the reason for. The program is not wrong; it is simply <em>set</em>, and every new requirement has to be pried into a structure that did not anticipate it. Rigidity does not reach the customer as a bug. It reaches the team as a slowdown, and then as a fear of touching the code at all.</p>
+
+<div class="thesis">Software gets hard two ways: you model the domain <strong>wrong</strong> (illegal states, tangled rules), or you build it so you <strong>can't change it</strong> (rigid, edit-to-extend). The constraint tradition fights the first. The flexibility tradition fights the second. They pull in opposite directions — and the resolution is: <strong>constrain the core, open the edges, and let contracts be the membrane between them.</strong></div>
+
+<section id="the-constraint-tradition" class="level2" data-number="1.1">
+<h2 class="anchored" data-anchor-id="the-constraint-tradition"><span class="header-section-number">1.1</span> The Constraint Tradition</h2>
+
+<p>One tradition of software design answers the first hardness by <em>narrowing what the program can even say</em>. If an empty shipped order is nonsense, then arrange the types so that an empty shipped order cannot be constructed. If a temperature is a number, then it should never have been possible for the string <code>"N/A"</code> to occupy that slot. The discipline here is subtractive: you remove the ability to express bad states, and what remains is, by construction, closer to correct.</p>
+
+<p>This is the world of precise domain models — of types that mean something, of making illegal states unrepresentable, of parsing untrusted input into trustworthy values once, at the boundary, so the interior never has to check again. Its instinct is to <em>close doors</em>. Every door closed is a class of bug that can no longer occur, and a class of test that no longer needs to be written because the compiler now carries the argument.</p>
+
+<p>Here is the instinct in miniature. Rather than let an order be a bag of fields that any combination of code can leave in any state, we make the states themselves the type, and let the compiler enforce that only one is ever active:</p>
+
+<pre><code>-- An order is exactly one of these shapes — never a blur of nullable fields.
+sealed deferred class Order
+end
+
+class Draft
+  inherit Order
+  feature items: Array[Line_Item]
+  create make(xs: Array[Line_Item]) do items := xs end
+end
+
+class Placed
+  inherit Order
+  feature
+    items: Array[Line_Item]
+    total: Money
+  create make(xs: Array[Line_Item], t: Money)
+    require
+      not_empty: xs.length > 0        -- a placed order has at least one line
+    do
+      items := xs
+      total := t
+    end
+end
+
+class Shipped
+  inherit Order
+  feature
+    items: Array[Line_Item]
+    tracking: Tracking_Id
+  create make(xs: Array[Line_Item], t: Tracking_Id) do
+    items := xs
+    tracking := t
+  end
+end</code></pre>
+
+<p>An <code>Order</code> is now <em>exactly one</em> of <code>Draft</code>, <code>Placed</code>, or <code>Shipped</code>. There is no way to hold an order that is simultaneously shipped and empty, because <code>Shipped</code> and <code>Draft</code> are different types and the "empty" case only makes sense for a draft. The precondition on <code>Placed</code> goes one step further: it closes a door the type system alone could not, refusing at construction time to build a placed order with no items. Chapter 3 develops this fully; for now, notice only the direction of the move — <em>fewer</em> representable states, checked <em>early</em>.</p>
+</section>
+
+<section id="the-flexibility-tradition" class="level2" data-number="1.2">
+<h2 class="anchored" data-anchor-id="the-flexibility-tradition"><span class="header-section-number">1.2</span> The Flexibility Tradition</h2>
+
+<p>The other tradition answers the second hardness by <em>arranging the program so that growth is addition rather than surgery</em>. If a new payment method should not force edits across the whole checkout, then build checkout so a payment method is a thing you <em>register</em>, not a branch you <em>insert</em>. If the set of pricing rules will keep changing forever, then do not hard-code them — make the pricing engine something new rules can plug into without the engine knowing they exist.</p>
+
+<p>This is the world of generic operations, of combinators that snap together, of interpreters whose vocabulary grows at runtime, of systems that compute even when the answer arrives from several directions at once. Its instinct is the opposite of the first: it wants to <em>open doors</em> — to leave deliberate room for cases that have not been imagined yet, so that the future can be handled by extension instead of rewrite.</p>
+
+<p>Where the constraint tradition earns its keep by making certain programs impossible to write, the flexibility tradition earns its keep by making certain <em>changes</em> cheap to make. Both are responses to complexity. They are not the same response, and — this is the whole problem — they are frequently in tension.</p>
+</section>
+
+<section id="why-they-pull-apart" class="level2" data-number="1.3">
+<h2 class="anchored" data-anchor-id="why-they-pull-apart"><span class="header-section-number">1.3</span> Why They Pull Apart</h2>
+
+<p>The tension is not a matter of taste; it is structural. Constraint buys correctness by <em>removing</em> possibilities — the fewer shapes a value can take, the less can go wrong, and the more the compiler can prove. Flexibility buys adaptability by <em>preserving</em> possibilities — the more open a component is to cases it has not seen, the more the future can be absorbed without a rewrite. One discipline closes the set of things that can happen; the other keeps it open. Applied to the same code at the same time, they contradict each other.</p>
+
+<p>You can feel the contradiction in the extremes. A system constrained to the hilt — every value a precise type, every case enumerated, nothing left open — is a joy to reason about and agony to extend; adding a genuinely new kind of thing means changing every place that enumerated the old kinds. A system built for maximal flexibility — everything dynamic, everything a plug-in, everything late-bound — absorbs new requirements gracefully and gives you almost no help proving that any particular one is correct; the compiler has been asked to stay silent so the program can stay open.</p>
+
+<p>Most advice picks a side. The typed-functional literature leans hard into constraint; the metaprogramming and systems-flexibility literature leans hard into openness. Each is right about its own hardness and quiet about the other. A working programmer does not have the luxury of picking a side, because a real system has both a core that must not be wrong and edges that must be free to grow. The interesting question is not <em>which discipline</em>, but <em>where each one belongs</em>.</p>
+</section>
+
+<section id="the-resolution" class="level2" data-number="1.4">
+<h2 class="anchored" data-anchor-id="the-resolution"><span class="header-section-number">1.4</span> The Resolution: Core, Edge, Membrane</h2>
+
+<p>The resolution this book argues for is not a compromise between the two disciplines but a <em>placement</em> of them. Constrain the core. Open the edges. And put a contract on the boundary between them so each side can trust the other without seeing inside it.</p>
+
+<p>The <strong>core</strong> is the part of the system whose correctness is not negotiable — the domain model, the invariants that define what a valid order or a valid price even <em>is</em>. That belongs to the constraint tradition. Make illegal states unrepresentable there; enumerate the cases; let the compiler carry the argument. The core should be the part of the program you are least afraid of, because it is the part that can least afford to be wrong.</p>
+
+<p>The <strong>edge</strong> is the part that must absorb change you cannot predict — the pricing rules, the payment methods, the export formats, the integrations. That belongs to the flexibility tradition. Leave it open; let it grow by registration and extension rather than by editing a closed enumeration. The edge should be the part of the program you can change without holding your breath, because it was built expecting to be changed.</p>
+
+<p>The <strong>membrane</strong> is what makes the arrangement hold together instead of leaking. When an open edge hands a value to a constrained core — a price computed by some rule the core has never heard of, an input parsed from a format that did not exist last year — the core cannot rely on the compiler to vouch for it, because the whole point of the edge was to stay outside the compiler's knowledge. What the core <em>can</em> rely on is a stated contract: a precondition the value must satisfy to cross the boundary, a postcondition the edge promised to uphold. The contract is the handshake that lets a closed core accept work from an open edge without either side having to become the other.</p>
+
+<p>That is why this book is written in a language with contracts at its center. Types close the doors you can name in advance. Contracts guard the doorways you cannot — the ones where a value arrives at runtime from a part of the system that was deliberately left open. The two are not rivals; they are the same impulse toward correctness applied at two different distances from the compiler.</p>
+</section>
+
+<section id="one-running-system" class="level2" data-number="1.5">
+<h2 class="anchored" data-anchor-id="one-running-system"><span class="header-section-number">1.5</span> One Running System</h2>
+
+<p>Abstract advice about cores and edges is easy to nod along to and hard to actually place. So the book carries a single running system from beginning to end: a small <strong>order-and-fulfillment domain</strong> with a <strong>pluggable pricing and rules engine</strong>. It was chosen because it has both a hard core and a soft edge, and the seam between them is exactly where the argument lives.</p>
+
+<p>The order core is unforgiving. An order has states, and the transitions between them are law: you cannot ship what was never placed; a placed order has at least one line and a total that equals the sum of its lines; money does not appear or vanish across a transition. This is constraint territory, and the book will model it so that the illegal versions cannot be written down.</p>
+
+<p>The pricing and rules engine is the opposite. The rules that decide what an order costs — promotions, tax by jurisdiction, volume discounts, loyalty tiers, whatever marketing invents next quarter — will change forever, and they must be addable without reopening the core. This is flexibility territory, and the book will build it so that a new rule is a new plug-in, not a new branch in an old function.</p>
+
+<p>The seam between them — the moment a price produced by some open-ended rule is handed back to a core that will not accept a malformed total — is where contracts do their work. Each part of the book returns to this system and takes it one step further, so that by the capstone the reader has watched one codebase earn its flexibility without ever loosening its core.</p>
+</section>
+
+<section id="why-nex-and-how-to-read" class="level2" data-number="1.6">
+<h2 class="anchored" data-anchor-id="why-nex-and-how-to-read"><span class="header-section-number">1.6</span> Why Nex, and How to Read This Book</h2>
+
+<p>The ideas here are not about Nex, and they should transfer to any language with a real type system and a way to state contracts. But they are <em>shown</em> in Nex, for a specific reason: Nex puts Design by Contract — <code>require</code>, <code>ensure</code>, <code>invariant</code>, <code>variant</code> — in the ordinary vocabulary of the language rather than in a testing library or a comment. That makes the membrane visible on the page. When the type checker has to fall silent so an edge can stay open, you will see, in the same syntax you use everywhere else, exactly what promise takes over the guarding. A book about placing constraint against flexibility wants a language where both are first-class, and that is what Nex offers.</p>
+
+<div class="note">
+<span class="note-label">Nex Note</span>
+<p>This book is also, deliberately, a demonstration of Nex — and an occasion to sharpen it. Where a chapter meets a gap or a rough edge in the language, that becomes a note like this one, recording what was stretched and what should improve. Writing the book and hardening the language are, here, the same activity.</p>
+</div>
+
+<p>The order of the chapters enacts the argument. Part I names the conflict and teaches contracts up front, because contracts are the through-line. Part II constrains the core. Part III learns to compose the trustworthy parts. Part IV deliberately opens the frontier — and it is only here, <em>after</em> the reader has seen what safety looks like, that we step outside the type system, so that openness reads as a considered trade rather than a default. Part V pushes flexibility to its limit, into systems that compute under partial information. Part VI is judgment: for the decision actually in front of you, do you constrain or open, and where does the membrane go?</p>
+
+<p>You do not need to be an expert in type theory, functional programming, or metaprogramming to follow along. You need to have felt software get hard — in either of its two ways — and to want a principled account of what to do about it. The next chapter starts where the whole book turns: on contracts, the tool that lets a closed core and an open edge coexist.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="index.html"><span class="label">&larr; Contents</span><span class="ttl">Table of Contents</span></a></div><div class="next"><a href="chapter_2.html"><span class="label">Chapter 2 &rarr;</span><span class="ttl">Contracts as a Design Tool</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>
