@@ -28,7 +28,7 @@ def load(path, crop=None):
     the maker's black and white levels standing in for ours), the
     camera's own white-balance gains (Chapter 3's competitor, read
     from metadata instead of estimated), and the profile matrix
-    (Chapter 5's sidebar, made load-bearing).
+    (Chapter 5's sidebar, made important).
 
     One hard requirement: the pipeline speaks RGGB. Files whose
     visible mosaic starts on a different letter are refused rather

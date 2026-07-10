@@ -73,7 +73,7 @@ Read `source_position` closely, because the entire model is that method. A lens,
 
 {{figure lens-flaws | The straight-line grid through the perfect lens (left) and the book's kit lens (right). Barrel distortion bows the lines — the middle of each edge line sits farther out than its ends; vignetting takes the corners down by nearly a stop; and lateral CA fringes every line with color, weakly near the center and boldly at the edges. All three flaws in one photograph of graph paper.}}
 
-The book keeps two lenses. The `perfect` lens — identity geometry, no falloff — is the control group in every later experiment. The `kit_lens` has all three coefficients set to values chosen to be *obvious in figures* rather than realistic; a real prime lens is far better behaved, and the text will say so whenever it matters. For chromatic aberration especially, honesty requires exaggeration:
+The book keeps two lenses. The `perfect` lens — identity geometry, no falloff — is the control group in every later experiment. The `kit_lens` has all three coefficients set to values chosen to be *obvious in figures* rather than realistic; a real prime lens is far better behaved, and the text will say so whenever it matters. For chromatic aberration especially, truthfulness requires exaggeration:
 
 {{figure lens-ca | The point-light array through a lens with deliberately strong lateral CA. Left: the full frame. Middle: a 4x enlargement at the center, where CA vanishes by symmetry — the dots stay white. Right: the same enlargement in the top-right corner, where each dot is drawn out into a small spectrum, blue toward the frame center and red away from it. Chapter 6 will put these dots back together.}}
 

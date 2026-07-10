@@ -29,7 +29,7 @@ and the warp aligning red and blue onto green:
 
 {{include pxp/lenscorrect.py::correct_ca}}
 
-Two placements are load-bearing here. CA correction runs *after* demosaicing, because it moves channels independently and there are no independent channels until the mosaic is unwoven. And it runs *before* the color matrix, because the matrix mixes R, G and B at each pixel — mix misaligned channels and the fringes stop being a red-plane problem the warp can reach and become part of every output channel permanently.
+Two placements are significant here. CA correction runs *after* demosaicing, because it moves channels independently and there are no independent channels until the mosaic is unwoven. And it runs *before* the color matrix, because the matrix mixes R, G and B at each pixel — mix misaligned channels and the fringes stop being a red-plane problem the warp can reach and become part of every output channel permanently.
 
 Measured on a corner point light, the registration does its job emphatically: the red centroid sits 0.45 px from green's before correction and 0.04 px after; blue goes from 0.43 px to 0.08 px, the small remainder being the price of a single wavelength standing in for a band. But look at what the corrected dot still is:
 
