@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluators You Can Extend — Tight Core, Open Edge</title>
+<meta name="description" content="Interpreters whose own primitives grow at runtime — the logical endpoint of generic operations, and the construction that leans hardest on contracts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_10.html">Ch. 10</a><a href="chapter_11.html" class="active">Ch. 11</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 11 · Part IV</span>
+<h1 class="opener-title">Evaluators You Can Extend</h1>
+<p class="opener-lede">The last limit to remove: an interpreter whose own primitives grow while it runs. The most open construction in the book — and the one where contracts are almost the only guarantee left.</p>
+</div>
+<article class="prose">
+
+<p>Chapter 10 gave the domain a language, but the interpreter that ran it was a fixed thing. Its <code>eval</code> was written once, and the operations the language could perform were exactly those the term classes implemented. To teach the language a genuinely new <em>fundamental</em> operation — not a new combination of existing terms, but a new primitive — you had to add a term class and, in effect, edit the interpreter. The vocabulary was open; the evaluator was closed.</p>
+
+<p>This chapter removes that last limit. We build an evaluator whose primitive operations live in a table that can be extended <em>at runtime</em> — so the language can be taught new fundamental words while it is running, by code that the evaluator's author never saw. It is the logical endpoint of the generic-operations idea from Chapter 9, turned inward and applied to the interpreter's own core. And it is the most open thing we will build, which makes it the sternest test of the book's claim that contracts can keep an open system honest.</p>
+
+<section id="the-metacircular-split" class="level2" data-number="11.1">
+<h2 class="anchored" data-anchor-id="the-metacircular-split"><span class="header-section-number">11.1</span> Closed Syntax, Open Operators</h2>
+
+<p>The insight that makes an extensible evaluator possible is a separation. Evaluation has two parts that are usually tangled together: the <em>structure</em> of expressions — how they are put together and taken apart — and the <em>operators</em> — what the fundamental operations actually do. The structure is small and can be fixed forever. The operators are the part that must stay open.</p>
+
+<p>So we close the one and open the other. An expression is one of a tiny, sealed set of forms: a literal value, a reference to a name, or an application of an operator to arguments. That is the whole syntax, and it will never grow — which means the evaluator can <code>match</code> it exhaustively, with the compiler proving every form is handled.</p>
+
+<pre><code>-- The syntax is closed: exactly three forms, sealed and exhaustively handled.
+sealed deferred class Expr
+end
+
+class Lit inherit Expr                    -- a literal price
+  feature value: Money
+  create make(v: Money) do value := v end
+end
+
+class Ref inherit Expr                    -- a name, resolved in the environment
+  feature name: String
+  create make(n: String) do name := n end
+end
+
+class Apply inherit Expr                  -- operator applied to argument expressions
+  feature
+    operator: String                      -- the operator is named, resolved at runtime
+    args: Array[Expr]
+  create make(op: String, xs: Array[Expr]) do operator := op  args := xs end
+end</code></pre>
+
+<p>Notice the deliberate asymmetry, which is the whole book in miniature. The <em>syntax</em> is sealed — a closed core the evaluator reasons about completely. The <em>operators</em>, named by the strings inside <code>Apply</code>, are open — a vocabulary that grows without limit. Constraint in the structure, flexibility in the vocabulary, and the seam between them guarded, as we are about to see, by contract.</p>
+</section>
+
+<section id="the-evaluator" class="level2" data-number="11.2">
+<h2 class="anchored" data-anchor-id="the-evaluator"><span class="header-section-number">11.2</span> An Evaluator With a Table</h2>
+
+<p>The evaluator walks the closed syntax and, when it meets an application, looks the operator up in a table of primitives — the same data-directed dispatch of §9.2, now at the heart of the interpreter. Literals evaluate to themselves; references are resolved in an environment; applications dispatch through the table.</p>
+
+<pre><code>class Evaluator
+  create make() do primitives := {} end
+  feature
+    primitives: Map[String, Primitive]
+
+    -- Extend the evaluator at runtime: teach it a new fundamental operation.
+    install(name: String, p: Primitive)
+      do
+        primitives.put(name, p)
+      end
+
+    eval(expr: Expr, env: Environment, order: Placed): Money
+      do
+        match expr of
+          when Lit as l then
+            result := l.value
+          when Ref as r then
+            result := eval(env.lookup(r.name), env, order)     -- resolve a named rule
+          when Apply as a then
+            result := apply_op(a, env, order)
+        end
+      end
+
+    apply_op(a: Apply, env: Environment, order: Placed): Money
+      require
+        known_op: primitives.contains(a.operator)     -- the table may not have it
+      do
+        result := primitives.get(a.operator).call(a.args, env, order, this)
+      end
+end</code></pre>
+
+<p>The <code>match</code> over <code>Expr</code> is exhaustive and compiler-checked, because the syntax is sealed. Everything <em>uncertain</em> has been pushed into the one line where an operator is looked up by name — and that line is guarded by the precondition <code>known_op</code>. The structure is proven; the openness is fenced.</p>
+</section>
+
+<section id="primitives-at-runtime" class="level2" data-number="11.3">
+<h2 class="anchored" data-anchor-id="primitives-at-runtime"><span class="header-section-number">11.3</span> New Primitives While Running</h2>
+
+<p>A primitive is an operation that takes unevaluated argument expressions, evaluates the ones it needs through the same evaluator, and returns a price. Passing the evaluator in (<code>ev</code>) is what lets a primitive recurse into its arguments — so operators compose to any depth without knowing about one another.</p>
+
+<pre><code>deferred class Primitive
+  feature
+    call(args: Array[Expr], env: Environment, order: Placed, ev: Evaluator): Money
+      do end
+end
+
+-- "the smaller of two prices" — a flooring/capping building block.
+class Lesser inherit Primitive
+  create make() do end
+  feature
+    call(args: Array[Expr], env: Environment, order: Placed, ev: Evaluator): Money
+      require
+        arity: args.length = 2
+      do
+        let a: Money := ev.eval(args.get(0), env, order)
+        let b: Money := ev.eval(args.get(1), env, order)
+        if a &lt; b then result := a else result := b end
+      end
+end</code></pre>
+
+<p>Installing it teaches the running evaluator a word it did not have a moment ago — and no line of the <code>Evaluator</code> class is touched:</p>
+
+<pre><code>let ev: Evaluator := create Evaluator.make()
+ev.install("lesser", create Lesser.make())
+-- later, from entirely different code, loaded from a plugin, added mid-session:
+ev.install("round_to_cents", create Round_To_Cents.make())</code></pre>
+
+<p>This is extension in its strongest form in the whole book. In Chapter 9 you could add a new <em>rule</em>; here you can add a new <em>fundamental operation of the language itself</em>, at runtime, from outside. The evaluator is complete without knowing what operators will ever exist — it knows only how to find one and hand it its arguments.</p>
+</section>
+
+<section id="the-environment" class="level2" data-number="11.4">
+<h2 class="anchored" data-anchor-id="the-environment"><span class="header-section-number">11.4</span> Names, So Rules Can Build on Rules</h2>
+
+<p>The <code>Ref</code> form and the environment are what let one rule refer to another by name — so a library of pricing rules can be assembled, each defined in terms of the others, and each definable at runtime.</p>
+
+<pre><code>class Environment
+  create make() do defs := {} end
+  feature
+    defs: Map[String, Expr]
+
+    define(name: String, e: Expr)
+      do
+        defs.put(name, e)
+      end
+
+    lookup(name: String): Expr
+      require
+        defined: defs.contains(name)      -- an unbound name is a located failure
+      do
+        result := defs.get(name)
+      end
+end</code></pre>
+
+<p>Now the vocabulary and the definitions both grow at runtime, independently of the evaluator. A manager defines <code>"summer_sale"</code> as an expression; another rule references <code>"summer_sale"</code> by name; a plugin installs a <code>"loyalty_discount"</code> primitive that the summer-sale rule uses — and none of this required editing, recompiling, or even restarting the evaluator. The language has become a living thing, extended from the outside in three independent directions: new syntax never (it is sealed), new operators freely, new named definitions freely.</p>
+</section>
+
+<section id="contracts-are-what-is-left" class="level2" data-number="11.5">
+<h2 class="anchored" data-anchor-id="contracts-are-what-is-left"><span class="header-section-number">11.5</span> When Contracts Are Nearly All You Have</h2>
+
+<p>Step back and count what the type system still guarantees inside this evaluator. That the syntax is exhaustively handled — yes, because it is sealed. Almost everything else, it cannot see. It cannot promise that an applied operator is installed, that a referenced name is bound, that a primitive receives the number of arguments it expects, or that the value any primitive returns is well-formed. The evaluator is so open that the compiler, which carried the argument through all of Part II, is nearly silent here.</p>
+
+<p>And yet the system is not unguarded — because every one of those gaps has a contract standing in it. <code>known_op</code> guards the operator lookup; <code>defined</code> guards the name resolution; <code>arity</code> guards each primitive's argument count; and the membrane postconditions from §9.5 still guard the price on its way back to the core. Each is a named, located promise that turns what would be an inscrutable runtime failure deep in a plugin into a precise report at the exact seam that was violated. This is the book's thesis at its most extreme: push openness as far as it will go, and contracts are not merely a supplement to the type system — they become, very nearly, the guarantees themselves.</p>
+
+<div class="thesis">The more open the construction, the less the type checker can say — and the more the contract must. An extensible evaluator is the far end of that spectrum: sealed only in its skeleton, open everywhere else, and honest only because every open seam is named by a <code>require</code> or an <code>ensure</code>.</div>
+
+<div class="note">
+<span class="note-label">Nex Note</span>
+<p>This pattern is not exotic to Nex — it is close to how Nex keeps its own core small. The language grows new vocabulary through libraries and its <code>intern</code> mechanism rather than by enlarging the grammar, which is exactly the closed-syntax / open-operators split of §11.1. An evaluator you can extend is the same discipline a well-designed language already practises on itself: a small fixed core, and room for growth outside it. See [[book-tight-core-open-edge]].</p>
+</div>
+</section>
+
+<section id="the-far-end" class="level2" data-number="11.6">
+<h2 class="anchored" data-anchor-id="the-far-end"><span class="header-section-number">11.6</span> The Far End of the Frontier</h2>
+
+<p>Part IV set out to open the frontier, and it has now reached the edge of it. The three chapters were three widenings of a single door. Generic operations opened the set of <em>behaviors</em> a fixed operation could have (Chapter 9). Domain languages opened the set of <em>rules</em> that could be expressed and made them data (Chapter 10). Extensible evaluators opened the set of <em>primitives</em> the language itself is built from, at runtime (Chapter 11). At each step the type system said less and the contracts said more, and at each step the value produced still crossed into the constrained core only through the membrane — so the openness, however wide, stayed fenced.</p>
+
+<p>There is one more kind of flexibility, and it is different in nature rather than degree. Everything in Part IV still computed in one direction: an expression in, a price out, the evaluator pulling values from leaves to root. But some problems do not arrive that way. Information shows up in fragments, from several directions at once, and the answer must be assembled from partial knowledge that no single evaluation order can capture — a network settling toward a solution rather than a tree reducing to a value. That is Part V, and it is where the open techniques of this book meet the hardest shape of all: computing when you do not yet know everything, and may never. It begins with propagators.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_10.html"><span class="label">&larr; Chapter 10</span><span class="ttl">Languages for the Domain (DSLs)</span></a></div><div class="next"><a href="chapter_12.html"><span class="label">Chapter 12 &rarr;</span><span class="ttl">Propagators: Computing with Partial Knowledge</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

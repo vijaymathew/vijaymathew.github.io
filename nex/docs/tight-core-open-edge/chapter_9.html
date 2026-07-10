@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generic Operations: Extending Without Editing — Tight Core, Open Edge</title>
+<meta name="description" content="The first deliberate step outside the type system: data-directed dispatch over an open set of types, and the chapter where contracts take over the guarding.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_8.html">Ch. 8</a><a href="chapter_9.html" class="active">Ch. 9</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 9 · Part IV</span>
+<h1 class="opener-title">Generic Operations: Extending Without Editing</h1>
+<p class="opener-lede">Here we cross the line the book has been walking toward — the first deliberate step outside the type system. The compiler falls silent by design, and contracts take over the guarding. This is the hinge in action.</p>
+</div>
+<article class="prose">
+
+<p>Everything in Parts I through III stayed inside the type system. Even the flexible parts — combinators, layers — were flexible only in ways the compiler could still check, because every new piece had to fit an interface declared in advance. That is the wall Part III ended at, and it is a real wall. Some growth cannot be foreseen well enough to name an interface up front, and for that growth the type system is not a help but an obstacle.</p>
+
+<p>Part IV is where we open the frontier. We do it carefully, and we do it knowing exactly what we are giving up — because the reader has now spent six chapters seeing what safety looks like, so stepping outside it reads as a considered trade, not a default. The first move is the foundational one: <strong>generic operations</strong>, an operation whose behavior for a given kind of argument is looked up at runtime and can be extended by anyone, without editing the operation or the argument's type.</p>
+
+<section id="the-expression-problem" class="level2" data-number="9.1">
+<h2 class="anchored" data-anchor-id="the-expression-problem"><span class="header-section-number">9.1</span> The Growth You Cannot Foresee</h2>
+
+<p>The running system has been waiting for this. Its pricing engine is supposed to be the open edge — "the rules that decide what an order costs will change forever, and they must be addable without reopening the core." So far we have deferred the how. Now confront it.</p>
+
+<p>The pricing engine must support an open-ended set of rule kinds — percentage discounts, loyalty tiers, bundle deals, tax by jurisdiction, whatever marketing invents next quarter — and for each, compute a price. Try to build this with the tools of Part III and you hit the wall from two sides at once. If the engine <code>match</code>es over a sealed set of rule kinds, then every new rule means editing the engine and its exhaustive <code>match</code> — the sealed core's virtue is now a cage. If instead each rule carries its own <code>price</code> method, then teaching the system a <em>new operation</em> over all rules — say, "explain this rule to the customer" — means editing every rule class.</p>
+
+<p>This is the classic tension: you want to add new <em>kinds of data</em> and new <em>operations over them</em> independently, without either forcing edits to the other. No single fixed interface resolves it, because the whole problem is that the set of kinds and the set of operations are both open. What you need is a way to associate an operation with a kind <em>from the outside</em> — a table that anyone can extend.</p>
+</section>
+
+<section id="data-directed-dispatch" class="level2" data-number="9.2">
+<h2 class="anchored" data-anchor-id="data-directed-dispatch"><span class="header-section-number">9.2</span> Dispatch Through a Table</h2>
+
+<p>A generic operation keeps its implementations in a registry, keyed by the kind of thing it is operating on, and dispatches at runtime by looking up the key. The operation itself knows nothing about any particular kind; it knows only how to find the handler and call it. Adding a kind is adding a row to the table.</p>
+
+<p>Here is the pricing engine built that way. A <code>Rule</code> carries a string tag naming its kind; the engine holds a map from tag to handler; pricing is a lookup followed by a call.</p>
+
+<pre><code>-- A rule knows its own kind but not how it is priced.
+deferred class Rule
+  feature kind(): String do end
+end
+
+-- A handler knows how to price one kind of rule.
+deferred class Pricing_Handler
+  feature price(rule: Rule, order: Placed): Money do end
+end
+
+class Pricing_Engine
+  create make() do handlers := {} end       -- an empty registry
+  feature
+    handlers: Map[String, Pricing_Handler]
+
+    register(kind: String, h: Pricing_Handler)
+      do
+        handlers.put(kind, h)
+      end
+
+    price(rule: Rule, order: Placed): Money
+      require
+        known_rule: handlers.contains(rule.kind)   -- the type system can't promise this
+      do
+        result := handlers.get(rule.kind).price(rule, order)
+      ensure
+        non_negative:  result >= Money.zero        -- so a contract does
+        same_currency: result.currency = order.total.currency
+      end
+end</code></pre>
+
+<p>The engine is now <em>closed to modification and open to extension</em> in the strongest sense we have seen. It has no branch per rule, no <code>match</code> to keep exhaustive, no knowledge of any specific rule at all. To teach it a new rule kind, you never touch this class.</p>
+</section>
+
+<section id="adding-a-rule" class="level2" data-number="9.3">
+<h2 class="anchored" data-anchor-id="adding-a-rule"><span class="header-section-number">9.3</span> Adding a Rule, Editing Nothing</h2>
+
+<p>A rule kind is a <code>Rule</code> subclass plus a <code>Pricing_Handler</code> for it, plus one <code>register</code> call. Watch where the type system goes quiet:</p>
+
+<pre><code>class Percent_Off inherit Rule
+  create make(p: Integer) do percent := p end
+  feature
+    percent: Integer
+    kind(): String do result := "percent_off" end
+end
+
+class Percent_Off_Handler inherit Pricing_Handler
+  create make() do end
+  feature
+    price(rule: Rule, order: Placed): Money
+      require
+        matches: rule.kind = "percent_off"
+      do
+        convert rule to r: Percent_Off         -- recover the concrete type at runtime
+        result := order.total.less_percent(r.percent)
+      end
+end</code></pre>
+
+<p>Registering it wires the kind to its handler — and a second, entirely new rule slots in the same way, with zero edits to <code>Pricing_Engine</code>, to <code>Placed</code>, or to any existing rule:</p>
+
+<pre><code>engine.register("percent_off", create Percent_Off_Handler.make())
+
+-- Later, a rule nobody anticipated — added by extension, not surgery:
+engine.register("loyalty_tier", create Loyalty_Handler.make())
+
+let quoted: Money := engine.price(rule, order)</code></pre>
+
+<p>This is the payoff the running example was built to reach. The set of pricing rules is now genuinely open: a new rule is new code in a new file, and the engine, the order core, and every existing rule are untouched. Both axes of growth — new kinds, and new operations if we add more tables — are additive. The expression problem dissolves, because the association between kind and behavior lives in data, where anyone can add to it.</p>
+</section>
+
+<section id="where-types-fall-silent" class="level2" data-number="9.4">
+<h2 class="anchored" data-anchor-id="where-types-fall-silent"><span class="header-section-number">9.4</span> Where the Types Fall Silent</h2>
+
+<p>We paid for this, and it is important to be exact about the coin. Three things the compiler used to guarantee, it can no longer see:</p>
+
+<ul>
+<li><strong>That a handler exists.</strong> <code>handlers.get(rule.kind)</code> looks up a string key. Nothing at compile time promises the table has a row for this rule; a rule whose kind was never registered sails past the type checker and fails only at runtime.</li>
+<li><strong>That the handler matches the rule.</strong> The line <code>convert rule to r: Percent_Off</code> is an unchecked downcast from the open <code>Rule</code> type to a specific one. The compiler cannot verify that the handler registered under <code>"percent_off"</code> actually receives a <code>Percent_Off</code> — the correspondence between the string tag and the class is invisible to it.</li>
+<li><strong>That the produced price is well-formed.</strong> Because the handler is called through a table, the compiler cannot follow the value it returns; a buggy handler could return a negative price, or one in the wrong currency, and no type would object.</li>
+</ul>
+
+<p>This is not a language deficiency to route around; it is the <em>deal</em>. We deliberately traded a closed, statically-checked set of kinds for an open, runtime-dispatched one, and the loss of these three guarantees is the exact price of the openness. The question is not how to avoid paying it — you cannot, if you want the openness — but how to buy back what matters most. And the tool for that is the one the book has been holding in reserve since Chapter 2.</p>
+</section>
+
+<section id="contracts-take-over" class="level2" data-number="9.5">
+<h2 class="anchored" data-anchor-id="contracts-take-over"><span class="header-section-number">9.5</span> Contracts Take Over the Guarding</h2>
+
+<p>Look again at the code, now for its contracts rather than its dispatch. Every place the type system fell silent, a contract speaks in its place — and the three losses of §9.4 map one-to-one onto three guards.</p>
+
+<p>The engine's precondition <code>known_rule: handlers.contains(rule.kind)</code> stands exactly where the compiler could no longer promise a handler exists. It turns "there is no handler" from a mysterious runtime lookup failure into a named, located contract violation at the boundary — <em>the</em> place a missing registration should be caught. Inside the handler, <code>require matches: rule.kind = "percent_off"</code> guards the downcast: the unsafe <code>convert</code> is made safe because the precondition establishes, in the handler's own terms, that the rule really is the kind this handler prices. And the engine's postconditions — <code>non_negative</code> and <code>same_currency</code> — guard the value on its way out, so that no matter which of the open-ended handlers produced the price, and no matter what bug it harbors, a malformed price cannot leave the engine.</p>
+
+<div class="thesis">Types close the doors you can name in advance. Contracts guard the doorways you cannot — and a generic operation is a doorway left open on purpose, so a value from a rule that did not exist when the engine was written can still be trusted only on the engine's stated terms.</div>
+
+<p>Those postconditions are not new. They are the <em>membrane</em> from Chapter 2, finally doing its real work. Recall <code>apply_quote</code>, the core's boundary routine, whose precondition demanded a price be non-negative and in the order's currency before the core would accept it. The engine's postcondition is the matching promise on the other side of that seam: the open pricing edge <em>guarantees</em> exactly what the constrained core <em>requires</em>. Neither side sees inside the other; the contract is the whole of their agreement. This is the arrangement the first chapter sketched — constrain the core, open the edge, let contracts be the membrane between them — running for real, with a genuinely open edge on one side and a genuinely closed core on the other.</p>
+</section>
+
+<section id="the-considered-trade" class="level2" data-number="9.6">
+<h2 class="anchored" data-anchor-id="the-considered-trade"><span class="header-section-number">9.6</span> A Considered Trade</h2>
+
+<p>It would be a misreading of this chapter to conclude that generic operations are simply better than the typed composition of Part III. They are not better; they are <em>different</em>, and more costly. You give up compile-time proof that every case is handled, that every value is well-formed, that a refactor did not orphan a handler. In exchange you gain extension by strangers — the ability for a rule written next year, by someone who has never seen the engine, to slot in without a single edit to existing code. That trade is worth making exactly when the set of kinds is genuinely open and genuinely unpredictable, and worth refusing when it is not. A payment status that will only ever be one of four values should stay a sealed type; a pricing rule catalog that grows with the business wants a table. Knowing which is which is the judgment Part VI is devoted to.</p>
+
+<p>What matters here is that the openness is <em>bounded</em>. We did not abandon guarantees; we relocated them from the type system to contracts, and concentrated them at the membrane where the open edge meets the closed core. The frontier is open, but it is fenced.</p>
+
+<p>Generic operations are the foundation of everything left in Part IV. Once an operation's behaviors live in a table that grows at runtime, you are a short step from letting the <em>vocabulary</em> itself grow — from giving the domain its own language whose terms can be added on the fly (Chapter 10), and then from building evaluators whose primitives extend at runtime (Chapter 11). Each is a wider opening of the same door, and each leans harder on contracts to stay honest. We have crossed the line; now we build on the far side of it.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_8.html"><span class="label">&larr; Chapter 8</span><span class="ttl">Layering: Behavior in Strata</span></a></div><div class="next"><a href="chapter_10.html"><span class="label">Chapter 10 &rarr;</span><span class="ttl">Languages for the Domain (DSLs)</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>
