@@ -348,6 +348,14 @@ end</code></pre>
 
 let scores: IntList := [10, 20, 30]</code></pre>
 <p>Type aliases are resolved at compile time — they add clarity without any runtime cost.</p>
+<h3 class="anchored" data-anchor-id="refinement-types">Refinement types: narrowing with <code>where</code></h3>
+<p>A <code>declare type</code> can also carry a <code>where</code> clause, which narrows a base type to the values satisfying a predicate. The result is a <em>refinement type</em>: still the same underlying type, but with a rule attached.</p>
+<pre class="nex"><code>declare type Quantity = Integer where n: n &gt; 0</code></pre>
+<p>The clause <code>where n: n &gt; 0</code> reads &ldquo;a value <code>n</code> such that <code>n &gt; 0</code>.&rdquo; A <code>Quantity</code> is not a new boxed object — it <em>is</em> an <code>Integer</code>, so it can be used in any arithmetic, and the predicate is checked only where an ordinary integer is turned into a <code>Quantity</code>:</p>
+<pre class="nex"><code>let q: Quantity := 5           -- checked: 5 &gt; 0, so this is allowed
+let doubled: Integer := q * 2  -- free: a Quantity is an Integer</code></pre>
+<p>Assigning a value that fails the predicate — <code>let q: Quantity := 0</code> — raises a contract violation at that line, the same way a failed <code>require</code> does (Chapter&nbsp;16). Narrowing is checked at the boundary: a typed <code>let</code>, a parameter of a refinement type, or a return of one. Widening back to the base type is always free, and an operation on refinement values yields the base type (<code>q * 2</code> is an <code>Integer</code>), so re-check it by flowing the result into a refinement-typed binding when you need the guarantee again.</p>
+<p>Refinement types are the lightweight way to make illegal values unrepresentable: &ldquo;a positive quantity,&rdquo; &ldquo;a percentage between 0 and 100,&rdquo; or &ldquo;a non-empty string&rdquo; becomes one line instead of a class with a constructor precondition and an invariant. Like every contract, the predicate checks are removed in a build compiled with contracts stripped.</p>
 </section>
 </section>
 <section class="level2" data-number="7.8" id="when-to-write-a-function">

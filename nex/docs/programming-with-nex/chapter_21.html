@@ -319,6 +319,36 @@ match outcome of
 end</code></pre>
 <p>Compared to string-based exceptions, this approach gives the caller a typed handle on the error — <code>err.reason</code> is a <code>String</code> field, not an opaque exception value — and moves the handling obligation from runtime to compile time.</p>
 <p>Use <code>raise</code>/<code>rescue</code> for conditions that are unexpected during correct operation. Use sealed result types when both success and failure are normal outcomes that every caller must actively decide how to handle.</p>
+<h3 class="anchored" data-anchor-id="standard-result-and-option">The standard <code>Result</code> and <code>Option</code></h3>
+<p>Because a success-or-failure type is so common, you do not have to write one each time. The standard library ships a generic <code>Result</code>, loaded with <code>intern</code>:</p>
+<pre><code>intern data/Result
+
+function parse_positive(text: String): Result[Integer, String]
+do
+  let n := text.to_integer
+  if n &gt; 0 then
+    result := create Ok[Integer, String].make(n)
+  else
+    result := create Err[Integer, String].make("must be positive")
+  end
+end</code></pre>
+<p>A <code>Result[T, E]</code> is either <code>Ok</code> carrying a value of type <code>T</code> or <code>Err</code> carrying an error of type <code>E</code>. The two type parameters are independent, so an error can be passed up through several layers without being rewrapped. Callers still <code>match</code>, and can destructure the payload directly:</p>
+<pre><code>match parse_positive("42") of
+  when Ok(value)  then print(value)
+  when Err(error) then print(error)
+end</code></pre>
+<p>Query and unwrap are methods — <code>r.is_ok()</code>, <code>r.is_err()</code>, and <code>r.unwrap_or(0)</code> (the value, or a fallback when it is an <code>Err</code>). Transforming a result is done with free functions, because each introduces a new type: <code>result_map</code> applies a function to the success value, <code>result_and_then</code> chains a further fallible step and short-circuits on the first error, and <code>result_map_err</code> converts the error into a caller&rsquo;s own error type.</p>
+<pre><code>let doubled: Result[Integer, String] :=
+  result_map(parse_positive("21"), fn (x: Integer): Integer do result := x * 2 end)</code></pre>
+<p>Its companion, <code>Option</code>, is for a value that may simply be absent — a lookup that may miss, a first element that may not exist. <code>intern data/Option</code> brings in <code>Option[T]</code>, its <code>Some</code> and <code>None</code> variants, the <code>is_some</code>/<code>is_none</code>/<code>get_or</code> methods, and the <code>option_map</code>/<code>option_and_then</code>/<code>option_filter</code> combinators. Unlike a detachable <code>?T</code> (a value that might be <code>nil</code>), an <code>Option</code> is a sealed type, so a <code>match</code> over it is checked for exhaustiveness and it survives cleanly through generic code:</p>
+<pre><code>intern data/Option
+
+let found: Option[Integer] := create Some[Integer].make(10)
+match found of
+  when Some(value) then print(value)
+  when None        then print("absent")
+end</code></pre>
+<p>Reach for the hand-written sealed type of the previous section when the variants need their own methods or contracts; reach for the standard <code>Result</code> and <code>Option</code> when plain success/failure or presence/absence is all you need. Both are documented in Appendix&nbsp;C.</p>
 </section>
 <section class="level2" data-number="22.10" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="22.10"> Summary</h2>

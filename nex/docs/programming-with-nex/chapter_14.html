@@ -440,6 +440,33 @@ end</code></pre>
     print("not ok")
 end</code></pre>
 <p>Sealed hierarchies work well for any situation where the set of cases is fixed by design: operation results, state machine transitions, event tags, or domain types with a known, finite structure.</p>
+<h3 class="anchored" data-anchor-id="unions-concise-sum-types">Unions: the concise form</h3>
+<p>A closed family whose variants are just data is common enough that writing the sealed parent and every subclass by hand becomes a chore. The <code>union</code> declaration is a shorthand for exactly that pattern. The whole <code>Result</code> hierarchy above collapses to:</p>
+<pre><code>union Result
+  Ok(value: Integer)
+  Err(msg: String)
+end</code></pre>
+<p>This is not a new kind of type — it <em>expands</em> to the same <code>sealed deferred class Result</code> with an <code>Ok</code> and an <code>Err</code> subclass, each with the listed fields and a matching <code>make</code> constructor. Construction and <code>match</code> are identical to before: <code>create Ok.make(42)</code> builds an <code>Ok</code>, and a <code>match</code> over a <code>Result</code> is still checked for exhaustiveness. A variant with no data is written as a bare name:</p>
+<pre><code>union Shape
+  Circle(radius: Real)
+  Rectangle(width: Real, height: Real)
+  Empty
+end</code></pre>
+<p>Because a union only declares data, it synthesises no methods, invariants, or contracts. When a variant needs a constructor precondition, an invariant, or its own behaviour, write it in the full <code>sealed deferred class</code> form — the two forms describe the same kind of hierarchy, and you can mix them as a design grows.</p>
+<h3 class="anchored" data-anchor-id="matching-into-values">Matching into values</h3>
+<p>Binding the whole variant with <code>as</code> and then reading its fields (<code>ok.value</code>) is fine, but a <code>match</code> can also take a variant apart directly. Naming the payload fields in the pattern binds them as locals of the same name:</p>
+<pre><code>match r of
+  when Ok(value)  then print(value)     -- 'value' is bound directly
+  when Err(msg)   then print(msg)
+end</code></pre>
+<p>A field pattern can rename a field (<code>Err(msg: reason)</code> binds it to <code>reason</code>), ignore one with <code>_</code>, or require it to equal a literal. A clause may also carry an <code>if</code> <em>guard</em> — a boolean tested after the variant matches, with the destructured names in scope; when it is false, matching continues with the following clauses:</p>
+<pre><code>match shape of
+  when Circle(radius) if radius &gt; 100.0 then print("huge circle")
+  when Circle(radius)                    then print("circle")
+  when Rectangle(width, height)          then print(width * height)
+  when Empty                             then print("nothing")
+end</code></pre>
+<p>Because a guarded clause can fail after its variant matches, it does not by itself satisfy exhaustiveness: the guarded <code>Circle</code> clause above needs the plain <code>Circle</code> clause (or a wildcard, or <code>else</code>) to cover the case where the guard is false. A lone <code>_</code> pattern is a catch-all, a spelling of <code>else</code>.</p>
 </section>
 <section class="level2" data-number="15.10" id="once-fields">
 <h2 class="anchored" data-anchor-id="once-fields" data-number="15.10"> Once Fields</h2>

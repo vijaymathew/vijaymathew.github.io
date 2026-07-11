@@ -93,7 +93,62 @@ fully annotated list.</p>
 </table>
 </div>
 
-<h2><span class="secno">C.6</span>What Is Not Derived</h2>
+<h2><span class="secno">C.6</span>Union Declarations</h2>
+
+<p>A <code>union</code> declaration (Section&nbsp;3.2.2) abbreviates a sealed
+hierarchy of data classes. The parent becomes a sealed deferred class, and each
+variant becomes a class inheriting it, whose fields are the variant&rsquo;s
+payload and whose sole constructor takes and assigns them.</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>union P&langle;[G…]&rangle; V₁ … Vₙ end</code> \(\rrbracket\)</td><td class="op">=</td><td></td></tr>
+<tr><td colspan="3"><code>sealed deferred class P&langle;[G…]&rangle; end</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;and, for each variant <code>Vᵢ(f₁: T₁, …, f&#x2096;: T&#x2096;)</code>,</td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;<code>class Vᵢ inherit P&langle;[G…]&rangle; feature f₁: T₁ … f&#x2096;: T&#x2096;</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;<code>create make(f₁: T₁, …, f&#x2096;: T&#x2096;) do f₁ := f₁ ; … ; f&#x2096; := f&#x2096; end end</code></td></tr>
+</table>
+</div>
+
+<p>A payload-free variant <code>Vᵢ</code> becomes a class with an empty feature
+section and a nullary <code>make</code>. Because the translation names the parent
+in each variant&rsquo;s <code>inherit</code> clause, the generic arguments carry
+through and the resulting classes are exactly those a hand-written sealed
+hierarchy would produce; nothing further &mdash; no method, invariant, or contract
+&mdash; is generated.</p>
+
+<h2><span class="secno">C.7</span>Match Patterns and Guards</h2>
+
+<p>A <code>match</code> clause richer than the bare
+<code>when&nbsp;<em>id</em>&nbsp;as&nbsp;<em>id</em></code> dispatch of the core
+(Section&nbsp;2.8) is translated into it. A clause
+<code>when V(fp₁, …, fpₙ) as x if g then b</code> becomes the bare clause
+<code>when V as _m</code> (binding <code>x</code> to <code>_m</code> as well when
+<code>as x</code> is present) whose body binds the field patterns and then tests
+the field constraints together with the guard; if any test fails, control passes
+to the clauses that follow, exactly as a false guard does.</p>
+
+<p>Each field pattern <code>fpᵢ</code> on the field <code>f</code> contributes a
+binding, a test, or both:</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>f</code> (bind) \(\rrbracket\)</td><td class="op">=</td><td><code>let f := _m.f</code></td></tr>
+<tr><td>\(\llbracket\) <code>f: y</code> (rename) \(\rrbracket\)</td><td class="op">=</td><td><code>let y := _m.f</code></td></tr>
+<tr><td>\(\llbracket\) <code>_</code> (skip) \(\rrbracket\)</td><td class="op">=</td><td>&mdash; nothing</td></tr>
+<tr><td>\(\llbracket\) <code>ℓ</code> (literal) \(\rrbracket\)</td><td class="op">=</td><td>test <code>_m.f = ℓ</code></td></tr>
+<tr><td>\(\llbracket\) <code>Q(…)</code> (nested) \(\rrbracket\)</td><td class="op">=</td><td>test <code>convert _m.f to _n: Q</code>, then <code>Q</code>&rsquo;s field patterns on <code>_n</code></td></tr>
+</table>
+</div>
+
+<p>The tests are conjoined with the guard <code>g</code>; a clause whose field
+patterns are only binds, renames, and skips contributes no test, so once its
+class matches it commits and never falls through &mdash; which is why such a clause
+still counts toward exhaustiveness (Section&nbsp;4.4), whereas a clause carrying a
+literal, a nested pattern, or a guard does not. A top-level <code>_</code> pattern
+translates to the <code>else</code> block.</p>
+
+<h2><span class="secno">C.8</span>What Is Not Derived</h2>
 
 <p>It is worth saying which apparent conveniences are <em>not</em> derived forms,
 but primitive constructs with rules of their own. The conditional expression

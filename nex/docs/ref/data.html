@@ -365,6 +365,24 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
   <li><a href="#notes" id="toc-notes" class="nav-link" data-scroll-target="#notes">Notes</a></li>
   </ul></li>
+  <li><a href="#dataresult" id="toc-dataresult" class="nav-link" data-scroll-target="#dataresult"><code>data/Result</code></a>
+  <ul class="collapse">
+  <li><a href="#result-loading" id="toc-result-loading" class="nav-link" data-scroll-target="#result-loading">Loading</a></li>
+  <li><a href="#result-types" id="toc-result-types" class="nav-link" data-scroll-target="#result-types">Types</a></li>
+  <li><a href="#result-support" id="toc-result-support" class="nav-link" data-scroll-target="#result-support">Support</a></li>
+  <li><a href="#result-construction" id="toc-result-construction" class="nav-link" data-scroll-target="#result-construction">Construction</a></li>
+  <li><a href="#result-methods" id="toc-result-methods" class="nav-link" data-scroll-target="#result-methods">Methods</a></li>
+  <li><a href="#result-combinators" id="toc-result-combinators" class="nav-link" data-scroll-target="#result-combinators">Combinators</a></li>
+  <li><a href="#result-example" id="toc-result-example" class="nav-link" data-scroll-target="#result-example">Example</a></li>
+  </ul></li>
+  <li><a href="#dataoption" id="toc-dataoption" class="nav-link" data-scroll-target="#dataoption"><code>data/Option</code></a>
+  <ul class="collapse">
+  <li><a href="#option-loading" id="toc-option-loading" class="nav-link" data-scroll-target="#option-loading">Loading</a></li>
+  <li><a href="#option-types" id="toc-option-types" class="nav-link" data-scroll-target="#option-types">Types</a></li>
+  <li><a href="#option-methods" id="toc-option-methods" class="nav-link" data-scroll-target="#option-methods">Methods</a></li>
+  <li><a href="#option-combinators" id="toc-option-combinators" class="nav-link" data-scroll-target="#option-combinators">Combinators</a></li>
+  <li><a href="#option-example" id="toc-option-example" class="nav-link" data-scroll-target="#option-example">Example</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -492,6 +510,233 @@ print(json.stringify(root))</code></pre>
 </ul>
 
 
+</section>
+</section>
+<section id="dataresult" class="level2">
+<h2 class="anchored" data-anchor-id="dataresult"><code>data/Result</code></h2>
+<p><code>Result</code> is a sealed sum type for computations that either succeed or fail, shipped as a Nex library under <a href="./home/vijay/Projects/nex/lib/data/result.nex"><code>lib/data/result.nex</code></a>. A <code>Result[T, E]</code> is either an <code>Ok</code> carrying a success value of type <code>T</code>, or an <code>Err</code> carrying an error of type <code>E</code>. The error type is independent of the value type, so an error threads up through calls without being rewrapped.</p>
+<section id="result-loading" class="level3">
+<h3 class="anchored" data-anchor-id="result-loading">Loading</h3>
+<pre class="nex"><code>intern data/Result</code></pre>
+<p><code>intern data/Result</code> brings the <code>Result</code> type, its <code>Ok</code> and <code>Err</code> variants, and the <code>result_*</code> combinator functions into scope.</p>
+</section>
+<section id="result-types" class="level3">
+<h3 class="anchored" data-anchor-id="result-types">Types</h3>
+<ul>
+<li><code>Result[T, E]</code> &mdash; sealed deferred parent.</li>
+<li><code>Ok[T, E]</code> &mdash; success; field <code>value: T</code>.</li>
+<li><code>Err[T, E]</code> &mdash; failure; field <code>error: E</code>.</li>
+</ul>
+</section>
+<section id="result-support" class="level3">
+<h3 class="anchored" data-anchor-id="result-support">Support</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Target</th>
+<th>Supported</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>JVM REPL / interpreter</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td>Generated JVM code</td>
+<td>Yes</td>
+</tr>
+<tr class="odd">
+<td>Generated JavaScript</td>
+<td>No (free-function module wiring pending)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="result-construction" class="level3">
+<h3 class="anchored" data-anchor-id="result-construction">Construction</h3>
+<pre class="nex"><code>let ok:  Result[Integer, String] := create Ok[Integer, String].make(5)
+let err: Result[Integer, String] := create Err[Integer, String].make("bad input")</code></pre>
+<p>Construction infers type arguments from the value: <code>create Ok.make(5)</code> is <code>Ok[Integer, Any]</code> and <code>create Err.make("bad")</code> is <code>Err[Any, String]</code>; the unmentioned parameter stays <code>Any</code>, so both assign to a <code>Result[Integer, String]</code>. Write explicit arguments to pin them.</p>
+</section>
+<section id="result-methods" class="level3">
+<h3 class="anchored" data-anchor-id="result-methods">Methods</h3>
+<p>Query and unwrap are methods (type-preserving).</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>is_ok</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>True when the result is an <code>Ok</code>.</td>
+</tr>
+<tr class="even">
+<td><code>is_err</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>True when the result is an <code>Err</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>unwrap_or</code></td>
+<td><code>fallback: T</code></td>
+<td><code>T</code></td>
+<td>The <code>Ok</code> value, or <code>fallback</code> when this is an <code>Err</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="result-combinators" class="level3">
+<h3 class="anchored" data-anchor-id="result-combinators">Combinators</h3>
+<p>The transforming combinators are free functions, because each introduces a fresh type parameter.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>result_map</code></td>
+<td><code>(r: Result[T, E], f: Function(x: T): U): Result[U, E]</code></td>
+<td>Apply <code>f</code> to the success value, leaving an <code>Err</code> untouched.</td>
+</tr>
+<tr class="even">
+<td><code>result_and_then</code></td>
+<td><code>(r: Result[T, E], f: Function(x: T): Result[U, E]): Result[U, E]</code></td>
+<td>Chain a fallible step, short-circuiting on the first <code>Err</code> (the bind / <code>and_then</code>).</td>
+</tr>
+<tr class="odd">
+<td><code>result_map_err</code></td>
+<td><code>(r: Result[T, E], f: Function(x: E): F): Result[T, F]</code></td>
+<td>Transform the error channel, leaving an <code>Ok</code> untouched (converts <code>Err[E]</code> into a caller's error type).</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="result-example" class="level3">
+<h3 class="anchored" data-anchor-id="result-example">Example</h3>
+<pre class="nex"><code>intern data/Result
+
+function parse_positive(raw: Integer): Result[Integer, String] do
+  if raw &gt; 0 then
+    result := create Ok[Integer, String].make(raw)
+  else
+    result := create Err[Integer, String].make("not positive")
+  end
+end
+
+let doubled: Result[Integer, String] :=
+  result_map(parse_positive(21), fn (x: Integer): Integer do result := x * 2 end)
+
+match doubled of
+  when Ok(value)  then print(value)          -- 42
+  when Err(error) then print(error)
+end</code></pre>
+</section>
+</section>
+<section id="dataoption" class="level2">
+<h2 class="anchored" data-anchor-id="dataoption"><code>data/Option</code></h2>
+<p><code>Option</code> is a sealed sum type for a value that may be present or absent, shipped under <a href="./home/vijay/Projects/nex/lib/data/option.nex"><code>lib/data/option.nex</code></a>. An <code>Option[T]</code> is either a <code>Some</code> carrying a value of type <code>T</code>, or <code>None</code>. It is a typed alternative to a detachable <code>?T</code>: it survives through generic code and keeps the sealed-type exhaustiveness guarantee that plain <code>nil</code> does not.</p>
+<section id="option-loading" class="level3">
+<h3 class="anchored" data-anchor-id="option-loading">Loading</h3>
+<pre class="nex"><code>intern data/Option</code></pre>
+<p><code>intern data/Option</code> brings the <code>Option</code> type, its <code>Some</code> and <code>None</code> variants, and the <code>option_*</code> combinator functions into scope. Support matches <code>data/Result</code>: JVM interpreter and generated JVM code yes; generated JavaScript no.</p>
+</section>
+<section id="option-types" class="level3">
+<h3 class="anchored" data-anchor-id="option-types">Types</h3>
+<ul>
+<li><code>Option[T]</code> &mdash; sealed deferred parent.</li>
+<li><code>Some[T]</code> &mdash; present; field <code>value: T</code>.</li>
+<li><code>None[T]</code> &mdash; absent; no fields.</li>
+</ul>
+<p>Construction infers the type argument: <code>create Some.make(42)</code> is <code>Some[Integer]</code>; write <code>create None[Integer].make()</code> to pin <code>None</code>'s parameter.</p>
+</section>
+<section id="option-methods" class="level3">
+<h3 class="anchored" data-anchor-id="option-methods">Methods</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>is_some</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>True when the option is a <code>Some</code>.</td>
+</tr>
+<tr class="even">
+<td><code>is_none</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>True when the option is <code>None</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>get_or</code></td>
+<td><code>fallback: T</code></td>
+<td><code>T</code></td>
+<td>The <code>Some</code> value, or <code>fallback</code> when this is <code>None</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="option-combinators" class="level3">
+<h3 class="anchored" data-anchor-id="option-combinators">Combinators</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>option_map</code></td>
+<td><code>(o: Option[T], f: Function(x: T): U): Option[U]</code></td>
+<td>Apply <code>f</code> to the contained value, leaving <code>None</code> untouched.</td>
+</tr>
+<tr class="even">
+<td><code>option_and_then</code></td>
+<td><code>(o: Option[T], f: Function(x: T): Option[U]): Option[U]</code></td>
+<td>Chain an optional step, short-circuiting on <code>None</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>option_filter</code></td>
+<td><code>(o: Option[T], pred: Function(x: T): Boolean): Option[T]</code></td>
+<td>Keep a <code>Some</code> only when it satisfies <code>pred</code>; otherwise yield <code>None</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="option-example" class="level3">
+<h3 class="anchored" data-anchor-id="option-example">Example</h3>
+<pre class="nex"><code>intern data/Option
+
+let present: Option[Integer] := create Some[Integer].make(10)
+let big: Option[Integer] :=
+  option_filter(present, fn (x: Integer): Boolean do result := x &gt; 5 end)
+
+print(big.get_or(0))       -- 10
+
+match big of
+  when Some(value) then print(value)
+  when None        then print("absent")
+end</code></pre>
 </section>
 </section>
 
