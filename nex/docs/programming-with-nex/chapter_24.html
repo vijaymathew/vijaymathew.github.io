@@ -123,15 +123,13 @@
     <h1 class="opener-title">Interoperability</h1>
   </div>
   <div class="prose">
-<p>No practical language lives entirely by itself. Sooner or later a program needs a file system, a library, a host API, or an external service. Nex is designed for that reality. It can import host-platform symbols and it can target the JVM or JavaScript.</p>
+<p>No practical language lives entirely by itself. Sooner or later a program needs a file system, a library, a host API, or an external service. Nex is designed for that reality. It can import host-platform symbols and it targets the JVM.</p>
 <p>The important question is not whether interop exists, but where it should live in the design. This chapter is about that boundary.</p>
 <section class="level2" data-number="25.1" id="importing-platform-symbols">
 <h2 class="anchored" data-anchor-id="importing-platform-symbols" data-number="25.1"> Importing Platform Symbols</h2>
 <p>Nex supports <code>import</code> statements at the top level. For Java:</p>
 <pre><code>import java.util.Scanner</code></pre>
-<p>For JavaScript modules:</p>
-<pre><code>import Math from './math.js'</code></pre>
-<p>These imports are primarily meaningful when compiling or translating Nex programs to the target platform. They tell the JVM compiler or JavaScript generator which host symbols the program expects to use.</p>
+<p>These imports are primarily meaningful when compiling Nex programs. They tell the JVM compiler which host symbols the program expects to use.</p>
 </section>
 <section class="level2" data-number="25.2" id="import-versus-intern">
 <h2 class="anchored" data-anchor-id="import-versus-intern" data-number="25.2"> <code>import</code> Versus <code>intern</code></h2>
@@ -142,7 +140,7 @@
 <li><code>~/.nex/deps</code></li>
 </ol>
 <p>For path-qualified classes, Nex checks <code>lib/&lt;path&gt;/...</code> layouts and also accepts lowercase filenames such as <code>tcp_socket.nex</code>.</p>
-<p><code>import</code>, by contrast, names external Java or JavaScript symbols. This distinction should remain sharp:</p>
+<p><code>import</code>, by contrast, names external Java symbols. This distinction should remain sharp:</p>
 <ul>
 <li>use <code>intern</code> for Nex-to-Nex modularity</li>
 <li>use <code>import</code> for host-platform interop</li>
@@ -160,30 +158,14 @@
 <p>For example, rather than calling platform I/O throughout a program, define a small Nex service class whose job is “read configuration” or “write report.” The rest of the program then depends on that service’s contract, not on host details.</p>
 </section>
 <section class="level2" data-number="25.4" id="translation-targets">
-<h2 class="anchored" data-anchor-id="translation-targets" data-number="25.4"> Translation Targets</h2>
-<p>The repository supports both JVM bytecode compilation and JavaScript translation. From Clojure:</p>
+<h2 class="anchored" data-anchor-id="translation-targets" data-number="25.4"> Compilation Target</h2>
+<p>Nex compiles to JVM bytecode. From Clojure:</p>
 <pre><code>(require '[nex.compiler.jvm.file :as jvm])
-(jvm/compile-jar "input.nex" "build/")
-
-(require '[nex.generator.javascript :as js])
-(println (js/translate nex-code))</code></pre>
-<p>And for files:</p>
-<pre><code>(js/translate-file "input.nex" "out/")</code></pre>
-
-<p>This matters for design because the same Nex source may be aimed at different host environments. A routine that depends only on arrays, maps, strings, and user-defined classes is much easier to move, test, and trust than one tangled with host APIs at every step.</p>
+(jvm/compile-jar "input.nex" "build/")</code></pre>
+<p>This matters for design because a routine that depends only on arrays, maps, strings, and user-defined classes is much easier to move, test, and trust than one tangled with host APIs at every step.</p>
 </section>
-<section class="level2" data-number="25.5" id="development-builds-and-production-builds">
-<h2 class="anchored" data-anchor-id="development-builds-and-production-builds" data-number="25.5"> Development Builds and Production Builds</h2>
-<p>Contracts are included in normal translated output. For production translation, the JavaScript generator supports <code>skip-contracts</code>:</p>
-<pre><code>(js/translate nex-code {:skip-contracts true})</code></pre>
-<p>Likewise for JavaScript file translation:</p>
-<pre><code>(js/translate-file "input.nex" "out/" {:skip-contracts true})</code></pre>
-
-<p>This is an important design point. Contracts remain in the source as specification and documentation, but the runtime checking overhead can be removed for production output when desired.</p>
-<p>Use this option deliberately. Development builds should usually keep contracts enabled.</p>
-</section>
-<section class="level2" data-number="25.6" id="with-java-blocks">
-<h2 class="anchored" data-anchor-id="with-java-blocks" data-number="25.6"> <code>with "java"</code> Blocks</h2>
+<section class="level2" data-number="25.5" id="with-java-blocks">
+<h2 class="anchored" data-anchor-id="with-java-blocks" data-number="25.5"> <code>with "java"</code> Blocks</h2>
 <p>On the JVM, Nex also supports:</p>
 <pre class="text"><code>with "java" do
   ...
@@ -206,8 +188,8 @@ end</code></pre>
 <li>if needed, store a Java-backed object in a field typed as <code>Any</code>, and only manipulate it inside <code>with "java"</code></li>
 </ul>
 </section>
-<section class="level2" data-number="25.7" id="a-small-interop-oriented-design">
-<h2 class="anchored" data-anchor-id="a-small-interop-oriented-design" data-number="25.7"> A Small Interop-Oriented Design</h2>
+<section class="level2" data-number="25.6" id="a-small-interop-oriented-design">
+<h2 class="anchored" data-anchor-id="a-small-interop-oriented-design" data-number="25.6"> A Small Interop-Oriented Design</h2>
 <p>In JVM REPL sessions, a practical style is to import a Java class and wrap it in a small Nex class immediately. For example, suppose we want efficient string assembly. We could expose <code>StringBuilder</code> everywhere, but a better design keeps that host type inside one Nex wrapper:</p>
 <pre class="text"><code>import java.lang.StringBuilder
 
@@ -275,8 +257,8 @@ alpha
 beta</code></pre>
 <p>The design point is the important part: <code>StringBuilder</code> is confined to <code>Line_Buffer</code>. The rest of the program depends on ordinary Nex routines such as <code>append_line</code> and <code>text</code>, not on Java library details.</p>
 </section>
-<section class="level2" data-number="25.8" id="portability-and-contracts">
-<h2 class="anchored" data-anchor-id="portability-and-contracts" data-number="25.8"> Portability and Contracts</h2>
+<section class="level2" data-number="25.7" id="portability-and-contracts">
+<h2 class="anchored" data-anchor-id="portability-and-contracts" data-number="25.7"> Portability and Contracts</h2>
 <p>Contracts are especially valuable around interop because host libraries often sit outside the type and contract discipline of the Nex core.</p>
 <p>If a wrapper routine imports or calls external functionality, its contract should state:</p>
 <ul>
@@ -286,8 +268,8 @@ beta</code></pre>
 </ul>
 <p>This makes the platform boundary explicit and safer.</p>
 </section>
-<section class="level2" data-number="25.9" id="a-worked-example-separating-core-logic-from-host-access">
-<h2 class="anchored" data-anchor-id="a-worked-example-separating-core-logic-from-host-access" data-number="25.9"> A Worked Example: Separating Core Logic from Host Access</h2>
+<section class="level2" data-number="25.8" id="a-worked-example-separating-core-logic-from-host-access">
+<h2 class="anchored" data-anchor-id="a-worked-example-separating-core-logic-from-host-access" data-number="25.8"> A Worked Example: Separating Core Logic from Host Access</h2>
 <p>Here is a complete JVM-oriented example. Suppose we want to print a short report about the current Java runtime. Reading system properties is host access. Formatting the report is ordinary program logic. We should separate those two concerns:</p>
 <pre class="text"><code>import java.lang.System
 
@@ -343,23 +325,22 @@ print(app.run())</code></pre>
 </ul>
 <p>This makes the program easier to test. The formatting routines can be exercised with ordinary strings, while only <code>Java_Runtime_Info</code> depends on JVM interop.</p>
 </section>
-<section class="level2" data-number="25.10" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="25.10"> Summary</h2>
+<section class="level2" data-number="25.9" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="25.9"> Summary</h2>
 <ul>
 <li><code>import</code> brings in host-platform symbols; <code>intern</code> brings in Nex classes</li>
 <li>Keep interop code near system boundaries rather than scattering it through core logic</li>
-<li>Nex can target JVM bytecode and JavaScript</li>
-<li>Production translation can omit runtime contract checks with <code>skip-contracts</code></li>
+<li>Nex compiles to JVM bytecode</li>
 <li>Contracts are especially valuable around interop boundaries</li>
 <li>Portable core logic is easier to test, reason about, and reuse</li>
 </ul>
 </section>
-<section class="level2" data-number="25.11" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="25.11"> Exercises</h2>
+<section class="level2" data-number="25.10" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="25.10"> Exercises</h2>
 <p><strong>1.</strong> Write a short example containing both an <code>intern</code> statement and an <code>import</code> statement. Explain the different role each plays.</p>
 <p><strong>2.</strong> Choose a small program idea and identify which parts should remain pure Nex logic and which parts belong to the host boundary.</p>
 <p><strong>3.</strong> Write a wrapper-class design for a clock or random-number service. State the contract of the main routine and explain what remains host-specific.</p>
-<p><strong>4.</strong> Explain when using <code>{:skip-contracts true}</code> is reasonable and when it is risky.</p>
+<p><strong>4.</strong> Explain when disabling runtime contract checks in a production build might be reasonable, and when it is risky.</p>
 <p><strong>5.*</strong> Take one earlier example, such as a report printer or configuration loader, and redesign it so that host-specific work is isolated in one class while the main computation remains platform-independent.</p>
 </section>
 

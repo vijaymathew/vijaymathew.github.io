@@ -46,31 +46,30 @@
 <section id="java-integration" class="level2" data-number="4.2">
 <h2 data-number="4.2" class="anchored" data-anchor-id="java-integration"><span class="header-section-number">4.2</span> 4.2 Java Integration</h2>
 <p>Nex supports host interoperation with Java through <code>import</code>. The design is intentionally modest: Nex is not implementing the full Java name-resolution model. It is giving the programmer a clear and explicit bridge to imported host classes.</p>
-<p>In the AST, Java imports are represented as import nodes with a qualified name and no <code>source</code> field. The interpreter stores these nodes in the runtime context. When Nex needs to resolve a host class, it searches the stored imports and matches the simple class name against the imported qualified names. The JVM compiler and the JavaScript generator both use the same distinction when deciding how an import should be interpreted for their target.</p>
+<p>In the AST, Java imports are represented as import nodes with a qualified name and no <code>source</code> field. The interpreter stores these nodes in the runtime context. When Nex needs to resolve a host class, it searches the stored imports and matches the simple class name against the imported qualified names. The interpreter and the JVM compiler use the same distinction when deciding how an import should be interpreted.</p>
 <p>The implementation path is worth tracing. The walker records imports as AST nodes. The interpreter stores those nodes. Later resolution is a straightforward lookup against that stored information. There is no hidden class-path scanning or implicit resolution — the programmer’s explicit <code>import</code> is the entire record of what host classes are available.</p>
 <p>This is a modest but effective design. It gives Nex a clean bridge into the JVM ecosystem without requiring that all useful host functionality be wrapped as a Nex built-in from the start. New Java classes become available to Nex programs as soon as they are explicitly imported, and the cost of adding that bridge is a single line.</p>
 </section>
-<section id="javascript-integration" class="level2" data-number="4.3">
-<h2 data-number="4.3" class="anchored" data-anchor-id="javascript-integration"><span class="header-section-number">4.3</span> 4.3 JavaScript Integration</h2>
-<p>JavaScript integration uses the same surface concept but a different host form. When a Nex <code>import</code> includes a <code>from</code> clause, the walker records both the imported identifier and its source path. The JavaScript generator turns that into an ES module import.</p>
-<p>The key distinction is captured in the AST:</p>
+<section id="the-import-distinction" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="the-import-distinction"><span class="header-section-number">4.3</span> 4.3 The Import Distinction</h2>
+<p>The <code>import</code> surface form carries a distinction in the AST that keeps host integration traceable. When a Nex <code>import</code> includes a <code>from</code> clause, the walker records both the imported identifier and its source path:</p>
 <ul>
-<li><code>import X</code> — qualified name only, no <code>source</code> — is a Java import</li>
-<li><code>import X from "module"</code> — qualified name plus <code>source</code> — is a JavaScript import</li>
+<li><code>import X</code> — qualified name only, no <code>source</code> — is a host (Java) import</li>
+<li><code>import X from "module"</code> — qualified name plus <code>source</code> — carries a module source</li>
 </ul>
-<p>The JVM backend ignores imports that have a <code>source</code>. The JavaScript generator emits only imports that do. This simple AST distinction keeps the front end shared while allowing the backends to behave differently with no ambiguity. It is a clean example of the general pattern: one representation, multiple interpretations at generation time.</p>
+<p>Nex currently targets the JVM, so the compiler and interpreter resolve host imports (those without a <code>source</code>) against imported qualified names and ignore imports that carry a <code>source</code>. The distinction is a clean example of the general pattern the language favours: one representation in the AST, interpreted according to the target rather than rewritten by a preprocessing step.</p>
 </section>
 <section id="platform-specific-code" class="level2" data-number="4.4">
 <h2 data-number="4.4" class="anchored" data-anchor-id="platform-specific-code"><span class="header-section-number">4.4</span> 4.4 Platform-Specific Code</h2>
-<p>Java and JavaScript APIs differ in ways that cannot always be abstracted away. Rather than hiding that fact, Nex allows explicit target-specific sections with <code>with "java"</code> and <code>with "javascript"</code> blocks. This is a pragmatic choice, and an honest one: the portability boundary is made visible rather than papered over.</p>
-<p>The implementation is consistent across all three execution paths. The interpreter evaluates the branch that matches its host and ignores the others. The JVM backend compiles <code>with "java"</code> blocks and omits the rest. The JavaScript generator does the reverse. In each case the decision is made at the same point in the pipeline — statement evaluation — not as a preprocessing step.</p>
-<p>This means <code>with</code> is not a textual macro trick. It is a real target-discrimination construct that survives the full implementation stack. A programmer who writes <code>with "javascript"</code> can reason about exactly where that code will and will not run.</p>
+<p>Host APIs differ in ways that cannot always be abstracted away. Rather than hiding that fact, Nex allows explicit target-specific sections with <code>with "java"</code> blocks (and, in the surface grammar, other target labels such as <code>with "javascript"</code>). This is a pragmatic choice, and an honest one: the portability boundary is made visible rather than papered over.</p>
+<p>The implementation is consistent across the execution paths. The interpreter and the JVM compiler evaluate the branch that matches the JVM host and ignore target labels that do not. The decision is made at the same point in the pipeline — statement evaluation — not as a preprocessing step.</p>
+<p>This means <code>with</code> is not a textual macro trick. It is a real target-discrimination construct that survives the full implementation stack. A programmer who writes <code>with "java"</code> can reason about exactly where that code will and will not run.</p>
 </section>
 <section id="concurrency-design-before-implementation" class="level2" data-number="4.5">
 <h2 data-number="4.5" class="anchored" data-anchor-id="concurrency-design-before-implementation"><span class="header-section-number">4.5</span> 4.5 Concurrency: Design Before Implementation</h2>
 <p>Concurrency in Nex is expressed through language-level constructs — <code>spawn</code>, <code>Task</code>, <code>Channel[T]</code>, <code>await</code>, <code>await_any</code>, <code>await_all</code>, and <code>select</code> — rather than through raw host threads or shared mutable objects. This is one of the most significant design decisions in the language, and it is worth understanding the motivation before the implementation.</p>
 <p>Locks and shared mutable state can express any concurrent program, but they hide the structure of coordination in ways that make programs hard to reason about and hard to teach. When one task sends and another receives on a channel, the communication path is visible in the source. The typechecker can check that the types agree. A reader can follow the coordination without inferring it from lock acquisition patterns. Channels do not just provide synchronisation — they make synchronisation legible.</p>
-<p>That conceptual choice propagates into the implementation. The typechecker has special rules for legal <code>select</code> clauses precisely because <code>select</code> is a controlled concurrency abstraction, not an arbitrary expression. The generators lower channel operations differently on JVM and JavaScript, but both preserve the same visible coordination structure at the surface level.</p>
+<p>That conceptual choice propagates into the implementation. The typechecker has special rules for legal <code>select</code> clauses precisely because <code>select</code> is a controlled concurrency abstraction, not an arbitrary expression. The interpreter and the JVM compiler lower channel operations through different mechanisms, but both preserve the same visible coordination structure at the surface level.</p>
 </section>
 <section id="jvm-concurrency-implementation" class="level2" data-number="4.6">
 <h2 data-number="4.6" class="anchored" data-anchor-id="jvm-concurrency-implementation"><span class="header-section-number">4.6</span> 4.6 JVM Concurrency Implementation</h2>
@@ -86,28 +85,17 @@
 <p>Channels are implemented as built-in runtime objects rather than user-defined classes. Their constructors are recognised specially, and their methods are wired into both the interpreter and the typechecker. This is one of the places where Nex uses a built-in abstraction because the semantics genuinely belong in the runtime — a user-defined <code>Channel</code> class could not provide the synchronisation guarantees the language model requires.</p>
 <p>To trace the concurrency path end to end, start at the interpreter’s <code>:spawn</code> evaluator and work outward to the <code>Task</code> and <code>Channel</code> method support. The typechecker’s registration of <code>Task</code> and <code>Channel</code> is the corresponding static half of the same story.</p>
 </section>
-<section id="javascript-concurrency-implementation" class="level2" data-number="4.7">
-<h2 data-number="4.7" class="anchored" data-anchor-id="javascript-concurrency-implementation"><span class="header-section-number">4.7</span> 4.7 JavaScript Concurrency Implementation</h2>
-<p>JavaScript cannot offer the blocking-thread model the JVM provides, so the JavaScript backend uses async control flow and promise-based mechanisms to represent tasks and channel coordination. The surface language does not change. The implementation strategy does.</p>
-<p>This becomes especially visible in <code>select</code>. Both backends lower <code>select</code> into explicit coordination loops, but in target-appropriate ways:</p>
-<ul>
-<li>the JVM backend uses bytecode-emitted loops and direct runtime helpers</li>
-<li>the JavaScript generator uses async loops, immediate probes such as <code>try_receive</code>, and promise-friendly suspension</li>
-</ul>
-<p>The structure is similar enough that comparing the select lowering in both backends is one of the fastest ways to understand what <code>select</code> means in Nex independent of either host. Where the backends agree, the behaviour is language-level. Where they diverge, the divergence is a host accommodation, not a semantic difference.</p>
-<p>For the async boundary specifically, <code>generate-spawn-expr</code>, <code>generate-select</code>, and <code>generate-select-clause-js</code> are the functions to read. They make explicit how Nex’s synchronous-looking concurrency model is lowered into JavaScript’s explicitly asynchronous one.</p>
-</section>
-<section id="the-design-pressure" class="level2" data-number="4.8">
-<h2 data-number="4.8" class="anchored" data-anchor-id="the-design-pressure"><span class="header-section-number">4.8</span> 4.8 The Design Pressure</h2>
+<section id="the-design-pressure" class="level2" data-number="4.7">
+<h2 data-number="4.7" class="anchored" data-anchor-id="the-design-pressure"><span class="header-section-number">4.7</span> 4.7 The Design Pressure</h2>
 <p>Libraries, host integration, and concurrency all test the same underlying question: can Nex remain conceptually clean while reaching into real systems?</p>
 <p>The current implementation answers that question with a consistent strategy: keep the core syntax and semantics explicit; push practical growth into libraries; use host interop directly when that is the honest solution; and build concurrency out of visible coordination primitives rather than exposing the host’s threading model raw.</p>
 <p>Each part of this chapter is an instance of that strategy applied to a different kind of outward reach. The <code>intern</code> mechanism keeps library loading as ordinary as possible. The import distinction keeps host integration traceable. The <code>with</code> construct keeps platform specificity visible rather than implicit. And the channel model keeps concurrency in the language’s reasoning model rather than below it.</p>
 <p>For contributors, the practical reading order for this chapter’s material is:</p>
 <ol type="1">
 <li>the <code>intern</code> path in the interpreter</li>
-<li>the import path in the walker and both generators</li>
+<li>the import path in the walker and the JVM backend</li>
 <li>the built-in <code>Task</code> and <code>Channel</code> support in the typechecker</li>
-<li>the <code>spawn</code> and <code>select</code> implementations in the interpreter and generators</li>
+<li>the <code>spawn</code> and <code>select</code> implementations in the interpreter and the JVM backend</li>
 </ol>
 <p>That sequence moves from the simplest form of outward reach to the most complex, and it is the shortest path to understanding how Nex extends beyond its local semantics without losing its character in the process.</p>
 
