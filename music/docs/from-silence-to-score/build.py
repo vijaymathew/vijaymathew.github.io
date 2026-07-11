@@ -194,6 +194,11 @@ PARTS = [
          "Take one earlier piece and fully orchestrate it, with a short "
          "written analysis of your own choices.", True),
     ]),
+    ("Afterword", "", [
+        ("afterword", "Afterword", "", "A Final Word",
+         "The book ends where composing begins — a send-off, and the one "
+         "habit that outweighs every resource: keep writing.", False),
+    ]),
     ("Appendices", "", [
         ("app-shortcuts", "Appendix A", "A", "Keyboard Shortcuts",
          "The MuseScore 4 shortcuts worth committing to muscle memory.",

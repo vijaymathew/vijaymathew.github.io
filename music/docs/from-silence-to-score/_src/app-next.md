@@ -1,8 +1,4 @@
-You have reached the end of this book, but not the end of the subject — you have reached its beginning. What you hold now is a working foundation: you can read and write notation, harmonize and shape a melody, build a form, and score music for real instruments, all inside a tool you know. That is enough to compose, and to keep composing. This last appendix points the way onward — the books, scores, and habits that will carry you from where this book stops toward wherever you want to go.
-
-## Keep composing
-
-The first and most important advice is the simplest: **write music, constantly.** No book, this one included, teaches composition the way composing does. Finish pieces — actually finish them, cadence and all — because a finished short piece teaches more than a dozen abandoned grand ones. Write a great deal, accept that much of it will be ordinary, and keep going; fluency comes only from volume. Set yourself small, concrete projects (a sixteen-bar minuet, a theme and two variations, a short piece for a friend who plays an instrument) and complete them. Everything below serves this; none of it substitutes for it.
+The Afterword sends you off to keep composing; this appendix is the map for when you want to go further than an introduction can take you. Each text and resource below goes deeper in its own domain — richer harmony, real counterpoint, the fuller orchestra. Read them slowly, at the keyboard, and alongside your own writing; none of them substitutes for the writing itself.
 
 ## Books worth owning
 
@@ -31,9 +27,3 @@ You will learn as much from the music itself as from any book — more, if you r
 - **musescore.com** hosts an enormous library of user-created and public-domain scores you can open, study, and play directly.
 - **Share your music.** Play it for friends, post it, find other composers online or locally. Feedback and performance — hearing real players play your notes — teach lessons no software can.
 - **Keep your ear sharp.** Simple ear-training sites (musictheory.net, teoria.com) and regular sight-singing or playing will strengthen the inner hearing that all composition rests on.
-
-## A final word
-
-Composition is not a talent you are born with or without; it is a craft, learned slowly, by doing it — and you have now begun. The tune from the Preface that you followed all the way to a full orchestral score was never the point; *you* learning to make such a thing was the point, and you can. Be patient with yourself, write more than you think you should, listen widely and closely, and return to these resources as questions arise. The rest is a lifetime of music, and it is yours to write.
-
-Open a new score, and begin.
