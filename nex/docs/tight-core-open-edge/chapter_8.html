@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layering: Behavior in Strata — Tight Core, Open Edge</title>
+<meta name="description" content="Adding capability on top of existing behavior without editing the base — stratified, fully-typed layers, and the last step of the bridge before the frontier.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_7.html">Ch. 7</a><a href="chapter_8.html" class="active">Ch. 8</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 8 · Part III</span>
+<h1 class="opener-title">Layering: Behavior in Strata</h1>
+<p class="opener-lede">Where combinators compose parts side by side, layering stacks them — each stratum wrapping the one beneath to add a single concern, without editing what it wraps. The last fully-typed step before the frontier.</p>
+</div>
+<article class="prose">
+
+<p>Chapter 7 composed parts <em>horizontally</em>: specifications combined with other specifications, all at the same level, all the same type. This chapter composes them <em>vertically</em>. Layering takes an existing behavior and wraps it in a new stratum that adds something — a check, a measurement, a cache, a retry — while delegating the real work downward. The base does not know it has been wrapped; the wrapper adds its concern and passes the rest along.</p>
+
+<p>The two techniques are complements. Combinators build a wide vocabulary out of peers. Layering builds a tall stack out of strata, each responsible for one thing, each defined against the same interface so the whole tower is still, from the outside, a single value of that type. Together they are the closed, typed half of composition — everything the type system can check — and the last thing to master before Part IV steps outside it.</p>
+
+<section id="one-interface-many-strata" class="level2" data-number="8.1">
+<h2 class="anchored" data-anchor-id="one-interface-many-strata"><span class="header-section-number">8.1</span> One Interface, Many Strata</h2>
+
+<p>Return to the order workflow. The pure decision (Chapter 5) and its effects (Chapter 6) are the base behavior; call the thing that runs an order placement a <code>Handler</code>. Around that base we will want cross-cutting concerns — logging, metrics, idempotency — that have nothing to do with the domain and everything to do with operating it. The layering move is to give every one of them, base and concern alike, the <em>same</em> interface:</p>
+
+<pre><code>-- Every stratum, from the core to the outermost concern, is a Handler.
+deferred class Handler
+  feature
+    handle(d: Draft): Result[Placement, String] do end   -- each layer overrides
+end
+
+-- The base: the domain work itself, wrapping nothing.
+class Core_Handler inherit Handler
+  create make() do end
+  feature
+    handle(d: Draft): Result[Placement, String]
+      do
+        result := place(d)          -- the pure transition from Chapter 5
+      end
+end</code></pre>
+
+<p>Because a layer <em>is</em> a <code>Handler</code> and also <em>holds</em> a <code>Handler</code>, layers stack. This is the closure property of Chapter 7 again, but pointed vertically: the output of wrapping is the same type as its input, so a wrapped handler can itself be wrapped.</p>
+</section>
+
+<section id="a-stratum" class="level2" data-number="8.2">
+<h2 class="anchored" data-anchor-id="a-stratum"><span class="header-section-number">8.2</span> A Stratum That Adds One Concern</h2>
+
+<p>A layer holds the handler beneath it, does its own small job before or after, and delegates the domain work down. Here is a logging stratum: it announces the attempt, calls inward, and reports the outcome — and touches no domain logic at all.</p>
+
+<pre><code>class Logging_Layer inherit Handler
+  create make(next: Handler, log: Logger) do inner := next  logger := log end
+  feature
+    inner: Handler
+    logger: Logger
+    handle(d: Draft): Result[Placement, String]
+      do
+        logger.info("placing order with " + d.items.length.to_string + " item(s)")
+        result := inner.handle(d)                    -- delegate downward
+        match result of
+          when Ok as ok then
+            logger.info("placed, total " + ok.order.total.to_string)
+          when Err as e then
+            logger.warn("rejected: " + e.error)
+        end
+      end
+end</code></pre>
+
+<p>Two things are worth noticing. The layer does its work <em>around</em> the delegation — before the call and after it — which is exactly the power a wrapper has that a side-by-side combinator does not: it surrounds the base rather than sitting next to it. And the concern is completely isolated: everything about logging lives in this one class, and nothing about logging appears anywhere in <code>Core_Handler</code> or in the domain. A metrics layer, a retry layer, an idempotency layer each look the same — one class, one concern, delegating the rest.</p>
+</section>
+
+<section id="stacking" class="level2" data-number="8.3">
+<h2 class="anchored" data-anchor-id="stacking"><span class="header-section-number">8.3</span> Stacking</h2>
+
+<p>Assembling the system is now a matter of nesting the strata, innermost last:</p>
+
+<pre><code>-- Read outside-in: log around metrics around the core.
+let pipeline: Handler :=
+  create Logging_Layer.make(
+    create Metrics_Layer.make(
+      create Core_Handler.make(),
+      metrics),
+    logger)
+
+let outcome: Result[Placement, String] := pipeline.handle(draft)</code></pre>
+
+<p>From the caller's side, <code>pipeline</code> is just a <code>Handler</code> — the same type as the bare <code>Core_Handler</code>. The caller cannot tell, and need not care, whether it holds one layer or ten; it calls <code>handle</code> and gets a <code>Result[Placement, String]</code>. That is the sense in which layering stays closed: however tall the stack, the outside sees a single value of the interface type, fully checked by the compiler.</p>
+
+<p>This is stratified design in the sense Sussman and Hanson describe it: each stratum is a <em>complete</em> version of the behavior. Peel off the logging layer and the metrics-wrapped core is still a working <code>Handler</code>. Peel off metrics too and the bare core still works. A layer refines what is beneath it without being necessary to it, so you can run any suffix of the stack and get a coherent system — which is precisely what makes the strata independently testable: wrap a stub <code>Handler</code> to test a layer in isolation, or run the core alone to test the domain without any of the operational dressing.</p>
+</section>
+
+<section id="additive-and-ordered" class="level2" data-number="8.4">
+<h2 class="anchored" data-anchor-id="additive-and-ordered"><span class="header-section-number">8.4</span> Additive — and This Time, Ordered</h2>
+
+<p>Layering is additive in the same way combinators are: a new concern is a new class, inserted into the stack, with no edit to the base or to any sibling layer. Want request tracing? Write a <code>Tracing_Layer</code> and slot it in. The core never learns of it; the other layers never learn of it; the type that flows through the stack never changes. This is the open-by-extension property the whole book is building toward, achieved here without leaving the type system — every layer is a checked <code>Handler</code>.</p>
+
+<p>But layering introduces a subtlety combinators mostly avoid: <em>order matters</em>. The <code>Both</code> of Chapter 7 is commutative — "domestic and over $100" means the same as "over $100 and domestic". A stack of layers usually is not. Put retry <em>outside</em> logging and you log once per attempt; put it <em>inside</em> and you log once per outcome. Put idempotency outside the charge and a retried request is charged once; put it inside and it may be charged twice. The strata are independent in <em>what</em> they do but coupled in the <em>order</em> they do it, and that order is a genuine design decision, not a detail. It is the price of the extra power: a wrapper that can act before <em>and</em> after the base is a wrapper whose position in the stack has consequences.</p>
+</section>
+
+<section id="layers-and-contracts" class="level2" data-number="8.5">
+<h2 class="anchored" data-anchor-id="layers-and-contracts"><span class="header-section-number">8.5</span> A Layer Must Keep the Base's Promise</h2>
+
+<p>There is one obligation a layer carries that the type system states only in part. Because a layer is substitutable for the handler it wraps — both are <code>Handler</code> — any caller relying on the base's behavior must not be surprised by the wrapper. A layer may <em>add</em> to what happens; it must not <em>break</em> what the base promised. A logging layer that swallowed an <code>Err</code> and returned a fabricated <code>Ok</code> would type-check perfectly and corrupt the system.</p>
+
+<p>This is the substitutability principle, and it is a contract, not a type. The interface guarantees the <em>shape</em> — a layer returns a <code>Result[Placement, String]</code> — but "the layer preserves the outcome the base computed, adding only its own concern" is a behavioral promise the compiler cannot see. State it where such promises belong: as a postcondition on <code>handle</code> that every layer must honor, so that wrapping a well-behaved handler yields a well-behaved handler. A well-formed stratum is one whose contract implies the contract of what it wraps. Keep that, and a tower of layers is as trustworthy as its base; break it in any single layer, and the tower silently lies.</p>
+</section>
+
+<section id="end-of-the-bridge" class="level2" data-number="8.6">
+<h2 class="anchored" data-anchor-id="end-of-the-bridge"><span class="header-section-number">8.6</span> The End of the Bridge</h2>
+
+<p>With combinators and layering, Part III has assembled a complete toolkit for building behavior <em>without editing existing behavior</em> — horizontally, by composing peers into a wide algebra, and vertically, by stacking strata into a tall one. Both are additive; both are open to extension; and, decisively, both stay inside the type system. Nothing in Parts I through III has asked the compiler to fall silent. We have been flexible, but only in the ways a type checker can still vouch for.</p>
+
+<p>That is about to change, and on purpose. Everything so far shares a hidden limit: to add a new peer or a new stratum, the new thing must fit an interface fixed <em>in advance</em>. A <code>Spec[T]</code> must implement <code>holds</code>; a <code>Handler</code> must implement <code>handle</code>. But some kinds of growth cannot be predicted well enough to name an interface up front — where you want to extend an operation to a new type of data that the operation's author never anticipated, or grow a language's own vocabulary at runtime. There the interface itself must be left open, the dispatch must happen on shapes the compiler does not know, and the type system can no longer carry the argument.</p>
+
+<p>That is the frontier, and it is where contracts stop being a supporting player and become the guard. Part IV steps across the line — beginning with generic operations, the first deliberate move outside the type system, and the chapter where the membrane finally does its real work.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_7.html"><span class="label">&larr; Chapter 7</span><span class="ttl">Combinators: Building by Composition</span></a></div><div class="next"><a href="chapter_9.html"><span class="label">Chapter 9 &rarr;</span><span class="ttl">Generic Operations: Extending Without Editing</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

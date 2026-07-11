@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unification and Search — Tight Core, Open Edge</title>
+<meta name="description" content="Matching and merging structures with logic variables, and searching when more than one assignment fits — the most open technique in the book, and the one most dependent on runtime guardrails.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_12.html">Ch. 12</a><a href="chapter_13.html" class="active">Ch. 13</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 13 · Part V</span>
+<h1 class="opener-title">Unification and Search</h1>
+<p class="opener-lede">Propagators narrowed a number from many directions. Unification does the same for structure — finding the assignment of unknowns that makes two shapes agree — and search explores when more than one assignment could. The most open technique in the book, guarded almost entirely at runtime.</p>
+</div>
+<article class="prose">
+
+<p>A propagator cell asked, "what is the price?" and let many sources narrow the answer. This chapter asks a different question: "what assignment of unknowns makes these two structures the same?" Instead of merging numeric ranges, we merge <em>shapes</em> that contain variables — and where the propagator settled on one answer, here there may be several, so we must <em>search</em>.</p>
+
+<p>This is the machinery beneath a surprising range of tools. Type inference unifies a program's inferred types against its declared ones. Prolog and logic languages compute entirely by unification and backtracking. A package manager resolving versions searches an enormous space of assignments for one that satisfies every constraint. In the running system, it is how an order finds its way to a warehouse and a carrier: fulfillment routing is a search for an assignment of unknowns — which warehouse, which carrier, what cost — that makes the order match an available route and satisfies every constraint at once.</p>
+
+<section id="structures-with-unknowns" class="level2" data-number="13.1">
+<h2 class="anchored" data-anchor-id="structures-with-unknowns"><span class="header-section-number">13.1</span> Structures With Unknowns</h2>
+
+<p>The data is a small, sealed set of forms — a closed structure, exactly as with the evaluator's syntax in Chapter 11. A term is a <em>variable</em> (an unknown to be solved for), an <em>atom</em> (a ground constant like a warehouse id), or a <em>compound</em> (a functor with argument terms, like <code>route(Warehouse, Carrier, Cost)</code>).</p>
+
+<pre><code>-- The structure is closed; the unknowns inside it are what we solve for.
+union Term
+  Var(name: String)                            -- an unknown
+  Atom(value: String)                          -- a ground constant
+  Compound(functor: String, args: Array[Term]) -- functor applied to argument terms
+end</code></pre>
+
+<p>A <strong>substitution</strong> is the partial knowledge here, playing the role the range played for propagators: a map from variable names to the terms they have been bound to. Two operations use it — <code>resolve</code>, which follows a term through the current bindings until it reaches an unbound variable or a non-variable, and <code>bind</code>, which extends it with one more binding. Like the propagator's merge, a substitution only ever accumulates.</p>
+</section>
+
+<section id="unification" class="level2" data-number="13.2">
+<h2 class="anchored" data-anchor-id="unification"><span class="header-section-number">13.2</span> Unification: Making Two Shapes Agree</h2>
+
+<p>Unification takes two terms and a substitution, and returns either an extended substitution that makes the two terms identical, or a failure. Failure is <em>data</em> — a <code>Result</code>, as in Chapter 4 — not an exception, because failing to unify is an ordinary, expected outcome that the search above will handle.</p>
+
+<pre><code>function unify(a: Term, b: Term, s: Substitution): Result[Substitution, String]
+  do
+    let x: Term := s.resolve(a)          -- follow existing bindings first
+    let y: Term := s.resolve(b)
+    match x of
+      when Var(name) then
+        result := create Ok[Substitution, String].make(s.bind(name, y))   -- bind the unknown
+      when Atom as ax then
+        result := unify_atom(ax, y, s)
+      when Compound as cx then
+        result := unify_compound(cx, y, s)
+    end
+  end</code></pre>
+
+<p>A <code>match</code> clause reads straight into a variant's payload: <code>Var(name)</code> both selects the variable case and binds its <code>name</code> field to a local, with no intermediate <code>v.name</code> — the pattern is the shape it destructures. The rules are simple and total over the sealed structure. A variable unifies with anything, by binding to it. Two atoms unify only if they are equal; otherwise it is a <em>clash</em>, and clash is a failure, not a crash. Here a <em>guard</em> — an <code>if</code> after the pattern — separates the agreeing atoms from the clashing ones, falling through to the next clause when it does not hold:</p>
+
+<pre><code>function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution, String]
+  do
+    match y of
+      when Var(name) then
+        result := create Ok[Substitution, String].make(s.bind(name, ax))
+      when Atom(value: v) if v = ax.value then
+        result := create Ok[Substitution, String].make(s)              -- atoms agree
+      when Atom(value: v) then
+        result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
+      when Compound as c then
+        result := create Err[Substitution, String].make("atom does not match a structure")
+    end
+  end</code></pre>
+
+<p>The guarded <code>Atom</code> clause narrows to the agreeing case; the unguarded <code>Atom</code> clause beneath it catches the rest, so the match stays exhaustive over the closed structure even with a guard in play. Two compounds unify when their functors and arities match and their arguments unify pairwise — threading the substitution through, so a binding learned from the first argument constrains the rest. That recursion, and the <em>occurs-check</em> that stops a variable being bound to a structure containing itself, are what keep unification from producing a circular or inconsistent answer. They are the structural analogue of the propagator's <code>ordered</code> invariant: guardrails that catch an inconsistency the moment it would enter.</p>
+</section>
+
+<section id="routing-by-unification" class="level2" data-number="13.3">
+<h2 class="anchored" data-anchor-id="routing-by-unification"><span class="header-section-number">13.3</span> Routing by Unification</h2>
+
+<p>Now the domain. An order presents a shape — its destination zone, its weight class, the items it needs — and each fulfillment route is a pattern over that shape with the unknowns left open. Unifying the order against a route either fails (this route cannot serve this order) or succeeds with the unknowns bound: <em>this</em> warehouse, <em>this</em> carrier, <em>this</em> cost. A route pattern like <code>route("zone-a", Warehouse, Carrier, Cost)</code> unified against an order in zone A binds <code>Warehouse</code>, <code>Carrier</code>, and <code>Cost</code> to whatever that route offers — computing the assignment rather than looking it up, and running in whichever direction the knowns allow.</p>
+
+<p>The power over a hand-written matcher is the same power the DSL had over hand-written handlers: routes are <em>data</em>. New routes are new patterns added to a table, never edits to the router. The set of ways an order can be fulfilled is open, and unification is the engine that matches an order against all of them uniformly.</p>
+</section>
+
+<section id="search" class="level2" data-number="13.4">
+<h2 class="anchored" data-anchor-id="search"><span class="header-section-number">13.4</span> Search: When More Than One Fits</h2>
+
+<p>Usually several routes unify with an order, and not all of them will hold up: a route may match structurally but the warehouse is out of stock, or the carrier cannot meet the deadline. So we <em>search</em> — try a candidate, check whether its bindings satisfy the domain constraints, and if not, <em>backtrack</em> and try the next. This is the nondeterminism at the heart of logic programming: commit tentatively, and undo on failure.</p>
+
+<pre><code>-- Try each route; the first whose bindings satisfy every constraint wins.
+function route(order: Term, routes: Array[Term]): Result[Substitution, String]
+  do
+    from
+      let i: Integer := 0
+      let found: Boolean := false
+      result := create Err[Substitution, String].make("no eligible route")
+    invariant
+      in_range: 0 &lt;= i and i &lt;= routes.length
+    variant
+      routes.length - i                       -- the search is bounded: it must end
+    until
+      i &gt;= routes.length or found
+    do
+      match unify(order, routes.get(i), create Substitution.make()) of
+        when Ok as s then
+          if satisfies_constraints(s.value) then
+            result := create Ok[Substitution, String].make(s.value)   -- commit to this route
+            found := true
+          end
+          -- else: bindings don't satisfy stock/deadline — fall through and backtrack
+        when Err as e then
+          -- structural mismatch — backtrack and try the next route
+      end
+      i := i + 1
+    end
+  end</code></pre>
+
+<p>The essential moves are all here: unify to propose an assignment, test it against the domain, keep it if it holds, and otherwise advance to the next candidate. A richer search would explore a tree rather than a list — routes whose choices open further choices — but the shape is the same: propose, check, backtrack. And whether it seeks the first valid route or the cheapest, the searching itself is the same machinery.</p>
+</section>
+
+<section id="runtime-guardrails" class="level2" data-number="13.5">
+<h2 class="anchored" data-anchor-id="runtime-guardrails"><span class="header-section-number">13.5</span> The Technique That Lives on Guardrails</h2>
+
+<p>Unification and search are the most open construction in the book, and it is worth being exact about how little the type system can promise inside them. The bindings are discovered at runtime; whether any assignment exists is unknown until the search runs; whether the search even <em>terminates</em> is not a fact any signature carries. Everything the compiler proved through Part II — exhaustive states, total functions, values well-formed by construction — is, in the interior of a search, simply unavailable. The type of <code>route</code> tells you it returns a <code>Result[Substitution, String]</code>; it cannot tell you the substitution is any good.</p>
+
+<p>So the guarantees are carried, almost in their entirety, by runtime guardrails — and every one of them is visible in the code above. Failure is <em>data</em>, so a clash or a dead end is an ordinary value the search consumes, not a crash. The <code>variant</code> <code>routes.length - i</code> is a proof of <em>termination</em>: a search that cannot decrease its bound cannot run forever, which is the single most important thing to guarantee about any search. And <code>satisfies_constraints</code> is the domain <em>postcondition</em> that a committed solution must meet — the guardrail that turns "unifies structurally" into "is actually a route we can honor", refusing to return an answer that type-checks but cannot ship.</p>
+
+<div class="thesis">Unification and search sit at the far end of the book's spectrum: open structure, discovered bindings, nondeterministic control, and a type system that can vouch for almost none of it. What keeps such a computation reliable is entirely runtime — failure as data, a variant that proves it ends, and a contract that a committed solution satisfies the domain. This is the flexibility tradition at its most extreme, and the constraint tradition, in the form of a few guardrails, is exactly what makes it usable.</div>
+
+</section>
+
+<section id="the-edge-of-the-frontier" class="level2" data-number="13.6">
+<h2 class="anchored" data-anchor-id="the-edge-of-the-frontier"><span class="header-section-number">13.6</span> The Edge of the Frontier</h2>
+
+<p>Part V explored flexibility in two dimensions the earlier parts did not reach. Propagators opened the <em>topology</em> of computation — many sources, many directions, over time. Unification and search opened its <em>structure and control</em> — shapes with unknowns, and a nondeterministic hunt for the assignment that fits. Both left the type system nearly behind, and both stayed reliable only because a small, well-placed constraint — a monotone merge, an ordering invariant, a termination variant, a solution postcondition — sat at the one point where an inconsistency could enter.</p>
+
+<p>That is the whole spectrum, now traversed end to end: from a sealed order state whose every case the compiler checks, to a backtracking search the compiler can barely see, with contracts as the connective tissue at every step between. We have seen what it is to constrain, to compose, and to open — and, at each opening, what it costs and what buys the cost back.</p>
+
+<p>Which leaves the only question that finally matters, the one no technique answers on its own. For the actual decision in front of you — this type, this module, this seam in this system — do you constrain, or do you open? That is judgment, and it is Part VI. The next chapter turns the whole book into a working checklist for making that call.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_12.html"><span class="label">&larr; Chapter 12</span><span class="ttl">Propagators: Computing with Partial Knowledge</span></a></div><div class="next"><a href="chapter_14.html"><span class="label">Chapter 14 &rarr;</span><span class="ttl">Where to Draw the Line</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

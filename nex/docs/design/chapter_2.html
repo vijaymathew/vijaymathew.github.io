@@ -27,8 +27,8 @@
 <ul>
 <li><a href="https://github.com/vijaymathew/nex/blob/main/grammar/nexlang.g4"><code>grammar/nexlang.g4</code></a> — the ANTLR grammar</li>
 <li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/parser.clj"><code>src/nex/parser.clj</code></a> — the thin parser layer</li>
-<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.cljc"><code>src/nex/walker.cljc</code></a> — grammar tree to semantic AST</li>
-<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/interpreter.cljc"><code>src/nex/interpreter.cljc</code></a> — evaluation</li>
+<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.clj"><code>src/nex/walker.clj</code></a> — grammar tree to semantic AST</li>
+<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/interpreter.clj"><code>src/nex/interpreter.clj</code></a> — evaluation</li>
 </ul>
 <p>If you are reading the code for the first time, treat this chapter as a guide to reading order. The shortest useful path through the implementation is:</p>
 <ol type="1">
@@ -63,7 +63,7 @@
 </section>
 <section id="the-walker-from-grammar-trees-to-semantic-asts" class="level2" data-number="2.3">
 <h2 data-number="2.3" class="anchored" data-anchor-id="the-walker-from-grammar-trees-to-semantic-asts"><span class="header-section-number">2.3</span> 2.3 The Walker: From Grammar Trees to Semantic ASTs</h2>
-<p>The parse tree that ANTLR produces is faithful to the grammar, but grammar-faithful is not the same as easy to evaluate. Grammar trees carry syntactic noise — token boundaries, optional punctuation, production-rule artifacts — that the rest of the implementation should not have to navigate. The role of <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.cljc"><code>src/nex/walker.cljc</code></a> is to convert grammar-shaped trees into semantic AST nodes that the interpreter and type-checker can work with directly.</p>
+<p>The parse tree that ANTLR produces is faithful to the grammar, but grammar-faithful is not the same as easy to evaluate. Grammar trees carry syntactic noise — token boundaries, optional punctuation, production-rule artifacts — that the rest of the implementation should not have to navigate. The role of <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.clj"><code>src/nex/walker.clj</code></a> is to convert grammar-shaped trees into semantic AST nodes that the interpreter and type-checker can work with directly.</p>
 <p>This conversion produces regular Clojure maps with a <code>:type</code> key and a set of named fields:</p>
 <ul>
 <li><code>{:type :class ...}</code></li>
@@ -122,7 +122,7 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 </section>
 <section id="the-runtime-context" class="level2" data-number="2.6">
 <h2 data-number="2.6" class="anchored" data-anchor-id="the-runtime-context"><span class="header-section-number">2.6</span> 2.6 The Runtime Context</h2>
-<p>The interpreter in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/interpreter.cljc"><code>src/nex/interpreter.cljc</code></a> keeps execution state inside a <code>Context</code> record. The context holds everything evaluation needs:</p>
+<p>The interpreter in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/interpreter.clj"><code>src/nex/interpreter.clj</code></a> keeps execution state inside a <code>Context</code> record. The context holds everything evaluation needs:</p>
 <ul>
 <li>known classes</li>
 <li>global bindings</li>
@@ -187,7 +187,7 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 </section>
 <section id="the-interpreter-as-semantic-baseline" class="level2" data-number="2.11">
 <h2 data-number="2.11" class="anchored" data-anchor-id="the-interpreter-as-semantic-baseline"><span class="header-section-number">2.11</span> 2.11 The Interpreter as Semantic Baseline</h2>
-<p>The interpreter is the semantic baseline for Nex. Even when Nex is compiled to JVM bytecode or JavaScript, the interpreter remains the authoritative statement of what the language means. The generators are correct when they produce behaviour that matches the interpreter. When they diverge, the interpreter wins.</p>
+<p>The interpreter is the semantic baseline for Nex. Even when Nex is compiled to JVM bytecode, the interpreter remains the authoritative statement of what the language means. The compiler is correct when it produces behaviour that matches the interpreter. When they diverge, the interpreter wins.</p>
 <p>This has a practical consequence for contributors: if you are unsure what a feature should do, make it work correctly in the interpreter first. The generators should follow the interpreter, not define their own semantics independently. A generator that is easier to write by taking a shortcut from the intended semantics is a generator that is wrong.</p>
 <p>The interpreter’s clarity is therefore not just an aesthetic property. It is the guarantee that the rest of the implementation has something reliable to follow.</p>
 

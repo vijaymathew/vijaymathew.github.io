@@ -23,11 +23,11 @@
 <article class="prose">
 <p>After parsing and AST construction, the implementation has two different but related questions to answer.</p>
 <p>First: is the program statically coherent? Second: if it is, how should it run on a host platform?</p>
-<p>The typechecker answers the first question. The two code generators answer the second. This chapter covers all three, in that order, because the generators depend on the typechecker and the typechecker depends on the AST — the pipeline runs left to right, and so does the explanation.</p>
+<p>The typechecker answers the first question. The JVM bytecode compiler answers the second. This chapter covers both, in that order, because the compiler depends on the typechecker and the typechecker depends on the AST — the pipeline runs left to right, and so does the explanation.</p>
 <section id="the-typechecker" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="the-typechecker"><span class="header-section-number">3.1</span> 3.1 The Typechecker</h2>
-<p>The typechecker in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/typechecker.cljc"><code>src/nex/typechecker.cljc</code></a> is a proper pass over the AST, not a set of ad hoc checks buried in the interpreter.</p>
-<p>That separation matters on two levels. At the language level, it gives programmers earlier and clearer feedback — a type error reported before execution is more useful than a runtime failure with a confusing message. At the implementation level, it prevents the interpreter and generators from rediscovering static facts on every evaluation. Facts established once by the typechecker do not need to be re-established downstream.</p>
+<p>The typechecker in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/typechecker.clj"><code>src/nex/typechecker.clj</code></a> is a proper pass over the AST, not a set of ad hoc checks buried in the interpreter.</p>
+<p>That separation matters on two levels. At the language level, it gives programmers earlier and clearer feedback — a type error reported before execution is more useful than a runtime failure with a confusing message. At the implementation level, it prevents the interpreter and the compiler from rediscovering static facts on every evaluation. Facts established once by the typechecker do not need to be re-established downstream.</p>
 <section id="the-type-environment" class="level3" data-number="3.1.1">
 <h3 data-number="3.1.1" class="anchored" data-anchor-id="the-type-environment"><span class="header-section-number">3.1.1</span> The Type Environment</h3>
 <p>Typechecking is fundamentally a process of carrying and refining assumptions. The typechecker makes this process visible by maintaining an explicit environment that records:</p>
@@ -99,22 +99,21 @@
 <p>Nex is intended to teach programmers how to state intent clearly. A type system that works primarily through invisible cleverness would undermine that goal — if the rules cannot be explained, they cannot be taught. The checker aims to be precise enough to catch real errors and simple enough that a contributor reading the file can understand how every rule is applied.</p>
 <p>This is a recurring theme across the Nex implementation: precision matters, but intelligibility matters too. Where they are in tension, Nex usually chooses intelligibility.</p>
 </section>
-<section id="why-two-backends" class="level2" data-number="3.4">
-<h2 data-number="3.4" class="anchored" data-anchor-id="why-two-backends"><span class="header-section-number">3.4</span> 3.4 Why Two Backends</h2>
-<p>Nex currently has two maintained compilation backends: JVM bytecode for JVM deployment and JavaScript for Node.js and browser environments. The relevant files are:</p>
+<section id="why-compile-at-all" class="level2" data-number="3.4">
+<h2 data-number="3.4" class="anchored" data-anchor-id="why-compile-at-all"><span class="header-section-number">3.4</span> 3.4 Why Compile at All</h2>
+<p>Nex has two ways to run a program: the tree-walking interpreter and the JVM bytecode compiler. The interpreter is the semantic baseline; the compiler exists for deployment, producing standalone <code>.class</code> files and shaded jars that run without a Nex process in the loop. The compiler entry point is:</p>
 <ul>
 <li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/file.clj"><code>src/nex/compiler/jvm/file.clj</code></a></li>
-<li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/generator/javascript.clj"><code>src/nex/generator/javascript.clj</code></a></li>
 </ul>
-<p>These backends solve the same semantic problem in different host runtimes. Their top-level control flow is intentionally similar:</p>
+<p>The compiler’s top-level control flow is:</p>
 <ol type="1">
 <li>parse Nex source</li>
 <li>type-check it unless explicitly disabled</li>
-<li>lower or translate the program into the target runtime model</li>
-<li>emit runtime artifacts needed by that target</li>
+<li>lower the program into compiler IR</li>
+<li>emit bytecode and the runtime artifacts the target needs</li>
 </ol>
-<p>Type-checking before generation is the right default. A generator should not silently produce host code for a program that Nex itself considers ill-typed.</p>
-<p>Having two targets also imposes a useful discipline. Any feature added to Nex must make sense in three settings — interpreted on the JVM, compiled to JVM bytecode, and translated to JavaScript. That pressure discourages features that only work by accident in one execution model. If you add or change a language feature, you should expect to touch the grammar, the walker, the typechecker, the interpreter, and both backends. This is not duplication for its own sake. It is how Nex keeps semantics explicit across the whole system.</p>
+<p>Type-checking before generation is the right default. A compiler should not silently produce bytecode for a program that Nex itself considers ill-typed.</p>
+<p>Keeping the interpreter and the compiler in agreement imposes a useful discipline. Any feature added to Nex must make sense in two settings — interpreted and compiled to JVM bytecode — and the interpreter is the authority the compiler is measured against. If you add or change a language feature, you should expect to touch the grammar, the walker, the typechecker, the interpreter, and the backend. This is not duplication for its own sake. It is how Nex keeps semantics explicit across the whole system.</p>
 </section>
 <section id="the-jvm-bytecode-compiler" class="level2" data-number="3.5">
 <h2 data-number="3.5" class="anchored" data-anchor-id="the-jvm-bytecode-compiler"><span class="header-section-number">3.5</span> 3.5 The JVM Bytecode Compiler</h2>
@@ -128,19 +127,10 @@
 <p>The compiler emits Nex classes, helper classes for function values and closures, runtime support for contracts and invariants, helpers for arrays, maps, sets, cursors, tasks, channels, I/O, and launcher classes for file compilation.</p>
 <p>One design decision worth noting: the bytecode backend still carries a substantial runtime alongside the generated user code. A compiled Nex jar includes the runtime support classes and the active compiler classpath rather than assuming a separately installed Nex VM. This keeps deployment simple at the cost of larger output, a tradeoff that is appropriate for Nex’s current use cases.</p>
 </section>
-<section id="the-javascript-generator" class="level2" data-number="3.6">
-<h2 data-number="3.6" class="anchored" data-anchor-id="the-javascript-generator"><span class="header-section-number">3.6</span> 3.6 The JavaScript Generator</h2>
-<p>The JavaScript generator serves a different purpose. It must preserve Nex’s semantics in a host environment with a different object model, single-threaded event-loop execution, promises rather than JVM blocking primitives, and ES module import conventions. It does not simply mirror the JVM backend — it re-expresses Nex semantics in a JavaScript-native form.</p>
-<p>The generator is organised around the same four concerns as the JVM backend — type mapping, expression emission, statement emission, and class emission — but several target-specific areas are worth calling out.</p>
-<p>First, the generator must decide when operations should produce <code>await</code>-bearing code. This matters for task and channel semantics, where the event-loop model requires explicit async boundaries that the JVM does not.</p>
-<p>Second, JavaScript imports are generated from Nex <code>import ... from ...</code> forms rather than from JVM-style qualified names, reflecting the ES module convention.</p>
-<p>Third, target-specific <code>with "javascript"</code> blocks are retained while <code>with "java"</code> blocks are omitted. This is a visible example of compile-time target selection — the same source file can contain platform-specific fragments, and each generator takes only what belongs to it.</p>
-<p>For the concurrency side specifically, read <code>generate-spawn-expr</code>, <code>generate-select</code>, and <code>generate-select-clause-js</code>. These functions make explicit how Nex concurrency is lowered into async JavaScript without changing the surface language — the semantics are preserved, but the mechanism is entirely different from the JVM path.</p>
-</section>
-<section id="backends-as-semantic-documents" class="level2" data-number="3.7">
-<h2 data-number="3.7" class="anchored" data-anchor-id="backends-as-semantic-documents"><span class="header-section-number">3.7</span> 3.7 Backends as Semantic Documents</h2>
+<section id="the-interpreter-and-the-compiler-as-two-views" class="level2" data-number="3.6">
+<h2 data-number="3.6" class="anchored" data-anchor-id="the-interpreter-and-the-compiler-as-two-views"><span class="header-section-number">3.6</span> 3.6 The Interpreter and the Compiler as Two Views</h2>
 <p>A backend is not only an output mechanism. It is also a semantic document.</p>
-<p>Reading the JVM and JavaScript backends side by side is instructive precisely where they diverge. Where both take the same path, the feature is straightforwardly language-level. Where they diverge — concurrency being the clearest example — the divergence reveals something real about Nex: the language semantics are more fundamental than any one execution model, and the backends are two independent proofs of that claim.</p>
+<p>Reading the interpreter and the JVM compiler side by side is instructive precisely where they diverge. Where both take the same path, the feature is straightforwardly language-level. Where they diverge — concurrency being the clearest example, with the interpreter using JVM blocking primitives and the compiler emitting the same behaviour in bytecode — the divergence reveals something real about Nex: the language semantics live in the interpreter, and the compiler is measured by how faithfully it reproduces them. When the two disagree, the interpreter wins.</p>
 <p>The larger architectural point is that parsing and typechecking are shared while code generation diverges only where the targets genuinely differ. One syntax, one AST, one static model, multiple execution strategies. That separation is what a language implementation should aim for, and Nex largely achieves it. *</p>
 
 

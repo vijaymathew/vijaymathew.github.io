@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propagators: Computing with Partial Knowledge — Tight Core, Open Edge</title>
+<meta name="description" content="Multi-directional, additive computation over cells of partial information — a quoting engine where facts converge from many sources, kept honest by invariants.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_11.html">Ch. 11</a><a href="chapter_12.html" class="active">Ch. 12</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 12 · Part V</span>
+<h1 class="opener-title">Propagators: Computing with Partial Knowledge</h1>
+<p class="opener-lede">Some answers do not reduce from inputs to output. They accumulate — from many directions, in any order, out of fragments — and settle into place. This is computation as a network of partial knowledge, kept reliable by invariants.</p>
+</div>
+<article class="prose">
+
+<p>Every technique so far, however open, has computed in one direction. A workflow flows a draft to a shipment; an evaluator pulls a price from the leaves of an expression to its root. Inputs go in; an output comes out; the direction is fixed. Part V is about problems that refuse that shape — where knowledge arrives in fragments, from several directions at once, and the answer must be assembled rather than reduced.</p>
+
+<p>The quoting problem in the running system is exactly this. What an order finally costs is constrained from many independent directions: inventory bounds what can be fulfilled, a promotion lowers the ceiling, the order's floor raises the base, tax jurisdiction shifts the total, shipping adds to it. None of these is <em>the</em> input; each is a partial fact about the same unknown quote, and they may arrive in any order, some late, some never. A function cannot model this, because a function must know its inputs before it runs. What models it is a <strong>propagator network</strong>.</p>
+
+<section id="not-a-function" class="level2" data-number="12.1">
+<h2 class="anchored" data-anchor-id="not-a-function"><span class="header-section-number">12.1</span> Computation That Isn't a Function</h2>
+
+<p>You already rely on propagator networks daily, under other names. A <em>spreadsheet</em> is one: cells hold values, formulas connect them, and changing one cell wakes every formula that depends on it, which updates its cell, which wakes the next — computation spreading through a network until it settles. Reactive UI <em>signals</em> are the same idea: a derived value recomputes when any source changes. A <em>constraint layout</em> engine, like the one behind Auto Layout, solves position and size from constraints that arrive from all sides. An <em>incremental build</em> system repropagates only what a change can reach. Each is a special case of one general model: cells that hold information, and machines that keep the cells consistent as information arrives.</p>
+
+<p>The generalization, due to Radul and Sussman, makes two moves past the spreadsheet. First, a cell holds not a value but <em>partial knowledge</em> — it may know nothing yet, or a range, or an exact value, or that it has been told contradictory things. Second, the connections are <em>multi-directional</em>: where a spreadsheet formula computes one cell from others, a propagator can run whichever way the available knowledge allows. Together these let a network compute with what it has, from wherever it comes, in whatever order it arrives.</p>
+</section>
+
+<section id="cells-and-partial-info" class="level2" data-number="12.2">
+<h2 class="anchored" data-anchor-id="cells-and-partial-info"><span class="header-section-number">12.2</span> Cells and Partial Knowledge</h2>
+
+<p>The heart of the model is the content of a cell, and the rule for combining two pieces of it. For the quote, partial knowledge is a <em>range</em>: the price is known to lie somewhere between a low and a high bound. Knowing nothing is a wide range; knowing exactly is a range collapsed to a point.</p>
+
+<pre><code>-- Partial knowledge about a price: it lies somewhere in [low, high].
+class Price_Range
+  create make(l: Money, h: Money)
+    require
+      ordered: l &lt;= h              -- an empty range is a contradiction; see below
+    do
+      low := l  high := h
+    end
+  feature
+    low: Money
+    high: Money
+
+    -- Merge two pieces of knowledge into a sharper one: intersect the ranges.
+    merged_with(other: Price_Range): Price_Range
+      do
+        let l: Money := low
+        if other.low > l then l := other.low end
+        let h: Money := high
+        if other.high &lt; h then h := other.high end
+        result := create Price_Range.make(l, h)
+      end
+
+    is_known(): Boolean do result := low = high end
+  invariant
+    ordered: low &lt;= high
+end</code></pre>
+
+<p>The one operation that matters is <code>merged_with</code>, and it has a property that makes the whole model work: merging only ever produces knowledge at least as sharp as what went in. Intersecting ranges can narrow the bounds or leave them, but never widen them. Information in this world is <em>monotone</em> — it accumulates and never retreats. That single discipline is what frees the network from caring about order: because merging is commutative and associative and only ever sharpens, the cell reaches the same final content no matter which fact arrives first, or how many times. Order-independence is not engineered; it falls out of a well-chosen merge.</p>
+</section>
+
+<section id="propagators" class="level2" data-number="12.3">
+<h2 class="anchored" data-anchor-id="propagators"><span class="header-section-number">12.3</span> The Machines Between the Cells</h2>
+
+<p>A cell holds knowledge; a <strong>propagator</strong> moves it. A propagator is a stateless machine wired to some cells: when any of them gains sharper content, the propagator wakes, computes what that implies for the others, and adds it — which may wake further propagators, and so the sharpening spreads until nothing new can be derived and the network goes quiet.</p>
+
+<pre><code>class Cell
+  create make(initial: Price_Range) do content := initial  neighbors := [] end
+  feature
+    content: Price_Range
+    neighbors: Array[Propagator]
+
+    -- Add a fact from any source; keep only if it sharpens; then wake the network.
+    add_content(info: Price_Range)
+      do
+        let sharper: Price_Range := content.merged_with(info)
+        if not (sharper.low = content.low and sharper.high = content.high) then
+          content := sharper
+          across neighbors as p do
+            p.wake
+          end
+        end
+      ensure
+        never_widens: content.low &gt;= old content.low and content.high &lt;= old content.high
+      end
+end</code></pre>
+
+<p>The postcondition <code>never_widens</code> states the monotonicity in the type of a contract: a cell's knowledge can only get sharper. That guarantee is what makes a propagator network something you can reason about at all — without it, a cell could oscillate and the network might never settle. Because propagators are stateless and only add information, they are also <em>multi-directional</em>: a propagator relating a subtotal, a discount, and a total can fire in whichever direction it has the inputs for — deriving the total from the first two, or bounding the discount once the total is known. There is no privileged input and output, only cells that know more or less.</p>
+</section>
+
+<section id="the-quoting-network" class="level2" data-number="12.4">
+<h2 class="anchored" data-anchor-id="the-quoting-network"><span class="header-section-number">12.4</span> The Quoting Network</h2>
+
+<p>Now the running example resolves. The quote is a cell, initialized knowing almost nothing — a range from zero to some ceiling. Each source is a propagator that adds what it knows, from its own direction, whenever it learns it:</p>
+
+<pre><code>let quote: Cell := create Cell.make(create Price_Range.make(Money.zero, ceiling))
+
+-- Each source contributes a partial fact; order does not matter.
+quote.add_content(floor_bounds)       -- the order floor raises the low end
+quote.add_content(promo_bounds)       -- a promotion lowers the high end
+quote.add_content(tax_bounds)         -- jurisdiction shifts the range
+quote.add_content(inventory_bounds)   -- limited stock caps the fulfillable amount
+
+if quote.content.is_known then
+  -- low = high: the sources have pinned the quote to a single price
+end</code></pre>
+
+<p>This is additive design carried to its limit. A new source of pricing knowledge — a seasonal surcharge, a regional subsidy — is a new propagator wired to the quote cell. It is never an edit to the others; the network simply has one more way to learn. And because merging is monotone and order-free, it does not matter whether the surcharge is known at checkout or arrives a second later from a slow service: the cell integrates it whenever it comes and settles to the same answer. The engine computes with partial knowledge and keeps computing as knowledge fills in.</p>
+</section>
+
+<section id="invariants-keep-it-honest" class="level2" data-number="12.5">
+<h2 class="anchored" data-anchor-id="invariants-keep-it-honest"><span class="header-section-number">12.5</span> Invariants Keep the Network Reliable</h2>
+
+<p>An open, multi-directional network is a frightening thing to trust. There is no single evaluation order to trace, no function signature that captures what it computes, and any number of independently-authored sources feeding it at once. What stops two of those sources from quietly disagreeing — a promotion insisting the price is at most ten, a floor insisting it is at least twelve — and the network settling on a confident, wrong number?</p>
+
+<p>The invariant does. Look again at <code>Price_Range</code>: its <code>ordered</code> invariant, and the matching precondition on <code>make</code>, say that the low bound may never exceed the high. When two sources disagree, their merge tries to construct a range whose low is above its high — and the contract fires, at the exact moment and place the contradiction entered, naming it. A silent wrong answer becomes a located, explained failure. In a full system this is the signal a truth-maintenance layer uses to back out an assumption and try another; here the point is narrower and it is the point of the whole book: <em>in a network too open for the type system to check, the invariant is what catches the inconsistency.</em> Constraint does not disappear at the most flexible edge of the system; it moves into the merge, where it guards a computation no signature could describe.</p>
+
+<div class="thesis">A propagator network is the most open computation in the book — no fixed direction, no fixed inputs, no fixed set of contributors. Its reliability rests entirely on one invariant on the merge: information may sharpen but never contradict. Where flexibility is total, a single well-placed constraint is what keeps it from lying.</div>
+</section>
+
+<section id="provenance-and-retraction" class="level2" data-number="12.6">
+<h2 class="anchored" data-anchor-id="provenance-and-retraction"><span class="header-section-number">12.6</span> Provenance, and Taking Facts Back</h2>
+
+<p>Monotonicity buys order-independence but seems to forbid something a real quoting engine needs: a promotion can be <em>withdrawn</em>, and its contribution to the quote must then disappear. Information that only accumulates cannot simply be un-accumulated.</p>
+
+<p>The resolution is to record not just <em>what</em> a cell knows but <em>why</em> — the provenance of each contribution, the set of premises it rests on. A cell's content becomes knowledge-relative-to-assumptions, and retracting a premise means recomputing the cell from the contributions that did not depend on it. Within any fixed set of assumptions, information is still monotone and the network still settles; across a change of assumptions, a supervising layer — a truth-maintenance system — rebuilds what the withdrawn premise supported. The withdrawn promo cleanly retracts, not by reversing time, but by asking what the network would have known without it.</p>
+
+
+<p>Propagators show flexibility in a new dimension — not an open <em>vocabulary</em>, as in Part IV, but an open <em>topology</em>: any number of sources, in any direction, over time. There is one more shape of partial-knowledge computation to meet, and it is the most open technique in the book. Instead of narrowing numeric ranges, it matches and merges <em>structures</em> — asking not "what is the price?" but "what assignment of unknowns makes these shapes agree?", and searching when more than one might. That is unification and search, and it is the final chapter of the frontier.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_11.html"><span class="label">&larr; Chapter 11</span><span class="ttl">Evaluators You Can Extend</span></a></div><div class="next"><a href="chapter_13.html"><span class="label">Chapter 13 &rarr;</span><span class="ttl">Unification and Search</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

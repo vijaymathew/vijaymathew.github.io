@@ -7,16 +7,17 @@ larger structure.</p>
 <h2><span class="secno">3.1</span>Programs and Compilation Units</h2>
 
 <p>A program is a sequence of top-level items: import and intern declarations,
-class declarations, function declarations and definitions, type declarations,
-and statements.</p>
+class declarations, union declarations, function declarations and definitions,
+type declarations, and statements.</p>
 
 <div class="grammar">
 <table>
 <tr><td class="nt">program</td><td class="op">::=</td><td><span class="nt">topitem</span><sup>*</sup></td></tr>
 <tr><td class="nt">topitem</td><td class="op">::=</td><td><span class="nt">import</span> <span class="op">|</span> <span class="nt">intern</span></td><td class="cmt">&mdash; module links</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">classdec</span></td><td class="cmt">&mdash; class declaration</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">uniondec</span></td><td class="cmt">&mdash; union declaration</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">fundec</span> <span class="op">|</span> <span class="nt">funsig</span></td><td class="cmt">&mdash; function definition / declaration</td></tr>
-<tr><td></td><td class="op">|</td><td><span class="nt">tydec</span></td><td class="cmt">&mdash; type alias</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">tydec</span></td><td class="cmt">&mdash; type alias / refinement</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">stmt</span></td><td class="cmt">&mdash; top-level statement</td></tr>
 </table>
 </div>
@@ -75,6 +76,48 @@ conform to; and it may be marked with a leading <code>?</code> to admit
 
 <p>Generics are ordinary types, not a notational convenience layered over an
 untyped core; their elaboration is given in Section&nbsp;4.7.</p>
+
+<h3><span class="secno">3.2.2</span>Union Declarations</h3>
+
+<p>A <strong>union declaration</strong> introduces a closed set of data variants
+under a common type. It is a concise notation for a sealed hierarchy: the value
+of a union type is exactly one of its named variants, each of which may carry a
+list of named fields.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">uniondec</td><td class="op">::=</td><td><span class="lit">union</span> <span class="nt">id</span> &langle;<span class="nt">gen</span>&rangle; &langle;<span class="nt">note</span>&rangle; <span class="nt">variant</span><sup>+</sup> <span class="lit">end</span></td></tr>
+<tr><td class="nt">variant</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> <span class="nt">paramlist</span> <span class="lit">)</span>&rangle;</td><td class="cmt">&mdash; tag and optional named payload</td></tr>
+</table>
+</div>
+
+<p>A union declaration is a <em>derived form</em>: it abbreviates declarations
+that could be written by hand. A declaration <code>union P&langle;gen&rangle;</code>
+with variants <span class="nt">V</span><sub>1</sub>&hellip;<span class="nt">V</span><sub>n</sub>
+elaborates to a <code>sealed deferred class P</code> together with one class
+<code>V</code><sub>i</sub> <code>inherit P</code> for each variant, whose fields are
+the variant&rsquo;s payload and whose sole constructor <code>make</code> takes one
+parameter per field, in declaration order, and assigns it. The exact translation
+is given in Appendix&nbsp;C. Because the elaboration produces ordinary sealed
+classes, construction (<code>create V.make(&hellip;)</code>), generic arguments,
+matching, and the exhaustiveness guarantee of Section&nbsp;4.4 all apply to a
+union with no further rules.</p>
+
+<p>The <code>union</code> word is a <em>soft keyword</em>: it introduces a
+declaration only in top-level position, and remains usable as a member name (as
+in the <code>union</code> method of a set) elsewhere.</p>
+
+<pre><code>union Order
+  Draft
+  Placed(id: String, total: Real)
+  Shipped(tracking: String, at: Date)
+end</code></pre>
+
+<p>A union names <em>data</em> only: it synthesises no methods, invariants, or
+contracts on its variants. A variant that needs a constructor precondition, an
+invariant, or per-variant behaviour is written in the explicit
+<code>sealed deferred class</code> form of Section&nbsp;3.2, which the union form
+does not replace.</p>
 
 <h2><span class="secno">3.3</span>Features</h2>
 
@@ -178,7 +221,8 @@ the <em>optional</em> type that additionally admits <code>nil</code>.</p>
 <tr><td class="nt">funty</td><td class="op">::=</td><td><span class="lit">Function</span> &langle;<span class="lit">(</span> &langle;<span class="nt">funtyparams</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle;&rangle;</td></tr>
 <tr><td class="nt">funtyparams</td><td class="op">::=</td><td><span class="nt">funtyparam</span> (<span class="lit">,</span> <span class="nt">funtyparam</span>)<sup>*</sup></td></tr>
 <tr><td class="nt">funtyparam</td><td class="op">::=</td><td><span class="nt">id</span> <span class="lit">:</span> <span class="nt">ty</span> <span class="op">|</span> <span class="nt">ty</span></td><td class="cmt">&mdash; named or positional</td></tr>
-<tr><td class="nt">tydec</td><td class="op">::=</td><td><span class="lit">declare</span> <span class="lit">type</span> <span class="nt">id</span> <span class="lit">=</span> <span class="nt">ty</span></td><td class="cmt">&mdash; type alias</td></tr>
+<tr><td class="nt">tydec</td><td class="op">::=</td><td><span class="lit">declare</span> <span class="lit">type</span> <span class="nt">id</span> <span class="lit">=</span> <span class="nt">ty</span> &langle;<span class="nt">refine</span>&rangle;</td><td class="cmt">&mdash; type alias or refinement</td></tr>
+<tr><td class="nt">refine</td><td class="op">::=</td><td><span class="lit">where</span> <span class="nt">id</span> <span class="lit">:</span> <span class="nt">exp</span></td><td class="cmt">&mdash; binder and predicate</td></tr>
 </table>
 </div>
 
@@ -188,6 +232,29 @@ unconstrained function type, compatible with any function value. A
 is thereafter interchangeable with that expression. Type aliases are most often
 used to name a function signature, but any type may be aliased, as in
 <code>declare type Matrix = Array[Array[Real]]</code>.</p>
+
+<h3><span class="secno">3.5.1</span>Refinement Types</h3>
+
+<p>When a <code>declare type</code> carries a <code>where</code> clause, it
+declares not an alias but a <strong>refinement type</strong>: the named base type
+narrowed by a predicate. The clause <code>where n: e</code> binds the value under
+test to <code>n</code> and gives a boolean expression <code>e</code> that every
+value of the refinement must satisfy.</p>
+
+<pre><code>declare type Quantity = Integer where n: n &gt; 0
+declare type Percentage = Real where p: p &gt;= 0.0 and p &lt;= 100.0</code></pre>
+
+<p>A refinement is not a class: it carries no fields, no constructor, and no
+boxing. A value of the refinement <em>is</em> a value of the base type&mdash;the
+refinement is a checked brand erased to the base representation, so a
+<code>Quantity</code> may be used wherever an <code>Integer</code> is wanted, and
+arithmetic on it yields the base type. The predicate is a contract: it is checked
+where a base value is <em>narrowed</em> into the refinement, and elided under
+<code>skip-contracts</code> like any other contract. The subtyping rule
+(narrowing checked, widening free) is given in Section&nbsp;4.3, and the
+placement and evaluation of the check in Section&nbsp;5.6. Like <code>union</code>,
+<code>where</code> is a soft keyword, recognised only after
+<code>declare type id = ty</code>.</p>
 
 <h2><span class="secno">3.6</span>Modules</h2>
 

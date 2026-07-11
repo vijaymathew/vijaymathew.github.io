@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parse, Don't Validate — Tight Core, Open Edge</title>
+<meta name="description" content="Turning untrusted input into trustworthy types once, at the edge, with Result as a returnable value — and why the interior never re-checks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_3.html">Ch. 3</a><a href="chapter_4.html" class="active">Ch. 4</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 4 · Part II</span>
+<h1 class="opener-title">Parse, Don't Validate: Boundaries and Trust</h1>
+<p class="opener-lede">Untrusted input becomes a trustworthy value exactly once, at the edge — and the act that converts it should also record the proof, so the interior never has to check again.</p>
+</div>
+<article class="prose">
+
+<p>The constrained core of Chapter 3 rests on an assumption: that the values reaching it are already the right types — a real <code>Array[Line_Item]</code>, a real <code>Quantity</code>, not a blob of JSON or a half-filled form. That assumption is what lets the interior stop checking. But it has to be <em>made true</em> somewhere, and the only place it can be made true is the boundary — the seam where the open world hands its raw material to the closed core.</p>
+
+<p>How you treat that seam decides whether the constraint discipline holds or leaks. There are two ways to meet untrusted input, and they look similar but differ in one decisive respect: what they leave behind.</p>
+
+<section id="validate-vs-parse" class="level2" data-number="4.1">
+<h2 class="anchored" data-anchor-id="validate-vs-parse"><span class="header-section-number">4.1</span> Two Ways to Meet Untrusted Input</h2>
+
+<p>To <strong>validate</strong> is to ask a yes-or-no question and keep the same value either way. A function <code>is_valid_quantity(raw: Integer): Boolean</code> inspects its argument, returns <code>true</code>, and hands you back... the same raw <code>Integer</code> you started with. The knowledge it gained — that this number is positive — evaporates the moment it returns. The next function that receives the integer knows nothing, and must ask again.</p>
+
+<p>To <strong>parse</strong> is to ask the same question but <em>keep the answer in the type</em>. A function <code>parse_quantity(raw: Integer): Result[Quantity, String]</code> either fails or returns a <code>Quantity</code> — and a <code>Quantity</code>, by Chapter 3's construction, cannot exist unless it is positive. The value it returns <em>is</em> the proof. No later function has to re-establish positivity, because holding a <code>Quantity</code> already means it.</p>
+
+<p>The difference is not stylistic. Validation throws away evidence; parsing preserves it by moving it from a transient check into a durable type. This is why re-validation spreads through validate-style codebases like damp: because the type never changed, every layer distrusts the value equally, and the same check reappears at every level — the "shotgun parser", where input is picked at again and again because no single act ever converted it for good.</p>
+
+<div class="thesis">Validation asks <strong>is this value acceptable?</strong> and returns a verdict. Parsing asks <strong>what trustworthy value can I make from this?</strong> and returns the value. Only the second changes the type — and only a change of type can end the checking.</div>
+</section>
+
+<section id="result-as-value" class="level2" data-number="4.2">
+<h2 class="anchored" data-anchor-id="result-as-value"><span class="header-section-number">4.2</span> Failure as a Returnable Value</h2>
+
+<p>Parsing can fail — that is the whole reason it exists — so we need a way to return failure that a caller cannot ignore. Throwing an exception is the wrong tool here: an exception is an <em>invisible</em> exit that does not show up in the type, so a caller who forgets to handle it compiles cleanly and crashes at runtime. At a trust boundary, failure is not exceptional; it is expected, and it should be as visible as success.</p>
+
+<p>So we make failure a value. <code>Result</code> is a sum type — exactly the construction from Chapter 3 — with two shapes: a success carrying a value, and a failure carrying an explanation. It is common enough that Nex ships it in the standard library, so we bring it in rather than redeclare it:</p>
+
+<pre><code>intern data/Result
+
+-- Result[T, E] is one of:
+--   Ok(value: T)    -- success, holding a value of type T
+--   Err(error: E)   -- failure, holding an error of type E</code></pre>
+
+<p>A <code>Result</code> carries two type parameters: <code>T</code>, the value a success holds, and <code>E</code>, the error a failure holds. Our parsers explain themselves in prose, so <code>E</code> is <code>String</code> throughout this chapter — a <code>Result[Quantity, String]</code> is "a quantity, or a sentence saying why not." Keeping the error in its own parameter, separate from the value type, is what lets a failure travel upward untouched: an <code>Err</code> produced deep in a parse is not tied to the success type at its level, so it flows out through every enclosing parser without being taken apart and rebuilt (§4.5).</p>
+
+<p>Because <code>Result</code> is sealed, a caller who receives one must <code>match</code> on it, and the compiler will not let them read the success value without also confronting the failure case (§3.4). Failure stops being a footnote and becomes a branch the type system insists you handle. The parser's whole contract — <em>this might not work, and here is why</em> — is now written in its return type, where no caller can miss it.</p>
+</section>
+
+<section id="parse-once" class="level2" data-number="4.3">
+<h2 class="anchored" data-anchor-id="parse-once"><span class="header-section-number">4.3</span> Parse Once, at the Gate</h2>
+
+<p>A parser is a function from a loose type to a precise one, failing when the loose value has no precise counterpart. Here is the smallest one, turning a raw integer into a <code>Quantity</code>:</p>
+
+<pre><code>function parse_quantity(raw: Integer): Result[Quantity, String]
+  do
+    if raw &gt; 0 then
+      let q: Quantity := raw                        -- narrow once, here at the gate
+      result := create Ok[Quantity, String].make(q)
+    else
+      result := create Err[Quantity, String].make(
+        "quantity must be positive, got " + raw.to_string)
+    end
+  end</code></pre>
+
+<p>The positivity check happens <em>here</em>, once, at the gate — the moment a bare <code>Integer</code> is narrowed into a <code>Quantity</code>. On the success path it produces a <code>Quantity</code> — and from that point on, the fact "this is positive" is carried by the type, not re-derived. The parser is the single place in the entire system where a raw integer is allowed to become a quantity, and it is the single place that check needs to live.</p>
+
+<p>Everything upstream of the gate deals in loose types and distrust; everything downstream deals in precise types and trust. The parser is the pivot between the two worlds — the one function permitted to doubt, so that no function after it has to.</p>
+</section>
+
+<section id="interior-never-rechecks" class="level2" data-number="4.4">
+<h2 class="anchored" data-anchor-id="interior-never-rechecks"><span class="header-section-number">4.4</span> Why the Interior Never Re-Checks</h2>
+
+<p>Consider a routine deep in the core that needs a positive quantity. In a validate-style system it would defend itself:</p>
+
+<pre><code>-- Distrustful: the type is weak, so every routine re-checks.
+reserve_stock(sku: String, qty: Integer)
+  require
+    positive: qty > 0        -- again? who was supposed to have checked this?
+  do
+    -- ...
+  end</code></pre>
+
+<p>That precondition is a symptom, not a cure. It re-checks positivity because the type <code>Integer</code> does not carry it — and so the same <code>require</code> will appear on the next routine, and the next. In a parse-style system the routine takes the precise type instead, and the check simply vanishes:</p>
+
+<pre><code>-- Trustful: the type already carries the proof. Nothing to re-check.
+reserve_stock(sku: Sku, qty: Quantity)
+  do
+    -- qty is positive because a Quantity cannot be anything else
+  end</code></pre>
+
+<p>This is the payoff of parsing, and it is worth stating plainly: <em>a precondition that re-checks something a type could carry is a sign the type is too weak.</em> When you find the same <code>require</code> repeated across routines, the fix is usually not to keep writing it but to push it back to a parser and let a stronger type retire it. Contracts guard the relationships types cannot express (§3.5); they should not be spent re-establishing facts a type could have carried for free.</p>
+</section>
+
+<section id="parsers-compose" class="level2" data-number="4.5">
+<h2 class="anchored" data-anchor-id="parsers-compose"><span class="header-section-number">4.5</span> Parsers Compose</h2>
+
+<p>Real input is structured — a line item is a SKU <em>and</em> a quantity; an order is a list of line items — so parsers must combine. The rule of composition is that a compound parse succeeds only if every part succeeds, and reports the first failure otherwise. Done by hand, sequencing two parsers means matching the first result, and on its failure branch building a fresh <code>Err</code> to carry the reason up — the same rewrapping at every level. The standard library names that pattern once. <code>result_map</code> transforms the success value and leaves any failure untouched:</p>
+
+<pre><code>function parse_line_item(raw_sku: String, raw_qty: Integer): Result[Line_Item, String]
+  do
+    -- on success, build the Line_Item; any Err flows straight through
+    result := result_map(
+      parse_quantity(raw_qty),
+      fn (q: Quantity): Line_Item do
+        result := create Line_Item.make(raw_sku, q)
+      end)
+  end</code></pre>
+
+<p>Notice what did <em>not</em> have to be written: the failure branch. Because the error lives in its own type parameter, the <code>Err</code> from <code>parse_quantity</code> is already a <code>Result[Line_Item, String]</code>'s kind of failure — the same <code>String</code> channel — so <code>result_map</code> passes it through with no rebuilding. When the next step can <em>itself</em> fail, reach for <code>result_and_then</code>, whose function returns a <code>Result</code> and which short-circuits on the first <code>Err</code>; and when a lower layer's error type differs from the caller's, <code>result_map_err</code> translates the one channel into the other. Between them these three — map the value, chain a fallible step, translate the error — collapse the hand-written match-and-rewrap to a single expression.</p>
+
+<p>Each parser converts one loose input into one precise value or a reason it could not; combining them yields a parser for the whole record with the same shape. Assemble line-item parsers the same way and you get <code>parse_order</code>, whose success case is a value the constrained core will accept without a second look — because by the time it exists, every constituent check has already been paid. This is the pipeline the next chapter builds on: once the boundary hands the core a trustworthy value, the domain logic is just a sequence of total functions over precise types.</p>
+
+</section>
+
+<section id="boundary-as-membrane" class="level2" data-number="4.6">
+<h2 class="anchored" data-anchor-id="boundary-as-membrane"><span class="header-section-number">4.6</span> The Boundary Is the Outer Face of the Membrane</h2>
+
+<p>Chapter 2 described contracts as the membrane between an open edge and a constrained core. Parsing is that membrane at the system's <em>outer</em> boundary — the face that meets the raw world. Untrusted input arrives; the parser is the one gate it must pass; and what emerges on the inside is a value the core's types and contracts already vouch for. The gate is where distrust is spent so that trust can be assumed everywhere behind it.</p>
+
+<p>Placing the gate well is a design act, not a mechanical one. Put it too deep and untrusted values roam the interior, forcing the re-checking that parsing was meant to abolish. Put it right at the edge and the interior gets to be exactly what Chapter 1 promised: the part of the program you are least afraid of, because nothing untrustworthy can reach it. Every input crosses one gate, changes type once, and is believed thereafter.</p>
+
+<p>We now have a constrained core (Chapter 3) and a boundary that feeds it only trustworthy values (Chapter 4). What remains is to make the core <em>do</em> something — to model a business process as a flow of these precise values through a sequence of reliable transformations. That is the next chapter: workflows as transformations.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_3.html"><span class="label">&larr; Chapter 3</span><span class="ttl">Making Illegal States Unrepresentable</span></a></div><div class="next"><a href="chapter_5.html"><span class="label">Chapter 5 &rarr;</span><span class="ttl">Workflows as Transformations</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

@@ -189,6 +189,22 @@ wherever a dog-handler is wanted &mdash; but not the reverse.</p>
   weaken what it demands and strengthen what it guarantees.
 </div>
 
+<h4>Refinement types</h4>
+<p>A refinement type \(R\), declared <code>declare type R = B where n: p</code>
+(Section&nbsp;3.5.1), conforms to its base: \(R \preceq B\) (rule C-Refine in
+Appendix&nbsp;D). Widening is therefore free&mdash;an \(R\) flows into any context
+that expects \(B\). The reverse direction is not a conformance: a \(B\) does not
+conform to \(R\), because not every \(B\) satisfies \(p\). Instead a base value
+enters a refinement only at a <em>narrowing site</em>&mdash;a binding, parameter,
+field, or return typed \(R\), or an explicit <code>convert&nbsp;&hellip;&nbsp;to</code>
+&mdash;where the elaboration attaches the predicate \(p\) as a contract to be
+checked at run time (Section&nbsp;5.6). The refinement name is not erased during
+elaboration, so these narrowing sites remain visible to the checker; it is erased
+only in the value representation, where an \(R\) is exactly a \(B\). Consequently
+an operation on refinement values has the <em>base</em> type: <code>q1 + q2</code>
+for two <code>Quantity</code> operands is an <code>Integer</code>, and is re-checked
+only if it flows back into a <code>Quantity</code>-typed target.</p>
+
 <h2><span class="secno">4.4</span>Elaboration of Expressions</h2>
 
 <p>The judgement \(C \vdash e \Rightarrow \tau\) asserts that, in the static
@@ -322,13 +338,21 @@ its locals to the statements that follow it.</p>
 <p>A <code>match</code> on an expression of class type \(A\) dispatches on the
 runtime class. Each clause <code>when</code> \(B\) <code>as</code> \(x\)
 <code>then</code> \(\mathit{block}\) requires \(B \preceq A\) and elaborates its
-block with \(x\) bound to \(B\) (rule 4.19 in Appendix&nbsp;D).</p>
+block with \(x\) bound to \(B\) (rule 4.19 in Appendix&nbsp;D). A destructuring
+clause <code>when</code> \(B(\ldots)\) additionally binds each named field of the
+matched variant in the block, at that field&rsquo;s declared type; a guard
+<code>if</code> \(g\) requires \(g\) to elaborate to <code>Boolean</code> in the
+scope of those bindings.</p>
 
 <p>When \(A\) is sealed, the set of clause classes must exhaust
 \(\mathit{subclasses}(C, A)\), unless an <code>else</code> clause is present to
-cover the remainder. A missing variant is a compile-time error. This
-exhaustiveness check is the whole purpose of the <code>sealed</code> modifier,
-and is why a sealed class is required to be deferred (Section&nbsp;4.9).</p>
+cover the remainder. A missing variant is a compile-time error. A clause that can
+fail <em>after</em> its class matches&mdash;one carrying a guard, a literal field,
+or a nested pattern&mdash;does not count toward this coverage, since it may fall
+through; a variant whose only clause is so qualified therefore still requires an
+unguarded clause, a wildcard, or an <code>else</code>. This exhaustiveness check
+is the whole purpose of the <code>sealed</code> modifier, and is why a sealed
+class is required to be deferred (Section&nbsp;4.9).</p>
 
 <h4>Type conversion</h4>
 <p>The form <code>convert</code> \(e\) <code>to</code> \(x{:}\sigma\) is a boolean

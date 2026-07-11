@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workflows as Transformations — Tight Core, Open Edge</title>
+<meta name="description" content="Modeling a business process as a pipeline of total functions over precise types, with each step's inputs, outputs, and failures written into its signature.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_4.html">Ch. 4</a><a href="chapter_5.html" class="active">Ch. 5</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 5 · Part II</span>
+<h1 class="opener-title">Workflows as Transformations</h1>
+<p class="opener-lede">A business process is a sequence of transitions between precise types. Model each step as a total function whose signature states what it consumes, what it produces, and how it can fail — and the workflow documents itself.</p>
+</div>
+<article class="prose">
+
+<p>We now have a constrained core (Chapter 3) and a boundary that feeds it only trustworthy values (Chapter 4). This chapter makes the core <em>act</em>. A workflow — placing an order, shipping it, refunding it — is where a domain earns its keep, and it is also where models most often turn back into mud: a single mutable object with a status flag, pushed through a long method full of branches that each assume some earlier branch already ran.</p>
+
+<p>The alternative is to see a workflow for what it is: a series of transitions from one precise state to the next, each of which can be written as a function. When the states are real types and the transitions are real functions, the process stops being a tangle of flags and becomes a pipeline you can read off the signatures alone.</p>
+
+<section id="the-tangled-version" class="level2" data-number="5.1">
+<h2 class="anchored" data-anchor-id="the-tangled-version"><span class="header-section-number">5.1</span> The Tangled Version</h2>
+
+<p>Here is the process modelled on the bag-of-fields <code>Order</code> from §3.1 — one object, a status string, one method to move it along:</p>
+
+<pre><code>-- One mutable object, one status flag, and every illegal path left open.
+advance(o: Order)
+  do
+    if o.status = "draft" then
+      o.status := "placed"
+    elseif o.status = "placed" then
+      o.status := "shipped"
+    end
+  end</code></pre>
+
+<p>Everything wrong with this is invisible until it bites. Nothing stops a caller from setting <code>status</code> to <code>"shipped"</code> directly, skipping <code>"placed"</code> entirely. The method assumes the fields relevant to each stage were filled by whoever set the previous status, but that assumption is nowhere stated and nowhere checked. There is no point in the code where "this is now a placed order, with everything a placed order requires" is a fact you can rely on — only a string that claims it. The transitions are not functions; they are mutations, and mutations leave no signature to read.</p>
+</section>
+
+<section id="transitions-as-functions" class="level2" data-number="5.2">
+<h2 class="anchored" data-anchor-id="transitions-as-functions"><span class="header-section-number">5.2</span> Transitions as Functions</h2>
+
+<p>Now model the same process on the sum type from §3.2. Each transition becomes a function from one shape to the next, and the signature carries the whole contract of the step.</p>
+
+<pre><code>-- Draft -> Placed. Can fail (an empty draft), so it returns a Result.
+function place(d: Draft): Result[Placed, String]
+  do
+    if d.items.length > 0 then
+      result := create Ok[Placed, String].make(
+        create Placed.make(d.items, sum_of(d.items)))
+    else
+      result := create Err[Placed, String].make("cannot place an empty order")
+    end
+  end
+
+-- Placed -> Shipped. Cannot fail once you hold a real Placed, so it is total.
+function ship(p: Placed, tracking: Tracking_Id): Shipped
+  do
+    result := create Shipped.make(p.items, tracking)
+  ensure
+    items_preserved: result.items = p.items
+  end</code></pre>
+
+<p>Read the signatures before the bodies. <code>place</code> takes a <code>Draft</code> and returns a <code>Result[Placed, String]</code>: the input type says it operates on drafts and nothing else; the <code>Result</code> says it might fail. <code>ship</code> takes a <code>Placed</code> and returns a <code>Shipped</code> with no <code>Result</code> in sight: it cannot fail, because by the time you hold a <code>Placed</code>, everything shipping needs is already guaranteed. The <em>presence or absence</em> of <code>Result</code> in the return type is itself documentation — it tells the caller, at a glance, whether this step is one that can go wrong.</p>
+
+<p>And look at what the type of <code>ship</code> forbids: you cannot call it on a <code>Draft</code>, because <code>ship</code> demands a <code>Placed</code> and the compiler will not coerce one into the other. The illegal transition "ship an order that was never placed" — the exact bug the tangled <code>advance</code> left wide open — is now a type error. The state machine's legal edges are encoded as the argument types of its transition functions, and the illegal edges simply do not typecheck.</p>
+</section>
+
+<section id="total-functions" class="level2" data-number="5.3">
+<h2 class="anchored" data-anchor-id="total-functions"><span class="header-section-number">5.3</span> Making the Signature Correct</h2>
+
+<p>The discipline that makes this work is <em>totality</em>: a function should produce a valid result for every input its type admits, with no hidden ways out — no exception thrown for a case the signature does not mention, no <code>nil</code> returned where a value was promised. A total function's type is the whole truth about it.</p>
+
+<p>When a step genuinely can fail, totality does not mean pretending it cannot; it means making the failure part of the return type, as <code>place</code> does with <code>Result</code>. The dishonest alternative is a function typed <code>Draft -&gt; Placed</code> that throws when the draft is empty — its signature promises a <code>Placed</code> it cannot always deliver, and the caller who trusts the signature is ambushed at runtime. Honesty is: if you can fail, say so in the type; if you cannot, prove it by taking a precise enough input that failure is impossible. <code>ship</code> takes the second road — it demands a <code>Placed</code> precisely so that it can be total.</p>
+
+<p>This is where the parsing discipline of Chapter 4 pays off inside the core. Because untrusted values were converted to precise types at the boundary, the transitions do not have to defend against malformed input; they can be total over the precise types they receive. A weak input type forces a function to handle cases it should never see and pushes failure into its body; a precise input type lets the function be total and pushes failure out to the one place — the parser — that is supposed to own it.</p>
+</section>
+
+<section id="the-pipeline" class="level2" data-number="5.4">
+<h2 class="anchored" data-anchor-id="the-pipeline"><span class="header-section-number">5.4</span> The Pipeline</h2>
+
+<p>With the steps as functions, the whole workflow is their composition. Data flows in one direction; each stage consumes the trustworthy output of the last and produces the input of the next; failure short-circuits exactly as it did for parsers in §4.5.</p>
+
+<pre><code>-- The whole process, read top to bottom: place, then ship.
+function fulfill(d: Draft, tracking: Tracking_Id): Result[Shipped, String]
+  do
+    match place(d) of
+      when Ok as placed then
+        result := create Ok[Shipped, String].make(ship(placed.value, tracking))
+      when Err as e then
+        result := create Err[Shipped, String].make(e.error)   -- placing failed; stop here
+    end
+  end</code></pre>
+
+<p>The pipeline reads as the process itself: place the draft; if that succeeded, ship what came back; if it failed, carry the reason out and go no further. There is no shared mutable object threaded through the steps, no status flag anyone can set out of order, no stage that runs on the assumption that a previous stage left things tidy. Each arrow in the state diagram is one function, and the diagram and the code are the same shape.</p>
+
+<p>Because <code>ship</code> receives <code>placed.value</code> — a genuine <code>Placed</code> produced by <code>place</code> — it never runs on anything but a fully-formed placed order. The pipeline cannot be assembled in the wrong order, because the types would not line up: <code>ship</code>'s output is a <code>Shipped</code>, which is not what <code>place</code> accepts, so "ship then place" does not even compose. The legal sequence is the only one that typechecks.</p>
+</section>
+
+<section id="decisions-vs-effects" class="level2" data-number="5.5">
+<h2 class="anchored" data-anchor-id="decisions-vs-effects"><span class="header-section-number">5.5</span> Decisions Stay In, Effects Stay Out</h2>
+
+<p>A real <code>place</code> does more than check for emptiness — it prices the order, and pricing is where marketing's ever-changing rules live. It is tempting to reach out from inside <code>place</code> and consult a database, a tax service, a clock. Resist it. The transition should remain a <em>pure</em> function of its inputs: give it the same draft and the same prices and it returns the same placed order, every time, with no reference to the outside world.</p>
+
+<p>Keeping the workflow pure is what keeps it testable and legible. A pure transition can be checked by handing it values and inspecting the result — no database to stand up, no clock to freeze, no network to mock. It is also what lets contracts mean something on a transition: an <code>ensure</code> that no money is created or destroyed across a step is a claim you can actually rely on only if the step has no hidden inputs. In this chapter <code>place</code> uses <code>sum_of(d.items)</code> as the order's total precisely because that is a pure function of the draft; when genuine pricing rules enter, they will arrive as an <em>input</em> to the step, computed at the open edge and handed in — not fetched from inside it.</p>
+
+<p>That separation — decisions computed purely inside the core, effects performed at the edge — is important enough to be the whole of the next chapter. For now the rule is simply: a transition takes everything it needs as arguments, and touches nothing else.</p>
+</section>
+
+<section id="the-workflow-as-a-value" class="level2" data-number="5.6">
+<h2 class="anchored" data-anchor-id="the-workflow-as-a-value"><span class="header-section-number">5.6</span> The Shape of the Whole</h2>
+
+<p>Step back and look at what the process has become. The states are types; the transitions are functions between them; the legal paths are exactly the compositions that typecheck; the failures are visible in the return types; and the invariants of Chapter 3 ride along inside each state, so that every value in the pipeline is well-formed by construction. The workflow is no longer a thing that happens to a mutable object — it is a transformation of values, and you can reason about it the way you reason about arithmetic.</p>
+
+<p>This is the constraint tradition at the scale of a process rather than a single value. Chapter 3 made the illegal <em>states</em> unrepresentable; this chapter made the illegal <em>transitions</em> unrepresentable, by encoding the state machine in the argument types of its steps. Between them, the order core is now the part of the system you are least afraid of, from the shape of a single quantity up to the flow of the whole fulfillment process.</p>
+
+<p>One assumption still stands unpaid, though — the same one that opened Chapter 4, now wearing different clothes. These pure transformations have to be driven by something that <em>does</em> touch the world: reads the order off a queue, calls the payment gateway, writes the shipment to a database, asks what time it is. If those effects leak into the core, everything we just built comes apart. Keeping them out — pushing I/O, time, and failure to the boundary so the domain stays pure — is the last move of Part II, and the subject of the next chapter.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_4.html"><span class="label">&larr; Chapter 4</span><span class="ttl">Parse, Don't Validate</span></a></div><div class="next"><a href="chapter_6.html"><span class="label">Chapter 6 &rarr;</span><span class="ttl">Effects at the Edges, Purity at the Core</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

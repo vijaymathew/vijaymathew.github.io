@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contracts as a Design Tool — Tight Core, Open Edge</title>
+<meta name="description" content="Nex's require / ensure / invariant / variant, taught as a design tool — preconditions as specifications, not assertions, and contracts as the membrane between core and edge.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_1.html">Ch. 1</a><a href="chapter_2.html" class="active">Ch. 2</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 2 · Part I</span>
+<h1 class="opener-title">Contracts as a Design Tool</h1>
+<p class="opener-lede">A precondition is not a safety check bolted onto a finished routine. It is part of the routine's specification — a claim about the world that shapes the design before a line of the body is written.</p>
+</div>
+<article class="prose">
+
+<p>Most programmers first meet preconditions as defensive code: a guard at the top of a function that throws if an argument is wrong. That is a real use, but it is the smallest one, and mistaking it for the whole is why contracts are so often written as an afterthought or skipped entirely. This chapter teaches them the other way around — as a <em>design</em> tool, introduced now because they are the connective tissue of the entire book.</p>
+
+<p>A contract answers a question that types alone cannot: not "what shape is this value?" but "under what conditions is this operation meaningful, and what does it promise in return?" Nex gives you four ways to answer, and they will recur in every part that follows.</p>
+
+<section id="the-four-forms" class="level2" data-number="2.1">
+<h2 class="anchored" data-anchor-id="the-four-forms"><span class="header-section-number">2.1</span> The Four Forms</h2>
+
+<p>Nex builds contracts into the ordinary routine and class forms, not into a separate assertion library. There are four:</p>
+
+<ul>
+<li><strong><code>require</code></strong> — a <em>precondition</em>: what must be true for the caller to invoke this routine at all.</li>
+<li><strong><code>ensure</code></strong> — a <em>postcondition</em>: what the routine guarantees on exit, provided its precondition held.</li>
+<li><strong><code>invariant</code></strong> — a standing property of an object that holds before and after every one of its operations, or a property preserved across every turn of a loop.</li>
+<li><strong><code>variant</code></strong> — a quantity that strictly decreases toward a bound, used to prove that a loop or recursion terminates.</li>
+</ul>
+
+<p>Here is an account that uses the first three. Read the contracts first and the body second — that is the order in which they were designed.</p>
+
+<pre><code>class Account
+  create
+    open(initial: Money)
+      require
+        non_negative_open: initial >= Money.zero
+      do
+        balance := initial
+      end
+
+  feature
+    balance: Money
+
+    withdraw(amount: Money)
+      require
+        positive: amount > Money.zero
+        sufficient_funds: amount &lt;= balance
+      do
+        balance := balance - amount
+      ensure
+        balance_reduced: balance = old balance - amount
+        never_negative: balance >= Money.zero
+      end
+
+    deposit(amount: Money)
+      require
+        positive: amount > Money.zero
+      do
+        balance := balance + amount
+      ensure
+        balance_grew: balance = old balance + amount
+      end
+
+  invariant
+    solvent: balance >= Money.zero
+end</code></pre>
+
+<p>Every clause has a name — <code>sufficient_funds</code>, <code>never_negative</code>, <code>solvent</code> — and the names are not decoration. They are the vocabulary of the design. When a contract is violated at runtime, the failure reports <em>which named claim</em> broke, so a bug announces itself in domain language rather than as an anonymous stack trace. Writing the name forces you to say, in words, what you believe — and half the value of a contract is extracted at the moment you are forced to name it, long before it ever runs.</p>
+</section>
+
+<section id="precondition-as-specification" class="level2" data-number="2.2">
+<h2 class="anchored" data-anchor-id="precondition-as-specification"><span class="header-section-number">2.2</span> The Precondition Is a Specification</h2>
+
+<p>Look again at <code>withdraw</code>. Its precondition says <code>amount &lt;= balance</code>. A defensive programmer would instead write the check <em>inside</em> the body — <code>if amount &gt; balance then return error</code> — and hand the caller a failure to inspect. The contract makes the opposite choice, and the difference is the whole point.</p>
+
+<p>A precondition is a statement about <em>whose responsibility</em> a condition is. By writing <code>require sufficient_funds: amount &lt;= balance</code>, the routine declares: <em>establishing this is the caller's job, not mine.</em> Inside the body, the routine may then treat sufficiency as a fact. It does not re-check; it does not branch; it does not return an error for the case, because the case is not its to handle. The contract has moved the obligation across the boundary and, in doing so, has made the body simpler and the caller's duty explicit.</p>
+
+<p>This is what it means to say a precondition is a specification rather than an assertion. An assertion asks, "is this true right now?" A specification asks, "who must make this true, and who may assume it?" The first is a runtime event. The second is a design decision — a division of labour written into the interface — and it holds whether or not the check ever executes.</p>
+
+<div class="note">
+<span class="note-label">A word on where checks run</span>
+<p>Contracts can be verified at runtime when enabled, and a violated one fails loudly at the point of the broken promise. But their primary value is not the runtime check. It is the specification: the redistribution of responsibility that lets the interior stop defending itself against cases the boundary already ruled out. A contract that never fires has still done its job.</p>
+</div>
+</section>
+
+<section id="postconditions-and-old" class="level2" data-number="2.3">
+<h2 class="anchored" data-anchor-id="postconditions-and-old"><span class="header-section-number">2.3</span> Postconditions, and the Word <code>old</code></h2>
+
+<p>Where a precondition binds the caller, a postcondition binds the routine. <code>ensure balance_reduced: balance = old balance - amount</code> promises that, if you met the precondition, the balance afterward is exactly the balance before minus the amount — no rounding drift, no fee sneaked in, no forgotten path that leaves the balance untouched.</p>
+
+<p>The keyword <code>old</code> refers to the value an expression had <em>on entry</em>, before the body ran. It is what lets a postcondition talk about change rather than just about the final state: not merely "the balance is non-negative" but "the balance moved by precisely this much." That distinction is where a whole class of quiet arithmetic bugs would otherwise live. A postcondition with <code>old</code> is a promise about the <em>transition</em>, and transitions are exactly what the order core of our running system must never get wrong.</p>
+
+<p>Notice how the two halves cooperate. The precondition lets the body assume; the postcondition obliges the body to deliver. Together they form a complete specification of the routine that a reader can trust <em>without reading the body at all</em> — which is precisely what you want at the seams of a large system, where you compose routines you did not write and will not re-read.</p>
+</section>
+
+<section id="invariants" class="level2" data-number="2.4">
+<h2 class="anchored" data-anchor-id="invariants"><span class="header-section-number">2.4</span> Invariants: The Object's Standing Promise</h2>
+
+<p>A precondition and postcondition describe a single routine. An <strong>invariant</strong> describes the whole object, across its entire lifetime. The <code>Account</code>'s invariant, <code>solvent: balance &gt;= Money.zero</code>, is a promise that holds after construction and after every method — that there is no sequence of legal operations, however long, that can leave an account with a negative balance.</p>
+
+<p>This is a stronger and more useful claim than any single postcondition, because it is <em>closed under composition</em>. Each method must both assume the invariant on entry and re-establish it on exit; in exchange, no method ever has to worry about receiving an object in a broken state. The invariant is the object's contract with itself, and it is the constraint tradition of Chapter 1 in its most local form: a standing narrowing of what states the object may occupy, enforced at every step rather than hoped for.</p>
+
+<p>When we model the order core in Part II, its invariants will carry most of the correctness argument — a placed order's total equals the sum of its lines, a shipped order has a tracking id, and so on. The invariant is where "make illegal states unrepresentable" lands for a mutable object: the states are still reachable in memory, but the invariant forbids the object from ever resting in one.</p>
+</section>
+
+<section id="variants" class="level2" data-number="2.5">
+<h2 class="anchored" data-anchor-id="variants"><span class="header-section-number">2.5</span> Variants: Promising an End</h2>
+
+<p>The fourth form addresses a hardness the other three do not touch: not <em>correctness</em> but <em>termination</em>. A loop can preserve every invariant and satisfy every postcondition and still never stop. A <strong>variant</strong> is an integer quantity, bounded below, that must strictly decrease on every iteration — and a quantity that only ever goes down and cannot go below its bound cannot decrease forever, so the loop must end.</p>
+
+<pre><code>-- Sum a list of line totals. The variant proves the loop terminates.
+function sum_totals(items: Array[Money]): Money
+  do
+    from
+      let i: Integer := 0
+      result := Money.zero
+    invariant
+      in_range: 0 &lt;= i and i &lt;= items.length
+    variant
+      items.length - i
+    until
+      i &gt;= items.length
+    do
+      result := result + items.get(i)
+      i := i + 1
+    end
+  end</code></pre>
+
+<p>The variant here is <code>items.length - i</code>. It starts at the list's length, drops by one each turn as <code>i</code> rises, and cannot fall below zero because the loop stops when <code>i</code> reaches the length. Stating it forces you to name <em>why</em> the loop ends — and, as with preconditions, most of the value arrives at the moment of naming. A loop whose variant you cannot write is a loop whose termination you do not actually understand.</p>
+</section>
+
+<section id="contracts-as-membrane" class="level2" data-number="2.6">
+<h2 class="anchored" data-anchor-id="contracts-as-membrane"><span class="header-section-number">2.6</span> Contracts as the Membrane</h2>
+
+<p>Everything so far has shown contracts guarding a single object. Their deeper role in this book is guarding a <em>boundary</em> — the seam where an open edge hands a value to a constrained core.</p>
+
+<p>Recall the arrangement from Chapter 1: the pricing engine is deliberately open, so that new rules can be added without the core knowing they exist. But that openness has a cost. When some rule the core has never heard of produces a price, the compiler cannot vouch for it — the rule was designed to live outside the compiler's knowledge. The type system, which guards the doors we can name in advance, has nothing to say about a value arriving from a door left open on purpose. This is exactly the moment types fall silent.</p>
+
+<p>A contract speaks where the type is silent. The core exposes a boundary routine whose precondition states precisely what any price must satisfy to be admitted — regardless of which rule produced it:</p>
+
+<pre><code>-- The core accepts a quote from the open pricing edge — but only on its terms.
+apply_quote(order: Placed, quote: Money)
+  require
+    priced_in_order_currency: quote.currency = order.total.currency
+    non_negative: quote >= Money.zero
+    not_below_floor: quote >= order.floor_price
+  do
+    order.set_total(quote)
+  ensure
+    total_is_quote: order.total = quote
+    still_valid: order.is_consistent
+  end</code></pre>
+
+<p>Any pricing rule at all may compute <code>quote</code> — a promotion, a loyalty tier, something invented next year. The core does not know and does not care. What it insists on is the contract at the doorway: the quote is in the right currency, not negative, not below the order's floor. The rule's author, on the other side of the membrane, reads the same precondition and knows exactly what they must deliver for their price to be accepted. Neither side has to see inside the other. The precondition <em>is</em> the interface between a discipline of openness and a discipline of constraint.</p>
+
+<p>This is the pattern the whole book turns on. In Part IV, when we step outside the type system into generic dispatch, and in Part V, when computation runs on partial information, the type checker will fall silent again and again — and each time, a contract will take over the guarding. That recurrence is what makes constraint and flexibility one story rather than two. With the tool in hand, we can now go and constrain the core. The next part begins where correctness begins: making illegal states impossible to write down.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_1.html"><span class="label">&larr; Chapter 1</span><span class="ttl">Two Ways Software Gets Hard</span></a></div><div class="next"><a href="chapter_3.html"><span class="label">Chapter 3 &rarr;</span><span class="ttl">Making Illegal States Unrepresentable</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

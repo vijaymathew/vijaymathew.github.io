@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Effects at the Edges, Purity at the Core — Tight Core, Open Edge</title>
+<meta name="description" content="Pushing I/O, time, and failure to the boundary so the domain stays referentially transparent and testable — a functional core inside a thin imperative shell.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Tight Core, Open Edge</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_5.html">Ch. 5</a><a href="chapter_6.html" class="active">Ch. 6</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 6 · Part II</span>
+<h1 class="opener-title">Effects at the Edges, Purity at the Core</h1>
+<p class="opener-lede">The pure transformations of Chapter 5 have to be driven by something that touches the world. Keep that something thin and at the boundary, so the domain stays referentially transparent — and provable — behind it.</p>
+</div>
+<article class="prose">
+
+<p>Everything Part II has built rests on a quiet assumption: that the domain code is a function of its inputs and nothing else. A <code>Quantity</code> is positive by construction, a <code>place</code> step returns the same order for the same draft, an invariant means what it says — all of this holds only while the core stays pure. The moment a transition reaches out to a database, a payment gateway, or the system clock, the assumption breaks, and with it the guarantees.</p>
+
+<p>Yet real systems must do those things. An order is worthless if no payment is charged and no shipment recorded. The task of this chapter is to reconcile the two: to let the system perform effects without letting effects into the core. The shape that achieves it is a <strong>functional core inside a thin imperative shell</strong> — the core decides, the shell acts.</p>
+
+<section id="how-effects-entangle" class="level2" data-number="6.1">
+<h2 class="anchored" data-anchor-id="how-effects-entangle"><span class="header-section-number">6.1</span> How Effects Entangle</h2>
+
+<p>Here is the placement step from Chapter 5, written the way it is usually written — with the effects performed inline, right where the decision is made:</p>
+
+<pre><code>-- Impure: the core reaches into the world. Every guarantee of Part II is now void.
+function place(d: Draft): Result[Placed, String]
+  do
+    if d.items.length > 0 then
+      let placed: Placed := create Placed.make(d.items, sum_of(d.items))
+      gateway.charge(placed.total)                 -- network, money, can fail
+      mailer.send_confirmation(d.customer_email)    -- and if this throws mid-way?
+      database.save(placed)                         -- ordering, partial failure
+      result := create Ok[Placed, String].make(placed)
+    else
+      result := create Err[Placed, String].make("cannot place an empty order")
+    end
+  end</code></pre>
+
+<p>Three things went wrong the instant those effect calls appeared. The function is no longer <em>testable</em> in isolation — to check that an empty draft is rejected, you must now stand up a gateway, a mailer, and a database, or mock all three. It is no longer <em>deterministic</em> — the same draft can succeed today and fail tonight when the network is down, so its behaviour is a function of the world, not of its arguments. And it is no longer <em>composable</em> — half the effects may fire before the fourth one throws, leaving the system in a state no type describes: charged but not saved, or saved but not confirmed.</p>
+
+<p>Notice that none of this is a problem with the <em>decision</em> the function makes. Deciding what to charge, whom to email, and what to save is pure reasoning about the draft. The trouble is only the <em>doing</em>. So separate them.</p>
+</section>
+
+<section id="decisions-as-data" class="level2" data-number="6.2">
+<h2 class="anchored" data-anchor-id="decisions-as-data"><span class="header-section-number">6.2</span> Decisions as Data</h2>
+
+<p>Instead of performing effects, the core <em>describes</em> them. It returns a value that says what should happen, and leaves the happening to someone else. An effect becomes data — a sum type, once again — and the core's job is to produce a list of these descriptions alongside the new state.</p>
+
+<pre><code>-- What the system should do, as values the core can compute and a test can inspect.
+union Effect
+  Charge_Payment(amount: Money)
+  Send_Confirmation(recipient: Email_Address)
+  Record_Order(order: Placed)
+end</code></pre>
+
+<p>Now <code>place</code> returns the placed order paired with the effects it decided on — and performs none of them:</p>
+
+<pre><code>class Placement
+  feature
+    order: Placed
+    effects: Array[Effect]
+  create make(o: Placed, fx: Array[Effect]) do order := o effects := fx end
+end
+
+-- Pure: computes a decision and a to-do list. Touches nothing.
+function place(d: Draft): Result[Placement, String]
+  do
+    if d.items.length > 0 then
+      let placed: Placed := create Placed.make(d.items, sum_of(d.items))
+      let fx: Array[Effect] := []
+      fx.add(create Charge_Payment.make(placed.total))
+      fx.add(create Send_Confirmation.make(d.customer_email))
+      fx.add(create Record_Order.make(placed))
+      result := create Ok[Placement, String].make(create Placement.make(placed, fx))
+    else
+      result := create Err[Placement, String].make("cannot place an empty order")
+    end
+  end</code></pre>
+
+<p>This <code>place</code> is pure again. Give it a draft and it returns the same placement every time; it can be tested by inspecting the returned effect list — <em>did it decide to charge the right amount? to email the right person?</em> — with no gateway, no mailer, no clock. The decision has been fully recovered from the doing, and the decision is where all the domain logic lived.</p>
+</section>
+
+<section id="the-shell" class="level2" data-number="6.3">
+<h2 class="anchored" data-anchor-id="the-shell"><span class="header-section-number">6.3</span> The Shell That Acts</h2>
+
+<p>Something must still perform the effects, and that something is the shell: a thin outer layer that calls the pure core, takes the effects it returned, and runs them against the real world. It is the only part of the system that touches infrastructure, and it contains no domain logic — it interprets, it does not decide.</p>
+
+<pre><code>-- The imperative shell: the one place allowed to touch the world.
+perform(e: Effect, gateway: Payment_Gateway, mailer: Mailer, store: Order_Store)
+  do
+    match e of
+      when Charge_Payment as c then
+        gateway.charge(c.amount)
+      when Send_Confirmation as s then
+        mailer.send(s.recipient)
+      when Record_Order as r then
+        store.save(r.order)
+    end
+  end</code></pre>
+
+<p>The <code>match</code> is exhaustive over <code>Effect</code>, so the day someone adds a new kind of effect to the core, the compiler marks this shell as incomplete (§3.4) — you cannot decide to do something the shell has forgotten how to perform. The domain and the infrastructure meet at exactly one seam, and the seam is a sum type: the vocabulary of things the core may ask for, and the shell knows how to grant.</p>
+
+<p>The system as a whole now has a characteristic shape. Untrusted input is parsed at the boundary (Chapter 4); the pure core transforms trustworthy values and returns new state plus a list of effects (Chapters 5–6); the shell performs those effects and loops. Almost all the code, and all the interesting code, is pure. The impure part is small, mechanical, and the same in every workflow — which is exactly where you want the risk concentrated: in the thinnest, most boring layer.</p>
+</section>
+
+<section id="time-and-identity" class="level2" data-number="6.4">
+<h2 class="anchored" data-anchor-id="time-and-identity"><span class="header-section-number">6.4</span> Time, Identity, and Randomness Are Inputs</h2>
+
+<p>Effects are not only the obvious writes to gateways and databases. Reading the clock is an effect; so is generating an id, or drawing a random number. Each of these makes a function's result depend on something other than its arguments, and each entangles the core in the same way a database call does — quietly, because they look like innocent function calls rather than I/O.</p>
+
+<p>The remedy is the same in spirit but simpler: pass them in. A transition that needs the current time takes a <code>now: Instant</code> parameter; one that needs a fresh order id takes it as an argument. The <em>reading</em> of the clock happens in the shell, where effects belong, and the pure core receives the reading as an ordinary value.</p>
+
+<pre><code>-- Time enters as an argument, not as a call to a global clock.
+function place(d: Draft, now: Instant): Result[Placement, String]
+  -- ... placed_at := now, deadlines computed from now, all pure ...</code></pre>
+
+<p>This looks like a small bookkeeping change and is in fact a significant one. A workflow whose time is an input can be tested at any date — year-end, a leap second, the exact moment a promotion expires — by passing that instant, with no need to travel through time or freeze a global. Determinism is restored not by pretending the clock does not exist, but by moving the one place it is read out to the edge and letting its value flow in.</p>
+</section>
+
+<section id="two-kinds-of-failure" class="level2" data-number="6.5">
+<h2 class="anchored" data-anchor-id="two-kinds-of-failure"><span class="header-section-number">6.5</span> Two Kinds of Failure</h2>
+
+<p>Separating core from shell also sorts out failure, which until now we have treated as one thing. There are really two, and they belong on opposite sides of the boundary.</p>
+
+<p><strong>Domain failure</strong> is a legitimate outcome the business defines: an empty order cannot be placed, a discount cannot exceed a subtotal, a refund cannot outrun a payment. These are expected, they are part of the model, and — as Chapter 4 established — they belong in the types, as <code>Result</code> values the core returns. They are not errors in any exceptional sense; they are answers.</p>
+
+<p><strong>Effect failure</strong> is the world refusing to cooperate: the network times out, the disk is full, the gateway returns a 500. These are not domain outcomes and have no place in domain types — a payment gateway being unreachable says nothing about whether the order was valid. They arise only in the shell, where effects run, and are handled there, with the shell's own tools: retries, timeouts, circuit breakers, compensating actions. Keeping them out of the core keeps the domain's <code>Result</code> vocabulary about the <em>domain</em>, not about the reliability of infrastructure.</p>
+
+<p>The line between them is one of the more clarifying distinctions in system design. When you find an <code>Err("database unavailable")</code> flowing through domain code, something has crossed the membrane that should not have — an effect failure wearing a domain failure's clothes. The fix is to push it back out to the shell.</p>
+</section>
+
+<section id="purity-as-constraint" class="level2" data-number="6.6">
+<h2 class="anchored" data-anchor-id="purity-as-constraint"><span class="header-section-number">6.6</span> Purity Is the Last Constraint</h2>
+
+<p>It is worth seeing this chapter as the completion of Part II rather than a separate concern. Making illegal states unrepresentable (Chapter 3), parsing at the boundary (Chapter 4), and modelling workflows as total functions (Chapter 5) all assumed a pure core. This chapter earns that assumption by naming what threatens it — effects, time, infrastructure failure — and moving each one out to the edge. Purity is not an aesthetic preference here; it is the constraint that makes the other constraints hold. An invariant you can trust, a transition you can test, a <code>Result</code> that means a domain outcome — all of them require that the core be a function of its inputs, and that is precisely what keeping effects at the edge guarantees.</p>
+
+<p>With that, the core is as constrained as we can make it: correct by construction, airtight in its signatures, and pure enough to reason about. Part II is done. But a constrained core is only half a system, and a lonely one — a pile of trustworthy parts is not yet a working whole. The next question is how to <em>assemble</em> those parts: how to compose trustworthy pieces into larger behaviour without rewiring them, and how to add capability without editing what already works. That is Part III, and it is the bridge from constraint toward the flexibility the second half of the book is built to reach.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_5.html"><span class="label">&larr; Chapter 5</span><span class="ttl">Workflows as Transformations</span></a></div><div class="next"><a href="chapter_7.html"><span class="label">Chapter 7 &rarr;</span><span class="ttl">Combinators: Building by Composition</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

@@ -287,6 +287,16 @@ end</code></pre>
 <pre class="text"><code>print(Layout.MAX_WIDTH)</code></pre>
 <p>Object creation:</p>
 <pre class="text"><code>let p := create Point.make(3.0, 4.0)</code></pre>
+<p>Union (concise sum type — a sealed family of data variants):</p>
+<pre class="nex"><code>union Shape
+  Circle(radius: Real)
+  Rectangle(width: Real, height: Real)
+  Empty
+end</code></pre>
+<p>Refinement type (a base type narrowed by a predicate):</p>
+<pre class="nex"><code>declare type Quantity = Integer where n: n &gt; 0
+
+let q: Quantity := 5     -- checked where a value is narrowed in</code></pre>
 </section>
 <section class="level2" data-number="A.9" id="inheritance-and-generics">
 <h2 class="anchored" data-anchor-id="inheritance-and-generics" data-number="A.9"> Inheritance and Generics</h2>
@@ -314,6 +324,17 @@ end</code></pre>
     end
   feature
     items: Array[G]
+end</code></pre>
+<p>Sealed hierarchy (closed set of subclasses; a <code>union</code> is the concise form of this):</p>
+<pre class="nex"><code>sealed deferred class Result
+end
+class Ok  inherit Result feature value: Integer create make(v: Integer) do value := v end end
+class Err inherit Result feature msg: String   create make(m: String)  do msg := m   end end</code></pre>
+<p>Matching over a sealed type is checked for exhaustiveness. A clause may bind the whole value with <code>as</code>, destructure fields by name, or carry an <code>if</code> guard:</p>
+<pre class="nex"><code>match r of
+  when Ok(value) if value &gt; 0 then print("positive")
+  when Ok(value)               then print(value)
+  when Err(msg)                then print(msg)
 end</code></pre>
 </section>
 <section class="level2" data-number="A.10" id="contracts">
@@ -375,6 +396,21 @@ end</code></pre>
 rescue
   result := "fallback"
 end</code></pre>
+<p>Typed success/failure as a value (standard <code>Result</code>; see Appendix&nbsp;C):</p>
+<pre class="nex"><code>intern data/Result
+
+function safe_div(a, b: Integer): Result[Integer, String] do
+  if b = 0 then
+    result := create Err[Integer, String].make("divide by zero")
+  else
+    result := create Ok[Integer, String].make(a / b)
+  end
+end
+
+match safe_div(10, 2) of
+  when Ok(value)  then print(value)
+  when Err(error) then print(error)
+end</code></pre>
 </section>
 <section class="level2" data-number="A.13" id="modularity-and-interop">
 <h2 class="anchored" data-anchor-id="modularity-and-interop" data-number="A.13"> Modularity and Interop</h2>
@@ -390,9 +426,8 @@ intern math/Calculator as Calc</code></pre>
 </ol>
 <p>The loader also accepts lowercase filename fallbacks such as <code>tcp_socket.nex</code> for <code>Tcp_Socket</code>.</p>
 <p>Import host symbols:</p>
-<pre class="text"><code>import java.util.Scanner
-import Math from './math.js'</code></pre>
-<p><code>import java.util.Scanner</code> is the JVM-host form. <code>import Math from './math.js'</code> is the JavaScript-generator form.</p>
+<pre class="text"><code>import java.util.Scanner</code></pre>
+<p><code>import java.util.Scanner</code> is the JVM-host import form.</p>
 </section>
 <section class="level2" data-number="A.14" id="notes">
 <h2 class="anchored" data-anchor-id="notes" data-number="A.14"> Notes</h2>
