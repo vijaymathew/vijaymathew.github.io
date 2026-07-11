@@ -66,7 +66,7 @@ class Pricing_Engine
 
     price(rule: Rule, order: Placed): Money
       require
-        known_rule: handlers.contains(rule.kind)   -- the type system can't promise this
+        known_rule: handlers.contains_key(rule.kind)   -- the type system can't promise this
       do
         result := handlers.get(rule.kind).price(rule, order)
       ensure
@@ -133,7 +133,7 @@ let quoted: Money := engine.price(rule, order)</code></pre>
 
 <p>Look again at the code, now for its contracts rather than its dispatch. Every place the type system fell silent, a contract speaks in its place — and the three losses of §9.4 map one-to-one onto three guards.</p>
 
-<p>The engine's precondition <code>known_rule: handlers.contains(rule.kind)</code> stands exactly where the compiler could no longer promise a handler exists. It turns "there is no handler" from a mysterious runtime lookup failure into a named, located contract violation at the boundary — <em>the</em> place a missing registration should be caught. Inside the handler, <code>require matches: rule.kind = "percent_off"</code> guards the downcast: the unsafe <code>convert</code> is made safe because the precondition establishes, in the handler's own terms, that the rule really is the kind this handler prices. And the engine's postconditions — <code>non_negative</code> and <code>same_currency</code> — guard the value on its way out, so that no matter which of the open-ended handlers produced the price, and no matter what bug it harbors, a malformed price cannot leave the engine.</p>
+<p>The engine's precondition <code>known_rule: handlers.contains_key(rule.kind)</code> stands exactly where the compiler could no longer promise a handler exists. It turns "there is no handler" from a mysterious runtime lookup failure into a named, located contract violation at the boundary — <em>the</em> place a missing registration should be caught. Inside the handler, <code>require matches: rule.kind = "percent_off"</code> guards the downcast: the unsafe <code>convert</code> is made safe because the precondition establishes, in the handler's own terms, that the rule really is the kind this handler prices. And the engine's postconditions — <code>non_negative</code> and <code>same_currency</code> — guard the value on its way out, so that no matter which of the open-ended handlers produced the price, and no matter what bug it harbors, a malformed price cannot leave the engine.</p>
 
 <div class="thesis">Types close the doors you can name in advance. Contracts guard the doorways you cannot — and a generic operation is a doorway left open on purpose, so a value from a rule that did not exist when the engine was written can still be trusted only on the engine's stated terms.</div>
 

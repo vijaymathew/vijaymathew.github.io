@@ -161,8 +161,9 @@ class Percent_Off inherit Price_Expr
     base: Price_Expr
     eval(d: Draft): Money
       require valid_percent: percent &gt;= 0 and percent &lt;= 100
-      do result := base.eval(d).less_percent(percent) end
+      do result := base.eval(d).less_percent(percent)
       ensure no_increase: result &lt;= base.eval(d)
+      end
   end
 
 class When inherit Price_Expr
@@ -188,7 +189,8 @@ class Floored inherit Price_Expr
         let p: Money := base.eval(d)
         if p &lt; d.floor_price then result := d.floor_price else result := p end
       ensure respects_floor: result &gt;= d.floor_price
-  end</code></pre>
+      end
+end</code></pre>
 </section>
 
 <section id="membrane" class="level2" data-number="B.5">
@@ -202,7 +204,7 @@ class Floored inherit Price_Expr
   do
     if quote &lt; Money.zero then
       result := create Err[Placed, String].make("quote is negative")
-    elsif quote &lt; draft.floor_price then
+    elseif quote &lt; draft.floor_price then
       result := create Err[Placed, String].make("quote below floor")
     else
       -- on success, Placed's own invariant guarantees a consistent order
@@ -253,7 +255,7 @@ class Substitution
       do
         match t of
           when Var(name) then
-            if bindings.contains(name) then result := resolve(bindings.get(name))
+            if bindings.contains_key(name) then result := resolve(bindings.get(name))
             else result := t end
           else
             result := t
@@ -321,7 +323,7 @@ function routing_query(o: Placed): Term
 
 -- A domain guardrail on a committed solution (a real one checks stock and deadline).
 function satisfies_constraints(s: Substitution): Boolean
-  do result := s.bindings.contains("Warehouse") end
+  do result := s.bindings.contains_key("Warehouse") end
 
 function warehouse_of(s: Substitution): String
   do
