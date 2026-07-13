@@ -42,24 +42,26 @@
 
 <pre><code>-- An order is exactly one of these shapes — never a blur of nullable fields.
 sealed deferred class Order
+  feature
+    items: Array[Line_Item]           -- every order has lines, whatever its state
+  create
+    init(xs: Array[Line_Item]) do items := xs end
 end
 
 class Draft
   inherit Order
-  feature items: Array[Line_Item]
-  create make(xs: Array[Line_Item]) do items := xs end
+  create make(xs: Array[Line_Item]) do Order.init(xs) end
 end
 
 class Placed
   inherit Order
   feature
-    items: Array[Line_Item]
     total: Money
   create make(xs: Array[Line_Item], t: Money)
     require
       not_empty: xs.length > 0        -- a placed order has at least one line
     do
-      items := xs
+      Order.init(xs)
       total := t
     end
 end
@@ -67,15 +69,14 @@ end
 class Shipped
   inherit Order
   feature
-    items: Array[Line_Item]
     tracking: Tracking_Id
   create make(xs: Array[Line_Item], t: Tracking_Id) do
-    items := xs
+    Order.init(xs)
     tracking := t
   end
 end</code></pre>
 
-<p>An <code>Order</code> is now <em>exactly one</em> of <code>Draft</code>, <code>Placed</code>, or <code>Shipped</code>. There is no way to hold an order that is simultaneously shipped and empty, because <code>Shipped</code> and <code>Draft</code> are different types and the "empty" case only makes sense for a draft. The precondition on <code>Placed</code> goes one step further: it closes a door the type system alone could not, refusing at construction time to build a placed order with no items. Chapter 3 develops this fully; for now, notice only the direction of the move — <em>fewer</em> representable states, checked <em>early</em>.</p>
+<p>An <code>Order</code> is now <em>exactly one</em> of <code>Draft</code>, <code>Placed</code>, or <code>Shipped</code>. Notice how the fields divide. What every order has whatever its state — its line items — lives on the parent, so code that does not care which state it holds can simply read <code>o.items</code>; what belongs to a single state — a <code>total</code>, a <code>tracking</code> id — lives only on the class for that state, and is invisible everywhere else. There is no way to hold an order that is simultaneously shipped and empty, because <code>Shipped</code> and <code>Draft</code> are different types and the "empty" case only makes sense for a draft. The precondition on <code>Placed</code> goes one step further: it closes a door the type system alone could not, refusing at construction time to build a placed order with no items. Chapter 3 develops this fully; for now, notice only the direction of the move — <em>fewer</em> representable states, checked <em>early</em>.</p>
 </section>
 
 <section id="the-flexibility-tradition" class="level2" data-number="1.2">

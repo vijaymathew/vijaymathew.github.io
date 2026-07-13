@@ -68,16 +68,18 @@ function sum_of(items: Array[Line_Item]): Money
   end
 
 sealed deferred class Order
+  create init(xs: Array[Line_Item]) do items := xs end
+  feature
+    items: Array[Line_Item]     -- the one field every state shares
 end
 
 class Draft
   inherit Order
   create make(xs: Array[Line_Item], ccy: String, floor: Money,
               email: Email_Address, dest: String)
-    do items := xs  currency := ccy  floor_price := floor
+    do Order.init(xs)  currency := ccy  floor_price := floor
        customer_email := email  zone := dest end
   feature
-    items: Array[Line_Item]
     currency: String
     floor_price: Money
     customer_email: Email_Address
@@ -88,9 +90,8 @@ class Placed
   inherit Order
   create make(xs: Array[Line_Item], t: Money, email: Email_Address, dest: String)
     require not_empty: xs.length &gt; 0
-    do items := xs  total := t  customer_email := email  zone := dest end
+    do Order.init(xs)  total := t  customer_email := email  zone := dest end
   feature
-    items: Array[Line_Item]
     total: Money
     customer_email: Email_Address
     zone: String
@@ -101,9 +102,8 @@ end
 
 class Shipped
   inherit Order
-  create make(xs: Array[Line_Item], t: Tracking_Id) do items := xs  tracking := t end
+  create make(xs: Array[Line_Item], t: Tracking_Id) do Order.init(xs)  tracking := t end
   feature
-    items: Array[Line_Item]
     tracking: Tracking_Id
 end
 
@@ -134,7 +134,7 @@ function ship(p: Placed, t: Tracking_Id): Shipped
 
 <pre><code>-- Specifications: an open algebra of conditions on a draft (Chapter 7).
 deferred class Spec[T]
-  feature holds(item: T): Boolean do end
+  feature holds(item: T): Boolean deferred
 end
 
 class Over_Amount inherit Spec[Draft]
@@ -146,7 +146,7 @@ end
 
 -- Pricing expressions: an open language, evaluated to a Money (Chapter 10).
 deferred class Price_Expr
-  feature eval(d: Draft): Money do end
+  feature eval(d: Draft): Money deferred
 end
 
 class Base inherit Price_Expr
@@ -280,7 +280,7 @@ function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution, St
       when Var(name) then result := create Ok[Substitution, String].make(s.bind(name, ax))
       when Atom(value: v) if v = ax.value then result := create Ok[Substitution, String].make(s)
       when Atom(value: v) then result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
-      when Compound as c then result := create Err[Substitution, String].make("atom vs structure")
+      when Compound then result := create Err[Substitution, String].make("atom vs structure")
     end
   end
 
@@ -288,7 +288,7 @@ function unify_compound(cx: Compound, y: Term, s: Substitution): Result[Substitu
   do
     match y of
       when Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
-      when Atom as a then result := create Err[Substitution, String].make("structure vs atom")
+      when Atom then result := create Err[Substitution, String].make("structure vs atom")
       when Compound as cy then
         if cx.functor = cy.functor and cx.args.length = cy.args.length then
           result := unify_args(cx.args, cy.args, s, 0)
@@ -353,7 +353,7 @@ function route(query: Term, routes: Array[Term]): Result[Substitution, String]
             result := create Ok[Substitution, String].make(s.value)
             found := true
           end
-        when Err as e then
+        when Err then
           -- structural mismatch: backtrack, try the next route
       end
       i := i + 1
@@ -406,7 +406,7 @@ function plan_fulfillment(placed: Placed, routes: Array[Term],
 
 <p>The only region that touches the world: it calls the pure core, then performs the returned effects. A real deployment wraps this in the logging and metrics layers of Chapter 8; the effect loop itself is this small.</p>
 
-<pre><code>perform(e: Effect, gateway: Payment_Gateway, mailer: Mailer,
+<pre><code>function perform(e: Effect, gateway: Payment_Gateway, mailer: Mailer,
         store: Order_Store, warehouse: Warehouse_Api)
   do
     match e of

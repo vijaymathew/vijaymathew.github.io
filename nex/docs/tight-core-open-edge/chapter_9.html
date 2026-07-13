@@ -46,12 +46,12 @@
 
 <pre><code>-- A rule knows its own kind but not how it is priced.
 deferred class Rule
-  feature kind(): String do end
+  feature kind(): String deferred
 end
 
 -- A handler knows how to price one kind of rule.
 deferred class Pricing_Handler
-  feature price(rule: Rule, order: Placed): Money do end
+  feature price(rule: Rule, order: Placed): Money deferred
 end
 
 class Pricing_Engine
@@ -97,8 +97,11 @@ class Percent_Off_Handler inherit Pricing_Handler
       require
         matches: rule.kind = "percent_off"
       do
-        convert rule to r: Percent_Off         -- recover the concrete type at runtime
-        result := order.total.less_percent(r.percent)
+        if convert rule to r: Percent_Off then -- recover the concrete type at runtime
+          result := order.total.less_percent(r.percent)
+        else
+          raise "handler registered under 'percent_off' received a different rule"
+        end
       end
 end</code></pre>
 
@@ -121,7 +124,7 @@ let quoted: Money := engine.price(rule, order)</code></pre>
 
 <ul>
 <li><strong>That a handler exists.</strong> <code>handlers.get(rule.kind)</code> looks up a string key. Nothing at compile time promises the table has a row for this rule; a rule whose kind was never registered sails past the type checker and fails only at runtime.</li>
-<li><strong>That the handler matches the rule.</strong> The line <code>convert rule to r: Percent_Off</code> is an unchecked downcast from the open <code>Rule</code> type to a specific one. The compiler cannot verify that the handler registered under <code>"percent_off"</code> actually receives a <code>Percent_Off</code> — the correspondence between the string tag and the class is invisible to it.</li>
+<li><strong>That the handler matches the rule.</strong> The line <code>convert rule to r: Percent_Off</code> is a downcast from the open <code>Rule</code> type to a specific one, checked only at runtime. The compiler cannot verify that the handler registered under <code>"percent_off"</code> actually receives a <code>Percent_Off</code> — the correspondence between the string tag and the class is invisible to it.</li>
 <li><strong>That the produced price is well-formed.</strong> Because the handler is called through a table, the compiler cannot follow the value it returns; a buggy handler could return a negative price, or one in the wrong currency, and no type would object.</li>
 </ul>
 
