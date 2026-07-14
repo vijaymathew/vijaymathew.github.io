@@ -45,7 +45,7 @@
   create
     open(initial: Money)
       require
-        non_negative_open: initial >= Money.zero
+        non_negative_open: not initial.is_negative()
       do
         balance := initial
       end
@@ -55,26 +55,26 @@
 
     withdraw(amount: Money)
       require
-        positive: amount > Money.zero
+        positive: amount.is_positive()
         sufficient_funds: amount &lt;= balance
       do
-        balance := balance - amount
+        balance := balance.minus(amount)
       ensure
-        balance_reduced: balance = old balance - amount
-        never_negative: balance >= Money.zero
+        balance_reduced: balance = old balance.minus(amount)
+        never_negative: not balance.is_negative()
       end
 
     deposit(amount: Money)
       require
-        positive: amount > Money.zero
+        positive: amount.is_positive()
       do
-        balance := balance + amount
+        balance := balance.plus(amount)
       ensure
-        balance_grew: balance = old balance + amount
+        balance_grew: balance = old balance.plus(amount)
       end
 
   invariant
-    solvent: balance >= Money.zero
+    solvent: not balance.is_negative()
 end</code></pre>
 
 <p>Every clause has a name — <code>sufficient_funds</code>, <code>never_negative</code>, <code>solvent</code> — and the names are not decoration. They are the vocabulary of the design. When a contract is violated at runtime, the failure reports <em>which named claim</em> broke, so a bug announces itself in domain language rather than as an anonymous stack trace. Writing the name forces you to say, in words, what you believe — and half the value of a contract is extracted at the moment you are forced to name it, long before it ever runs.</p>
@@ -98,7 +98,7 @@ end</code></pre>
 <section id="postconditions-and-old" class="level2" data-number="2.3">
 <h2 class="anchored" data-anchor-id="postconditions-and-old"><span class="header-section-number">2.3</span> Postconditions, and the Word <code>old</code></h2>
 
-<p>Where a precondition binds the caller, a postcondition binds the routine. <code>ensure balance_reduced: balance = old balance - amount</code> promises that, if you met the precondition, the balance afterward is exactly the balance before minus the amount — no rounding drift, no fee sneaked in, no forgotten path that leaves the balance untouched.</p>
+<p>Where a precondition binds the caller, a postcondition binds the routine. <code>ensure balance_reduced: balance = old balance.minus(amount)</code> promises that, if you met the precondition, the balance afterward is exactly the balance before minus the amount — no rounding drift, no fee sneaked in, no forgotten path that leaves the balance untouched.</p>
 
 <p>The keyword <code>old</code> refers to the value an expression had <em>on entry</em>, before the body ran. It is what lets a postcondition talk about change rather than just about the final state: not merely "the balance is non-negative" but "the balance moved by precisely this much." That distinction is where a whole class of quiet arithmetic bugs would otherwise live. A postcondition with <code>old</code> is a promise about the <em>transition</em>, and transitions are exactly what the order core of our running system must never get wrong.</p>
 
@@ -108,7 +108,7 @@ end</code></pre>
 <section id="invariants" class="level2" data-number="2.4">
 <h2 class="anchored" data-anchor-id="invariants"><span class="header-section-number">2.4</span> Invariants: The Object's Standing Promise</h2>
 
-<p>A precondition and postcondition describe a single routine. An <strong>invariant</strong> describes the whole object, across its entire lifetime. The <code>Account</code>'s invariant, <code>solvent: balance &gt;= Money.zero</code>, is a promise that holds after construction and after every method — that there is no sequence of legal operations, however long, that can leave an account with a negative balance.</p>
+<p>A precondition and postcondition describe a single routine. An <strong>invariant</strong> describes the whole object, across its entire lifetime. The <code>Account</code>'s invariant, <code>solvent: not balance.is_negative()</code>, is a promise that holds after construction and after every method — that there is no sequence of legal operations, however long, that can leave an account with a negative balance.</p>
 
 <p>This is a stronger and more useful claim than any single postcondition, because it is <em>closed under composition</em>. Each method must both assume the invariant on entry and re-establish it on exit; in exchange, no method ever has to worry about receiving an object in a broken state. The invariant is the object's contract with itself, and it is the constraint tradition of Chapter 1 in its most local form: a standing narrowing of what states the object may occupy, enforced at every step rather than hoped for.</p>
 
@@ -121,11 +121,11 @@ end</code></pre>
 <p>The fourth form addresses a hardness the other three do not touch: not <em>correctness</em> but <em>termination</em>. A loop can preserve every invariant and satisfy every postcondition and still never stop. A <strong>variant</strong> is an integer quantity, bounded below, that must strictly decrease on every iteration — and a quantity that only ever goes down and cannot go below its bound cannot decrease forever, so the loop must end.</p>
 
 <pre><code>-- Sum a list of line totals. The variant proves the loop terminates.
-function sum_totals(items: Array[Money]): Money
+function sum_totals(items: Array[Money], currency: String): Money
   do
     from
       let i: Integer := 0
-      result := Money.zero
+      result := create Money.zero(currency)
     invariant
       in_range: 0 &lt;= i and i &lt;= items.length
     variant
@@ -133,7 +133,7 @@ function sum_totals(items: Array[Money]): Money
     until
       i &gt;= items.length
     do
-      result := result + items.get(i)
+      result := result.plus(items.get(i))
       i := i + 1
     end
   end</code></pre>
@@ -154,7 +154,7 @@ function sum_totals(items: Array[Money]): Money
 function apply_quote(order: Placed, quote: Money)
   require
     priced_in_order_currency: quote.currency = order.total.currency
-    non_negative: quote >= Money.zero
+    non_negative: not quote.is_negative()
     not_below_floor: quote >= order.floor_price
   do
     order.set_total(quote)
