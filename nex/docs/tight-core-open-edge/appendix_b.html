@@ -30,13 +30,15 @@
 <section id="assumed" class="level2" data-number="B.1">
 <h2 class="anchored" data-anchor-id="assumed"><span class="header-section-number">B.1</span> Assumed Leaf Types and Boundary Parser</h2>
 
-<p>The primitive value types are treated as a small library. <code>Money</code> is an amount with a currency. Arithmetic is by method — <code>plus</code> and <code>minus</code>, each requiring both operands to share a currency — because Nex reserves the arithmetic operators for its numeric types and does not let a class overload them. The comparisons <em>are</em> operators: <code>Money</code> implements <code>Comparable</code>, so <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code> and <code>=</code> work directly. A zero is made with a currency, since an amount of nothing is still an amount of nothing <em>in some currency</em>; the sign predicates <code>is_negative</code> and <code>is_positive</code> save the contracts from having to conjure one. Two further domain operations are used by pricing: <code>less_percent(pct)</code> and <code>times(n)</code>. <code>Sku</code>, <code>Email_Address</code>, <code>Tracking_Id</code>, and <code>Instant</code> are opaque identifiers and timestamps.</p>
+<p>The primitive value types are treated as a small library. <code>Money</code> is an amount with a currency. Its arithmetic is written with the ordinary operators, because a Nex class earns an operator by binding a routine to it: <code>minus</code> declares <code>alias "-"</code>, and <code>a - b</code> is then exactly <code>a.minus(b)</code> — precondition and all. That is why <code>same_currency</code> can be a <em>contract</em> on the subtraction rather than a check every caller must remember. The comparisons come the same way, from <code>Comparable</code>'s <code>compare</code>, and value equality from <code>equals</code>. Only the zero has no notation: a Nex class has no members of its own, so a zero is made with a constructor and, because an amount of nothing is still an amount of nothing <em>in some currency</em>, it is made in one; the sign predicates <code>is_negative</code> and <code>is_positive</code> spare the contracts from having to conjure one at all. Two further domain operations are used by pricing: <code>less_percent(pct)</code> and <code>times(n)</code>. <code>Sku</code>, <code>Email_Address</code>, <code>Tracking_Id</code>, and <code>Instant</code> are opaque identifiers and timestamps.</p>
 
 <pre><code>-- Assumed value types (a small supporting library):
 --   Money           : create Money.make(amount: Integer, currency: String)
 --                     create Money.zero(currency: String)
---                     plus(m: Money): Money ; minus(m: Money): Money
---                       -- both require a matching currency
+--                     plus(m: Money): Money   alias "+"
+--                     minus(m: Money): Money  alias "-"
+--                       -- both require a matching currency, so + and - carry
+--                       -- that precondition wherever they are written
 --                     is_negative(): Boolean ; is_positive(): Boolean
 --                     less_percent(pct: Integer): Money ; times(n: Integer): Money
 --                     .currency: String
@@ -65,11 +67,13 @@ class Line_Item
     subtotal(): Money do result := unit_price.times(quantity) end
 end
 
-function sum_of(items: Array[Line_Item], currency: String): Money
+function sum_of(items: Array[Line_Item]): Money
+  require
+    not_empty: items.length &gt; 0
   do
-    result := create Money.zero(currency)
+    result := create Money.zero(items.get(0).unit_price.currency)
     across items as it do
-      result := result.plus(it.subtotal)
+      result := result + it.subtotal
     end
   end
 
@@ -147,7 +151,7 @@ class Over_Amount inherit Spec[Draft]
   create make(m: Money) do threshold := m end
   feature
     threshold: Money
-    holds(d: Draft): Boolean do result := sum_of(d.items, d.currency) &gt;= threshold end
+    holds(d: Draft): Boolean do result := sum_of(d.items) &gt;= threshold end
 end
 
 -- Pricing expressions: an open language, evaluated to a Money (Chapter 10).
@@ -157,7 +161,7 @@ end
 
 class Base inherit Price_Expr
   create make() do end
-  feature eval(d: Draft): Money do result := sum_of(d.items, d.currency) end
+  feature eval(d: Draft): Money do result := sum_of(d.items) end
 end
 
 class Percent_Off inherit Price_Expr

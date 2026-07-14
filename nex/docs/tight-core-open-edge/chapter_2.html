@@ -58,9 +58,9 @@
         positive: amount.is_positive()
         sufficient_funds: amount &lt;= balance
       do
-        balance := balance.minus(amount)
+        balance := balance - amount
       ensure
-        balance_reduced: balance = old balance.minus(amount)
+        balance_reduced: balance = old balance - amount
         never_negative: not balance.is_negative()
       end
 
@@ -68,9 +68,9 @@
       require
         positive: amount.is_positive()
       do
-        balance := balance.plus(amount)
+        balance := balance + amount
       ensure
-        balance_grew: balance = old balance.plus(amount)
+        balance_grew: balance = old balance + amount
       end
 
   invariant
@@ -98,7 +98,7 @@ end</code></pre>
 <section id="postconditions-and-old" class="level2" data-number="2.3">
 <h2 class="anchored" data-anchor-id="postconditions-and-old"><span class="header-section-number">2.3</span> Postconditions, and the Word <code>old</code></h2>
 
-<p>Where a precondition binds the caller, a postcondition binds the routine. <code>ensure balance_reduced: balance = old balance.minus(amount)</code> promises that, if you met the precondition, the balance afterward is exactly the balance before minus the amount — no rounding drift, no fee sneaked in, no forgotten path that leaves the balance untouched.</p>
+<p>Where a precondition binds the caller, a postcondition binds the routine. <code>ensure balance_reduced: balance = old balance - amount</code> promises that, if you met the precondition, the balance afterward is exactly the balance before minus the amount — no rounding drift, no fee sneaked in, no forgotten path that leaves the balance untouched.</p>
 
 <p>The keyword <code>old</code> refers to the value an expression had <em>on entry</em>, before the body ran. It is what lets a postcondition talk about change rather than just about the final state: not merely "the balance is non-negative" but "the balance moved by precisely this much." That distinction is where a whole class of quiet arithmetic bugs would otherwise live. A postcondition with <code>old</code> is a promise about the <em>transition</em>, and transitions are exactly what the order core of our running system must never get wrong.</p>
 
@@ -121,11 +121,13 @@ end</code></pre>
 <p>The fourth form addresses a hardness the other three do not touch: not <em>correctness</em> but <em>termination</em>. A loop can preserve every invariant and satisfy every postcondition and still never stop. A <strong>variant</strong> is an integer quantity, bounded below, that must strictly decrease on every iteration — and a quantity that only ever goes down and cannot go below its bound cannot decrease forever, so the loop must end.</p>
 
 <pre><code>-- Sum a list of line totals. The variant proves the loop terminates.
-function sum_totals(items: Array[Money], currency: String): Money
+function sum_totals(items: Array[Money]): Money
+  require
+    not_empty: items.length &gt; 0
   do
     from
       let i: Integer := 0
-      result := create Money.zero(currency)
+      result := create Money.zero(items.get(0).currency)
     invariant
       in_range: 0 &lt;= i and i &lt;= items.length
     variant
@@ -133,7 +135,7 @@ function sum_totals(items: Array[Money], currency: String): Money
     until
       i &gt;= items.length
     do
-      result := result.plus(items.get(i))
+      result := result + items.get(i)
       i := i + 1
     end
   end</code></pre>

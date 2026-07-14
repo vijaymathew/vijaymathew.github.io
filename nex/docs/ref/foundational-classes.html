@@ -361,6 +361,10 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#comparable-deferred" id="toc-comparable-deferred" class="nav-link" data-scroll-target="#comparable-deferred"><code>Comparable</code> (deferred)</a></li>
   <li><a href="#hashable-deferred" id="toc-hashable-deferred" class="nav-link" data-scroll-target="#hashable-deferred"><code>Hashable</code> (deferred)</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#operators-and-the-routines-they-denote" id="toc-operators-and-the-routines-they-denote" class="nav-link" data-scroll-target="#operators-and-the-routines-they-denote">Operators and the Routines They Denote</a>
+  <ul class="collapse">
+  <li><a href="#alias" id="toc-alias" class="nav-link" data-scroll-target="#alias"><code>alias</code></a></li>
+  </ul></li>
   <li><a href="#class-modifiers" id="toc-class-modifiers" class="nav-link" data-scroll-target="#class-modifiers">Class Modifiers</a>
   <ul class="collapse">
   <li><a href="#once" id="toc-once" class="nav-link" data-scroll-target="#once"><code>once</code></a></li>
@@ -566,6 +570,26 @@ let double: Transformer := fn (n: Integer): Integer do result := n * 2 end</code
 </tr>
 </tbody>
 </table>
+<p>A class that inherits <code>Comparable</code> and defines <code>compare</code>
+gets the <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and
+<code>&gt;=</code> operators on its values.</p>
+<p><code>Comparable</code> is also the most common <em>generic bound</em>. Writing
+<code>[T -&gt; Comparable]</code> constrains a type parameter, and the body may
+then use the bound’s routines — here, the ordering operators — on a value of type
+<code>T</code>:</p>
+<pre class="nex"><code>function largest[T -&gt; Comparable](xs: Array[T], seed: T): T do
+  result := seed
+  across xs as x do
+    if x &gt; result then
+      result := x
+    end
+  end
+end
+
+print(largest([3, 9, 4], 0))          -- 9
+print(largest(["a", "z", "m"], ""))   -- "z"</code></pre>
+<p>Any class may serve as a bound, not only the built-in ones; a routine deferred
+in the bound dispatches to the runtime subclass.</p>
 </section>
 <section id="hashable-deferred" class="level2">
 <h2 class="anchored" data-anchor-id="hashable-deferred"><code>Hashable</code> (deferred)</h2>
@@ -597,6 +621,90 @@ print(s.hash())
 let n := 42
 print(n.compare(10))               -- positive
 print(n.hash())</code></pre>
+</section>
+<section id="operators-and-the-routines-they-denote" class="level2">
+<h2 class="anchored" data-anchor-id="operators-and-the-routines-they-denote">Operators and the Routines They Denote</h2>
+<p>Every operator in Nex is shorthand for a routine, so a class earns an operator
+by defining the routine behind it.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Operator</th>
+<th>Routine</th>
+<th>How a class gets it</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>=</code> <code>/=</code></td>
+<td><code>equals</code></td>
+<td>Override <code>equals</code> (and <code>hash</code>) — see <code>Any</code>, above.</td>
+</tr>
+<tr class="even">
+<td><code>==</code> <code>!=</code></td>
+<td>none</td>
+<td>Reference identity; not overridable.</td>
+</tr>
+<tr class="odd">
+<td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td>
+<td><code>compare</code></td>
+<td>Inherit <code>Comparable</code> and define <code>compare</code>.</td>
+</tr>
+<tr class="even">
+<td><code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code> <code>^</code></td>
+<td>any one-argument routine</td>
+<td>Bind it with an <code>alias</code> clause (below).</td>
+</tr>
+</tbody>
+</table>
+<section id="alias" class="level3">
+<h3 class="anchored" data-anchor-id="alias"><code>alias</code></h3>
+<p>A one-argument routine may bind itself to an arithmetic operator with an
+<code>alias</code> clause. The operator is then exactly sugar for the call, so the
+routine’s contracts hold at the operator too.</p>
+<pre class="nex"><code>class Money
+  inherit
+    Comparable
+  feature
+    once amount: Integer
+    once currency: String
+
+    minus(other: Money): Money
+      alias "-"
+      require
+        same_currency: currency = other.currency
+      do
+        result := create Money.make(amount - other.amount, currency)
+      end
+
+    compare(other: Any): Integer do
+      if convert other to m: Money then
+        result := amount - m.amount
+      else
+        raise "Money.compare: not a Money"
+      end
+    end
+  create
+    make(a: Integer, c: String) do amount := a  currency := c end
+end
+
+let owed := create Money.make(100, "USD")
+let paid := create Money.make(30, "USD")
+print((owed - paid).amount)          -- 70, via minus
+print(owed &gt; paid)                   -- true, via compare
+print(owed - create Money.make(5, "EUR"))
+                                     -- Precondition violation: same_currency</code></pre>
+<p>Only <code>+ - * / % ^</code> may be aliased — no new operator symbols can be
+invented — and only arithmetic: ordering goes through <code>Comparable</code> and
+equality through <code>equals</code>, not through an alias. An alias is never
+consulted for numeric operands (or, for <code>+</code>, strings), so no class can
+change what <code>+</code> means on <code>Integer</code> or <code>Real</code>.
+Aliases are inherited: a routine aliased in a deferred class gives the operator to
+every heir, dispatching to the heir’s implementation.</p>
+<p><code>alias</code> is a soft keyword: it means this only in the position shown,
+and remains usable as an ordinary name for a variable, field, parameter, or
+routine.</p>
+</section>
 </section>
 <section id="class-modifiers" class="level2">
 <h2 class="anchored" data-anchor-id="class-modifiers">Class Modifiers</h2>

@@ -199,9 +199,11 @@ clause.</p>
 
 <div class="grammar">
 <table>
-<tr><td class="nt">method</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span>&rangle; &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
+<tr><td class="nt">method</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span>&rangle; &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">alias</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
 <tr><td></td><td></td><td>&nbsp;&nbsp;&langle;<span class="nt">require</span>&rangle; <span class="lit">do</span> <span class="nt">block</span> &langle;<span class="nt">ensure</span>&rangle; &langle;<span class="nt">rescue</span>&rangle; <span class="lit">end</span></td></tr>
-<tr><td></td><td class="op">|</td><td><span class="nt">id</span> <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">note</span>&rangle; &langle;<span class="lit">deferred</span>&rangle;</td><td class="cmt">&mdash; deferred signature</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">id</span> <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">alias</span>&rangle; &langle;<span class="nt">note</span>&rangle; &langle;<span class="lit">deferred</span>&rangle;</td><td class="cmt">&mdash; deferred signature</td></tr>
+<tr><td class="nt">alias</td><td class="op">::=</td><td><span class="lit">alias</span> <span class="nt">opsym</span></td><td class="cmt">&mdash; binds an operator to this routine</td></tr>
+<tr><td class="nt">opsym</td><td class="op">::=</td><td><span class="lit">"+"</span> <span class="op">|</span> <span class="lit">"-"</span> <span class="op">|</span> <span class="lit">"*"</span> <span class="op">|</span> <span class="lit">"/"</span> <span class="op">|</span> <span class="lit">"%"</span> <span class="op">|</span> <span class="lit">"^"</span></td><td class="cmt">&mdash; a closed set</td></tr>
 <tr><td class="nt">createsec</td><td class="op">::=</td><td><span class="lit">create</span> <span class="nt">constructor</span><sup>+</sup></td></tr>
 <tr><td class="nt">constructor</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span>&rangle; &langle;<span class="nt">require</span>&rangle; <span class="lit">do</span> <span class="nt">block</span> &langle;<span class="nt">ensure</span>&rangle; &langle;<span class="nt">rescue</span>&rangle; <span class="lit">end</span></td></tr>
 <tr><td class="nt">fundec</td><td class="op">::=</td><td><span class="lit">function</span> <span class="nt">id</span> &langle;<span class="nt">gen</span>&rangle; <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
@@ -231,6 +233,47 @@ relate the final state to the initial one, as in
 <code>money = old money - amount</code>. A routine that declares a return type
 delivers its result through the cell <code>result</code>, whose value when the
 body finishes is the value of the call.</p>
+
+<p>A one-argument routine may bind itself to an arithmetic operator with an
+<code>alias</code> clause. The operator is then <em>exactly</em> sugar for the
+call: <code>a - b</code> <em>is</em> <code>a.minus(b)</code>, and so the
+routine&rsquo;s precondition and postcondition hold at the operator no less than
+at an explicit call. This is what makes the example above, <code>money = old
+money - amount</code>, meaningful for a class of one&rsquo;s own and not only for
+the built-in numbers.</p>
+
+<pre><code>class Money
+  feature
+    once amount: Integer
+    once currency: String
+
+    minus(other: Money): Money
+      alias "-"
+      require
+        same_currency: currency = other.currency
+      do
+        result := create Money.make(amount - other.amount, currency)
+      end
+  create
+    make(a: Integer, c: String) do amount := a  currency := c end
+end</code></pre>
+
+<p>Three restrictions keep the notation closed. The set of aliasable operators is
+fixed&mdash;<code>+ - * / % ^</code> and no others&mdash;so no program can
+introduce a symbol a reader has never met. Only arithmetic may be aliased:
+ordering is obtained by inheriting <code>Comparable</code> and defining
+<code>compare</code>, and value equality by defining <code>equals</code>
+(Section&nbsp;5.3), not by aliasing. And an alias is consulted only where the
+operands are not already numeric (or, for <code>+</code>, a string), so no class
+can alter the meaning of <code>+</code> on <code>Integer</code> or
+<code>Real</code>. An alias is inherited: a routine aliased in a deferred class
+gives the operator to every heir, dispatching to the heir&rsquo;s
+implementation.</p>
+
+<p>The word <code>alias</code> is contextual, not reserved (Section&nbsp;2.1): it
+has this meaning only in the position shown, and a program may still name a field,
+parameter, or routine <code>alias</code>. Adding the clause to the language
+therefore took no identifier away from any program that existed before it.</p>
 
 <div class="note">
   <span class="note-label">A deferred routine has no body</span>

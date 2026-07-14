@@ -233,6 +233,17 @@ operators require and yield <code>Boolean</code>. Formally these are rules
 two numeric types; disjunction and negation are analogous to the conjunction
 rule.</p>
 
+<p>The opening sentence is meant literally, and a class may make it so for itself.
+Write \(\mathrm{alias}_\tau(\odot) = m\) when the class \(\tau\), or an ancestor
+of it, declares a one-argument routine \(m\) bound to \(\odot\) by an
+<code>alias</code> clause (Section&nbsp;3.4). Where the operands of an arithmetic
+operator are <em>not</em> numeric&mdash;so that rule 4.8 does not apply&mdash;the
+operator elaborates as the call it abbreviates: the right operand must conform to
+the parameter of \(m\), and the type of the operator expression is the return type
+of \(m\). This is rule 4.8a of Appendix&nbsp;D. The numeric rule is tried first, so
+an alias can never displace built-in arithmetic; and where neither applies the
+expression is ill-typed, as before.</p>
+
 <h4>Member access and calls</h4>
 <p>A member access \(e.f\) requires that the static type of \(e\) be a class
 type possessing an accessible field or routine named \(f\). If \(f\) is a field,
@@ -422,6 +433,22 @@ with \(\tau_i\) substituted for \(\alpha_i\) throughout.</p>
 <div class="rule-block">
 \[ \frac{A[\alpha_1{\to}K_1,\dots,\alpha_n{\to}K_n] \in \Sigma \quad \tau_i \preceq K_i \;\;(1 \le i \le n)}{C \vdash A[\tau_1,\dots,\tau_n] \;\mathbf{type}} \tag{4.23} \]
 </div>
+
+<p>A constraint is not merely a gate on the actual argument; it is what the body
+of the generic may rely on. Within the scope of \(\alpha \to K\), a value of type
+\(\alpha\) has the features of \(K\): its fields may be read and its routines
+called, and the call is elaborated against \(K\)&rsquo;s signature. A routine
+deferred in \(K\) may be called on an \(\alpha\) even though no implementation is
+known statically&mdash;the receiver&rsquo;s dynamic class supplies one
+(Section&nbsp;5.5). An unconstrained parameter has no features beyond those of
+<code>Any</code>.</p>
+
+<pre><code>function total_area[T -> Shape](xs: Array[T]): Integer do
+  result := 0
+  across xs as s do
+    result := result + s.area()   -- area is deferred in Shape
+  end
+end</code></pre>
 
 <pre><code>class Box [G]
   create make(x: G) do value := x end
