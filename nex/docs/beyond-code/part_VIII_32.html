@@ -26,13 +26,13 @@
   </div>
   <div class="prose">
 <p>Managing complexity, as we saw in <a class="xref" href="part_VIII_31.html">Managing Complexity</a>, is the discipline of keeping a system understandable today. It is about drawing boundaries so that the cost of reasoning remains within our budget. But a system that is easy to understand today may still be prohibitively expensive to change tomorrow. Requirements evolve, technology stacks shift, and business models pivot. If every such change requires reaching across boundaries and rewriting stable logic, the system has failed a fundamental engineering test.</p>
-<p>Designing for change is the practice of building “seams” into a system — locations where behavior can vary without breaking the contracts that surround them. The goal is not to predict the future, which is impossible, but to build a system that can absorb it.</p>
+<p>Designing for change is the practice of building “extension points” into a system — locations where behavior can vary without breaking the contracts that surround them. The goal is not to predict the future, which is impossible, but to build a system that can absorb it.</p>
 <section class="level2" data-number="33.1" id="the-concept-of-change-seams">
-<h2 class="anchored" data-anchor-id="the-concept-of-change-seams" data-number="33.1"> The Concept of Change Seams</h2>
-<p>A seam is a boundary where we can alter behavior without editing the code that uses that behavior. In a well-designed system, seams are placed at the points of highest likely volatility.</p>
+<h2 class="anchored" data-anchor-id="the-concept-of-change-seams" data-number="33.1"> The Concept of Extension Points</h2>
+<p>An extension point is a place where we can alter behavior without editing the code that uses that behavior. In a well-designed system, extension points are placed at the points of highest likely volatility.</p>
 <p>Consider a notification system. Today, it sends emails. Tomorrow, it might need to send SMS messages, push notifications, or Slack alerts. If the logic for “how to send an email” is hardcoded into the heart of the dispatch workflow, then adding SMS support requires modifying the dispatch workflow. The dispatch workflow is now coupled to the notification transport.</p>
-<p>A seam decouples them. By defining a stable contract — <code>Notification_Transport.send(message)</code> — the dispatch workflow can remain entirely ignorant of how the message is delivered. It depends on the <em>interface</em> of the transport, not its implementation. When a new transport is added, we don’t change the dispatch logic; we simply provide a different implementation of the seam.</p>
-<p>Good seams isolate volatility. They allow the stable parts of the system (the “what”) to remain unchanged while the volatile parts (the “how”) evolve independently.</p>
+<p>An extension point decouples them. By defining a stable contract — <code>Notification_Transport.send(message)</code> — the dispatch workflow can remain entirely ignorant of how the message is delivered. It depends on the <em>interface</em> of the transport, not its implementation. When a new transport is added, we don’t change the dispatch logic; we simply provide a different implementation of the extension point.</p>
+<p>Good extension points isolate volatility. They allow the stable parts of the system (the “what”) to remain unchanged while the volatile parts (the “how”) evolve independently.</p>
 </section>
 <section class="level2" data-number="33.2" id="stable-contracts-and-the-cost-of-evolution">
 <h2 class="anchored" data-anchor-id="stable-contracts-and-the-cost-of-evolution" data-number="33.2"> Stable Contracts and the Cost of Evolution</h2>
@@ -47,8 +47,8 @@
 <blockquote class="blockquote">
 <p><em>“We need to experiment with a new ranking algorithm for search results, but we must be able to switch back to the old one instantly if the metrics drop.”</em></p>
 </blockquote>
-<p>Without a seam, the ranking logic is likely embedded in the search service. Switching algorithms means a code change, a deployment, and a high-risk transition.</p>
-<p>With a seam, we design for variation:</p>
+<p>Without an extension point, the ranking logic is likely embedded in the search service. Switching algorithms means a code change, a deployment, and a high-risk transition.</p>
+<p>With an extension point, we design for variation:</p>
 <ol type="1">
 <li><strong>Define the Port:</strong> We create a stable interface, <code>Ranking_Strategy</code>, with a single operation: <code>rank(results: List[Document])</code>.</li>
 <li><strong>Implement the Variants:</strong> We create <code>Legacy_Ranking</code> and <code>Experimental_Ranking</code>, both adhering to the <code>Ranking_Strategy</code> contract.</li>
@@ -58,8 +58,8 @@
 </section>
 <section class="level2" data-number="33.4" id="implementation-in-nex">
 <h2 class="anchored" data-anchor-id="implementation-in-nex" data-number="33.4"> Implementation in Nex</h2>
-<p>In Nex, we use classes and features to define these seams. The <code>require</code> and <code>ensure</code> clauses make the contract explicit, ensuring that any new implementation of the seam honors the same behavioral guarantees as the old one.</p>
-<pre class="nex"><code>-- The Seam Definition
+<p>In Nex, we use classes and features to define these extension points. The <code>require</code> and <code>ensure</code> clauses make the contract explicit, ensuring that any new implementation of the extension point honors the same behavioral guarantees as the old one.</p>
+<pre class="nex"><code>-- The Extension Point Definition
 deferred class Ranking_Strategy
 feature
   rank(query: String, candidates: Array[String]): Array[String]
@@ -125,15 +125,15 @@ end</code></pre>
 </section>
 <section class="level2" data-number="33.5" id="designing-for-change-across-the-three-systems">
 <h2 class="anchored" data-anchor-id="designing-for-change-across-the-three-systems" data-number="33.5"> Designing for Change Across the Three Systems</h2>
-<p>In the <strong>delivery system</strong>, the seam is the <code>Routing_Policy</code>. We can swap from a “shortest distance” policy to a “minimum fuel” policy or a “driver preference” policy without changing the dispatch engine that executes the routes.</p>
-<p>In the <strong>knowledge engine</strong>, the seam is the <code>Document_Parser</code>. As new file formats are supported — PDF, Markdown, LaTeX — we add new parser implementations. The indexing pipeline remains unchanged because it interacts with the stable <code>Parsed_Content</code> contract.</p>
-<p>In the <strong>virtual world</strong>, the seam is the <code>Entity_Behavior</code>. A “Player” and an “NPC” might share the same physical simulation rules but have different decision-making logic. By isolating behavior behind a seam, we can add new types of entities without modifying the physics engine.</p>
+<p>In the <strong>delivery system</strong>, the extension point is the <code>Routing_Policy</code>. We can swap from a “shortest distance” policy to a “minimum fuel” policy or a “driver preference” policy without changing the dispatch engine that executes the routes.</p>
+<p>In the <strong>knowledge engine</strong>, the extension point is the <code>Document_Parser</code>. As new file formats are supported — PDF, Markdown, LaTeX — we add new parser implementations. The indexing pipeline remains unchanged because it interacts with the stable <code>Parsed_Content</code> contract.</p>
+<p>In the <strong>virtual world</strong>, the extension point is the <code>Entity_Behavior</code>. A “Player” and an “NPC” might share the same physical simulation rules but have different decision-making logic. By isolating behavior behind an extension point, we can add new types of entities without modifying the physics engine.</p>
 <p>In all three cases, the pattern is the same: identify the part that is likely to vary, wrap it in a stable contract, and allow the rest of the system to depend on the contract rather than the variation.</p>
 </section>
 <section class="level2" data-number="33.6" id="three-ways-design-for-change-fails">
 <h2 class="anchored" data-anchor-id="three-ways-design-for-change-fails" data-number="33.6"> Three Ways Design for Change Fails</h2>
-<p><strong>Premature Abstraction.</strong> The most common mistake is building seams for variations that never happen. Every seam adds a layer of indirection and a small cost to reasoning. If you build five different “strategy” ports for logic that hasn’t changed in three years, you have wasted complexity budget. The remedy is to add seams only when volatility is evidenced or highly probable.</p>
-<p><strong>Leaky Abstractions.</strong> A seam is useless if the contract requires the caller to know about the implementation. If <code>Ranking_Strategy</code> requires the caller to pass database-specific credentials, the seam has leaked infrastructure details into the domain. The remedy is to keep contracts focused on the <em>intent</em> of the operation, not the <em>mechanics</em> of the implementation.</p>
+<p><strong>Premature Abstraction.</strong> The most common mistake is building extension points for variations that never happen. Every extension point adds a layer of indirection and a small cost to reasoning. If you build five different “strategy” ports for logic that hasn’t changed in three years, you have wasted complexity budget. The remedy is to add extension points only when volatility is evidenced or highly probable.</p>
+<p><strong>Leaky Abstractions.</strong> An extension point is useless if the contract requires the caller to know about the implementation. If <code>Ranking_Strategy</code> requires the caller to pass database-specific credentials, the extension point has leaked infrastructure details into the domain. The remedy is to keep contracts focused on the <em>intent</em> of the operation, not the <em>mechanics</em> of the implementation.</p>
 <p><strong>The “Big Bang” Migration.</strong> Designing for change implies that the system will evolve. If a team introduces a new version of a service but provides no compatibility for old clients, they haven’t designed for change — they’ve designed for disruption. The remedy is to make compatibility a first-class architectural requirement, using adapters and versioned interfaces to bridge the gap.</p>
 <div class="note-exercise">
 <p><strong>Quick Exercise</strong></p>
@@ -147,10 +147,10 @@ end</code></pre>
 <div class="note-takeaways">
 <p><strong>Takeaways</strong></p>
 <ul>
-<li>Designing for change is about building seams where volatility can land without causing system-wide damage.</li>
-<li>A seam is a boundary that allows behavior to vary while the contract remains stable.</li>
+<li>Designing for change is about building extension points where volatility can land without causing system-wide damage.</li>
+<li>An extension point is a boundary that allows behavior to vary while the contract remains stable.</li>
 <li>Stable contracts are the prerequisite for safe evolution. Additive changes are almost always cheaper than breaking ones.</li>
-<li>Over-engineering is as dangerous as under-engineering. Build seams where change is likely, not where it is merely possible.</li>
+<li>Over-engineering is as dangerous as under-engineering. Build extension points where change is likely, not where it is merely possible.</li>
 <li>Compatibility is not a release chore; it is an architectural discipline that allows a system to grow without leaving its users behind.</li>
 </ul>
 </div>

@@ -41,7 +41,7 @@ The one rhythmic subtlety is that closing bar in {{fig ode-plain}}: a dotted qua
 Correct notes are not yet a finished score. A performer needs to know how the melody should *feel*, and that is Chapter 10's expression, added on top. Three touches turn the bare notes into something playable:
 
 - a **tempo mark** at the start (♩ = 112), so the speed is not left to guesswork;
-- a **dynamic** — a plain *mf* is honest for a hymn-like tune — placed under the first note;
+- a **dynamic** — a plain *mf* is ideal for a hymn-like tune — placed under the first note;
 - and a **slur** over each four-bar phrase, showing where each musical breath begins and ends.
 
 {{figure ode-to-joy | The finished melody — the same notes as before, now marked. A tempo of ♩ = 112 and an *mf* set the pace and level; a slur arches over each of the two phrases, grouping the notes into sung lines. This is the deliverable: correct, complete, and legible enough to hand to someone else — the same pitches as the bare phrase above, but now it is music.}}
