@@ -59,6 +59,17 @@ end</code></pre>
 
 <p>This is a <em>closed</em> set: <code>union</code> tells the compiler that no other shapes exist, so it can reason about the whole. Under the surface each variant becomes a distinct type — <code>Draft</code>, <code>Placed</code>, <code>Shipped</code> — and <code>Order</code> is their sealed parent; the concise form simply spares you writing the parent and each subclass by hand. You construct a variant by name, <code>create Placed.make(xs, t)</code>, and read its data as ordinary fields.</p>
 
+<p>When a variant has no data — a suit, a compass point, the state of a traffic light — there is nothing to read, and the value is simply <em>one of a fixed list of names</em>. That is an <em>enumeration</em>, and it is this chapter's thesis at its barest: nothing remains to constrain except the set of names itself, and naming them closes it. A payload-free <code>union</code> marked <code>enum</code> says exactly that:</p>
+
+<pre><code>enum union Direction
+  North
+  East
+  South
+  West
+end</code></pre>
+
+<p>A fifth direction is not rejected at runtime — it cannot be written, for it is not one of the four names the type admits. What <code>enum</code> adds over a bare <code>union</code> is the small machinery a fixed set of names almost always wants and would otherwise be spelled out by hand: each member is one canonical value reached on the type, so <code>Direction.North</code> is <em>the</em> north and <code>==</code> compares members by identity; the members carry the order in which they are written; and <code>Direction.values</code> lists them all for code that must walk the set. The closed set the compiler already knew becomes a vocabulary you can name, compare, and enumerate — with, still, no way to fall outside it.</p>
+
 <p>But shape is only part of what a placed order must satisfy. A <code>Placed</code> should have at least one line, and its <code>total</code> should equal the sum of those lines — and those are not facts about <em>shape</em>, they are <em>relationships among values</em>. The <code>union</code> form states shape and nothing more; it synthesises no contracts. When a variant must also hold a relationship, write that hierarchy in the longhand the <code>union</code> is shorthand for, and hang the contract on the variant that needs it:</p>
 
 <pre><code>sealed deferred class Order

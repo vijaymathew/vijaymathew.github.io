@@ -117,6 +117,33 @@ through and the resulting classes are exactly those a hand-written sealed
 hierarchy would produce; nothing further &mdash; no method, invariant, or contract
 &mdash; is generated.</p>
 
+<p>Prefixing the declaration with <code>enum</code> &mdash; permitted only when
+every variant is payload-free and <code>P</code> is non-generic &mdash; enriches
+the same hierarchy into an <em>enumeration</em>. On top of the translation above,
+the parent gains an ordering and one interned constant per member, and each
+variant&rsquo;s <code>make</code> records its declaration index.</p>
+
+<div class="grammar">
+<table>
+<tr><td>\(\llbracket\) <code>enum union P V₁ … Vₙ end</code> \(\rrbracket\)</td><td class="op">=</td><td></td></tr>
+<tr><td colspan="3"><code>sealed deferred class P inherit Comparable</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;<code>feature ordinal: Integer</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;<code>compare(o: P): Integer do result := ordinal &minus; o.ordinal end</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;<code>feature V₁: P = create V₁.make() ; … ; Vₙ: P = create Vₙ.make()</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;<code>values: Array[P] = [V₁, …, Vₙ] end</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;and, for each variant <code>Vᵢ</code> at 0-based declaration index <code>i</code>,</td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;<code>class Vᵢ inherit P create make() do ordinal := i end end</code></td></tr>
+</table>
+</div>
+
+<p>Thus <code>P.Vᵢ</code> is the one canonical <code>Vᵢ</code> value (a class
+constant, evaluated once &mdash; Section&nbsp;3.3&nbsp;&mdash; so <code>P.Vᵢ ==
+P.Vⱼ</code> tests identity), the members order by the sequence in which they are
+written, and <code>P.values</code> lists them all. Because the enrichment claims
+those three names, a variant may not be named <code>ordinal</code>,
+<code>compare</code>, or <code>values</code>. A plain <code>union</code> never
+gains this; the enrichment is requested, never inferred.</p>
+
 <h2><span class="secno">C.7</span>Match Patterns and Guards</h2>
 
 <p>A <code>match</code> clause richer than the bare

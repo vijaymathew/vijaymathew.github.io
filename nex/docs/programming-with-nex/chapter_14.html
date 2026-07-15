@@ -453,6 +453,22 @@ end</code></pre>
   Empty
 end</code></pre>
 <p>Because a union only declares data, it synthesises no methods, invariants, or contracts. When a variant needs a constructor precondition, an invariant, or its own behaviour, write it in the full <code>sealed deferred class</code> form — the two forms describe the same kind of hierarchy, and you can mix them as a design grows.</p>
+<h3 class="anchored" data-anchor-id="enum-unions">Enumerations</h3>
+<p>A special case is worth its own word. When every variant is a bare tag with no data — the days of the week, the suits of a deck, a traffic light — you have an <em>enumeration</em>: a small, fixed set of named values. Prefix the declaration with <code>enum</code> and Nex treats it as one:</p>
+<pre><code>enum union Color
+  Red
+  Green
+  Blue
+end</code></pre>
+<p>This is still the same sealed hierarchy underneath, so <code>match</code> and its exhaustiveness check work exactly as above. The <code>enum</code> keyword adds three conveniences you would otherwise write by hand:</p>
+<pre><code>print(Color.Red == Color.Red)      -- true: Color.Red is one canonical value
+print(Color.Red &lt; Color.Green)     -- true: members order by how they are written
+print(Color.values.length())       -- 3: an array of every member, in order
+across Color.values as c do
+  print(c.ordinal)                 -- 0, then 1, then 2
+end</code></pre>
+<p>Each member is a constant on the type — <code>Color.Red</code> is <em>the</em> Red, not a fresh object every time you name it, which is why comparing two of them with <code>==</code> is true. The members are ordered by their declaration order, so a <code>Color</code> is <code>Comparable</code> without your writing a <code>compare</code>. And <code>Color.values</code> gives you the whole set to loop over.</p>
+<p>The <code>enum</code> form asks for all of this deliberately: a plain <code>union</code>, even one whose variants happen to be data-free, stays a bare sum type with none of these extras. <code>enum</code> is allowed only when no variant carries a payload and the union is not generic — its members are fixed values, which need a concrete type — and no variant may be named <code>ordinal</code>, <code>compare</code>, or <code>values</code>, since those name the generated members.</p>
 <h3 class="anchored" data-anchor-id="matching-into-values">Matching into values</h3>
 <p>Binding the whole variant with <code>as</code> and then reading its fields (<code>ok.value</code>) is fine, but a <code>match</code> can also take a variant apart directly. Naming the payload fields in the pattern binds them as locals of the same name:</p>
 <pre><code>match r of

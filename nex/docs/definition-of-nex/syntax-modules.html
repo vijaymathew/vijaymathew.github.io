@@ -124,7 +124,7 @@ list of named fields.</p>
 
 <div class="grammar">
 <table>
-<tr><td class="nt">uniondec</td><td class="op">::=</td><td><span class="lit">union</span> <span class="nt">id</span> &langle;<span class="nt">gen</span>&rangle; &langle;<span class="nt">note</span>&rangle; <span class="nt">variant</span><sup>+</sup> <span class="lit">end</span></td></tr>
+<tr><td class="nt">uniondec</td><td class="op">::=</td><td>&langle;<span class="lit">enum</span>&rangle; <span class="lit">union</span> <span class="nt">id</span> &langle;<span class="nt">gen</span>&rangle; &langle;<span class="nt">note</span>&rangle; <span class="nt">variant</span><sup>+</sup> <span class="lit">end</span></td></tr>
 <tr><td class="nt">variant</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> <span class="nt">paramlist</span> <span class="lit">)</span>&rangle;</td><td class="cmt">&mdash; tag and optional named payload</td></tr>
 </table>
 </div>
@@ -156,6 +156,24 @@ contracts on its variants. A variant that needs a constructor precondition, an
 invariant, or per-variant behaviour is written in the explicit
 <code>sealed deferred class</code> form of Section&nbsp;3.2, which the union form
 does not replace.</p>
+
+<p>When every variant is payload-free and <span class="nt">P</span> is non-generic,
+the declaration may be prefixed with the reserved word <code>enum</code>, making it
+an <strong>enumeration</strong>: a closed set of named, ordered, canonical values.
+The <code>enum</code> form still elaborates to the sealed hierarchy above, but the
+parent additionally becomes <code>Comparable</code> ordered by declaration order,
+each member is exposed as an interned class constant on the type
+(<code>P.V</code><sub>i</sub>, one canonical value per variant), and
+<code>P.values</code> is an array of all members in order; the full translation is
+in Appendix&nbsp;C. Because the enrichment occupies the names <code>ordinal</code>,
+<code>compare</code>, and <code>values</code>, no variant may bear them. A plain
+<code>union</code> is never so enriched; <code>enum</code> requests it.</p>
+
+<pre><code>enum union Color
+  Red
+  Green
+  Blue
+end</code></pre>
 
 <h2><span class="secno">3.3</span>Features</h2>
 
@@ -189,6 +207,14 @@ text a constant is referred to by its bare name, like a field; outside, it is
 accessed on the class, <code>C.x</code>, never on an instance. When the type
 annotation is omitted, the type is inferred from the initialising
 expression.</p>
+
+<p>The initialising expression is unrestricted: as well as a scalar it may be an
+object (<code>create&nbsp;&hellip;</code>) or a collection display. Since the
+constant is fixed once when the class is elaborated, such a value is evaluated a
+single time and shared by every use, so an object- or collection-valued constant
+is one canonical value&mdash;<code>C.x == C.x</code> holds. An initialiser may
+name an earlier constant of the same class, or one inherited from a parent; a
+forward or cyclic reference among constants is rejected statically.</p>
 
 <h2><span class="secno">3.4</span>Routines and Contracts</h2>
 

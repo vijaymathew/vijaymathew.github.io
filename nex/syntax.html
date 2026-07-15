@@ -579,6 +579,22 @@ end</code></pre>
     </div>
   </details>
 
+  <details class="syntax-item" id="class-constants">
+    <summary>Class Constants</summary>
+    <div class="syntax-body">
+<p>A feature written <code>NAME = expression</code> (an initializer, no constructor) is a class-level constant, shared by every instance and read through the class name. The initializer is any expression — scalar, object, or collection — and is <em>interned</em>: evaluated once for the whole run, so every read returns the same value.</p>
+<pre><code>class Screen
+  feature
+    WIDTH  = 1920
+    HEIGHT = 1080
+    AREA   = WIDTH * HEIGHT      -- may reference an earlier constant
+end
+
+print(Screen.AREA)               -- 2073600</code></pre>
+<p>Because an object- or collection-valued constant is one shared value, <code>C.x == C.x</code> holds for it. A forward or cyclic reference among constants is a compile-time error.</p>
+    </div>
+  </details>
+
   <details class="syntax-item" id="design-by-contract">
     <summary>Design by Contract</summary>
     <div class="syntax-body">
@@ -649,6 +665,30 @@ class Err
   feature msg: String
   create make(m: String) do msg := m end
 end</code></pre>
+    </div>
+  </details>
+
+  <details class="syntax-item" id="sum-types">
+    <summary>Sum Types (<code>union</code>)</summary>
+    <div class="syntax-body">
+<p>A <code>union</code> is concise sugar for a sealed hierarchy of data variants: it expands to a <code>sealed deferred class</code> parent and one class per variant, with the payload as fields and an auto-generated <code>make</code>.</p>
+<pre><code>union Order
+  Draft
+  Placed(id: String, total: Real)
+  Shipped(tracking: String, at: Date)
+end</code></pre>
+<p>Construction and <code>match</code> (with exhaustiveness) are the same as for the hand-written form. A payload-free variant still gets a nullary <code>make</code>, and generic parameters carry through (<code>union Result[T]</code>).</p>
+<p><strong>Enumerations.</strong> When every variant is payload-free, prefix the declaration with <code>enum</code> to get a closed set of named, ordered, canonical values:</p>
+<pre><code>enum union Color
+  Red
+  Green
+  Blue
+end
+
+print(Color.Red == Color.Red)    -- true: interned, one canonical value
+print(Color.Red &lt; Color.Green)   -- true: ordered by declaration order
+print(Color.values.length())     -- 3: an Array[Color] of every member</code></pre>
+<p><code>enum</code> is allowed only when every variant is payload-free and the union is non-generic; a variant may not be named <code>values</code>, <code>ordinal</code>, or <code>compare</code>. Plain <code>union</code> never gains these — the enrichment is opt-in.</p>
     </div>
   </details>
 
