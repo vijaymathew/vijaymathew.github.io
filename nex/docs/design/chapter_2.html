@@ -47,7 +47,7 @@
 </section>
 <section id="the-parser-layer" class="level2" data-number="2.2">
 <h2 data-number="2.2" class="anchored" data-anchor-id="the-parser-layer"><span class="header-section-number">2.2</span> 2.2 The Parser Layer</h2>
-<p><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/parser.clj"><code>src/nex/parser.clj</code></a> is intentionally thin:</p>
+<p><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/parser.clj"><code>src/nex/parser.clj</code></a> is intentionally thin — setting one detail aside, it is:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> parser</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  (antlr/parser <span class="st">"grammar/nexlang.g4"</span>))</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -58,7 +58,9 @@
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">-&gt;</span> input</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      parse</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>      walker/walk-node))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>It creates an ANTLR parser via <code>clj-antlr</code>, invokes it on input, and hands the result to the walker. That is all. The thinness is a good sign — it means the parser layer is not secretly acting as a second semantics engine.</p>
+<p>It creates an ANTLR parser via <code>clj-antlr</code>, invokes it on input, and hands the result to the walker. <code>parse</code> and <code>ast</code> are exactly as shown; the set-aside detail is how <code>parser</code> finds the grammar. <code>packaged-grammar-path</code> prefers <code>grammar/nexlang.g4</code> on disk and otherwise extracts it from the jar into a temp file, since <code>clj-antlr</code> wants a path rather than a stream — that is what lets a packaged Nex parse at all. Note the consequence: the grammar is read <em>at runtime</em>, so there is no generated-parser build step, and editing the <code>.g4</code> in a working tree takes effect on the next run.</p>
+
+<p>Even with that detail restored the layer is thin, and the thinness is a good sign — it means the parser layer is not secretly acting as a second semantics engine.</p>
 <p>It also means the first real implementation boundary is easy to locate. Everything before <code>walker/walk-node</code> is parsing infrastructure. Everything after it is language processing.</p>
 </section>
 <section id="the-walker-from-grammar-trees-to-semantic-asts" class="level2" data-number="2.3">
@@ -77,7 +79,8 @@
 <li><code>intern</code> becomes path, class name, and alias</li>
 <li><code>import</code> becomes qualified name and optional source</li>
 <li>generic parameters become structured type data</li>
-<li>source position becomes explicit <code>:line</code> and <code>:col</code> fields on every AST node</li>
+<li>source position becomes explicit <code>:dbg/line</code> and <code>:dbg/col</code> fields on nodes that came from source text</li>
+<li><code>union</code> and <code>enum union</code> become a sealed deferred parent class plus one class per variant, folded into the same <code>:classes</code> bucket a hand-written class lands in</li>
 </ul>
 <p>Each of these normalisations is a small thing on its own. Together they mean the interpreter can be written against a clean, explicit representation rather than against whatever the grammar happened to produce.</p>
 <p>The walker is large but highly regular. It is best read as a dispatch table from grammar node names to AST constructors. Several parts deserve particular attention:</p>
@@ -111,7 +114,7 @@
 <p>This structure encodes an important distinction: declarations and executable statements are separated, not interleaved. That separation drives both typechecking order and interpretation order. Classes can reference each other regardless of source position; top-level statements execute after the static world is fully loaded. The <code>:program</code> shape is what makes both of those properties straightforward to implement.</p>
 <section id="declaration-forms" class="level3" data-number="2.5.1">
 <h3 data-number="2.5.1" class="anchored" data-anchor-id="declaration-forms"><span class="header-section-number">2.5.1</span> 2.5.1 Declaration Forms Beyond Classes and Functions</h3>
-<p>Four declaration forms shape the static world without producing executable statements. Each is recognised by its own grammar production and turned into a distinct AST node, so the rest of the front end can treat it uniformly.</p>
+<p>Five declaration forms shape the static world without producing executable statements. Each is recognised by its own grammar production and turned into a distinct AST node, so the rest of the front end can treat it uniformly.</p>
 <p><strong>Type aliases.</strong> <code>declare type Name = T</code> binds a name to any type expression — a generic instantiation, a function type, or another alias. The production <code>declareTypeDecl : DECLARE TYPE_KW IDENTIFIER EQUAL type (WHERE IDENTIFIER ':' expression)?</code> produces a <code>:type-alias</code> node <code>{:type :type-alias, :name "Name", :type-expr T}</code>, which the walker gathers into the program's <code>:type-aliases</code> bucket. Aliases are purely a checking-time convenience: they carry no runtime representation and are gone before any backend runs (see Section 3.2).</p>
 
 <p>The optional <code>where</code> clause makes the alias a <strong>refinement type</strong>: <code>declare type Quantity = Integer where n: n &gt; 0</code> is still an alias to <code>Integer</code> for checking, plus a predicate, recorded on the node as <code>:refinement {:binder "n", :predicate …}</code>. A walker pass injects a check at each site where a value is <em>narrowed</em> into the refinement — a typed <code>let</code>, a parameter on entry, a return on <code>result</code>. The check is emitted as ordinary AST, so every backend runs it without knowing what a refinement is.</p>
@@ -122,6 +125,10 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 <p><strong>Forward function declarations.</strong> <code>declare function f(...): T</code> introduces a function's signature ahead of its definition, so mutually recursive top-level functions can reference one another regardless of source order. It shares the function grammar but produces a function node carrying <code>:declaration-only? true</code> and no body. The typechecker registers the signature; every backend filters declaration-only nodes out before code generation, since they describe a promise rather than code.</p>
 <p><strong>Sealed classes.</strong> The <code>SEALED?</code> prefix on a class declaration sets <code>:sealed?</code> on the <code>:class</code> node, alongside the existing <code>:deferred?</code> flag. A sealed class closes its hierarchy: only classes declared with it may inherit from it, which lets the typechecker know the complete set of variants and verify that a <code>match</code> handles them all. The grammar accepts the two prefixes independently, but the typechecker requires a sealed class to also be deferred (Section 3.2): if a sealed class could be instantiated, a bare instance of the parent would be a runtime value that an exhaustive match over its subclasses does not cover, quietly defeating the guarantee. A sealed class therefore has no instantiation path of its own.</p>
 <p><strong>Once fields.</strong> The <code>ONCE?</code> prefix on a field declaration sets <code>:once?</code> on the <code>:field</code> node. A once field may be assigned inside a constructor but never afterwards — an immutable-after-construction slot whose value can still be computed rather than constant. Structurally it is an ordinary field; the restriction is a rule the checker and interpreter enforce, not a different shape (see Sections 3.2 and 5.7).</p>
+
+<p><strong>Sum types.</strong> <code>union Name … end</code> is the one declaration form that is not merely annotated but <em>rewritten</em>. The walker desugars it into a <code>sealed deferred</code> parent class plus one class per variant inheriting from it, each variant's payload becoming feature fields plus a generated <code>make</code> constructor. Those classes are concatenated into the program's <code>:classes</code> bucket alongside hand-written ones, so nothing downstream knows a union was involved — exhaustiveness checking (Section 3.2) is just the sealed-class rule applied to the parent. The optional <code>enum</code> prefix, allowed only when every variant is payload-free, additionally interns the members and generates <code>ordinal</code>, <code>compare</code>, and <code>values</code>.</p>
+
+<p>This is the walker's most substantial rewrite, and it illustrates the division of labour the chapter has been describing: <code>union</code> is a syntactic convenience, so it is spent entirely in the front end, and the typechecker and both backends are left with a vocabulary they already had. The cost is paid in Section 2.10's terms — a desugared variant class has no source position of its own.</p>
 </section>
 </section>
 <section id="the-runtime-context" class="level2" data-number="2.6">
@@ -186,7 +193,9 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 </section>
 <section id="source-tracking-and-error-localisation" class="level2" data-number="2.10">
 <h2 data-number="2.10" class="anchored" data-anchor-id="source-tracking-and-error-localisation"><span class="header-section-number">2.10</span> 2.10 Source Tracking and Error Localisation</h2>
-<p>The front end attaches source position metadata — line and column — to every AST node. The interpreter carries debug stack information and source references through method and constructor calls. This infrastructure supports accurate error reporting, debugger integration, and contract failure localisation.</p>
+<p>The front end attaches source position metadata — <code>:dbg/line</code> and <code>:dbg/col</code>, both 1-based — as it walks. <code>attach-debug-pos</code> adds them to any AST map carrying a <code>:type</code> key, whenever ANTLR supplied a position for the parse node it came from. The interpreter carries debug stack information and source references through method and constructor calls. This infrastructure supports accurate error reporting, debugger integration, and contract failure localisation.</p>
+
+<p>The qualifier matters: only nodes that <em>came from source text</em> can carry a position. Every node the walker synthesises has none — the classes a <code>union</code> desugars into, the <code>let</code> bindings a destructuring <code>match</code> clause expands to, the predicate checks a refinement injects. These are the majority in code that leans on those features: a short program declaring a two-variant <code>union</code> and matching on it produces 22 typed AST maps, of which 10 carry a position. A diagnostic anchored to a synthesised node therefore has no line of its own and must borrow one from an enclosing node that does — which is why error messages about desugared constructs tend to point at the whole statement rather than the offending token.</p>
 <p>It is the kind of machinery that is easy to overlook when discussing a language in the abstract, but it is what makes a contract violation message say <em>which</em> condition failed on <em>which</em> line rather than simply crashing. Nex’s contract system only delivers its diagnostic value if the runtime can locate failures precisely. The source-tracking infrastructure is what makes that possible.</p>
 </section>
 <section id="the-interpreter-as-semantic-baseline" class="level2" data-number="2.11">
