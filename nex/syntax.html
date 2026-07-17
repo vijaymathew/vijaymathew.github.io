@@ -729,13 +729,45 @@ end</code></pre>
   when Err as err then
     print(err.msg)
 end</code></pre>
-<p>An <code>else</code> branch covers remaining cases and suppresses the exhaustiveness check.</p>
+<p>An <code>else</code> branch covers remaining cases and suppresses the exhaustiveness check. <code>when _</code> is a catch-all and does the same.</p>
 <pre><code>match r of
   when Ok as ok then
     print(ok.value)
   else
     print("not ok")
 end</code></pre>
+<p>Instead of binding the whole value with <code>as</code> and reading <code>.field</code>, a clause can destructure the variant's payload by field name. Order does not matter, and a field you do not name is ignored.</p>
+<pre><code>match r of
+  when Ok(value) then print(value)
+  when Err(msg)  then print(msg)
+end</code></pre>
+<p>Inside a pattern the name to the left of a colon is always a <em>field</em> of the variant. <code>:</code> always <strong>constrains</strong> that field, and <code>as</code> always <strong>renames</strong> it. So <code>Ok(value as v)</code> binds the field <code>value</code> to a local <code>v</code> — while <code>Ok(value: v)</code> would mean "field <code>value</code> must be a <code>v</code>", and is an error unless <code>v</code> names a type.</p>
+<pre><code>match r of
+  when Ok(value as v) then print(v)
+  when Err(msg as m)  then print(m)
+end</code></pre>
+<p>A field can be constrained to a type. A type pattern narrows the field and binds it under its own name, so the branch can use it at that type:</p>
+<pre><code>match c of
+  when Boxed(content: Integer) then print(content + 1)     -- content is an Integer here
+  when Boxed(content: String)  then print(content.length)
+  when Boxed(content)          then print("something else")
+  when Empty                   then print("empty")
+end</code></pre>
+<p>To compare a field to a <em>value</em>, add an <code>if</code> guard — evaluated after the type match and destructuring, with the destructured names in scope. A false guard falls through to the next clause:</p>
+<pre><code>match r of
+  when Ok(value) if value = 10  then print("exactly ten")
+  when Ok(value) if value > 100 then print("big")
+  when Ok(value)                then print(value)
+  when _                        then print("other")
+end</code></pre>
+<p>There is no literal field pattern: <code>Ok(value: 10)</code> is rejected, and the error names the guard to write instead.</p>
+<p>A type pattern is a runtime <em>test</em>, not an annotation. Testing a field against the type it is already declared to have does nothing except forfeit the exhaustiveness check — narrow a wider type, do not restate a known one. For the same reason a <em>refinement</em> (<code>declare type Quantity = Integer where n: n &gt; 0</code>) cannot be used as a type pattern and is rejected: its predicate is erased at runtime, so the test could only check <code>Integer</code> and would match values <code>Quantity</code> excludes. Test the base type and put the predicate in a guard.</p>
+<p>A type pattern may go on to match the narrowed field's own payload, nesting arbitrarily deep. Give the nested type its arguments (<code>Some[Integer]</code>) for the bound sub-fields to keep their element type; without them they bind as <code>Any</code>.</p>
+<pre><code>match r of
+  when Ok(inner: Some[Integer](value as x)) then use(x)   -- an Ok whose inner is a Some
+  when _                                    then fallback()
+end</code></pre>
+<p>Literals, types, nested patterns and guards are all <em>tests</em> — a clause constrained by one might not fire, so it does not count toward exhaustiveness. A variant handled only by such clauses still needs an unguarded clause, a <code>when _</code>, or an <code>else</code>.</p>
     </div>
   </details>
 
