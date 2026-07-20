@@ -5,7 +5,7 @@ Project 3 gave you a complete little piece — a melody with an accompaniment. B
 
 ## P4.1 Choose your form
 
-The two smallest complete forms are your options (Chapter 23), and for a first piece **ternary form (A B A)** is the easier and more satisfying door, because you already have most of it: your Project 3 piece is a ready-made **A**, complete and closed in the tonic, and you need only compose a contrasting **B** and bring **A** back. (Binary form is also available and equally valid — its two interdependent halves, moving to the dominant and back, make a slightly subtler shape; try it once you have done a ternary.) Here is the plan for a ternary piece, built on the book's running tune:
+The two smallest complete forms are your options (Chapter 23), and for a first piece **ternary form (A B A)** is the easier and more satisfying door, because you already have most of it: your Project 3 piece is a ready-made **A**, complete and closed in the tonic, and you need only compose a contrasting **B** and bring **A** back. (Binary form is also available and equally valid — its two interdependent halves, moving to the dominant and back, make a slightly subtler shape; try it once you have done a ternary.) Here is the plan for a ternary piece, built on our running tune:
 
 {{figure form-little-ternary | The plan for the worked example: a **ternary form** built from the running tune. **A** is the little piece from Project 3, complete in C major. **B** is a new, contrasting middle section — here in A minor, the relative minor, for a darker colour. Then **A returns**, whole, back in C major. Three sections, one clear arc: home, away, home.}}
 

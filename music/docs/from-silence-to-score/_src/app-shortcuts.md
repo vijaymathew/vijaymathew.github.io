@@ -1,4 +1,4 @@
-Speed in MuseScore comes from the keyboard, not the mouse. You do not need to memorize everything at once — but the handful of shortcuts below, learned a few at a time as you work through the book, will make note entry fluent and keep your hands off the menus. These are the MuseScore 4 defaults. On macOS, read <kbd>Ctrl</kbd> as <kbd>Cmd</kbd> throughout; everything else is the same. You can see and change every shortcut under *Edit ▸ Preferences ▸ Shortcuts*.
+Speed in MuseScore comes from the keyboard, not the mouse. You do not need to memorize everything at once — but the handful of shortcuts below, learned a few at a time as you work through what follows, will make note entry fluent and keep your hands off the menus. These are the MuseScore 4 defaults. On macOS, read <kbd>Ctrl</kbd> as <kbd>Cmd</kbd> throughout; everything else is the same. You can see and change every shortcut under *Edit ▸ Preferences ▸ Shortcuts*.
 
 ## The essential few
 
@@ -98,4 +98,4 @@ In note-input mode (<kbd>N</kbd>), first pick a duration, then type a letter to 
 | <kbd>F11</kbd> | **Play panel** (tempo, volume) |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | **Save** — do it often |
 
-Learn these gradually. Every "In MuseScore" box in this book leaned on a few of them; by the time you have worked through the chapters, most of this table will already be in your fingers. When you want a shortcut that is not here, open *Edit ▸ Preferences ▸ Shortcuts* and search — and feel free to rebind anything to suit your own hands.
+Learn these gradually. Every "In MuseScore" box we have worked through leaned on a few of them; by the time you have worked through the chapters, most of this table will already be in your fingers. When you want a shortcut that is not here, open *Edit ▸ Preferences ▸ Shortcuts* and search — and feel free to rebind anything to suit your own hands.

@@ -1,11 +1,11 @@
-Part 2 taught you to *read* harmony — to name chords, recognize inversions, spot cadences and non-chord tones. This project turns that knowledge around: instead of analyzing harmony that already exists, you will *create* it, taking a bare melody and giving it four singing voices. This is the craft at the centre of the whole part, and it is exactly what the Preface promised Part 2 would do to the book's running tune — harmonize it. So that is the melody we will use: the little phrase you first met on the very first pages.
+Part 2 taught you to *read* harmony — to name chords, recognize inversions, spot cadences and non-chord tones. This project turns that knowledge around: instead of analyzing harmony that already exists, you will *create* it, taking a bare melody and giving it four singing voices. This is the craft at the centre of the whole part, and it is exactly what the Preface promised Part 2 would do to our running tune — harmonize it. So that is the melody we will use: the little phrase you first met on the very first pages.
 
 !!! note "The brief"
     Take a given melody and harmonize it in **four-part (SATB) texture**: choose a chord for each melodic moment, write a bass line, and fill in the two inner voices with clean voice leading — no parallel fifths or octaves, the leading tone resolved, and a proper cadence at the end. The result should be four independent lines that a small choir could sing. Save it, and keep it: in Part 3 this same tune gets an accompaniment, and in Part 7 an orchestra.
 
 ## P2.1 The melody
 
-Our melody is the book's running phrase — four bars in C major, the tune from the Preface, here written up an octave so it sits in a soprano's range. Harmonizing proceeds in four unhurried steps: **choose the chords, write the bass, fill the inner voices, then check and refine.** Take them in order and a daunting task becomes four small ones. (You can, and should, later run your *own* melody from Project 1 through exactly the same steps.)
+The melody is our running phrase — four bars in C major, the tune from the Preface, here written up an octave so it sits in a soprano's range. Harmonizing proceeds in four unhurried steps: **choose the chords, write the bass, fill the inner voices, then check and refine.** Take them in order and a daunting task becomes four small ones. (You can, and should, later run your *own* melody from Project 1 through exactly the same steps.)
 
 ## P2.2 Step one — choose the chords
 
@@ -45,7 +45,7 @@ Finally, if the texture feels stiff, bring it to life with **non-chord tones** (
 
 ## P2.6 Going further
 
-Harmonize your **own** melody from Project 1 with the same four steps. Try a version in a minor key, remembering to raise the leading tone in the dominant (Chapter 12). And keep this file — the harmonized tune is the seed the rest of the book grows from.
+Harmonize your **own** melody from Project 1 with the same four steps. Try a version in a minor key, remembering to raise the leading tone in the dominant (Chapter 12). And keep this file — the harmonized tune is the seed everything ahead grows from.
 
 !!! note "Done when…"
     - Every melody note has a **chord** that fits it, and the progression makes functional sense, ending on a clear **cadence**.

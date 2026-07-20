@@ -11,7 +11,7 @@ You cannot travel just anywhere gracefully. The smoothest modulations go to **cl
 - **From a major key, modulate to the dominant.** A piece in C major moves to **G major** — the key a fifth above, one sharp added (F♯). This is the default journey in an enormous amount of music: away to the dominant, and back.
 - **From a minor key, modulate to the relative major.** A piece in A minor moves to **C major** — its relative, sharing the same key signature (Chapter 8). The lift from minor to its brighter relative is one of the most characteristic moves in the repertoire.
 
-Other close destinations — the subdominant, the relative minor of a major key — are available too, but the dominant and the relative major are the highways, and they are enough for everything in this book.
+Other close destinations — the subdominant, the relative minor of a major key — are available too, but the dominant and the relative major are the highways, and they are enough for everything we do.
 
 ## 22.3 The pivot chord
 

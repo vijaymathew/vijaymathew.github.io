@@ -40,7 +40,7 @@ The letter names come for free — a root-position triad always uses every *othe
 
 ## 11.5 Why triads matter
 
-A triad is the smallest self-sufficient chunk of harmony — enough notes to have a clear quality and a clear root, few enough to be heard as a single unit. Nearly all the harmony in this book is triads (and, later, four-note chords built by stacking one more third). What remains is to see how triads *behave*: which ones naturally belong to a key, how they pull toward one another, and how to string them into progressions that go somewhere. That is the next chapter, where the seven triads native to a key — and the gravity between them — turn this static vocabulary into motion.
+A triad is the smallest self-sufficient chunk of harmony — enough notes to have a clear quality and a clear root, few enough to be heard as a single unit. Nearly all the harmony we will meet is triads (and, later, four-note chords built by stacking one more third). What remains is to see how triads *behave*: which ones naturally belong to a key, how they pull toward one another, and how to string them into progressions that go somewhere. That is the next chapter, where the seven triads native to a key — and the gravity between them — turn this static vocabulary into motion.
 
 !!! muse "In MuseScore"
     MuseScore builds chords note by note, on top of a note you have already entered.

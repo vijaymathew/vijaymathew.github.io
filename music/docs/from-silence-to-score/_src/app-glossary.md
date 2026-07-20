@@ -1,4 +1,4 @@
-Every term the book has used, defined briefly and gathered in one place. Definitions are practical rather than exhaustive; where a term has a whole chapter behind it, the chapter number points you back to the full discussion.
+Every term we have used, defined briefly and gathered in one place. Definitions are practical rather than exhaustive; where a term has a whole chapter behind it, the chapter number points you back to the full discussion.
 
 | Term | Meaning |
 |---|---|

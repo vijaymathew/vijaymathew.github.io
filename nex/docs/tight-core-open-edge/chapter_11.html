@@ -19,13 +19,13 @@
 <div class="opener">
 <span class="opener-label">Chapter 11 · Part IV</span>
 <h1 class="opener-title">Evaluators You Can Extend</h1>
-<p class="opener-lede">The last limit to remove: an interpreter whose own primitives grow while it runs. The most open construction in the book — and the one where contracts are almost the only guarantee left.</p>
+<p class="opener-lede">The last limit to remove: an interpreter whose own primitives grow while it runs. The most open construction we build — and the one where contracts are almost the only guarantee left.</p>
 </div>
 <article class="prose">
 
 <p>Chapter 10 gave the domain a language, but the interpreter that ran it was a fixed thing. Its <code>eval</code> was written once, and the operations the language could perform were exactly those the term classes implemented. To teach the language a genuinely new <em>fundamental</em> operation — not a new combination of existing terms, but a new primitive — you had to add a term class and, in effect, edit the interpreter. The vocabulary was open; the evaluator was closed.</p>
 
-<p>This chapter removes that last limit. We build an evaluator whose primitive operations live in a table that can be extended <em>at runtime</em> — so the language can be taught new fundamental words while it is running, by code that the evaluator's author never saw. It is the logical endpoint of the generic-operations idea from Chapter 9, turned inward and applied to the interpreter's own core. And it is the most open thing we will build, which makes it the sternest test of the book's claim that contracts can keep an open system reliable.</p>
+<p>This chapter removes that last limit. We build an evaluator whose primitive operations live in a table that can be extended <em>at runtime</em> — so the language can be taught new fundamental words while it is running, by code that the evaluator's author never saw. It is the logical endpoint of the generic-operations idea from Chapter 9, turned inward and applied to the interpreter's own core. And it is the most open thing we will build, which makes it the sternest test of my claim that contracts can keep an open system reliable.</p>
 
 <section id="the-metacircular-split" class="level2" data-number="11.1">
 <h2 class="anchored" data-anchor-id="the-metacircular-split"><span class="header-section-number">11.1</span> Closed Syntax, Open Operators</h2>
@@ -41,7 +41,7 @@ union Expr
   Apply(operator: String, args: Array[Expr])  -- operator (named, resolved at runtime) applied to args
 end</code></pre>
 
-<p>Notice the deliberate asymmetry, which is the whole book in miniature. The <em>syntax</em> is sealed — a closed core the evaluator reasons about completely. The <em>operators</em>, named by the strings inside <code>Apply</code>, are open — a vocabulary that grows without limit. Constraint in the structure, flexibility in the vocabulary, and the boundary between them guarded, as we are about to see, by contract.</p>
+<p>Notice the deliberate asymmetry, which is my whole argument in miniature. The <em>syntax</em> is sealed — a closed core the evaluator reasons about completely. The <em>operators</em>, named by the strings inside <code>Apply</code>, are open — a vocabulary that grows without limit. Constraint in the structure, flexibility in the vocabulary, and the boundary between them guarded, as we are about to see, by contract.</p>
 </section>
 
 <section id="the-evaluator" class="level2" data-number="11.2">
@@ -115,7 +115,7 @@ ev.install("lesser", create Lesser.make())
 -- later, from entirely different code, loaded from a plugin, added mid-session:
 ev.install("round_to_cents", create Round_To_Cents.make())</code></pre>
 
-<p>This is extension in its strongest form in the whole book. In Chapter 9 you could add a new <em>rule</em>; here you can add a new <em>fundamental operation of the language itself</em>, at runtime, from outside. The evaluator is complete without knowing what operators will ever exist — it knows only how to find one and hand it its arguments.</p>
+<p>This is extension in its strongest form anywhere we have gone. In Chapter 9 you could add a new <em>rule</em>; here you can add a new <em>fundamental operation of the language itself</em>, at runtime, from outside. The evaluator is complete without knowing what operators will ever exist — it knows only how to find one and hand it its arguments.</p>
 </section>
 
 <section id="the-environment" class="level2" data-number="11.4">
@@ -149,7 +149,7 @@ end</code></pre>
 
 <p>Step back and count what the type system still guarantees inside this evaluator. That the syntax is exhaustively handled — yes, because it is sealed. Almost everything else, it cannot see. It cannot promise that an applied operator is installed, that a referenced name is bound, that a primitive receives the number of arguments it expects, or that the value any primitive returns is well-formed. The evaluator is so open that the compiler, which carried the argument through all of Part II, is nearly silent here.</p>
 
-<p>And yet the system is not unguarded — because every one of those gaps has a contract standing in it. <code>known_op</code> guards the operator lookup; <code>defined</code> guards the name resolution; <code>arity</code> guards each primitive's argument count; and the membrane postconditions from §9.5 still guard the price on its way back to the core. Each is a named, located promise that turns what would be an inscrutable runtime failure deep in a plugin into a precise report at the exact boundary that was violated. This is the book's thesis at its most extreme: push openness as far as it will go, and contracts are not merely a supplement to the type system — they become, very nearly, the guarantees themselves.</p>
+<p>And yet the system is not unguarded — because every one of those gaps has a contract standing in it. <code>known_op</code> guards the operator lookup; <code>defined</code> guards the name resolution; <code>arity</code> guards each primitive's argument count; and the membrane postconditions from §9.5 still guard the price on its way back to the core. Each is a named, located promise that turns what would be an inscrutable runtime failure deep in a plugin into a precise report at the exact boundary that was violated. This is my thesis at its most extreme: push openness as far as it will go, and contracts are not merely a supplement to the type system — they become, very nearly, the guarantees themselves.</p>
 
 <div class="thesis">The more open the construction, the less the type checker can say — and the more the contract must. An extensible evaluator is the far end of that spectrum: sealed only in its skeleton, open everywhere else, and truthful only because every open boundary is named by a <code>require</code> or an <code>ensure</code>.</div>
 
@@ -160,7 +160,7 @@ end</code></pre>
 
 <p>Part IV set out to open the frontier, and it has now reached the edge of it. The three chapters were three widenings of a single door. Generic operations opened the set of <em>behaviors</em> a fixed operation could have (Chapter 9). Domain languages opened the set of <em>rules</em> that could be expressed and made them data (Chapter 10). Extensible evaluators opened the set of <em>primitives</em> the language itself is built from, at runtime (Chapter 11). At each step the type system said less and the contracts said more, and at each step the value produced still crossed into the constrained core only through the membrane — so the openness, however wide, stayed fenced.</p>
 
-<p>There is one more kind of flexibility, and it is different in nature rather than degree. Everything in Part IV still computed in one direction: an expression in, a price out, the evaluator pulling values from leaves to root. But some problems do not arrive that way. Information shows up in fragments, from several directions at once, and the answer must be assembled from partial knowledge that no single evaluation order can capture — a network settling toward a solution rather than a tree reducing to a value. That is Part V, and it is where the open techniques of this book meet the hardest shape of all: computing when you do not yet know everything, and may never. It begins with propagators.</p>
+<p>There is one more kind of flexibility, and it is different in nature rather than degree. Everything in Part IV still computed in one direction: an expression in, a price out, the evaluator pulling values from leaves to root. But some problems do not arrive that way. Information shows up in fragments, from several directions at once, and the answer must be assembled from partial knowledge that no single evaluation order can capture — a network settling toward a solution rather than a tree reducing to a value. That is Part V, and it is where our open techniques meet the hardest shape of all: computing when you do not yet know everything, and may never. It begins with propagators.</p>
 </section>
 
 </article>

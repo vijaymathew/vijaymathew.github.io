@@ -5,7 +5,7 @@ Composing *for* an ensemble and *arranging* for one are close cousins, and this 
 
 ## P5.1 Choose the piece and the ensemble
 
-Reach back for material you already know well: your **Project 3 piano piece** (a melody with accompaniment) is ideal, because it already contains everything an arrangement needs — a tune, a bass, and harmony in between. For the ensemble, the **string quartet** (Chapter 30) is the best first choice — four flexible voices, a familiar mapping to four-part writing, and a ready MuseScore template — though a mixed trio (say flute, clarinet, and cello) or any small group works on the same principles. We will follow the book's running tune, arranged for quartet.
+Reach back for material you already know well: your **Project 3 piano piece** (a melody with accompaniment) is ideal, because it already contains everything an arrangement needs — a tune, a bass, and harmony in between. For the ensemble, the **string quartet** (Chapter 30) is the best first choice — four flexible voices, a familiar mapping to four-part writing, and a ready MuseScore template — though a mixed trio (say flute, clarinet, and cello) or any small group works on the same principles. We will follow our running tune, arranged for quartet.
 
 ## P5.2 Reduce the texture
 

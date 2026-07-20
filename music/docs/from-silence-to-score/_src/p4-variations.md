@@ -1,4 +1,4 @@
-Of all the forms, **theme and variations** rests most directly on the principle that has run through this whole book: unity and variety, the familiar and the new. The idea is simplicity itself — state a theme, then present it again and again, each time transformed — and yet it produces some of the most delightful music ever written, from Mozart's variations on "Twinkle, Twinkle, Little Star" (which he knew as a French tune) to the monumental sets of Bach and Beethoven. It is also, not coincidentally, the single best form for a beginner to compose, because it hands you the hardest part — the material — and asks only that you learn to *transform* it, which is the core creative act of composition in its purest, most teachable shape.
+Of all the forms, **theme and variations** rests most directly on the principle that has run through everything we have done: unity and variety, the familiar and the new. The idea is simplicity itself — state a theme, then present it again and again, each time transformed — and yet it produces some of the most delightful music ever written, from Mozart's variations on "Twinkle, Twinkle, Little Star" (which he knew as a French tune) to the monumental sets of Bach and Beethoven. It is also, not coincidentally, the single best form for a beginner to compose, because it hands you the hardest part — the material — and asks only that you learn to *transform* it, which is the core creative act of composition in its purest, most teachable shape.
 
 ## 24.1 The theme
 
@@ -14,7 +14,7 @@ A variation is a paradox: it must be *different* enough to be a variation, yet *
 
 ## 24.3 Ways to vary
 
-The techniques of variation are a catalogue of nearly everything in this book, applied to one theme. The most common:
+The techniques of variation are a catalogue of nearly everything we have learned, applied to one theme. The most common:
 
 - **Melodic figuration** — keeping the theme's notes on the beats but filling the spaces between them with faster passing tones, neighbor tones, and ornaments, so the melody runs where it once walked.
 - **Rhythmic variation** — recasting the theme in a new rhythm: dotted, syncopated, or in the augmentation and diminution of Chapter 19.
@@ -36,7 +36,7 @@ A variation set is more than a pile of variations; it is *ordered*, and the orde
 
 ## 24.5 The best way to learn
 
-There is a reason theme and variations is recommended to every beginning composer: it teaches invention under constraint, which is the truest form of the craft. Given a blank page, a beginner freezes; given a theme and the instruction "now make it flow, now make it minor, now change its accompaniment," they discover they can do a great deal. Every variation technique here is a *prompt* — a specific, answerable question about what this theme could become — and answering those questions, one at a time, is composition. When you write your own variations, you will feel the material generating ideas faster than you can use them, which is exactly the fluency this whole book is trying to build. Constraint does not limit creativity; it focuses it.
+There is a reason theme and variations is recommended to every beginning composer: it teaches invention under constraint, which is the truest form of the craft. Given a blank page, a beginner freezes; given a theme and the instruction "now make it flow, now make it minor, now change its accompaniment," they discover they can do a great deal. Every variation technique here is a *prompt* — a specific, answerable question about what this theme could become — and answering those questions, one at a time, is composition. When you write your own variations, you will feel the material generating ideas faster than you can use them, which is exactly the fluency I am trying to build in you. Constraint does not limit creativity; it focuses it.
 
 !!! muse "In MuseScore"
     Theme and variations is the most natural of all forms to compose in MuseScore, because it is built on **copy, paste, and transform** — exactly what the program does best.

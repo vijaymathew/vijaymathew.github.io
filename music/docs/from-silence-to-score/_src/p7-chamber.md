@@ -2,7 +2,7 @@ We have reached the point where the threads come together. You know the instrume
 
 ## 38.1 Why a chamber orchestra
 
-We deliberately aim at a *chamber* orchestra rather than the full symphony orchestra, and the choice is pedagogical. A chamber orchestra — strings plus a handful of winds, perhaps a pair of horns — is small enough to hold in your head and to balance without exotic knowledge, yet it is a *real* orchestra, capable of real orchestral music. It is the ensemble of a great deal of the repertoire, and it is exactly the right size to learn on: every principle in this book applies to it directly, and nothing about it exceeds the intermediate ceiling we have kept throughout. Master the chamber orchestra and the larger orchestra is only *more* of the same thinking, not different thinking.
+We deliberately aim at a *chamber* orchestra rather than the full symphony orchestra, and the choice is pedagogical. A chamber orchestra — strings plus a handful of winds, perhaps a pair of horns — is small enough to hold in your head and to balance without exotic knowledge, yet it is a *real* orchestra, capable of real orchestral music. It is the ensemble of a great deal of the repertoire, and it is exactly the right size to learn on: every principle we have learned applies to it directly, and nothing about it exceeds the intermediate ceiling we have kept throughout. Master the chamber orchestra and the larger orchestra is only *more* of the same thinking, not different thinking.
 
 A typical chamber-orchestra roster is: the **strings** (first and second violins, violas, cellos, and double basses) as the foundation; a few **woodwinds** (flute, oboe, clarinet, bassoon — often in pairs); and sometimes a pair of **horns** or a **trumpet**. That is a manageable palette — a handful of colours, all of them familiar from Part 6 — and it is all you need to write full, satisfying orchestral music.
 
@@ -12,11 +12,11 @@ The single best practical decision you can make is to **start from a template** 
 
 ## 38.3 A worked excerpt
 
-Here is a short chamber-orchestra tutti that brings the book's principles together on one page.
+Here is a short chamber-orchestra tutti that brings our principles together on one page.
 
 {{figure chamber-score | A brief chamber-orchestra tutti. The **flute and oboe carry the melody in parallel thirds**, marked ***f***, so the tune is clearly in front (Chapter 37); beneath them the **strings supply a sustained chordal accompaniment**, marked ***p***, spaced open with the bass alone and low in the cello (Chapter 34). Winds on top in a bright register, strings filling the harmony below, the bass clear at the bottom, and a dynamic gap keeping the melody forward — every principle of the last three parts, at work at once in a handful of staves.}}
 
-Read {{fig chamber-score}} as the sum of the whole book. The **melody** is a good line (Part 3), given to two winds in **parallel thirds** for a fuller, more expressive foreground (Chapters 29, 34) and marked *f*. The **accompaniment** is a clean four-part string harmony (Parts 2, 5), voiced open with the bass low and alone and the upper tones stacked above (Chapter 34), and marked *p* so it stays behind the tune (Chapter 37). The **texture** is melody-and-accompaniment (Chapter 36); the **colours** are chosen — reedy winds in front, warm strings behind (Chapter 35); the **registers** keep each part clear (Chapter 33). Nothing here is beyond you; it is simply everything you already know, assembled.
+Read {{fig chamber-score}} as the sum of everything we have done. The **melody** is a good line (Part 3), given to two winds in **parallel thirds** for a fuller, more expressive foreground (Chapters 29, 34) and marked *f*. The **accompaniment** is a clean four-part string harmony (Parts 2, 5), voiced open with the bass low and alone and the upper tones stacked above (Chapter 34), and marked *p* so it stays behind the tune (Chapter 37). The **texture** is melody-and-accompaniment (Chapter 36); the **colours** are chosen — reedy winds in front, warm strings behind (Chapter 35); the **registers** keep each part clear (Chapter 33). Nothing here is beyond you; it is simply everything you already know, assembled.
 
 ## 38.4 A working order
 
@@ -48,4 +48,4 @@ You now have not only the principles of orchestration but a *procedure* for appl
     - **Balance with dynamics** (melody *f*, accompaniment *p*) and the **Mixer** (<kbd>F10</kbd>), and **play it back** constantly — soloing and muting parts to check that each is clear and the melody stays in front.
     - **Generate the parts** (*File ▸ Parts*) when the score is done, and MuseScore will lay out a correct, transposed part for each player automatically.
 
-    **Try it:** take a short piece you have already written — a melody with accompaniment, or a quartet from Part 5 — open a chamber-orchestra template, and score it, working outside-in: melody and bass first, then inner voices, then texture, colour, and balance, playing back at every step, as in {{fig chamber-score}}. You will produce a real orchestral score, and discover that it is not a new and forbidding skill but the assembly of everything this book has taught. That assembly, on a piece of your own, is the Capstone.
+    **Try it:** take a short piece you have already written — a melody with accompaniment, or a quartet from Part 5 — open a chamber-orchestra template, and score it, working outside-in: melody and bass first, then inner voices, then texture, colour, and balance, playing back at every step, as in {{fig chamber-score}}. You will produce a real orchestral score, and discover that it is not a new and forbidding skill but the assembly of everything we have done. That assembly, on a piece of your own, is the Capstone.

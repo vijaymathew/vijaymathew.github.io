@@ -2,7 +2,7 @@ A melody is not an undifferentiated stream of notes; it is organized, the way la
 
 ## 18.1 The phrase
 
-A **phrase** is the basic unit of musical thought — a stretch of melody that expresses one complete idea and ends with a **cadence** (Chapter 15). It is the musical equivalent of a clause or a line of poetry: long enough to say something, short enough to be taken in at once, and closed off by a moment of punctuation. In the music this book is concerned with, phrases are very often **four bars** long — a length that corresponds neatly to a single comfortable breath, which is no accident, since so much music descends from song.
+A **phrase** is the basic unit of musical thought — a stretch of melody that expresses one complete idea and ends with a **cadence** (Chapter 15). It is the musical equivalent of a clause or a line of poetry: long enough to say something, short enough to be taken in at once, and closed off by a moment of punctuation. In the music we are concerned with, phrases are very often **four bars** long — a length that corresponds neatly to a single comfortable breath, which is no accident, since so much music descends from song.
 
 What *makes* it a phrase is the cadence at the end. Without that closing punctuation the melody would run on, an unterminated thought; the cadence is what tells the ear "a unit has completed." And because cadences come in degrees of finality — the hanging half cadence, the conclusive authentic cadence — the *kind* of cadence that ends a phrase tells you how final it is, and therefore how it relates to the phrases around it.
 
@@ -37,7 +37,7 @@ Neither is better; they simply feel different, and a composer chooses between th
 
 ## 18.5 Phrases need not be square
 
-Four-bar phrases and eight-bar periods are the norm this book builds on, but they are a starting point, not a law. Phrases can be **extended** (a cadence delayed, stretching a four-bar phrase to five or six), **expanded** by repeating an internal bit, or joined by **elision**, where the last note of one phrase is also the first of the next, so they overlap. These flexibilities are how real music avoids sounding like a row of identical boxes. For now, master the square four- and eight-bar models; once they are natural, bending them is easy, and bending them is much of what gives a piece personality.
+Four-bar phrases and eight-bar periods are the norm we build on, but they are a starting point, not a law. Phrases can be **extended** (a cadence delayed, stretching a four-bar phrase to five or six), **expanded** by repeating an internal bit, or joined by **elision**, where the last note of one phrase is also the first of the next, so they overlap. These flexibilities are how real music avoids sounding like a row of identical boxes. For now, master the square four- and eight-bar models; once they are natural, bending them is easy, and bending them is much of what gives a piece personality.
 
 ## 18.6 From phrases to form
 

@@ -18,7 +18,7 @@ You will learn as much from the music itself as from any book — more, if you r
 
 - **IMSLP** (the International Music Score Library Project, imslp.org) is a vast, free library of public-domain scores: nearly the entire classical repertoire, ready to download, read, and study. It is the single most valuable resource on this list.
 - **Study the small before the large.** Begin with string quartets, piano sonatas, and chamber works, where the texture is easy to follow, before tackling full symphonies.
-- **Read along while listening.** Follow a score with a recording playing, connecting the notation to the sound — the fastest way to absorb how music is put together, and the culmination of this book's ear-and-eye method.
+- **Read along while listening.** Follow a score with a recording playing, connecting the notation to the sound — the fastest way to absorb how music is put together, and the culmination of the ear-and-eye method we have used throughout.
 - **Copy out passages** you admire, by hand or into MuseScore. Composers have always learned by transcribing the masters; it teaches from the inside.
 
 ## Tools and community

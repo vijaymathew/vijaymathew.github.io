@@ -14,7 +14,7 @@ On a piano this is laid out in front of you. The white keys are the seven letter
 
 {{figure keyboard-octave | One octave of a piano keyboard. The seven white keys are the letters A through G; here we span from one C to the next. The black keys cluster in a two-then-three pattern that repeats up and down the whole instrument — find any group of two black keys, and the white key just to its left is always C.}}
 
-Because every C sounds like every other C, we need a way to say *which* one. The convention this book uses — the standard one, called **scientific pitch notation** — numbers the octaves and attaches the number to the letter. The C nearest the middle of the piano is **C4**, or *middle C*. The C an octave above is C5; the one below, C3. So a pitch name is a letter plus an octave number: A4, F3, G5.
+Because every C sounds like every other C, we need a way to say *which* one. The convention we use — the standard one, called **scientific pitch notation** — numbers the octaves and attaches the number to the letter. The C nearest the middle of the piano is **C4**, or *middle C*. The C an octave above is C5; the one below, C3. So a pitch name is a letter plus an octave number: A4, F3, G5.
 
 {{figure octave-cs | The same letter, three octaves apart: C4, C5, and C6, climbing the treble staff. They share a name because they share a sound-quality; the number says which one you mean.}}
 

@@ -34,4 +34,4 @@ The one key to keep under a finger is <kbd>Space</kbd> — it starts and stops p
 
 ## 3.5 The four drawers
 
-That is the whole console. Adding a symbol is Palettes; adjusting a selected object is Properties; assigning and balancing sounds is the Mixer; hearing the result is playback. Every instruction later in this book that begins "open the Dynamics palette" or "solo the cello" or "press play" is pointing at one of these four surfaces you have now met. From here on the book will name them without re-explaining them — so if a step ever refers to a panel you have lost, this chapter is the map back.
+That is the whole console. Adding a symbol is Palettes; adjusting a selected object is Properties; assigning and balancing sounds is the Mixer; hearing the result is playback. Every instruction later on that begins "open the Dynamics palette" or "solo the cello" or "press play" is pointing at one of these four surfaces you have now met. From here on I will name them without re-explaining them — so if a step ever refers to a panel you have lost, this chapter is the map back.

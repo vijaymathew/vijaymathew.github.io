@@ -6,7 +6,7 @@ A blank staff is not composing; it is a waiting room. The first real skill is ge
 
 **By MIDI keyboard.** If you own a MIDI keyboard, plug it in (USB is plug-and-play on all three operating systems) and MuseScore will accept notes played on it. This is wonderful for capturing a chord voicing you can play but cannot yet spell, and we will use it later. But it needs hardware, and it needs you to already play a little piano, so it is not the foundation.
 
-**By computer keyboard.** You type the *letter name* of each pitch — literally press <kbd>C</kbd> for a C — after setting a duration with the number keys. No aiming, no hardware, both hands on the keys you already have. This is the method to learn first and the method this book assumes. Everything below is about it.
+**By computer keyboard.** You type the *letter name* of each pitch — literally press <kbd>C</kbd> for a C — after setting a duration with the number keys. No aiming, no hardware, both hands on the keys you already have. This is the method to learn first and the method I assume. Everything below is about it.
 
 ## 2.2 Note input mode
 
@@ -54,4 +54,4 @@ Put it together. From a new or open score, press <kbd>N</kbd>, then <kbd>5</kbd>
 
 <kbd>C</kbd> <kbd>D</kbd> <kbd>E</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>A</kbd> <kbd>B</kbd> <kbd>C</kbd>
 
-Eight quarter notes climb the staff. Press <kbd>Esc</kbd> to leave the mode and <kbd>Space</kbd> to hear them. That rising line is a C-major scale — the raw material of Chapter 7 — and you entered it with fifteen keystrokes and no mouse. This is the whole loom on which the rest of the book is woven: *duration, then letters, then listen.* Everything else is elaboration.
+Eight quarter notes climb the staff. Press <kbd>Esc</kbd> to leave the mode and <kbd>Space</kbd> to hear them. That rising line is a C-major scale — the raw material of Chapter 7 — and you entered it with fifteen keystrokes and no mouse. This is the whole loom on which everything ahead is woven: *duration, then letters, then listen.* Everything else is elaboration.

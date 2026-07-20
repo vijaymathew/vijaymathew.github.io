@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Appendix A · Reading Nex — Tight Core, Open Edge</title>
-<meta name="description" content="A short orientation to the Nex constructs used in this book, for readers who know another typed language.">
+<meta name="description" content="A short orientation to the Nex constructs I use here, for readers who know another typed language.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
 <div class="opener">
 <span class="opener-label">Appendix A</span>
 <h1 class="opener-title">Reading Nex</h1>
-<p class="opener-lede">You do not need to know Nex to follow this book. This appendix is a short orientation to the handful of constructs the listings use, for a reader who already knows another typed language.</p>
+<p class="opener-lede">You do not need to know Nex to follow along. This appendix is a short orientation to the handful of constructs the listings use, for a reader who already knows another typed language.</p>
 </div>
 <article class="prose">
 
@@ -57,13 +57,13 @@ let c: Counter := create Counter.make(0)           -- construct with 'create'
 c.increment()
 let n: Integer := c.current                          -- a no-argument call needs no ()</code></pre>
 
-<p>A method that takes no arguments may be called without parentheses — <code>c.current</code> rather than <code>c.current()</code> — which is why field-like reads in the book often have no trailing <code>()</code>.</p>
+<p>A method that takes no arguments may be called without parentheses — <code>c.current</code> rather than <code>c.current()</code> — which is why field-like reads in my listings often have no trailing <code>()</code>.</p>
 </section>
 
 <section id="generics" class="level2" data-number="A.3">
 <h2 class="anchored" data-anchor-id="generics"><span class="header-section-number">A.3</span> Generics, Arrays, and Maps</h2>
 
-<p>Type parameters go in square brackets: <code>class Box[T]</code>, and a concrete instance is <code>create Box[Integer].make(...)</code>. The two built-in collections the book uses are <code>Array[T]</code> and <code>Map[K, V]</code>.</p>
+<p>Type parameters go in square brackets: <code>class Box[T]</code>, and a concrete instance is <code>create Box[Integer].make(...)</code>. The two built-in collections we use are <code>Array[T]</code> and <code>Map[K, V]</code>.</p>
 
 <pre><code>let xs: Array[Integer] := [1, 2, 3]        -- array literal
 xs.add(4)                                   -- append
@@ -75,7 +75,7 @@ prices.put("apple", 150)
 let p: Integer := prices.get("apple")
 if prices.contains_key("pear") then ... end</code></pre>
 
-<p>The empty-map literal is <code>{}</code>; a populated one is <code>{"apple": 150, "pear": 120}</code>. <code>Any</code> is the top type every value inherits, used where the book deliberately steps outside static typing (Chapter 9 onward).</p>
+<p>The empty-map literal is <code>{}</code>; a populated one is <code>{"apple": 150, "pear": 120}</code>. <code>Any</code> is the top type every value inherits, used where we deliberately step outside static typing (Chapter 9 onward).</p>
 </section>
 
 <section id="sum-types" class="level2" data-number="A.4">
@@ -88,7 +88,7 @@ if prices.contains_key("pear") then ... end</code></pre>
   Square(side: Real)
 end</code></pre>
 
-<p>This is a <em>closed</em> set: the compiler knows every shape, so it can check that code handles them all. Each variant becomes a distinct type you build by name — <code>create Circle.make(2.0)</code> — and read as ordinary fields. Under the surface <code>union</code> expands to a <code>sealed deferred</code> parent class (a parent that cannot be instantiated and whose subclasses are closed) with one <code>inherit</code>ing subclass per shape; you can write that longhand yourself, and the book does so for the one type — the order state — whose variants also carry contracts, which <code>union</code> does not synthesize.</p>
+<p>This is a <em>closed</em> set: the compiler knows every shape, so it can check that code handles them all. Each variant becomes a distinct type you build by name — <code>create Circle.make(2.0)</code> — and read as ordinary fields. Under the surface <code>union</code> expands to a <code>sealed deferred</code> parent class (a parent that cannot be instantiated and whose subclasses are closed) with one <code>inherit</code>ing subclass per shape; you can write that longhand yourself, and I do so for the one type — the order state — whose variants also carry contracts, which <code>union</code> does not synthesize.</p>
 
 <p>You take a sum type apart with <code>match</code>, which dispatches on the runtime shape. Because <code>Shape</code> is closed, the compiler requires every case to be handled — a missing one is a compile error.</p>
 
@@ -100,7 +100,7 @@ end</code></pre>
     end
   end</code></pre>
 
-<p>A <code>when</code> pattern both selects a shape and reads into it: <code>Circle(radius)</code> binds the <code>radius</code> field to a local of the same name. You can rename a field (<code>Circle(radius as r)</code>), ignore one (<code>_</code>), constrain it to a literal or a type (<code>Circle(radius: Integer)</code>), add a Boolean <em>guard</em> that falls through when false (<code>when Circle(radius) if radius &gt; 0 then …</code>), and nest a pattern inside a field. Binding the whole value instead is still available as <code>when Circle as c then … c.radius …</code>. An <code>else</code> branch may cover the rest, but it switches off the exhaustiveness check, so the book uses it sparingly. A non-sealed <code>deferred</code> class is instead an <em>open</em> interface — new subclasses may be added anywhere — which is how the combinator and generic-operation chapters keep their vocabularies extensible.</p>
+<p>A <code>when</code> pattern both selects a shape and reads into it: <code>Circle(radius)</code> binds the <code>radius</code> field to a local of the same name. You can rename a field (<code>Circle(radius as r)</code>), ignore one (<code>_</code>), constrain it to a literal or a type (<code>Circle(radius: Integer)</code>), add a Boolean <em>guard</em> that falls through when false (<code>when Circle(radius) if radius &gt; 0 then …</code>), and nest a pattern inside a field. Binding the whole value instead is still available as <code>when Circle as c then … c.radius …</code>. An <code>else</code> branch may cover the rest, but it switches off the exhaustiveness check, so I use it sparingly. A non-sealed <code>deferred</code> class is instead an <em>open</em> interface — new subclasses may be added anywhere — which is how the combinator and generic-operation chapters keep their vocabularies extensible.</p>
 
 <p>Two sum types are common enough that the standard library ships them, brought in with <code>intern</code>: <code>Result[T, E]</code> — <code>Ok(value: T)</code> or <code>Err(error: E)</code>, for a value or an error — and <code>Option[T]</code> — <code>Some(value: T)</code> or <code>None</code>. Their combinators (<code>result_map</code>, <code>result_and_then</code>, <code>result_map_err</code>, and the <code>option_*</code> pair) let a fallible pipeline be threaded without a <code>match</code> at every step.</p>
 </section>
@@ -117,7 +117,7 @@ declare type Percentage = Real where p: p &gt;= 0.0 and p &lt;= 100.0</code></pr
 </section>
 
 <section id="contracts" class="level2" data-number="A.6">
-<h2 class="anchored" data-anchor-id="contracts"><span class="header-section-number">A.6</span> Contracts: the Heart of the Book</h2>
+<h2 class="anchored" data-anchor-id="contracts"><span class="header-section-number">A.6</span> Contracts: the Heart of It All</h2>
 
 <p>Contracts are ordinary syntax in Nex, not a library. There are four forms, and Chapter 2 develops them in full; here is just enough to read them.</p>
 
@@ -164,9 +164,9 @@ withdraw(amount: Money)
     end
   end</code></pre>
 
-<p>Finally, <code>convert value to name: Type</code> attempts a runtime downcast: on success <code>name</code> is bound to the converted value, on failure to <code>nil</code>. The book uses it at the points where an open, table-dispatched design has to recover a concrete type the compiler no longer tracks (Chapter 9). A leading <code>?</code> on a type, as in <code>?T</code>, marks it <em>detachable</em> — it may hold <code>nil</code>.</p>
+<p>Finally, <code>convert value to name: Type</code> attempts a runtime downcast: on success <code>name</code> is bound to the converted value, on failure to <code>nil</code>. I use it at the points where an open, table-dispatched design has to recover a concrete type the compiler no longer tracks (Chapter 9). A leading <code>?</code> on a type, as in <code>?T</code>, marks it <em>detachable</em> — it may hold <code>nil</code>.</p>
 
-<p>That is the whole vocabulary. With it, every listing in the book should read straightforwardly; where a construct does something subtle, the surrounding chapter explains it in place.</p>
+<p>That is the whole vocabulary. With it, every listing ahead should read straightforwardly; where a construct does something subtle, the surrounding chapter explains it in place.</p>
 </section>
 
 </article>

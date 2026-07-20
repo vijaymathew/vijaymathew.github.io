@@ -41,13 +41,13 @@ BOOK_SUB = ("Learning to compose — from a blank staff to a piece for "
 PARTS = [
     ("Front Matter", "", [
         ("preface", "Preface", "", "Before the First Note",
-         "Why compose, why MuseScore, and the one promise this book makes "
+         "Why compose, why MuseScore, and the one promise I make "
          "about how theory and tool will never be separated.", False),
     ]),
     ("Part 0", "Setting Up", [
         ("p0-install", "Chapter 1", "1", "Installing MuseScore 4",
          "First launch, the workspace tour, and naming the parts of the "
-         "window you will live in for the rest of the book.", False),
+         "window you will live in from here on.", False),
         ("p0-input", "Chapter 2", "2", "Getting Notes In",
          "Three ways to enter notes — mouse, computer keyboard, MIDI — and "
          "why the keyboard method is the one worth learning first.", False),
@@ -196,7 +196,7 @@ PARTS = [
     ]),
     ("Afterword", "", [
         ("afterword", "Afterword", "", "A Final Word",
-         "The book ends where composing begins — a send-off, and the one "
+         "We end where composing begins — a send-off, and the one "
          "habit that outweighs every resource: keep writing.", False),
     ]),
     ("Appendices", "", [
@@ -204,10 +204,10 @@ PARTS = [
          "The MuseScore 4 shortcuts worth committing to muscle memory.",
          False),
         ("app-ranges", "Appendix B", "B", "Instrument Range Chart",
-         "Concert and written ranges for the instruments in this book.",
+         "Concert and written ranges for the instruments we use.",
          False),
         ("app-glossary", "Appendix C", "C", "Glossary",
-         "The vocabulary of the book, in one place.", False),
+         "The vocabulary we have used, in one place.", False),
         ("app-next", "Appendix D", "D", "Where to Go Next",
          "Belkin, Adler, Piston, and the scores worth a lifetime of "
          "study.", False),
@@ -230,7 +230,7 @@ NAV = [
 
 COVER_META = """
 <p><strong>Vijay Mathew</strong></p>
-<p>Every notated example in this book is real engraving, rendered from
+<p>Every notated example I show you is real engraving, rendered from
 its own source by MuseScore — the same program you will be learning to
 use. Thirty-nine chapters, five hands-on projects, and a capstone: by
 the end you will have composed, harmonized, arranged, and finally

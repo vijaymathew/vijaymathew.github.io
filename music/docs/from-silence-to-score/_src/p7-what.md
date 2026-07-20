@@ -26,7 +26,7 @@ Composing with timbre is not arbitrary colour-splashing; it does specific musica
 
 ## 35.4 The foundation you already have
 
-Here is the encouraging truth: you are not starting over. Orchestration draws on *everything* in this book, combined. It needs the **instruments** and their ranges and colours (Part 6); the craft of writing **independent lines and balanced ensembles** (Part 5); the **textures** of melody, accompaniment, and counterpoint (Parts 3 and 5); the **forms** whose sections you will articulate with colour (Part 4); and the **harmony and voice leading** underneath it all (Part 2). Orchestration is not a new subject so much as the *integration* of every subject you have studied, now with timbre added as the organizing dimension. You already have the pieces; this part teaches you to assemble them into orchestral thinking.
+Here is the encouraging truth: you are not starting over. Orchestration draws on *everything* we have done, combined. It needs the **instruments** and their ranges and colours (Part 6); the craft of writing **independent lines and balanced ensembles** (Part 5); the **textures** of melody, accompaniment, and counterpoint (Parts 3 and 5); the **forms** whose sections you will articulate with colour (Part 4); and the **harmony and voice leading** underneath it all (Part 2). Orchestration is not a new subject so much as the *integration* of every subject you have studied, now with timbre added as the organizing dimension. You already have the pieces; this part teaches you to assemble them into orchestral thinking.
 
 ## 35.5 The orchestrator's mindset
 
@@ -34,7 +34,7 @@ A few habits of mind distinguish good orchestration. **Think in colours** — he
 
 ## 35.6 The scope of this part
 
-This is an *introduction* to orchestration, kept — like the rest of the book — to an intermediate ceiling. We will not attempt the full symphony orchestra with its exotic percussion and extended techniques; that is the territory of the specialized texts in Appendix D. Instead, Part 7 gives you the working principles — orchestral textures (Chapter 36), balance (Chapter 37), and scoring for a modest **chamber orchestra** (Chapter 38) — and teaches you to learn from real scores (Chapter 39). Then the Capstone asks you to orchestrate a piece of your own. It is enough to write real, effective music for a real ensemble of players, and to hear, for the first time, your own music in orchestral colour.
+This is an *introduction* to orchestration, kept — like everything else here — to an intermediate ceiling. We will not attempt the full symphony orchestra with its exotic percussion and extended techniques; that is the territory of the specialized texts in Appendix D. Instead, Part 7 gives you the working principles — orchestral textures (Chapter 36), balance (Chapter 37), and scoring for a modest **chamber orchestra** (Chapter 38) — and teaches you to learn from real scores (Chapter 39). Then the Capstone asks you to orchestrate a piece of your own. It is enough to write real, effective music for a real ensemble of players, and to hear, for the first time, your own music in orchestral colour.
 
 !!! muse "In MuseScore"
     Nothing teaches the reality of orchestration faster than MuseScore's playback, because it lets you *hear* timbre change while the notes stay fixed.
