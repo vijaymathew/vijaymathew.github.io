@@ -40,6 +40,26 @@ union Term
 end</code></pre>
 
 <p>A <strong>substitution</strong> is the partial knowledge here, playing the role the range played for propagators: a map from variable names to the terms they have been bound to. Two operations use it — <code>resolve</code>, which follows a term through the current bindings until it reaches an unbound variable or a non-variable, and <code>bind</code>, which extends it with one more binding. Like the propagator's merge, a substitution only ever accumulates.</p>
+
+<pre><code>class Substitution
+  create make() do bindings := {} end
+  feature
+    bindings: Map[String, Term]
+
+    bind(vname: String, t: Term): Substitution
+      do bindings.put(vname, t)  result := this end
+
+    resolve(t: Term): Term
+      do
+        match t of
+          when Var(name) then
+            if bindings.contains_key(name) then result := resolve(bindings.get(name))
+            else result := t end
+          else
+            result := t
+        end
+      end
+end</code></pre>
 </section>
 
 <section id="unification" class="level2" data-number="13.2">
@@ -78,6 +98,37 @@ end</code></pre>
   end</code></pre>
 
 <p>The guarded <code>Atom</code> clause narrows to the agreeing case; the unguarded <code>Atom</code> clause beneath it catches the rest, so the match stays exhaustive over the closed structure even with a guard in play. Two compounds unify when their functors and arities match and their arguments unify pairwise — threading the substitution through, so a binding learned from the first argument constrains the rest. That recursion, and the <em>occurs-check</em> that stops a variable being bound to a structure containing itself, are what keep unification from producing a circular or inconsistent answer. They are the structural analogue of the propagator's <code>ordered</code> invariant: guardrails that catch an inconsistency the moment it would enter.</p>
+
+<p>In code that is two small functions. <code>unify_compound</code> handles the three ways a compound can meet another term; <code>unify_args</code> is the pairwise recursion, carrying each argument's substitution into the next so learning accumulates left to right:</p>
+
+<pre><code>function unify_compound(cx: Compound, y: Term, s: Substitution): Result[Substitution, String]
+  do
+    match y of
+      when Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
+      when Atom then result := create Err[Substitution, String].make("structure vs atom")
+      when Compound as cy then
+        if cx.functor = cy.functor and cx.args.length = cy.args.length then
+          result := unify_args(cx.args, cy.args, s, 0)       -- functor + arity agree; check the args
+        else
+          result := create Err[Substitution, String].make("functor / arity mismatch")
+        end
+    end
+  end
+
+-- Unify arguments left to right, threading each result substitution into the next.
+function unify_args(xs: Array[Term], ys: Array[Term], s: Substitution, i: Integer): Result[Substitution, String]
+  do
+    if i &gt;= xs.length then
+      result := create Ok[Substitution, String].make(s)       -- all arguments agreed
+    else
+      match unify(xs.get(i), ys.get(i), s) of
+        when Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)   -- carry bindings forward
+        when Err as e then result := create Err[Substitution, String].make(e.error)
+      end
+    end
+  end</code></pre>
+
+<p>The <em>occurs-check</em> named above — refusing to bind a variable to a structure that contains it — is elided here for brevity; a production unifier performs it in the <code>Var</code> case before binding.</p>
 </section>
 
 <section id="routing-by-unification" class="level2" data-number="13.3">
@@ -121,7 +172,42 @@ function route(order: Term, routes: Array[Term]): Result[Substitution, String]
     end
   end</code></pre>
 
+<p>The domain check the loop defers to is where "unifies structurally" becomes "is a route we can actually honor." Here it is a one-liner — did the search bind a warehouse at all — but it is the seam a real system fills with the checks that matter: stock on hand, a carrier that meets the deadline, a cost within budget.</p>
+
+<pre><code>-- The domain postcondition a committed solution must satisfy.
+-- A real one checks stock and deadline; here: was a warehouse bound at all?
+function satisfies_constraints(s: Substitution): Boolean
+  do result := s.bindings.contains_key("Warehouse") end</code></pre>
+
 <p>The essential moves are all here: unify to propose an assignment, test it against the domain, keep it if it holds, and otherwise advance to the next candidate. A richer search would explore a tree rather than a list — routes whose choices open further choices — but the shape is the same: propose, check, backtrack. And whether it seeks the first valid route or the cheapest, the searching itself is the same machinery.</p>
+
+<p>Seeing it run makes both ideas concrete at once. A few one-line builders let a term read like the fact it stands for; the route table is ordinary data, and the query fixes what is known and leaves the rest open:</p>
+
+<pre><code>-- Builders, so a term reads like the fact it represents.
+function atom(v: String): Term do result := create Atom.make(v) end
+function unknown(name: String): Term do result := create Var.make(name) end
+function compound(f: String, args: Array[Term]): Term
+  do result := create Compound.make(f, args) end
+
+-- The route table is just data: route(zone, warehouse, carrier, cost).
+let routes: Array[Term] := [
+  compound("route", [atom("zone-a"), atom("wh-1"), atom("ground"), atom("500")]),
+  compound("route", [atom("zone-b"), atom("wh-2"), atom("air"),    atom("900")])
+]
+
+-- The order's query: the zone is known; warehouse, carrier, and cost are unknowns.
+let query: Term :=
+  compound("route", [atom("zone-a"), unknown("Warehouse"), unknown("Carrier"), unknown("Cost")])
+
+match route(query, routes) of
+  when Ok as sol then
+    let warehouse: Term := sol.value.resolve(unknown("Warehouse"))
+    -- warehouse is now Atom("wh-1") — dispatch fulfillment there
+  when Err as e then
+    -- e.error is "no eligible route": nothing in the table can ship this order
+end</code></pre>
+
+<p>The query fixes the zone and leaves the rest open; <code>route</code> walks the table, unifies against <code>zone-a</code>'s fact, and comes back with the unknowns filled — <code>wh-1</code>, <code>ground</code>, <code>500</code> — computed, not looked up. Point the same order at a zone no row serves and every unification clashes on the zone atom, the loop exhausts the table, and the result is the <code>Err</code> the search began with. Add a fulfillment path and it is one more row in <code>routes</code>; the searcher is never touched.</p>
 </section>
 
 <section id="runtime-guardrails" class="level2" data-number="13.5">

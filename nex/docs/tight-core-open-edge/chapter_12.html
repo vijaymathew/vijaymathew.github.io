@@ -73,7 +73,15 @@ end</code></pre>
 <section id="propagators" class="level2" data-number="12.3">
 <h2 class="anchored" data-anchor-id="propagators"><span class="header-section-number">12.3</span> The Machines Between the Cells</h2>
 
-<p>A cell holds knowledge; a <strong>propagator</strong> moves it. A propagator is a stateless machine wired to some cells: when any of them gains sharper content, the propagator wakes, computes what that implies for the others, and adds it — which may wake further propagators, and so the sharpening spreads until nothing new can be derived and the network goes quiet.</p>
+<p>A cell holds knowledge; a <strong>propagator</strong> moves it. A propagator is a stateless machine wired to some cells: when any of them gains sharper content, the propagator wakes, computes what that implies for the others, and adds it — which may wake further propagators, and so the sharpening spreads until nothing new can be derived and the network goes quiet. Its interface is a single method, and it is <code>deferred</code> — like the language terms of Chapter 10, the vocabulary of propagators is open, each new source a new subclass:</p>
+
+<pre><code>-- A propagator is woken by a neighbor cell and spreads what the change implies.
+deferred class Propagator
+  feature
+    wake() deferred   -- recompute from the wired cells; add any sharper content
+end</code></pre>
+
+<p>A cell, then, holds its content and the propagators wired to it, and on every accepted fact it wakes them:</p>
 
 <pre><code>class Cell
   create make(initial: Price_Range) do content := initial  neighbors := [] end
