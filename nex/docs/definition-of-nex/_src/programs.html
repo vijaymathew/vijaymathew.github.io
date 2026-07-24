@@ -19,6 +19,11 @@ statement runs only after the entire static world exists. The benefit is that
 the programmer need not arrange declarations in dependency order, and that
 forward reference among classes and functions is always available.</p>
 
+<p>The two worlds are not wholly sealed from one another: a function or class
+body may <em>read</em> a top-level <code>let</code> binding&mdash;a
+<em>global</em>&mdash;though it may not assign to one. Section&nbsp;7.4 gives the
+rule that keeps such reads well-defined.</p>
+
 <h2><span class="secno">7.2</span>Building the Static World</h2>
 
 <p>The static world is built in stages, against the <em>standard environment</em>
@@ -75,7 +80,38 @@ been evaluated and the policy of the host for outstanding tasks has been
 applied; the Definition fixes the meaning of each communication but, as in
 Section&nbsp;6.4, leaves the disposal of unawaited tasks to the realisation.</p>
 
-<h2><span class="secno">7.4</span>The Definition and the Implementation</h2>
+<h2><span class="secno">7.4</span>Readable Globals</h2>
+
+<p>A top-level <code>let</code> binds a <em>global</em>. Within the static world&mdash;the
+body of any free function or class routine&mdash;a global is <strong>readable</strong>:
+an otherwise-unbound name that matches a global denotes that global&rsquo;s current
+value. A global is <strong>not assignable</strong> from the static world; an
+assignment to a global inside a function or class body is a static error. Ordinary
+scoping still applies, so a parameter, field, or local of the same name shadows the
+global throughout the body in which it is bound.</p>
+
+<p>Because a global belongs to the dynamic world, it holds no value until the
+<code>let</code> that binds it has executed (Section&nbsp;7.3). To keep every static-world
+read well-defined, the Definition imposes a <em>def-before-use watermark</em>. Let the
+<em>entry point</em> be the first top-level statement, in source order, that transfers
+control into the static world&mdash;one that calls a free function or creates an
+instance of a user-defined class. (A method call need not be considered: its
+receiver must already have been created, so a <code>create</code> always precedes it.)
+The rule is:</p>
+
+<blockquote>Every global read by any function or class body must be bound by a
+<code>let</code> that stands, at top level, strictly before the entry point.</blockquote>
+
+<p>A program that violates the watermark is rejected before it runs. The rule is
+sound because nothing in the static world executes before the entry point, so a
+global bound before that point is guaranteed to hold its value at every static-world
+read. It is deliberately conservative: it treats all globals read anywhere in the
+static world uniformly, rather than tracing which body a given execution can reach.
+The programmer&rsquo;s obligation is therefore simple&mdash;initialize the globals a
+program&rsquo;s functions and classes depend on before the program begins calling into
+them.</p>
+
+<h2><span class="secno">7.5</span>The Definition and the Implementation</h2>
 
 <p>The procedure of this chapter mirrors the reference interpreter, which
 registers imports and interns, then classes, then functions, and only then
