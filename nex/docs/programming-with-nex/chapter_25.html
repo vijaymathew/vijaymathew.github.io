@@ -166,29 +166,36 @@ nex&gt; square(-3)
 </section>
 <section class="level2" data-number="26.3" id="a-tiny-test-harness-in-nex">
 <h2 class="anchored" data-anchor-id="a-tiny-test-harness-in-nex" data-number="26.3"> A Tiny Test Harness in Nex</h2>
-<p>Nex does not need a large testing framework before you can begin writing useful tests. A simple helper routine already goes a long way:</p>
+<p>Nex does not need a large testing framework before you can begin writing useful tests. The check itself is already in the language. The <code>assert</code> statement states what must be true at the point it appears, and raises a contract violation when it is not:</p>
+<pre><code>nex&gt; function test_square()
+     do
+       assert square_zero: square(0) = 0
+       assert square_positive: square(5) = 25
+       assert square_negative: square(-3) = 9
+       print("square tests passed")
+     end</code></pre>
+<p>The label before the colon is the name of the case, and it is what the failure reports:</p>
+<pre><code>Assertion violation: square_positive</code></pre>
+<p>When a name would only repeat the expression, the label may be left out, and the failure reports the source line instead:</p>
+<pre><code>nex&gt; assert square(5) = 25</code></pre>
+<p>Because a failed <code>assert</code> raises, the first failing case stops the routine. That is usually what you want from a single test; running many cases and collecting every failure is the job of a test runner, which you can build on top of <code>rescue</code>.</p>
+<p>A helper routine is still worth writing when you want the failure message to carry the values involved, which an assertion label cannot:</p>
 <pre><code>nex&gt; function assert_equal_integer(actual, expected: Integer, label: String)
      do
        if actual /= expected then
          raise "test failed: " + label
        end
      end</code></pre>
-<p>You can add a boolean helper in the same style:</p>
-<pre><code>nex&gt; function assert_true(condition: Boolean, label: String)
-     do
-       if not condition then
-         raise "test failed: " + label
-       end
-     end</code></pre>
+<p>A boolean helper in the same style is no longer worth writing: <code>assert condition</code> already says exactly that. Reach for a helper only when it earns its keep by reporting something the assertion cannot.</p>
 <p>Then:</p>
-<pre><code>nex&gt; function test_square()
+<pre><code>nex&gt; function test_square_values()
      do
        assert_equal_integer(square(0), 0, "square zero")
        assert_equal_integer(square(5), 25, "square positive")
        assert_equal_integer(square(-3), 9, "square negative")
        print("square tests passed")
      end</code></pre>
-<p>This is not elaborate, but it is enough to establish the core habit: expected behavior should be checked automatically, not only by eye.</p>
+<p>Neither form is elaborate, but either is enough to establish the core habit: expected behavior should be checked automatically, not only by eye.</p>
 </section>
 <section class="level2" data-number="26.4" id="testing-contracts">
 <h2 class="anchored" data-anchor-id="testing-contracts" data-number="26.4"> Testing Contracts</h2>
@@ -307,7 +314,7 @@ nex&gt; square(-3)
 <ul>
 <li>Contracts and tests serve different purposes and are both necessary</li>
 <li>Tests should cover normal, boundary, and failure cases</li>
-<li>A small handmade assertion routine is enough to begin</li>
+<li>The built-in <code>assert</code> statement is enough to begin; a handmade routine adds value only when the message should carry the values involved</li>
 <li>Class tests are often best written as sequences of operations</li>
 <li>Weak specifications should be reinforced with targeted tests</li>
 <li>Good test organization keeps checking repeatable and easy to run</li>

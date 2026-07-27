@@ -412,16 +412,18 @@ Bytecode shape:
 </section>
 <section id="contract-assertions" class="level3" data-number="A.9.2">
 <h3 data-number="A.9.2" class="anchored" data-anchor-id="contract-assertions"><span class="header-section-number">A.9.2</span> Contract Assertions</h3>
-<p>Compiled preconditions, postconditions, invariants, and variants are ordinary guard checks that construct and throw a contract violation when false.</p>
+<p>Compiled preconditions, postconditions, invariants, variants, and <code>assert</code> statements are ordinary guard checks that construct and throw a contract violation when false.</p>
 <pre class="text"><code>Bytecode shape:
   &lt;emit condition&gt;
   IFNE ok
   LDC "Postcondition"
   LDC "label"
+  LDC "line"                        -- the source line, or ACONST_NULL
   &lt;runtime call make-contract-violation&gt;
   CHECKCAST java/lang/Throwable
   ATHROW
 ok:</code></pre>
+<p>The third argument is the statement’s source line where one is known. The runtime uses it only as a fallback name: every clause labels its assertion, so the label wins whenever there is one, and only a bare <code>assert expr</code> — which pushes ACONST_NULL for the label — is reported by line.</p>
 <p>This directness is one of the strengths of the compiled backend. Contract checks are not magic metadata. They are visible control-flow.</p>
 </section>
 <section id="rescue-and-retry" class="level3" data-number="A.9.3">
