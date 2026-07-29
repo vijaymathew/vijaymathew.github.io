@@ -59,6 +59,7 @@ auxiliary judgements for contracts and generics (Sections&nbsp;4.6&ndash;4.7).</
 \[ C \vdash \texttt{true} \Rightarrow \texttt{Boolean} \qquad C \vdash \texttt{false} \Rightarrow \texttt{Boolean} \tag{4.5} \]
 \[ C \vdash \texttt{nil} \Rightarrow \mathsf{Nil} \tag{4.6} \]
 \[ \frac{C(x) = \tau}{C \vdash x \Rightarrow \tau} \tag{4.7} \]
+\[ \frac{C(\texttt{this}) = A \quad \{B : A\,\text{inherits}\,B\} = \{P\}}{C \vdash \texttt{super} \Rightarrow P} \tag{4.7a} \]
 </div>
 
 <h4>Operators</h4>
@@ -126,6 +127,7 @@ Section&nbsp;5.2 and its statement analogue \(s, E \vdash \mathit{stmt}
 \[ s, E \vdash \mathit{scon} \Rightarrow \mathcal{V}(\mathit{scon}),\, s \tag{5.1} \]
 \[ \frac{E(x) = v}{s, E \vdash x \Rightarrow v,\, s} \tag{5.2} \]
 \[ s, E \vdash \texttt{this} \Rightarrow E(\texttt{this}),\, s \tag{5.3} \]
+\[ s, E \vdash \texttt{super} \Rightarrow E(\texttt{this}),\, s \tag{5.3a} \]
 </div>
 
 <h4>Operators</h4>
@@ -152,11 +154,13 @@ Section&nbsp;5.2 and its statement analogue \(s, E \vdash \mathit{stmt}
 <h4>Calls and dynamic dispatch</h4>
 <div class="rule-block">
 \[ \frac{\begin{array}{c} s, E \vdash e \Rightarrow \ell, s_0 \quad s_0(\ell) = o \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(\mathit{class}(o), m, n) = (x_1,\dots,x_n; \mathit{body}) \\ E' = E_0[\texttt{this} \mapsto \ell,\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash e.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10} \]
+\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(P, m, n) = (x_1,\dots,x_n; \mathit{body}) \\ E' = E_0[\texttt{this} \mapsto \ell,\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash P.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10a} \]
 </div>
 
 <h4>Object creation and constructors</h4>
 <div class="rule-block">
 \[ \frac{\begin{array}{c} \ell \;\text{fresh} \quad o_0 = \mathit{initial}(A[\bar\tau]) \quad s_0 = s + \{\ell \mapsto o_0\} \\ s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(A) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \\ \mathit{check}(\mathit{post}) \quad \mathit{check}(\mathit{invariant}(A)\;\text{at}\;\ell) \end{array}}{s, E \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow \ell,\, s'} \tag{5.11} \]
+\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(P) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \quad \mathit{check}(\mathit{post}) \end{array}}{s, E \vdash P.k(e_1,\dots,e_n) \Rightarrow s'} \tag{5.11a} \]
 </div>
 
 <h4>Exceptions: raise, rescue, retry</h4>

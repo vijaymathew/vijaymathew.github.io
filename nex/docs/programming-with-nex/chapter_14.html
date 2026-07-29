@@ -185,18 +185,24 @@ end</code></pre>
 <p>This is useful for shared limits, default labels, configuration values, and other facts that belong to the class definition rather than to each object.</p>
 </section>
 <section class="level2" data-number="15.2" id="the-super-class-calls">
-<h2 class="anchored" data-anchor-id="the-super-class-calls" data-number="15.2"> The <code>super-class</code> Calls</h2>
-<p>When a subclass constructor runs, it must also initialise the fields inherited from the superclass. The <code>SuperClass.constructor_name(   )</code> call delegates to the superclass constructor:</p>
+<h2 class="anchored" data-anchor-id="the-super-class-calls" data-number="15.2"> Superclass Calls</h2>
+<p>When a subclass constructor runs, it must also initialise the fields inherited from the superclass. Naming the superclass explicitly delegates to its constructor:</p>
 <pre><code>make(c: String, r: Real) do
   Shape.make(c)   -- initialises colour in Shape
   radius := r     -- initialises radius in Circle
 end</code></pre>
 <p><code>Shape.make(c)</code> runs <code>Shape</code>’s <code>make</code> constructor, setting <code>colour := c</code>. Then the <code>Circle</code> constructor sets <code>radius := r</code>. Both fields are properly initialised.</p>
-<p><code>super</code> can also call an overridden superclass method from within an override:</p>
-<pre><code>describe(): String do
-  result := Shape.describe + ", area: " + area.to_string
+<p>When a class inherits from exactly one parent — the usual case — the keyword <code>super</code> says the same thing without naming it:</p>
+<pre><code>make(c: String, r: Real) do
+  super.make(c)   -- same as Shape.make(c)
+  radius := r
 end</code></pre>
-<p>This builds on <code>Shape</code>’s <code>describe</code> rather than duplicating it.</p>
+<p><code>super</code> resolves to whichever class <code>Circle</code> inherits from, so the call still reads correctly if <code>Shape</code> is later renamed. This only works because <code>Circle</code> has a single parent — a class declared with <code>inherit A, B</code> has two, and <code>super</code> would have no way to choose between them, so it is rejected at compile time there; the one you mean must be named explicitly, as above.</p>
+<p><code>super</code> can call an overridden superclass method from within an override the same way:</p>
+<pre><code>describe(): String do
+  result := super.describe + ", area: " + area.to_string
+end</code></pre>
+<p>This builds on <code>Shape</code>’s <code>describe</code> rather than duplicating it — and, as with the constructor, <code>Shape.describe</code> would do exactly the same thing here, since <code>Circle</code> has only the one parent. Reach for the explicit form when you need to be precise about which ancestor you mean, or when <code>super</code> alone would be ambiguous; otherwise <code>super</code> is the more direct way to say “my superclass’s version of this.”</p>
 </section>
 <section class="level2" data-number="15.3" id="overriding-methods">
 <h2 class="anchored" data-anchor-id="overriding-methods" data-number="15.3"> Overriding Methods</h2>
@@ -531,8 +537,8 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="summary" data-number="15.11"> Summary</h2>
 <ul>
 <li><code>class SubClass inherit SuperClass</code> declares the relationship; the subclass inherits all fields and methods</li>
-<li><code>SuperClass.constructor_name(   )</code> calls the superclass constructor from the subclass constructor</li>
-<li><code>SuperClass.method_name(   )</code> calls an overridden superclass method from within an override</li>
+<li><code>SuperClass.constructor_name(   )</code> calls the superclass constructor from the subclass constructor; <code>super.constructor_name(   )</code> does the same when there is exactly one superclass</li>
+<li><code>SuperClass.method_name(   )</code> calls an overridden superclass method from within an override; <code>super.method_name(   )</code> is the equivalent shorthand with a single superclass</li>
 <li>Overriding replaces a superclass method with a subclass-specific version; dynamic dispatch calls the correct version at runtime</li>
 <li>Polymorphism allows objects of different subclasses to be treated through a common superclass type</li>
 <li>The template method pattern: a superclass method calls an overridable method; the superclass defines structure, subclasses fill in details via override</li>

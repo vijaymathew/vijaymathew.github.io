@@ -66,7 +66,11 @@ store is threaded strictly left to right through every rule.</p>
 
 <h4>Constants, variables, and the current object</h4>
 <p>A constant denotes its value and leaves the store untouched; <code>this</code>
-yields the current object (rules 5.1, 5.3 in Appendix&nbsp;D). A variable is
+yields the current object, and so, standing alone, does <code>super</code>&mdash;the
+same object, since there is only one (rules 5.1, 5.3, 5.3a in Appendix&nbsp;D). The
+two differ once a member access follows: <code>super.f</code> and
+<code>super.m(&hellip;)</code> resolve against the direct superclass rather than the
+object&rsquo;s own class, as Section&nbsp;5.4 makes precise. A variable is
 looked up in the bindings:</p>
 
 <div class="rule-block">
@@ -203,6 +207,64 @@ its captured bindings in place of \(E_0\).</p>
   covariant rule and a runtime test.
 </div>
 
+<h4>Calling a named ancestor, and calling through <code>super</code></h4>
+<p>A call may name its target class outright&mdash;<code>Shape.describe</code>,
+say, from within a subclass&mdash;rather than reaching it through a receiver
+expression. Such a call selects <code>m</code> from the named class \(P\)
+directly, on the current object, whatever that object&rsquo;s own class:</p>
+
+<div class="rule-block">
+\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(P, m, n) = (x_1,\dots,x_n; \mathit{body}) \\ E' = E_0[\texttt{this} \mapsto \ell,\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash P.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10a} \]
+</div>
+
+<p><code>super.m(e_1,\dots,e_n)</code> is the same rule with \(P\) supplied
+implicitly rather than written: if the call occurs within the body of a routine
+declared in class \(A\), where&mdash;as rule 4.7a requires&mdash;\(A\) inherits
+exactly one class, \(P\) is that class. Either way, the routine is selected from
+\(P\), not from the class of the current object: the opposite of (5.10)&rsquo;s
+dynamic dispatch.</p>
+
+<pre><code>class Shape
+  create make(c: String) do colour := c end
+  feature
+    colour: String
+    describe(): String do result := colour end
+end
+
+class Square
+  inherit Shape
+  create make(c: String, s: Real) do
+    super.make(c)
+    side := s
+  end
+  feature
+    side: Real
+    describe(): String do result := super.describe + ", side " + side.to_string end
+end
+
+let sq := create Square.make("blue", 3.0)
+print(sq.describe())</code></pre>
+
+<p><code>Square.make</code> delegates to <code>Shape.make</code> (rule 5.11a, next
+section) to initialise <code>colour</code> before setting <code>side</code>
+itself; then <code>describe</code> calls <code>super.describe</code>, which by
+(5.10a) selects <code>Shape</code>&rsquo;s <code>describe</code>&mdash;not
+<code>Square</code>&rsquo;s own, which would simply call itself again&mdash;and
+appends to its result. The call prints <code>"blue, side 3.0"</code>.</p>
+
+<p>\(P\) is fixed once and for all by the class whose text contains the
+<code>super</code> occurrence, not by \(\mathit{class}(o)\) as in (5.10). This is
+what keeps it correct under inheritance: if a further subclass <code>Cube</code>
+inherited <code>Square</code> without overriding <code>describe</code>, calling
+<code>cube.describe()</code> would still run <code>Square</code>&rsquo;s version
+by ordinary dynamic dispatch (5.10)&mdash;and that version&rsquo;s own
+<code>super.describe</code> would still resolve to <code>Shape</code>, the
+ancestor its author meant, regardless of how far below <code>Square</code> the
+actual object sits. A class inheriting more than one parent, or none, makes
+<code>super</code> ill-formed by (4.7a) before evaluation is ever reached; the
+intended ancestor must then be named explicitly, as <code>Flyable.fly()</code>
+does by the same rule (5.10a), with \(P\) written rather than resolved.</p>
+
 <h2><span class="secno">5.5</span>Object Creation and Constructors</h2>
 
 <p>Creation allocates a fresh object, gives each field its initial value, runs the
@@ -240,6 +302,29 @@ constructor returns, those fields are fixed for the life of the object
 (Section&nbsp;4.5 enforces this statically, and the store offers no rule to
 reassign them). When the <code>create</code> form names no constructor, an object
 with default field values is produced and only the invariant is checked.</p>
+
+<h4>Delegating to a named or superclass constructor</h4>
+<p>A constructor may call another constructor on the object already under
+construction, rather than allocating a new one&mdash;most often the
+superclass&rsquo;s, to initialise the fields it declares before the subclass&rsquo;s
+own constructor sets the rest. As with (5.10a), the target class \(P\) may be
+named outright, or supplied implicitly by <code>super.k(e_1,\dots,e_n)</code>,
+resolved from the enclosing class exactly as rule 4.7a requires:</p>
+
+<div class="rule-block">
+\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(P) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \quad \mathit{check}(\mathit{post}) \end{array}}{s, E \vdash P.k(e_1,\dots,e_n) \Rightarrow s'} \tag{5.11a} \]
+</div>
+
+<p>Unlike (5.11), this rule allocates nothing&mdash;\(\ell\) already denotes the
+object under construction, reached through the same <code>this</code> binding
+the delegating constructor runs in&mdash;and checks no class invariant. The
+invariant checked is the outermost <code>create</code>&rsquo;s own, by rule
+(5.11), once, when that constructor returns; by then every delegated
+constructor reached along the way, super-qualified or named outright, has
+already run. In the <code>Square</code> example above, this is exactly why
+<code>super.make(c)</code> is safe to run before <code>side</code> is set: no
+invariant is checked until <code>Square.make</code> itself returns, with both
+fields in place.</p>
 
 <h2><span class="secno">5.6</span>Contract Checking</h2>
 
