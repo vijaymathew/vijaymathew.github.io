@@ -123,7 +123,7 @@
     <h1 class="opener-title">Writing Robust Code</h1>
   </div>
   <div class="prose">
-<p>Chapter 20 introduced exceptions. This chapter is about using them well. The question is not whether programs fail; they do. The question is where a failure should be detected, how far it should travel, and what meaning the program should preserve when it handles it.</p>
+<p>The last chapter introduced exceptions. This chapter is about using them well. The question is not whether programs fail; they do. The question is where a failure should be detected, how far it should travel, and what meaning the program should preserve when it handles it.</p>
 <p>Robust code is not code that never fails. It is code that fails in the right place, for the right reason, without blurring the difference between a broken contract and a difficult world.</p>
 <section class="level2" data-number="23.1" id="distinguishing-kinds-of-failure">
 <h2 class="anchored" data-anchor-id="distinguishing-kinds-of-failure" data-number="23.1"> Distinguishing Kinds of Failure</h2>
@@ -157,8 +157,9 @@
 </ol>
 <p>For example, if user input is supposed to become a positive integer:</p>
 <pre><code>nex&gt; function prompt_for_count(): Integer
-     do
-       let raw := "5"
+    do
+       let console := create Console
+       let raw := console.read_line("Enter a positive number: ")    
        let value := raw.to_integer
        if value &lt;= 0 then
          raise "count must be positive"
@@ -246,16 +247,28 @@ end</code></pre>
 </section>
 <section class="level2" data-number="23.8" id="a-worked-example-reading-configuration-safely">
 <h2 class="anchored" data-anchor-id="a-worked-example-reading-configuration-safely" data-number="23.8"> A Worked Example: Reading Configuration Safely</h2>
-<p>Suppose a program wants configuration text, but can continue with defaults if no file is available.</p>
-<pre><code>nex&gt; function load_configuration(path: String): String
+<p>Suppose a program wants configuration text, but can continue with defaults if no file is available. The <code>available</code> parameter below stands in for whatever real check — a file existing, a network call succeeding — would decide this in an actual program:</p>
+<pre><code>nex&gt; function load_configuration(path: String, available: Boolean): String
      require
        path_not_empty: path.length &gt; 0
      do
-       raise "file missing"
+       if not available then
+         raise "file missing"
+       end
+       result := "theme=dark\ntimeout=60"
      rescue
        print("using built-in defaults: " + exception.to_string)
-       result := "theme=light%ntimeout=30"
+       result := "theme=light\ntimeout=30"
      end</code></pre>
+<p>Called with a configuration source that is present, the routine returns it untouched:</p>
+<pre><code>nex&gt; print(load_configuration("config.txt", true))
+"theme=dark
+timeout=60"</code></pre>
+<p>Called without one, it falls back — but only after reporting what actually happened:</p>
+<pre><code>nex&gt; print(load_configuration("config.txt", false))
+using built-in defaults: "file missing"
+"theme=light
+timeout=30"</code></pre>
 <p>This routine is robust for three reasons:</p>
 <ul>
 <li>the path itself is still a contract obligation</li>
