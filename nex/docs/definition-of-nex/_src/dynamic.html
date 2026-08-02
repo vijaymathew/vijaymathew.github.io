@@ -265,6 +265,21 @@ actual object sits. A class inheriting more than one parent, or none, makes
 intended ancestor must then be named explicitly, as <code>Flyable.fly()</code>
 does by the same rule (5.10a), with \(P\) written rather than resolved.</p>
 
+<p>When \(P\) is an imported host interface or class (Section&nbsp;3.6) rather
+than a Nex class&mdash;a class extending it, per the conditions of
+Section&nbsp;4.9, may call it this way&mdash;(5.10a) again applies, with
+\(\mathit{lookup}(P, m, n)\) selecting the host&rsquo;s own implementation of
+\(m\) rather than a Nex routine. The point of this, as with the ordinary case
+above, is that the selected routine is fixed by \(P\), not by
+\(\mathit{class}(o)\): if the current class overrides \(m\) itself&mdash;so
+that its own routine occupies the same name that dynamic dispatch (5.10)
+would otherwise select on \(o\)&mdash;a call through <code>super</code>
+still reaches the host&rsquo;s implementation, never recursing back into the
+override. A call to a member the current class does <em>not</em> itself
+define needs no such distinction and may be written on an ordinary receiver,
+<code>o.m(&hellip;)</code>, resolving under (5.10) to the host&rsquo;s
+implementation because no Nex override exists to compete with it.</p>
+
 <h2><span class="secno">5.5</span>Object Creation and Constructors</h2>
 
 <p>Creation allocates a fresh object, gives each field its initial value, runs the
@@ -325,6 +340,24 @@ already run. In the <code>Square</code> example above, this is exactly why
 <code>super.make(c)</code> is safe to run before <code>side</code> is set: no
 invariant is checked until <code>Square.make</code> itself returns, with both
 fields in place.</p>
+
+<p>When a class extends a concrete host class rather than a Nex one
+(Section&nbsp;4.9), delegation reaches the host&rsquo;s own constructor
+instead of a named Nex one, and \(k\) is written <code>new</code>&mdash;a name
+reserved for exactly this purpose when \(P\) is such a host class, and an
+ordinary identifier everywhere else. Two differences from (5.11a) follow from
+\(P\) naming a host constructor rather than a Nex one. First, the call must be
+the delegating constructor&rsquo;s first statement: the host platform&rsquo;s
+own object model requires the superclass&rsquo;s construction to complete
+before anything else touches the object under construction, a requirement
+(5.11a) does not impose on delegation among Nex constructors, whose fields all
+begin at their default values regardless of ordering. Second, \(k\) is
+selected from the host constructors by argument count alone, since a host
+constructor&rsquo;s parameters are not elaborated as Nex types (4.9). When the
+delegating constructor contains no such call, one is supplied implicitly, with
+\(n = 0\)&mdash;which requires the host class to provide a constructor taking
+no arguments, precisely as (4.9)&rsquo;s host superclass construction
+condition states.</p>
 
 <h2><span class="secno">5.6</span>Contract Checking</h2>
 
@@ -554,6 +587,19 @@ whose receiver is a Nex value dispatches by the rules of Section&nbsp;5.4 as it
 would outside. Unlike the scoped block <code>do</code>&hellip;<code>end</code>,
 the host block does not open a scope: a <code>let</code> within it binds in the
 enclosing scope and remains visible after the block.</p>
+
+<p>A class&rsquo;s <code>inherit</code> clause is a declaration, elaborated
+with the rest of the static world (Section&nbsp;3.1) rather than evaluated as
+a statement, so a class implementing a host interface or extending a host
+class (Sections&nbsp;4.9, 5.4, 5.5) is not itself written inside a host block;
+only the ordinary construction and manipulation of a bare host object needs
+one. The two facilities may also differ in which an implementation supports: a
+conforming implementation must recognise every host facility it claims to, but
+inheriting a host <em>interface</em> and inheriting a host <em>class</em> are
+independent capabilities, and an implementation may support one without the
+other&mdash;the JVM implementation&rsquo;s tree-walking interpreter, for
+instance, supports the former but not the latter, reporting a static error
+rather than approximating it.</p>
 
 <h2><span class="secno">5.9</span>Termination</h2>
 

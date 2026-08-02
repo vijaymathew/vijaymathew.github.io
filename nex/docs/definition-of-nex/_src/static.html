@@ -106,6 +106,15 @@ print(a.speak())</code></pre>
 <code>String</code>. (At run time it prints <code>woof</code>: the call dispatches
 on the object&rsquo;s actual class, Section&nbsp;5.4.)</p>
 
+<p>(C-Inherit) makes no distinction between a Nex parent and an imported host
+interface or class (Section&nbsp;4.9): the latter is a class type like any
+other in \(\Sigma\), so a class implementing a host interface conforms to it,
+and a class extending a host class conforms to that class, exactly as
+<code>Dog</code> conforms to <code>Animal</code> above. A value of such a class
+may therefore be bound to a variable typed by the host interface or class it
+inherits, whether or not the surrounding code lies within a <code>with
+"java"</code> block (Section&nbsp;5.8).</p>
+
 <p>There are exactly two numeric types, \(\texttt{Integer}\) and
 \(\texttt{Real}\), and a widening chain \(\texttt{Integer} \preceq
 \texttt{Real}\) is <em>not</em> assumed here as a conformance; numeric
@@ -491,6 +500,32 @@ class structure. These are checked once, over the whole static world.</p>
   body for every routine declared <code>deferred</code> in any of its ancestors;
   a class with an unimplemented deferred routine is itself deferred and may not
   be instantiated.</li>
+  <li><strong>Host-type conformance.</strong> When a parent named in
+  <code>inherit</code> is an imported host interface or class rather than a Nex
+  class, the inheriting class must supply a routine for every member the host
+  type declares without an implementation&mdash;matched by name and parameter
+  count against the host type&rsquo;s own declaration of it, spelled exactly as
+  the host declares it, since no correspondence between Nex&rsquo;s naming
+  convention and the host&rsquo;s is assumed. This is the host-facing analogue
+  of Complete deferral above, and is checked the same way: a class missing such
+  a routine is rejected, naming the member it fails to supply.</li>
+  <li><strong>Single host-class extension.</strong> At most one parent named in
+  a class&rsquo;s <code>inherit</code>&mdash;counting the whole ancestor
+  chain&mdash;may name a concrete (non-interface) host class; a second is
+  rejected. A host platform&rsquo;s object model may permit only single
+  extension of a concrete class, and this condition holds regardless of which
+  platform a given implementation targets.</li>
+  <li><strong>Host superclass construction.</strong> A class that extends a
+  concrete host class by the previous condition must, in each of its own
+  constructors, either open with a call to the host superclass&rsquo;s own
+  constructor&mdash;<code>super.new(&hellip;)</code>, or the parent named
+  explicitly in place of <code>super</code>, as the constructor&rsquo;s first
+  statement and nowhere else&mdash;or declare no such call at all, in which case
+  the host superclass must itself be constructible with no arguments. The first
+  form must name an argument list the host superclass actually accepts, by
+  argument count. <code>new</code> is reserved for this one purpose when the
+  target is a host superclass; it is otherwise an ordinary identifier
+  (Section&nbsp;5.8).</li>
   <li><strong>Sealed implies deferred.</strong> A <code>sealed</code> class must
   be <code>deferred</code>. Were a sealed class instantiable, a bare instance of
   the parent would be a runtime value that an exhaustive <code>match</code> over

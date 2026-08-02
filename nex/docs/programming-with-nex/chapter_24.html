@@ -187,6 +187,53 @@ end</code></pre>
 <li>expose ordinary Nex routines outside those blocks</li>
 <li>if needed, store a Java-backed object in a field typed as <code>Any</code>, and only manipulate it inside <code>with "java"</code></li>
 </ul>
+<h3>Implementing a Java Interface</h3>
+<p>A Nex class can <code>inherit</code> an imported Java interface, not just another Nex class. The class must then define a method for every abstract member of the interface, spelled exactly as Java spells it — <code>run</code>, not <code>Run</code> or <code>run_</code>. Nex does not translate between its own naming convention and Java’s; the method name in the <code>feature</code> block is the interface’s method name, verbatim.</p>
+<pre class="text"><code>import java.lang.Runnable
+import java.lang.Thread
+
+class Countdown
+  inherit
+    Runnable
+  feature
+    run() do
+      print("liftoff")
+    end
+end
+
+with "java" do
+  let task: Countdown := create Countdown
+  let t: Thread := Thread.new(task)
+  t.start()
+  t.join()
+end</code></pre>
+<p><code>Countdown</code> is now a real <code>java.lang.Runnable</code> — not something that merely looks like one from the Nex side. Passing it to <code>Thread.new</code> hands the JVM an object it can call <code>run()</code> on directly, exactly as it would for a <code>Runnable</code> written in Java. This is what makes the class usable with any Java API that expects the interface: a <code>Comparator</code> can be handed to <code>Collections.sort</code>, an <code>ActionListener</code> can be registered on a Swing button, and so on — always by inheriting the interface and defining its methods under their Java names.</p>
+<p>Unlike <code>with "java"</code> blocks themselves, implementing an interface works the same way whether the program runs through the interpreter or the compiled JVM path. A method call the interface didn’t declare — one the class defines only for its own purposes — remains an ordinary Nex method, callable the ordinary way, alongside the interface’s methods.</p>
+<h3>Extending a Java Class</h3>
+<p>A Nex class can also <code>inherit</code> a concrete Java class, not only an interface. This is a heavier commitment than implementing an interface — the class becomes a real subclass at the bytecode level — so it comes with two restrictions worth knowing up front. First, it works only on the compiled JVM path; the interpreter reports a clear error rather than approximating it. Second, a class may extend at most one Java class, matching the JVM’s own single-inheritance rule (it may still additionally implement any number of Java interfaces, and inherit Nex classes, in the same <code>inherit</code> list).</p>
+<p>Reaching the Java superclass’s constructor uses a reserved method name, <code>new</code>, as the first statement of the Nex constructor:</p>
+<pre class="text"><code>import java.lang.Thread
+
+class Worker
+  inherit
+    Thread
+  feature
+    run() do
+      super.run()
+      print("working")
+    end
+end
+
+with "java" do
+  let w: Worker := create Worker
+  w.setName("background")
+  w.start()
+  w.join()
+  print(w.getName())
+end</code></pre>
+<p><code>Worker</code> declares no constructor of its own here, so nothing calls <code>super.new(...)</code> explicitly — that is fine as long as the Java class has a public no-argument constructor, which <code>Thread</code> does. Written out, the equivalent explicit form is <code>super.new()</code> or, naming the class directly, <code>Thread.new()</code>; either is accepted as the constructor’s first statement, and the typechecker rejects it anywhere else, since the JVM requires the superclass constructor to run before anything else touches the new object.</p>
+<p>Three things are happening in <code>run</code> that are worth noticing separately. <code>super.run()</code> reaches <code>Thread</code>’s own implementation of <code>run</code> — the same real method a Java subclass’s <code>super.run()</code> would reach, not a recursive call back into this override. <code>run</code> itself is an override: because a real <code>java.lang.Thread</code> calls its own <code>run()</code> internally when <code>start()</code> spawns the new thread, and that call must land on this class’s version for the override to mean anything. And <code>w.setName(...)</code>, <code>w.start()</code>, <code>w.join()</code>, and <code>w.getName()</code> are all methods <code>Worker</code> never defines — inherited, un-overridden members of <code>Thread</code>, callable on a <code>Worker</code> exactly as they would be on a plain <code>Thread</code>.</p>
+<p>The one gap worth knowing about: <code>super.new(...)</code> and <code>super.&lt;method&gt;(...)</code> currently only support the zero-argument case. A Java superclass whose only usable constructor takes arguments — reading a title into a windowing-toolkit base class, say — cannot yet be reached this way; the compiler reports this plainly rather than silently dropping the arguments.</p>
 </section>
 <section class="level2" data-number="25.6" id="a-small-interop-oriented-design">
 <h2 class="anchored" data-anchor-id="a-small-interop-oriented-design" data-number="25.6"> A Small Interop-Oriented Design</h2>
@@ -331,6 +378,8 @@ print(app.run())</code></pre>
 <li><code>import</code> brings in host-platform symbols; <code>intern</code> brings in Nex classes</li>
 <li>Keep interop code near system boundaries rather than scattering it through core logic</li>
 <li>Nex compiles to JVM bytecode</li>
+<li><code>inherit</code> an imported Java interface to implement it, with methods named exactly as Java names them — works on both the interpreter and the compiled path</li>
+<li><code>inherit</code> a concrete Java class to extend it, forwarding to its constructor with <code>super.new(...)</code> — compiled-JVM only, and only for a zero-argument constructor call so far</li>
 <li>Contracts are especially valuable around interop boundaries</li>
 <li>Portable core logic is easier to test, reason about, and reuse</li>
 </ul>
