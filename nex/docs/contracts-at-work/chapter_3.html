@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Generic LRU Cache — Contracts at Work</title>
+<meta name="description" content="Designing the interface before the implementation; an invariant as the real specification.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_3.html" class="active">Ch. 3</a><a href="chapter_4.html">Ch. 4</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 3 &middot; Part II</span>
+<h1 class="opener-title">A Generic LRU Cache</h1>
+<p class="opener-lede">The first two projects were applications with a library inside them. This one is only the library — no file, no console, no network — which makes it the clearest place in this book to see a class invariant carry the entire specification on its own.</p>
+</div>
+<article class="prose">
+
+<p><code>Lru_Cache [K, V]</code> is a fixed-capacity cache: put up to <em>capacity</em> key/value pairs into it, and the moment a new key would exceed that limit, the least-recently-used entry — the one that has gone longest without being read or written — is evicted to make room. It is a textbook data structure, which is exactly why it belongs here: with the algorithm itself well-understood, this chapter can focus entirely on what it means to design a library's public surface before writing the code behind it.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>A library earns its keep by being usable without its caller ever having to know how it works inside. So the design question here is not "how do I implement LRU eviction" — it is "what four operations does a caller actually need, and what does each one promise?" The answer, settled before any implementation: <code>put</code>, <code>get</code>, <code>contains</code>, and <code>size</code>, generic over any key and value type, with reading a key counting as using it just as much as writing one does — a <code>get</code> has to refresh recency exactly like a <code>put</code> does, or the "L" in LRU is a lie.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p>The public surface is deliberately small:</p>
+
+<pre><code>class Lru_Cache [K, V]
+  create
+    make(capacity: Integer)
+      require
+        positive_capacity: capacity &gt; 0
+      do ... end
+  feature
+    size(): Integer do ... end
+    contains(key: K): Boolean do ... end
+    get(key: K): ?V do ... end
+    put(key: K, value: V) do ... end</code></pre>
+
+<p><code>[K, V]</code> makes the cache generic over any key and value type — the eviction policy does not care what it is caching, so nothing about its implementation should either. <code>get</code> returns <code>?V</code>, Nex's detachable-type syntax for "a <code>V</code>, or nothing" — a cache miss is represented in the type itself, not by a sentinel value the caller has to know to check for, and not by an exception for what is, for a cache, an entirely ordinary outcome.</p>
+
+<p>The specification that matters most here, though, is not on any individual method — it is the class invariant, which states what must be true of every <code>Lru_Cache</code> at every moment control is not inside one of its own methods:</p>
+
+<pre><code>invariant
+  within_capacity: map.size() &lt;= capacity
+  order_matches_map: order.length = map.size()</code></pre>
+
+<p>Two internal structures do the work — a <code>Map[K, V]</code> holding the values, and an <code>Array[K]</code> tracking recency, oldest first — and the invariant is the promise that they never disagree. Every method that touches either one is implicitly required to leave both invariant clauses true when it returns, which is a stronger specification than "here is what <code>put</code> does" written as prose: it is the actual condition the type checker and the runtime both hold every method to, on every call, for the life of the object.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p><code>put</code> is where the invariant does its clearest work. Overwriting an existing key must not grow the cache or evict anything; inserting a genuinely new key past capacity must evict before inserting, never after:</p>
+
+<pre><code>put(key: K, value: V) do
+  if map.contains_key(key) then
+    map.set(key, value)
+    touch(key)
+  else
+    if map.size() &gt;= capacity then
+      evict_oldest()
+    end
+    map.set(key, value)
+    order.add(key)
+  end
+ensure
+  present: map.contains_key(key)
+end</code></pre>
+
+<p>The <code>ensure present</code> postcondition is deliberately modest — just "the key you put is now in the cache" — because the harder guarantees already live in the invariant and apply automatically, on every call, without needing to be restated here. That division of labor is worth noticing: postconditions describe what changed as a result of <em>this</em> call; the invariant describes what stays true regardless of which call just ran.</p>
+
+<p>Recency tracking is a single small helper, called from both <code>get</code> and the overwrite branch of <code>put</code> — the two places something becomes most-recently-used:</p>
+
+<pre><code>-- Move `key` to the most-recently-used end of `order`.
+touch(key: K) do
+  let idx: Integer := order.index_of(key)
+  if idx &gt;= 0 then
+    order.remove(idx)
+  end
+  order.add(key)
+end
+
+evict_oldest() do
+  if order.length &gt; 0 then
+    let oldest: K := order.get(0)
+    order.remove(0)
+    map.remove(oldest)
+  end
+end</code></pre>
+
+<p><code>order</code>'s front is always the next eviction candidate and its back is always the most recently touched key — an ordinary array used as a simple recency queue, no separate data structure needed at this scale. Nothing about eviction policy leaks outside these two private methods; a caller of <code>put</code> or <code>get</code> never has any reason to know <code>order</code> exists.</p>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p>Thirteen checks, each aimed at one specific claim the design makes rather than at the implementation's internals. Capacity eviction, with the exact recency rule this project cares about most — reading a key protects it from eviction just as writing one does:</p>
+
+<pre><code>let cache: Lru_Cache [String, Integer] := create Lru_Cache.make(3)
+cache.put("a", 1)
+cache.put("b", 2)
+cache.put("c", 3)
+cache.get("a")          -- touching "a" makes "b" the least-recently-used
+cache.put("d", 4)
+c.check("b evicted", "false", "" + cache.contains("b"))
+c.check("a survives (was touched)", "true", "" + cache.contains("a"))</code></pre>
+
+<p>And the overwrite case, which a less careful implementation could easily get wrong by evicting on every <code>put</code> regardless of whether the key was already present:</p>
+
+<pre><code>cache.put("d", 40)
+c.check("overwrite keeps size", "3", "" + cache.size())</code></pre>
+
+<p>A one-line capacity-1 case closes out the suite — a cache where every single <code>put</code> of a new key evicts something, which is the kind of boundary a generic algorithm's own logic should handle without a special case, and here does.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>No issues. Both backends agree on all thirteen checks, on the first attempt — the first project in this book where that was true, and worth stating precisely because the others were not so lucky. <code>Lru_Cache</code>'s operations are all scalar and collection manipulation on <code>Map</code> and <code>Array</code>, with no file I/O, no JSON, no <code>?T</code>-typed mutation across a method boundary, and no <code>old</code> reference on a mutable field in a postcondition — which turns out to be close to an exact list of where this pass of Nex's now-fixed bugs clustered. A library kept to the core language plus <code>Map</code>/<code>Array</code> was, at the time this book's projects were built, the safest ground available — and remains, regardless of which bugs exist in which release, a reasonable default for a piece of code whose whole job is to be reusable everywhere without surprises.</p>
+
+<p>Chapter 4 also stays inside a single process with no I/O, but its interface is a much larger one than this cache's four methods: every expression a small language can express.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_2.html"><span class="label">&larr; Chapter 2</span><span class="ttl">A Persistent Task Tracker</span></a></div><div class="next"><a href="chapter_4.html"><span class="label">Chapter 4 &rarr;</span><span class="ttl">An Expression Interpreter</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

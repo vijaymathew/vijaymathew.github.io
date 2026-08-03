@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Live Desktop Dashboard — Contracts at Work</title>
+<meta name="description" content="Real Swing listeners in Nex, and the isolation pattern a feasibility spike found and this project follows.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_8.html" class="active">Ch. 8</a><a href="chapter_9.html">Ch. 9</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 8 &middot; Part V</span>
+<h1 class="opener-title">A Live Desktop Dashboard</h1>
+<p class="opener-lede">A real window, with real buttons, wired to real Java event listeners written in Nex. This is the one chapter in this book that crosses out of the language entirely, into the host platform's own GUI toolkit. It is the one place where "does this even work" had to be answered before any design could be trusted.</p>
+</div>
+<article class="prose">
+
+<p>Four buttons (<code>+</code>, <code>-</code>, <code>reset</code>, <code>quit</code>), each wired to a real <code>javax.swing.ActionListener</code> implemented as a Nex class, updating a counter shown in a live window. The counter itself is trivial. What makes this chapter different from every one before it is that Swing is not Nex's own type system reasoning about Nex's own values. It is a real Java GUI toolkit, calling back into Nex code from inside the JVM's own event dispatch machinery, and that boundary was genuinely untested territory when this project began.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>Before any of this project's design was settled, a separate feasibility spike answered a narrower question first: can a Nex class actually implement a Java interface, get handed to a real widget, and have a real click fire a real method call back into Nex? That question was not rhetorical. An earlier round of the same spike, run before this book's Java-interop work landed, found no working path to implementing a Java interface at all. A second round, run after that work landed, found that it now works, and found two specific, narrow bugs along the way, one of which shapes every line of code in this chapter.</p>
+
+<p>The spike's headline result, confirmed end to end: a Nex class can <code>inherit</code> <code>ActionListener</code>, be wired to a real <code>JButton</code> via <code>addActionListener</code>, and have <code>actionPerformed</code> fire on an actual <code>doClick()</code> (on the JVM backend, no fallback, correct state throughout), <em>provided the listener class holds no field typed as an imported Java class</em>. That proviso is not a footnote. It is the design constraint this entire project is built around.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p>The spike found that a Nex class field typed as an imported Java class (a <code>JLabel</code> field on a listener that wants to update a label directly, the single most natural-looking design for this kind of code) fails to compile cleanly on the JVM backend, whether or not that class implements any interface at all. So the design this project follows is not "the listener updates the label." It is a split, validated in the spike before this chapter's code was written: <strong>capture the event in plain Nex state; render that state separately.</strong></p>
+
+<p><code>Dashboard_State</code> holds nothing but plain Nex fields — no Java type anywhere in sight, by construction, not by care taken not to slip one in:</p>
+
+<pre><code>class Dashboard_State
+  create
+    make() do
+      count := 0
+      should_quit := false
+    end
+  feature
+    count: Integer
+    should_quit: Boolean
+
+    increment() do count := count + 1 end
+    decrement() do count := count - 1 end
+    reset() do count := 0 end
+    quit() do should_quit := true end
+end</code></pre>
+
+<p>Each listener holds exactly one field (a <code>Dashboard_State</code>) and does exactly one thing when its event fires: call the one method on that state which describes what happened.</p>
+
+<pre><code>class Increment_Listener
+  inherit
+    ActionListener
+  create
+    make(state: Dashboard_State) do
+      this.state := state
+    end
+  feature
+    state: Dashboard_State
+
+    actionPerformed(e: ActionEvent) do
+      state.increment()
+    end
+end</code></pre>
+
+<p><code>Dashboard_State</code> is a Nex class, not a Java one, so a field typed with it is exactly the kind of field the spike's finding does not apply to. This listener sidesteps the bug entirely because of what it is built to hold, not because of any special-case handling inside it. Three more listeners (<code>Decrement</code>, <code>Reset</code>, <code>Quit</code>) follow the identical shape.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p><code>dashboard_main.nex</code> is the only file in this project that ever touches a <code>JLabel</code>; every widget lives here, and the listeners never see one:</p>
+
+<pre><code>with "java" do
+  let frame: JFrame := JFrame.new("Contracts at Work — Dashboard")
+  let label: JLabel := JLabel.new("count: 0")
+  let inc_button: JButton := JButton.new("+")
+  ...
+  inc_button.addActionListener(create Increment_Listener.make(state))
+  ...
+  frame.setVisible(true)
+
+  from
+  until
+    state.should_quit
+  do
+    Thread.sleep(100)
+    label.setText("count: " + state.count)
+  end
+
+  frame.dispose()
+end</code></pre>
+
+<p>The polling loop is deliberately the simplest thing that could work — no <code>Task</code>, just a tight sleep-and-redraw cycle reading <code>state.count</code> every hundred milliseconds. It is the single point of contact between "what happened" (an event, captured as a state mutation by a listener running on Swing's own event-dispatch thread) and "what the user sees" (a label's text, mutated only here, only from this loop). Even <code>should_quit</code> (a listener setting a flag rather than closing the window directly) follows the same rule: the listener describes an intent, and only the loop that owns the window acts on it.</p>
+
+<p>This split was originally forced by a compiler limitation. It is kept, in this project's own judgment, because it is arguably the better design regardless of whether that limitation exists: it separates "what happened" from "how it's shown," the same separation of concerns this book has argued for since Chapter 1's split between <code>Word_Stats</code> and its CLI wrapper. A bug pointing toward good design is still worth taking, whether or not the bug survives.</p>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p><code>checks.nex</code> drives the listeners through real <code>JButton.doClick()</code> calls, not direct method calls on the listener objects, the same style of check the spike itself used and the only style that actually proves the Swing wiring works rather than proving the underlying state methods work in isolation:</p>
+
+<pre><code>inc_button.doClick()
+inc_button.doClick()
+inc_button.doClick()
+c.check("three increments", "3", "" + state.count)
+
+dec_button.doClick()
+c.check("one decrement", "2", "" + state.count)
+
+quit_button.doClick()
+c.check("quit after click", "true", "" + state.should_quit)</code></pre>
+
+<p>No visible window is required for this: <code>JButton</code> and <code>ActionListener</code> both function without ever being shown on screen, which is what makes it possible to check real event dispatch in an automated suite at all, rather than only by a human clicking a real window.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>This is the one project in this book that must run on the default JVM backend and gives visibly wrong results under <code>--interpret</code> — the opposite of what a reader coming from earlier chapters might expect, and the reason is worth stating precisely rather than just asserted. The spike found that mutable state does not reliably survive repeated calls dispatched through the interpreter's <code>Proxy</code>-based interface mechanism; the JVM backend's real bridge-method code generation does not share this problem, because a callback lands on the actual compiled instance rather than being relayed through a reflective proxy. This project's own <code>checks.nex</code> confirms the same fault under <code>--interpret</code>, in a slightly different shape than the spike's original repro: repeated clicks on the <em>same</em> button accumulate correctly, but a different listener object (a separate <code>Decrement_Listener</code> or <code>Reset_Listener</code> instance, each constructed with the same shared <code>Dashboard_State</code>) has its mutation never become visible through the original <code>state</code> reference afterward. Four of six checks fail under the interpreter for this reason; all six pass on the JVM backend.</p>
+
+<p>Unlike every other bug this book has reported, this one has not been fixed as of this writing, and is recorded here as the language author's own deliberate choice: root-caused to a distinct, deeper interpreter limitation around direct object-to-object field aliasing, tracked separately from the array- and map-held-reference bugs that <em>were</em> fixed for earlier chapters. It does not block this project, because the JVM backend was already the right choice for a different reason the spike found first: the Java-typed-field compile bug that shaped this project's entire listener design. Two independent findings pointed the same direction, from two different rounds of the same spike, and this chapter's own build order (writing and running <code>checks.nex</code> on the JVM backend first, out of habit from the spike, only trying <code>--interpret</code> afterward) is exactly what caught the second one before it became a live demo's silent embarrassment instead of a documented, understood limitation.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_7.html"><span class="label">&larr; Chapter 7</span><span class="ttl">An HTTP JSON API</span></a></div><div class="next"><a href="chapter_9.html"><span class="label">Chapter 9 &rarr;</span><span class="ttl">Capstone: Nex Radar</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

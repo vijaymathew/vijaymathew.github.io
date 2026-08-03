@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Concurrent Duplicate Finder — Contracts at Work</title>
+<meta name="description" content="Fan-out, fan-in with Task and Channel; testing code whose scheduler is not deterministic.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_5.html" class="active">Ch. 5</a><a href="chapter_6.html">Ch. 6</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 5 &middot; Part III</span>
+<h1 class="opener-title">A Concurrent Duplicate Finder</h1>
+<p class="opener-lede">Every project so far has run one step at a time. This one walks a directory tree and reads every file it finds. The interesting design decision is not the algorithm; it's deciding exactly which part of it should run concurrently.</p>
+</div>
+<article class="prose">
+
+<p><code>Dup_Finder</code> walks a directory tree and reports groups of files whose content is byte-for-byte identical: not same size, not same name, the actual text. It is a natural candidate for concurrency because reading a file is I/O-bound: the program spends most of that time waiting on the filesystem, not computing anything, which is exactly the situation where doing several reads at once buys real time instead of just adding coordination overhead for no benefit.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>Not every part of this task benefits from concurrency, and deciding which part does is the actual design work here. Listing a directory's contents is fast and sequential by nature; there is nothing to parallelize about walking a tree structure, and trying to would only add complexity. Reading every file's bytes is the opposite: independent, I/O-bound work, one unit per file, with no ordering dependency between any two reads. Grouping the results by content afterward is fast, in-memory comparison, back to sequential, because there is no I/O left to overlap.</p>
+
+<p>So the shape of the solution follows directly from where the actual waiting happens: walk sequentially, read concurrently, group sequentially. Getting this division right matters more than any amount of general enthusiasm for making things concurrent: the walk and the grouping would not go any faster for being parallelized, and would be harder to reason about for the trouble.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p>The three phases become three methods on one class, each with a focused job:</p>
+
+<pre><code>class Dup_Finder
+  create
+    make() do end
+  feature
+    collect_files(dir: Directory): Array[Path] do ... end
+    read_all_concurrently(files: Array[Path]): Array[File_Content] do ... end
+    find_duplicates(root_dir: String): Map[String, Array[String]] do ... end</code></pre>
+
+<p>A small aside on why these are methods on a class at all, rather than three loose top-level functions in a file with no class in it, the more natural shape for what is, in effect, a small pipeline. Nex's <code>intern &lt;Name&gt;</code> requires a top-level declaration literally named <code>&lt;Name&gt;</code> in the file it loads; a functions-only module cannot be interned by a name that does not also label something declared in the file. <code>dup_finder.nex</code> originally held a <code>File_Content</code> class and three loose functions, and <code>intern Dup_Finder</code> failed outright: nothing in the file was named <code>Dup_Finder</code>. Wrapping the pipeline as methods on a real <code>Dup_Finder</code> class fixed the mechanical problem and reads better besides — <code>collect_files</code>, <code>read_all_concurrently</code>, and <code>find_duplicates</code> read as one coherent object's behavior rather than three functions that happen to share a file.</p>
+
+<p><code>File_Content</code> is the smallest possible result type for the concurrent step — a path and the text read from it, nothing else — which matters because it is what has to travel back across the fan-in:</p>
+
+<pre><code>class File_Content
+  create
+    make(path: String, content: String) do
+      this.path := path
+      this.content := content
+    end
+  feature
+    path: String
+    content: String
+end</code></pre>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p>The walk is ordinary recursion, no concurrency involved, exactly as designed:</p>
+
+<pre><code>collect_files(dir: Directory): Array[Path] do
+  result := []
+  let fs: Array[Path] := dir.files()
+  ... -- append this directory's files
+  let subdirs: Array[Directory] := dir.directories()
+  ... -- recurse into each, appending what comes back
+end</code></pre>
+
+<p>The fan-out happens in <code>read_all_concurrently</code>: one <code>Task</code> spawned per file, each doing exactly one blocking read, with every task started before any of them is waited on:</p>
+
+<pre><code>read_all_concurrently(files: Array[Path]): Array[File_Content] do
+  let tasks: Array[Task[File_Content]] := []
+  let i: Integer := 0
+  from
+    i := 0
+  until
+    i = files.length
+  do
+    let f: Path := files.get(i)
+    let t: Task[File_Content] := spawn do
+      result := create File_Content.make(f.to_string(), f.read_text())
+    end
+    tasks.add(t)
+    i := i + 1
+  end
+  result := await_all(tasks)
+end</code></pre>
+
+<p>The loop that spawns tasks and the point where it waits for them are two separate moments: every task is already running by the time <code>await_all</code> is reached, which is the entire mechanism behind fan-out/fan-in. The concurrency comes from <em>starting</em> all the work before waiting on any of it, not from anything more exotic. Grouping is back to plain sequential code, a <code>Map</code> keyed by file content, filtered to groups with more than one member — no file is a duplicate of nothing:</p>
+
+<pre><code>if paths.length &gt; 1 then
+  result.set(k, paths)
+end</code></pre>
+
+<p>One thing this project's actual code path does <em>not</em> do, worth being precise about rather than implying otherwise: <code>find_duplicates</code>'s <code>await_all</code> waits for every read unconditionally. There is no timeout and no cancel token anywhere in the pipeline above — a real duplicate scan over a huge tree has no way, today, to give up early on in-flight reads. <code>cancellation_demo.nex</code> is a small, separate, self-contained illustration of the mechanism a cancel-aware version would need — <code>Task.await(ms)</code> returning <code>nil</code> on timeout, then <code>Task.cancel()</code> — standing in for a feature this project's scanner does not actually have, not a workaround for one it does:</p>
+
+<pre><code>let slow: Task[Integer] := spawn do
+  sleep(2000)
+  result := 42
+end
+
+let v: ?Integer := slow.await(200)
+if v = nil then
+  print("timed out waiting; cancelling")
+  let cancelled: Boolean := slow.cancel()
+  ...
+end</code></pre>
+
+<p>Keeping that distinction explicit (here is the mechanism, and separately, here is whether this project's own code actually uses it) matters more than quietly implying <code>find_duplicates</code> is cancel-aware when it is not.</p>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p>Testing concurrent code well means asserting on the outcome, never on timing or interleaving — nothing in this check suite cares which of several spawned tasks happens to finish first, only that all of them finish and the grouping that results is correct. The check builds a small, disposable directory tree under a temp folder — three files sharing one piece of text, two more each unique — and confirms exactly one duplicate group is found, with exactly the right members:</p>
+
+<pre><code>root.child_path("a.txt").write_text("hello world")
+root.child_path("b.txt").write_text("hello world")
+sub.child_path("c.txt").write_text("hello world")
+root.child_path("unique.txt").write_text("nothing else looks like this")
+sub.child_path("d.txt").write_text("also unique")
+
+let dups: Map[String, Array[String]] := finder.find_duplicates(base)
+c.check("one duplicate group", "1", "" + dups.size())
+c.check("group has 3 members", "3", "" + members.length)</code></pre>
+
+<p>Four checks, and the tree is deleted immediately afterward, with the deletion itself checked. A concurrent test that leaves scratch files behind on the filesystem is a test that will eventually collide with itself on a second run.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>No language bugs. <code>Task</code>, <code>await_all</code>, and recursive <code>Directory</code>/<code>Path</code> walking all behaved exactly as documented, on both backends, on the first fully-corrected attempt — the one real correction being the <code>intern</code> naming constraint above, a design fix rather than a bug workaround. This project is the cleanest evidence in the book so far that Nex's concurrency primitives themselves — <code>spawn</code>, <code>Task[T]</code>, <code>await_all</code> — were solid well before the JVM-backend method-call bugs the next two chapters have to work around were fixed; the trouble in those chapters, as it turns out, was never in the scheduler.</p>
+
+<p>The same fan-out shape, one task per unit of concurrent work, carries into Chapter 6, except the files on a local disk become sockets to clients who can misbehave, disconnect, or simply take their time.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_4.html"><span class="label">&larr; Chapter 4</span><span class="ttl">An Expression Interpreter</span></a></div><div class="next"><a href="chapter_6.html"><span class="label">Chapter 6 &rarr;</span><span class="ttl">A TCP Chat Server</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

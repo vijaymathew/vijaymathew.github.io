@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A TCP Chat Server — Contracts at Work</title>
+<meta name="description" content="A protocol designed before any code; one task per connection, a shared broadcast channel.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_6.html" class="active">Ch. 6</a><a href="chapter_7.html">Ch. 7</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 6 &middot; Part IV</span>
+<h1 class="opener-title">A TCP Chat Server</h1>
+<p class="opener-lede">Chapter 5's tasks never touched the same data at the same time. This project's tasks have to — several clients, one shared list of who's connected — and the contract that matters most here is about who is allowed to touch that list at all.</p>
+</div>
+<article class="prose">
+
+<p>Several clients connect to one server over plain TCP; whatever one client types, everyone else sees. The interesting design problem is not the networking — <code>net/Tcp_Socket</code> and <code>net/Server_Socket</code> handle the bytes — it is concurrency safety: with one task per connected client all running at once, something has to own the list of who is currently connected, and it has to be exactly one thing.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>Two decisions get made before any networking code, the same discipline as every project so far, applied to a wire instead of an argv or a file. First, the protocol: one line per message, formatted <code>"NAME: text\n"</code>, with no framing beyond the newline itself — <code>Tcp_Socket</code>'s <code>read_line</code>/<code>send_line</code> already give a line boundary for free, so the protocol is "trust the transport's line boundary," not anything more elaborate:</p>
+
+<pre><code>class Chat_Protocol
+  create
+    make() do end
+  feature
+    format_message(sender: String, text: String): String do
+      result := sender + ": " + text
+    end
+end</code></pre>
+
+<p>It is deliberately its own tiny module, <code>chat_protocol.nex</code>, <code>intern</code>ed by both the server and the client — the format lives in exactly one place both sides load, rather than being duplicated by convention across two files that could quietly drift apart.</p>
+
+<p>Second, and more consequential: the concurrency design. With one task reading each client's socket, and all of them needing to broadcast to a shared list of connections, the design settles on a single rule before any of it is built — <strong>one owner, no locks</strong>. Exactly one task ever touches the list of connected clients. Every other task only ever sends it an event over a channel and trusts that owner to serialize access. This is a contract about concurrency itself, not about a value — a promise the code's own shape enforces rather than a comment asking every future contributor to remember not to reach into shared state directly.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p>The events a client-handling task can raise are a closed union — exactly what a connection lifecycle can produce, and nothing the hub has to guess at:</p>
+
+<pre><code>union Hub_Event
+  Client_Joined(sock: Tcp_Socket)
+  Broadcast(sender: Tcp_Socket, text: String)
+  Client_Left(sock: Tcp_Socket)
+  Shutdown
+end</code></pre>
+
+<p><code>Chat_Hub</code> is the single owner the design promised — its <code>run</code> method holds the only variable in this entire program that names the list of connected clients, and every other piece of code that needs to affect that list does so exclusively by sending an event and letting the hub react:</p>
+
+<pre><code>class Chat_Hub
+  create
+    make() do end
+  feature
+    -- The single owner of `clients`. Runs until it receives Shutdown.
+    run(events: Channel[Hub_Event]) do
+      let clients: Array[Tcp_Socket] := []
+      ...
+      let ev: Hub_Event := events.receive()
+      match ev of
+        when Client_Joined(sock) then clients.add(sock)
+        when Client_Left(sock) then ...
+        when Broadcast(sender, text) then ...
+        when Shutdown then running := false
+      end
+      ...
+    end
+end</code></pre>
+
+<p>Read that signature again: <code>clients</code> is a local variable inside <code>run</code>, not a field on <code>Chat_Hub</code>, not visible anywhere else in the program, and never passed to another task. That is what "single owner" means as code rather than as a design intention — there is no mechanism by which two tasks could touch it at once, because only one task's stack frame ever names it.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p>Every connected client gets one handler task, spawned from <code>accept_clients</code> as connections arrive:</p>
+
+<pre><code>let maybe_client: ?Tcp_Socket := server.accept(30000)
+if maybe_client /= nil then
+  let client: Tcp_Socket := maybe_client
+  let name_line: ?String := client.read_line()
+  let name: String := "anon"
+  if name_line /= nil then
+    name := name_line
+  end
+  let h: Task := spawn do
+    this.handle_client(client, name, events)
+  end
+  handlers.add(h)
+end</code></pre>
+
+<p><code>handle_client</code> is the loop each connected client actually runs inside — read a line, forward it to the hub as a <code>Broadcast</code>, repeat until the client disconnects:</p>
+
+<pre><code>handle_client(sock: Tcp_Socket, name: String, events: Channel[Hub_Event]) do
+  events.send(create Client_Joined.make(sock))
+  ...
+  let line: ?String := sock.read_line()
+  if line = nil then
+    running := false
+  else
+    events.send(create Broadcast.make(sock, protocol.format_message(name, line)))
+  end
+  ...
+  events.send(create Client_Left.make(sock))
+  sock.close()
+end</code></pre>
+
+<p>Graceful disconnect falls directly out of that shape: <code>read_line()</code> returning <code>nil</code> means end of stream, which the loop treats as an ordinary exit condition rather than an error — it tells the hub <code>Client_Left</code> and closes its own socket, and the hub drops that client from the broadcast list the same way it would for any other event. No connection is ever left dangling in the list because there is no path through this method that skips telling the hub it is gone.</p>
+
+<p>Broadcasting itself is the hub's own loop, run once per <code>Broadcast</code> event, skipping only the sender:</p>
+
+<pre><code>when Broadcast(sender, text) then
+  let i: Integer := 0
+  from i := 0 until i = clients.length do
+    let member: Tcp_Socket := clients.get(i)
+    if member /= sender then
+      member.send_line(text)
+    end
+    i := i + 1
+  end</code></pre>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p>The check suite spins up a real server on an ephemeral port — port <code>0</code>, which asks the OS to pick a free one — and connects two real, in-process <code>Tcp_Socket</code> clients against it, rather than mocking any part of the networking:</p>
+
+<pre><code>let server: Server_Socket := create Server_Socket.make(0)
+server.open()
+...
+let alice: Tcp_Socket := create Tcp_Socket.make("localhost", server.port)
+alice.connect()
+alice.send_line("alice")
+...
+alice.send_line("hello from alice")
+let bob_received: ?String := bob.read_line()
+c.check("bob receives alice's message", "alice: hello from alice", bob_received)</code></pre>
+
+<p>This is a genuine integration test, not a unit test with the network faked out — real sockets, a real accept loop, a real hub task processing real channel events, all inside one process on one port that only this test run owns. Three checks (two handlers spawned, and a message correctly received in each direction) are enough to prove the whole pipeline — protocol, accept, hub, broadcast — works end to end, because nothing along that path could produce the right output for the wrong reason.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>This project originally needed <code>--interpret</code> for a severe reason: <code>Server_Socket.accept()</code> was unusable on the JVM backend for any accepted connection at all, traced to <code>Tcp_Socket.from_socket</code> hitting a missing runtime binding. Fixed upstream; confirmed directly against this project's own check suite, which now passes on the default backend with no flag.</p>
+
+<p>One design detail changed along with that fix. <code>handle_client</code> was originally a free top-level function, not a <code>Chat_Server</code> method, because a <code>spawn do ... end</code> body could not call a method on its enclosing object — not even <code>this</code>, not even with an explicit <code>this.</code> prefix — so it had to live outside the class to be callable at all from inside <code>spawn</code>. That restriction is fixed too, and <code>handle_client</code> is back to being an ordinary method, called as <code>this.handle_client(...)</code> from inside <code>spawn</code> in <code>accept_clients</code>, which reads as what it actually is: the thing a <code>Chat_Server</code> does for each client it accepts.</p>
+
+<p>One rough edge remains that was never a language bug — it is this project's own code, and stays fixed on its own merits. Quitting <code>chat_client.nex</code> closes the socket from the main loop while its background reader task may still be blocked inside <code>read_line()</code> on the very same socket; that unblocks the read with a "stream closed" failure rather than a clean <code>nil</code>. The reader wraps its read in <code>rescue</code> and treats a closed-out-from-under-it read exactly like an ordinary disconnect, which is the correct description of what happened from that task's point of view.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_5.html"><span class="label">&larr; Chapter 5</span><span class="ttl">A Concurrent Duplicate Finder</span></a></div><div class="next"><a href="chapter_7.html"><span class="label">Chapter 7 &rarr;</span><span class="ttl">An HTTP JSON API</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

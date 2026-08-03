@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appendix C &middot; The Project Layout Convention — Contracts at Work</title>
+<meta name="description" content="Why every project separates its library from its entry point, and what checks.nex is for.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="appendix_b.html">App. B</a><a href="appendix_c.html" class="active">App. C</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix C</span>
+<h1 class="opener-title">The Project Layout Convention</h1>
+<p class="opener-lede">Nine projects, one shape. Once you recognize it in Chapter 1, every later chapter's file list reads itself.</p>
+</div>
+<article class="prose">
+
+<section id="library-and-entry-point" class="level2">
+<h2>The Library and the Entry Point</h2>
+
+<p>Every project in this book separates two kinds of code into different files: a library that does the actual work, with no file I/O, no console output, and no network call anywhere inside it, and a thin entry point that connects that library to the outside world. Chapter 1's <code>word_stats.nex</code> and <code>nexwc.nex</code> are the clearest example — <code>Word_Stats</code> never reads a file or prints anything; <code>nexwc.nex</code> does nothing but read arguments, call into <code>Word_Stats</code>, and print what comes back. Every later project repeats the split: <code>Lru_Cache</code> and its demo script, <code>Dup_Finder</code> and its scan/cancellation demos, <code>Chat_Hub</code>/<code>Chat_Server</code> and the two programs that run them.</p>
+
+<p>The reason is almost entirely about what becomes easy to test. A pure library can be constructed, called, and asserted against directly, with nothing to set up and nothing to tear down — which is exactly what every project's check suite does. An entry point that touches a filesystem, a socket, or a console has real setup cost and real nondeterminism (a listening port, a file that has to exist first, a background thread), so this book keeps that code as small as possible and tests it by hand where automating it would cost more than it would catch — the reasoning Chapter 1 states explicitly, and every later chapter's entry point earns the same treatment implicitly.</p>
+</section>
+
+<section id="checks-nex" class="level2">
+<h2><code>checks.nex</code></h2>
+
+<p>Every project's automated tests live in a file named <code>checks.nex</code>, run with <code>nex checks.nex</code>, and every one of them uses the identical, deliberately low-tech pattern — a small <code>Checker</code> class with one method, <code>check(label, expected, actual)</code>, and a <code>summary()</code> that prints a pass/fail count at the end:</p>
+
+<pre><code>class Checker
+  create
+    make() do
+      passed := 0
+      failed := 0
+    end
+  feature
+    passed: Integer
+    failed: Integer
+
+    check(label: String, expected: String, actual: String) do
+      if expected = actual then
+        passed := passed + 1
+        print("PASS " + label)
+      else
+        failed := failed + 1
+        print("FAIL " + label + " expected=" + expected + " actual=" + actual)
+      end
+    end
+
+    summary() do
+      print("---")
+      print("" + passed + " passed, " + failed + " failed")
+    end
+end</code></pre>
+
+<p>Nothing about this needs a testing framework, a build tool, or a dependency beyond the language itself — which matters for a book whose whole point is showing what Nex can build on its own. Every comparison happens as strings, which keeps every check's failure message self-explanatory (<code>expected=X actual=Y</code>, no framework-specific diff format to learn) at a small, deliberate cost: every value under test gets an explicit <code>"" + value</code> or <code>.to_string()</code> at the call site. For a book about contracts, there's a fitting parallel here worth noticing — this pattern is itself a tiny, self-imposed contract: every <code>check</code> call promises a label, an expected value, and an actual value, and the summary at the end is the whole suite's own postcondition.</p>
+</section>
+
+<section id="the-intern-naming-rule" class="level2">
+<h2>The <code>intern</code> Naming Rule</h2>
+
+<p>One rule shapes several projects' file structure directly enough to be worth stating plainly here rather than only where it first bites, in <a href="chapter_5.html">Chapter 5</a>: <code>intern &lt;Name&gt;</code> requires a top-level declaration literally named <code>&lt;Name&gt;</code> in the file it loads (matched to the file's own snake_case name). A file holding only loose top-level functions, with no class of the matching name, cannot be <code>intern</code>ed by that name at all — which is why <code>Dup_Finder</code> in Chapter 5 and <code>Dashboard_Listeners</code> in Chapter 8 are real classes wrapping what would otherwise be free functions, and why <code>dashboard_listeners.nex</code>'s actual content (four <code>ActionListener</code> implementations) sits below a small "anchor" class that exists mainly to give the file something to be interned by.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="appendix_b.html"><span class="label">&larr; Appendix B</span><span class="ttl">Building and Packaging Each Project</span></a></div><div class="next"><a href="appendix_d.html"><span class="label">Appendix D &rarr;</span><span class="ttl">Reading Guide</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

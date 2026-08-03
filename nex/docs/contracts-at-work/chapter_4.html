@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>An Expression Interpreter — Contracts at Work</title>
+<meta name="description" content="Grammar to AST by hand; a union and an exhaustive match as the evaluator's safety net.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_4.html" class="active">Ch. 4</a><a href="chapter_5.html">Ch. 5</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 4 &middot; Part II</span>
+<h1 class="opener-title">An Expression Interpreter</h1>
+<p class="opener-lede">A four-function calculator language with variables and parentheses — small enough to write in one file, complete enough to expose the same question every interpreter eventually asks: what happens when the input describes something that cannot legally happen, like dividing by zero?</p>
+</div>
+<article class="prose">
+
+<p>This project builds a tiny expression language — numbers, variables, <code>+ - * /</code>, unary minus, parentheses — the classic hand-written path from grammar to AST to evaluator. Unlike Chapters 1 and 2, it is built as a library from the start, not a REPL with logic bolted on: <code>calc_repl.nex</code> exists here as one consumer of <code>expr.nex</code>, and Chapter 7 will be another, embedding the same <code>evaluate</code> function as an HTTP endpoint without either file knowing the other exists.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>The grammar is settled before any parsing code, in the classic three-level shape that gives <code>*</code> and <code>/</code> higher precedence than <code>+</code> and <code>-</code> for free, just from the order productions call each other:</p>
+
+<pre><code>expr   := term (('+' | '-') term)*
+term   := factor (('*' | '/') factor)*
+factor := NUMBER | IDENT | '(' expr ')' | '-' factor</code></pre>
+
+<p>The harder design question is not the grammar — it is what happens when a syntactically valid expression describes something semantically impossible: <code>1 / 0</code>, or a variable that was never bound. Both are common enough in a calculator's real usage that "throw whatever the host happens to throw" is not good enough; a caller needs a labeled failure that names <em>which</em> rule was broken, not a generic exception three frames away from the bad input.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p>The AST is a closed <code>union</code> with four shapes, and nothing else is a legal expression:</p>
+
+<pre><code>union Expr
+  Num(value: Real)
+  Var(name: String)
+  Bin_Op(op: String, left: Expr, right: Expr)
+  Neg(operand: Expr)
+end</code></pre>
+
+<p>The evaluator is one exhaustive <code>match</code> over that union — every constructor has a case, and the type checker holds the language to that, not a convention someone remembers to maintain by hand:</p>
+
+<pre><code>function eval_expr(e: Expr, env: Map[String, Real]): Real do
+  match e of
+    when Num(value) then
+      result := value
+    when Var(name) then
+      result := lookup(env, name)
+    when Neg(operand) then
+      result := 0.0 - eval_expr(operand, env)
+    when Bin_Op(op, left, right) then
+      ...
+  end
+end</code></pre>
+
+<p>The moment a fifth expression shape is added to <code>Expr</code> — say, a function call — this <code>match</code> stops compiling until a <code>when Call(...)</code> case is written. That is the same safety net Chapter 2's <code>Task_Status</code> union gave a two-state field; here it guards an AST that can grow arbitrarily and still never leave a case silently unhandled.</p>
+
+<p>The semantic failures — division by zero, an unbound variable — are stated as preconditions on the two small functions that can actually violate them, not checked inline wherever they might come up:</p>
+
+<pre><code>function divide(a: Real, b: Real): Real
+  require
+    non_zero: b /= 0.0
+  do
+    result := a / b
+  end
+
+function lookup(env: Map[String, Real], name: String): Real
+  require
+    known: env.contains_key(name)
+  do
+    result := env.get(name)
+  end</code></pre>
+
+<p>This is what "a caller gets a labeled failure" means concretely: a violated <code>require</code> names the clause that broke — <code>non_zero</code>, <code>known</code> — in the failure itself, which is strictly more information than a bare <code>ArithmeticException</code> or a null dereference would give the same caller, for the same mistake.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p>Tokenizing is one regular expression, doing the whole job in a single pass — numbers (with or without a decimal point), identifiers, and the six punctuation characters this grammar needs, in one alternation:</p>
+
+<pre><code>function tokenize(text: String): Array[String] do
+  let rx: Regex := create Regex.compile('\d+\.\d+|\d+|[A-Za-z_][A-Za-z0-9_]*|[+\-*/()]')
+  result := rx.find_all(text)
+end</code></pre>
+
+<p><code>Parser</code> is recursive descent in its most direct form, one method per grammar production, each returning an <code>Expr</code>:</p>
+
+<pre><code>parse_expr(): Expr do
+  result := parse_term()
+  from
+  until
+    peek() /= "+" and peek() /= "-"
+  do
+    let op: String := advance()
+    let rhs: Expr := parse_term()
+    result := create Bin_Op.make(op, result, rhs)
+  end
+end</code></pre>
+
+<p><code>parse</code> itself — the entry point — carries a postcondition that is easy to skip and cheap to keep: the whole token stream has to be consumed, or something was left over that the grammar never accounted for, which is exactly the kind of trailing-garbage input a hand-written parser can silently ignore if nobody thinks to check for it explicitly:</p>
+
+<pre><code>parse(): Expr
+  do
+    result := parse_expr()
+  ensure
+    consumed_everything: at_end()
+  end</code></pre>
+
+<p>One genuine language gotcha showed up writing the smallest-looking method in this file, <code>is_number</code>. The first version compared a token's first character against <code>#0</code> and <code>#9</code> as char literals — and in Nex, <code>#&lt;digit&gt;</code> parses as the ASCII control code with that numeric value, not the digit glyph. <code>#9</code> is a tab character, not <code>'9'</code>. Every numeric token was silently misclassified as a variable reference, which surfaced three method calls away from the actual defect, as a precondition failure on <code>lookup</code>'s <code>known</code> clause for input as simple as <code>1 + 2</code> — a textbook case of a contract catching a real bug, but at a distance from where the bug actually was. The fix sidesteps char literals for digits entirely:</p>
+
+<pre><code>-- Not `tok.char_at(0) >= #0 and ... &lt;= #9`: `#&lt;digit&gt;` char literals
+-- parse as the ASCII control code with that numeric value, not the digit
+-- glyph (`#9` is a tab character, not '9') — this is intentional, not a
+-- bug in the language.
+is_number(tok: String): Boolean do
+  result := tok.length() &gt; 0 and "0123456789".contains(tok.substring(0, 1))
+end</code></pre>
+
+<p><code>#c</code>, <code>#a</code>, and letters generally behave exactly as expected as char literals — only the digit range reads as a trap, specifically to someone porting the habit of comparing against <code>'0'</code>/<code>'9'</code> from another language. String membership avoids the question rather than answering it, which is the right amount of caution for code that has no real need to know what <code>#9</code> means.</p>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p>Eleven checks cover precedence, parentheses (including nested ones), unary minus, and variable lookup — the ordinary arithmetic surface — plus, deliberately, both contract-violation paths, caught with <code>rescue</code> rather than asserted to simply not crash:</p>
+
+<pre><code>let div_zero_failed: Boolean := false
+do
+  evaluate("1 / 0", empty_env)
+rescue
+  div_zero_failed := true
+end
+c.check("division by zero caught", "true", "" + div_zero_failed)</code></pre>
+
+<p>Testing that a contract violation is caught, by name, is a different assertion than testing that a program does not crash — it confirms the failure arrives through the channel this design promised it would (a labeled precondition), not through whatever the host happens to do when the underlying arithmetic misbehaves. <code>calc_repl.nex</code> uses the identical <code>do ... rescue ... end</code> pattern at its own boundary, turning the same violation into a one-line <code>error:</code> message instead of a crashed REPL session.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>Both backends agree on all eleven checks. The one real finding here was not a language bug at all, but a genuine trap in otherwise-correct-looking code — <code>#0</code> through <code>#9</code> reading as control characters rather than digit glyphs is documented, intentional grammar, and <code>is_number</code>'s string-membership check is the correct pattern for this kind of test, not a workaround standing in for something broken. It earns its place in this chapter anyway, because the failure it caused was genuinely confusing to chase — a precondition violation three calls downstream from a tokenizing mistake — and that gap between where a bug is and where a contract catches it is worth knowing to expect, in any language, not just this one.</p>
+
+<p>Chapter 5 leaves the single-threaded world both this project and the last two lived in, and asks what a contract has to say once more than one task can be touching the same program at once.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_3.html"><span class="label">&larr; Chapter 3</span><span class="ttl">A Generic LRU Cache</span></a></div><div class="next"><a href="chapter_5.html"><span class="label">Chapter 5 &rarr;</span><span class="ttl">A Concurrent Duplicate Finder</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

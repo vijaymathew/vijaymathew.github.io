@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capstone: Nex Radar — Contracts at Work</title>
+<meta name="description" content="Five earlier projects wired together through intern, without any of them knowing about each other.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_9.html" class="active">Ch. 9</a><a href="appendix_a.html">App. A</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 9 &middot; Part VI &middot; Capstone</span>
+<h1 class="opener-title">Capstone: Nex Radar</h1>
+<p class="opener-lede">Nothing in this chapter is new. Every piece was already built, tested, and proven in an earlier chapter. What this project adds is composition — and composition, it turns out, is exactly where two real bugs were hiding that no individual project's own tests could ever have found.</p>
+</div>
+<article class="prose">
+
+<p>"Nex Radar" watches a directory for duplicate files, live: Chapter 5's <code>Dup_Finder</code> does the scanning, an HTTP API in Chapter 7's style reports the results, a background task counts elapsed ticks the way Chapter 6's hub task ran continuously, and a Chapter 8-style Swing dashboard polls it all from a separate window, refreshing live. Every one of those pieces already has its own chapter, its own design, and its own passing check suite. This chapter is about what happens when they meet.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>The brief is reuse without coupling: wire five independently-built pieces together through <code>intern</code>, with none of them changing to accommodate any of the others, and none of them aware the others exist. <code>dup_finder.nex</code> is copied into this project unmodified — the same file, the same class, doing exactly what Chapter 5 already proved it does. The service adds a background counter and an HTTP surface around it; the dashboard adds a window around that. If the pieces were actually as independent as this book has argued they should be, plugging them together should be the easy part.</p>
+
+<p>It was not, quite — and the reason why is the actual lesson of this chapter, saved for the retrospective below rather than smoothed over here.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p><code>Radar_Metrics</code> is the smallest possible piece of new state this project needed — nothing <code>Dup_Finder</code> or <code>Http_Server</code> already provided, just the three numbers a status dashboard actually wants to show:</p>
+
+<pre><code>class Radar_Metrics
+  create
+    make() do
+      ticks := 0
+      duplicate_groups := 0
+      scan_count := 0
+    end
+  feature
+    ticks: Integer
+    duplicate_groups: Integer
+    scan_count: Integer
+
+    tick() do ticks := ticks + 1 end
+    record_scan(groups: Integer) do
+      duplicate_groups := groups
+      scan_count := scan_count + 1
+    end
+end</code></pre>
+
+<p><code>Radar_Service</code>'s constructor is where composition actually happens — three <code>intern</code>ed pieces, wired together in a dozen lines, each one exactly as capable as it was in its own chapter and no more:</p>
+
+<pre><code>class Radar_Service
+  create
+    make(port: Integer, scan_root: String) do
+      this.server := create Http_Server.make(port)
+      this.metrics := create Radar_Metrics.make()
+      this.finder := create Dup_Finder.make()
+      ...
+      run_scan()
+
+      server.get("/status", fn(req: Http_Request): Http_Server_Response do
+        result := this.status_payload()
+      end)
+      server.post("/rescan", fn(req: Http_Request): Http_Server_Response do
+        this.run_scan()
+        result := this.status_payload()
+      end)
+    end</code></pre>
+
+<p><code>Dup_Finder</code> has no idea it is running inside a service; <code>Http_Server</code> has no idea what it is serving status for. The only new contract this project adds is the shape of what <code>/status</code> reports, and it is the same design as Chapter 7's <code>json_response</code>, reused rather than reinvented: a status code, a <code>Map</code>, one method that turns both into an HTTP response with the right content type.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p>The background tick counter runs the same way Chapter 6's hub task did — spawned once, at startup, running until the process itself ends, calling a method on <code>this</code> directly now that a closure is actually allowed to:</p>
+
+<pre><code>start() do
+  server.start()
+  let ticker: Task := spawn do
+    this.tick_loop()
+  end
+end
+
+tick_loop() do
+  let running: Boolean := true
+  from running := true until not running do
+    sleep(1000)
+    metrics.tick()
+  end
+end</code></pre>
+
+<p>The dashboard side is Chapter 8's pattern, applied without a single structural change: <code>Radar_Dashboard_State</code> holds only plain Nex fields, three listener classes each set exactly one flag on it, and the poll loop is the only code that ever touches a widget:</p>
+
+<pre><code>from
+until
+  state.should_quit
+do
+  Thread.sleep(150)
+  if state.should_rescan then
+    state.set_status(fetch_rescan(client, base, ticks_rx, groups_rx, scans_rx))
+    state.clear_rescan()
+  elseif state.should_refresh then
+    state.set_status(fetch_status(client, base, ticks_rx, groups_rx, scans_rx))
+    state.clear_refresh()
+  end
+  label.setText(state.status_text)
+end</code></pre>
+
+<p>The one addition Chapter 8's pattern did not need to make: the poll loop now performs a real network call, not just a local state read. <code>fetch_status</code> and <code>fetch_rescan</code> use <code>Http_Client</code> and a fixed-lookbehind <code>text/Regex</code> to pull three numbers out of the response body — the identical technique Chapter 7's <code>calc_client.nex</code> used, for the identical reason: both are functions, and interning <code>Http_Client</code> alongside <code>data/Json</code> still breaks a parsed <code>Map</code>'s method calls specifically inside a function body.</p>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p>The check suite builds a small directory with two duplicate files, starts the service against it on an ephemeral port, and drives it with a real <code>Http_Client</code> — confirming not just that the pieces run together, but that a change on disk actually reaches the HTTP response through the whole composed chain:</p>
+
+<pre><code>let r1: Http_Response := client.get(base + "/status")
+c.check("initial duplicate groups", "1", "" + groups_rx.find(r1.body()))
+c.check("initial scan count", "1", "" + scans_rx.find(r1.body()))
+
+-- add another duplicate group, then rescan
+root.child_path("d.txt").write_text("second duplicate")
+root.child_path("e.txt").write_text("second duplicate")
+
+let r2: Http_Response := client.post(base + "/rescan", "")
+c.check("rescan finds two groups", "2", "" + groups_rx.find(r2.body()))
+c.check("rescan count incremented", "2", "" + scans_rx.find(r2.body()))</code></pre>
+
+<p>Beyond the automated suite, this project was smoke-tested the way its own design demands — live, across two real processes, over a real network boundary. <code>radar_service_main.nex</code> run in one terminal, <code>radar_dashboard_main.nex</code> in another, its background tick counter visibly climbing as it polls, its <code>refresh</code> and <code>rescan</code> buttons round-tripping real HTTP requests, <code>scan_count</code> confirmed incrementing from 1 to 2 by hitting <code>/rescan</code> directly with <code>curl</code> in parallel with the dashboard's own view of the same number. A capstone's real test is watching the whole thing run, not just its check suite passing.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>This project went through three real integration attempts, and the first two failed for reasons no individual project's own tests could have caught — which is exactly what a capstone chapter is for.</p>
+
+<p><strong>Attempt one: one process.</strong> The natural design — a single Nex program running the service and the dashboard together — was blocked immediately. Chapter 8's <code>ActionListener</code> state needs the JVM backend, or mutations through it silently do not persist. This service's original design needed <code>data/Json</code>, which at the time was only usable under <code>--interpret</code>. No backend could satisfy both requirements inside the same process, and there is no way to run half a program on one backend and half on another.</p>
+
+<p><strong>Attempt two: two processes over HTTP, first try.</strong> Splitting the service and the dashboard into separate processes talking over a real network connection looked like the obvious way around attempt one's deadlock — until building the dashboard as an HTTP client hit a second, unrelated wall: <code>net/Http_Client</code> returned status <code>0</code> and an empty body for <em>every</em> request on the JVM backend, confirmed by hitting the exact same live server with <code>curl</code> at the same moment and getting a correct response while the identical Nex call returned nothing. The two-process design that was supposed to be the fix was, for a different reason, just as impossible as the one it replaced.</p>
+
+<p><strong>What actually fixed it.</strong> Both root causes — <code>data/Json</code>'s method calls failing on the JVM backend, and <code>Http_Client</code>'s broken response handling there — were fixed upstream in the language itself, along with the other issues this book surfaced along the way. Once both landed, attempt one's original one-process design became possible again. But by then the two-process, HTTP-boundary architecture was already built, tested, and — this is the part worth sitting with — arguably the better design regardless of which bugs had forced it. Watching a service from a separate process, over a real network boundary, is closer to how monitoring actually works in practice than a monitor sharing a process with the thing it watches. The split was kept on its own merits, not reverted the moment the constraint that originally forced it disappeared.</p>
+
+<p>One thing the fixes did not reach: interning <code>Http_Client</code> and <code>data/Json</code> together still breaks a parsed <code>Map</code>'s methods, narrowed now to specifically inside a <code>function ... do ... end</code> body. <code>fetch_status</code> and <code>fetch_rescan</code> are functions, so they still read responses with <code>text/Regex</code> rather than <code>data/Json</code>, exactly as Chapter 7's client does — a workaround that is still relevant, just precisely scoped now rather than assumed to cover more ground than it does.</p>
+
+<p>The lesson this chapter actually teaches is not "it all works now." It is that composing two independently-correct pieces surfaced two real, separate bugs that neither project's own isolated check suite ever exercised — because each was tested against the one backend it needed, in isolation, never in combination with a second library making outbound calls from inside the same function. That gap is what integration finds and unit-level work structurally cannot, in any language, whether or not the specific bugs this book hit happen to still exist by the time you read this. Blocked, blocked again for a different reason, fixed, and the better design kept anyway — that is the real shape of composing what you've already built.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_8.html"><span class="label">&larr; Chapter 8</span><span class="ttl">A Live Desktop Dashboard</span></a></div><div class="next"><a href="appendix_a.html"><span class="label">Appendix A &rarr;</span><span class="ttl">Practice Index</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Text-Analysis CLI — Contracts at Work</title>
+<meta name="description" content="A word-frequency counter. The CLI's contract before its code: flags, exit codes, and boundary-located errors.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_1.html" class="active">Ch. 1</a><a href="chapter_2.html">Ch. 2</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 1 &middot; Part I</span>
+<h1 class="opener-title">A Text-Analysis CLI</h1>
+<p class="opener-lede">A small tool that counts lines, words, and word frequency in a text file. Nothing about it is hard. That is exactly why it is the right place to start: with no algorithmic difficulty to hide behind, every discipline in this book has to show up on its own merits.</p>
+</div>
+<article class="prose">
+
+<p>Call it <code>nexwc</code> — a distant cousin of Unix's <code>wc</code>, with word frequency added. Given a file, it reports how many lines and words it contains, and its most common words. A programmer could write a version of this in twenty minutes without thinking about contracts at all. The point of walking through it carefully is to notice what changes when you do think about them — where the design gets stated before the code, where a boundary gets a real check instead of an assumption, and what ends up genuinely worth testing once the library underneath is separated from the command line wrapped around it.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p><code>nexwc</code> takes a file path and an optional flag:</p>
+
+<pre><code>nexwc &lt;file&gt;              -- line/word counts, top 5 words
+nexwc &lt;file&gt; --top &lt;n&gt;     -- top n words instead of top 5</code></pre>
+
+<p>Everything about its behavior at the boundary has to be decided before any code: what happens when the file does not exist, what happens when <code>--top</code> is given a non-positive number or no number at all, and what the process's exit code means to whatever invoked it. A CLI's real interface isn't its function signatures. It's the shape of its arguments, the text of its errors, and the number it hands back to the shell. Decide that first, and the implementation underneath has very little room to be wrong in a way that matters.</p>
+
+<p>Nex's <code>Process</code> class has no way to set the exit code directly — there is no <code>Process.exit_with(n)</code> in the standard library, by design; a process's exit status is host machinery, not language machinery. So the one place this program reaches across that boundary explicitly is a single small function:</p>
+
+<pre><code>import java.lang.System
+
+function fail(message: String, code: Integer) do
+  print("error: " + message)
+  with "java" do
+    System.exit(code)
+  end
+end</code></pre>
+
+<p>Every error path in <code>nexwc</code> goes through <code>fail</code>, and nowhere else. That is worth noticing before anything else in this chapter: the interop is not scattered through the program wherever an error might occur. It is named once, does one thing, and every caller trusts it to actually stop execution rather than falling through — which is exactly the kind of promise a contract is good at stating, even here, where the promise is about control flow rather than a value.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p>The counting logic has nothing to do with files, flags, or exit codes, so it does not live anywhere near them. <code>Word_Stats</code> is a small, pure class: construct it with a block of text, ask it questions.</p>
+
+<pre><code>class Word_Stats
+  create
+    make(text: String) do
+      this.text := text
+    end
+  feature
+    text: String
+
+    line_count(): Integer
+      do
+        if text = "" then
+          result := 0
+        else
+          result := text.split("\n").length
+        end
+      ensure
+        non_negative: result &gt;= 0
+      end
+
+    word_count(): Integer
+      do
+        result := words().length
+      ensure
+        non_negative: result &gt;= 0
+      end</code></pre>
+
+<p>These postconditions look almost too obvious to write — of course a count is non-negative. That is the point of writing them anyway. A postcondition earns its keep the moment the implementation changes and stops being obviously correct; <code>non_negative</code> costs one line today and stands guard against every future edit to <code>line_count</code>'s body, including ones nobody has thought of yet. The interesting contract in this file is <code>top_words</code>, the one method with real work to do:</p>
+
+<pre><code>-- The n most frequent words, most frequent first; ties broken
+-- alphabetically so the output is deterministic.
+top_words(n: Integer): Array[Count_Entry]
+  require
+    positive: n &gt; 0
+  do
+    ...
+  ensure
+    bounded: result.length &lt;= n
+  end</code></pre>
+
+<p><code>require positive: n &gt; 0</code> is the contract's half of a promise that the CLI layer has to keep: <em>whatever calls this method has already made sure <code>n</code> is a positive count.</code> That single line is why <code>--top</code>'s validation belongs on the command-line side of this program rather than inside the library — the library states what it needs at its boundary and trusts the caller to have gotten there, rather than re-checking a condition its caller already checked. <code>ensure bounded</code> closes the other end: whatever the frequency table looks like, you never get back more entries than you asked for, even from a two-word input.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p>Word splitting uses a compiled regular expression rather than hand-rolled character scanning — this is what a CLI tool's arithmetic actually looks like once the interesting part is a library method away:</p>
+
+<pre><code>intern text/Regex
+
+words(): Array[String] do
+  let rx: Regex := create Regex.compile_with_flags("[a-z']+", "i")
+  result := rx.find_all(text)
+end</code></pre>
+
+<p>Frequency counting builds a <code>Map[String, Integer]</code>, converts it to an array of a small result type, and sorts by count with a case-insensitive alphabetical tiebreaker, using an inline comparison function passed straight to <code>sort</code>:</p>
+
+<pre><code>let sorted: Array[Count_Entry] := entries.sort(fn(a: Count_Entry, b: Count_Entry): Integer do
+  if a.count /= b.count then
+    result := b.count - a.count
+  elseif a.word &lt; b.word then
+    result := -1
+  elseif a.word &gt; b.word then
+    result := 1
+  else
+    result := 0
+  end
+end)</code></pre>
+
+<p>The tiebreak matters more than it looks like it should: without it, two words with equal frequency could print in either order depending on <code>Map</code> iteration order, and a test asserting an exact top-N list would be flaky through no fault of its own. Deterministic output is a design decision, not an accident, and it is cheaper to build in here than to chase down later as an intermittent test failure.</p>
+
+<p>The CLI wrapper, <code>nexwc.nex</code>, is where argument parsing lives — and where the postcondition on <code>parse_top_count</code> mirrors <code>top_words</code>'s precondition on the other side of the same promise:</p>
+
+<pre><code>function parse_top_count(args: Array[String]): Integer
+  do
+    result := 5
+    let i: Integer := 0
+    from
+      i := 0
+    until
+      i = args.length
+    do
+      if args.get(i) = "--top" then
+        if i + 1 &gt;= args.length then
+          fail("--top requires a number", 2)
+        end
+        let n: Integer := args.get(i + 1).to_integer()
+        if n &lt;= 0 then
+          fail("--top must be a positive integer, got " + args.get(i + 1), 2)
+        end
+        result := n
+      end
+      i := i + 1
+    end
+  ensure
+    positive: result &gt; 0
+  end</code></pre>
+
+<p>Notice the shape of this: <code>parse_top_count</code> never returns without either a positive number or having already called <code>fail</code>, which does not return at all. The <code>ensure positive: result &gt; 0</code> is not defensive filler — it is a machine-checked statement that this function's two exit paths (a good number, or no return) are the only two that exist, which is exactly the guarantee <code>top_words</code>'s precondition needs from its caller. This is "parse, don't validate" in miniature: <code>args</code> is parsed into a value that is positive <em>by construction</em> the moment it exists, so nothing downstream ever needs to ask again.</p>
+
+<p>The one thing this project needed that the design above did not anticipate: a bare relative path such as <code>nexwc.nex sample.txt</code> resolves against the <code>nex</code> CLI launcher's own installation directory, not wherever the program was actually invoked from — the launcher changes into <code>$NEX_HOME</code> before starting the JVM. This is documented behavior in the language, not a bug, and the fix is a few lines that read the caller's real working directory back out of an environment variable the launcher sets beforehand:</p>
+
+<pre><code>function resolve_path(proc: Process, raw: String): String do
+  if raw.starts_with("/") then
+    result := raw
+  else
+    result := proc.getenv("NEX_USER_DIR") + "/" + raw
+  end
+end</code></pre>
+
+<p>Every project in this book that touches a file by a relative path — Chapters 2, 5, and 9 among them — uses this exact pattern.</p>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p><code>Word_Stats</code> is pure and host-free, so its check suite is eight direct assertions with nothing to set up and nothing to tear down — construct it with a string, ask it questions, compare the answers:</p>
+
+<pre><code>let sample: String := "the quick brown fox\njumps over the lazy dog\nthe fox runs"
+let stats: Word_Stats := create Word_Stats.make(sample)
+
+c.check("line_count", "3", "" + stats.line_count())
+c.check("word_count", "12", "" + stats.word_count())
+
+let top2: Array[Count_Entry] := stats.top_words(2)
+c.check("top_words[0]", "the: 3", top2.get(0).to_string())
+c.check("top_words[1]", "fox: 2", top2.get(1).to_string())</code></pre>
+
+<p><code>nexwc.nex</code> itself has no automated check suite, and that is a deliberate choice rather than an omission. Once the counting logic is fully covered as a library, what is left in the entry-point file is argument parsing, an existence check, and a print loop — thin enough that the cost of scripting a subprocess harness to assert on stdout and exit codes would outweigh what it catches. It was still verified directly, by hand, before being trusted: run against the sample file with no flag, with <code>--top 3</code>, against a missing file, and against a malformed <code>--top</code> value, checking in each case that the output and exit code matched what <a href="#problem">Problem</a> promised. That is the real shape of testing a CLI tool built this way — exhaustive, automated coverage on the pure library beneath it, and a short, deliberate manual pass on the thin host-facing shell that calls it.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p><code>Process.command_line()</code> — the method <code>nexwc.nex</code> depends on for its own <code>argv</code> — did not work correctly when this project was first built; it returned the JVM's own launch flags rather than the program's real arguments, which meant no Nex CLI tool could read its arguments at all, on any backend. It is fixed now, confirmed with a standalone program that prints its own argument count and values, checked against the interpreter, the default JVM backend, and a compiled standalone jar alike. <code>nexwc.nex</code> needed no changes when the fix landed — it was written correct against the language as documented, and simply started working. That says something about stating a boundary precisely, even against a library that was not yet behaving correctly: correctness arrived as a silent upgrade instead of a rewrite.</p>
+
+<p>Everything else here held on the first pass: the counting logic, the postconditions, the relative-path workaround, and the split between what gets an automated check and what gets a careful manual one. Chapter 2 picks up a harder version of the same question this project answered quietly — what a contract owes a piece of state that has to survive being written to disk and read back.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="how_this_book_works.html"><span class="label">&larr; Front Matter</span><span class="ttl">How This Book Works</span></a></div><div class="next"><a href="chapter_2.html"><span class="label">Chapter 2 &rarr;</span><span class="ttl">A Persistent Task Tracker</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>An HTTP JSON API — Contracts at Work</title>
+<meta name="description" content="A service and its CLI client either side of net/Http_Server; Project 4's interpreter embedded as an endpoint.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_7.html" class="active">Ch. 7</a><a href="chapter_8.html">Ch. 8</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 7 &middot; Part IV</span>
+<h1 class="opener-title">An HTTP JSON API</h1>
+<p class="opener-lede">This project builds nothing new to compute — it embeds Chapter 4's expression interpreter, unmodified, behind a single HTTP endpoint. The whole chapter is about the boundary around it: what a network request is allowed to assume, and what happens when it assumes wrong.</p>
+</div>
+<article class="prose">
+
+<p><code>calc_service</code> exposes <code>POST /evaluate</code>: send an expression, optionally with variable bindings, get back a result — or, for a malformed expression or a genuine contract violation like division by zero, a 400 response with an error body instead of a crash. The interpreter behind it is Chapter 4's <code>expr.nex</code>, embedded exactly as that chapter described: a library built for exactly this kind of reuse, with no idea it is being called over HTTP at all.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>The interpreter's own contracts — <code>require non_zero</code>, <code>require known</code> — are stated in terms of Nex's control flow: a violation is a program failure, caught with <code>rescue</code>. HTTP has no such mechanism. A network client cannot catch a Nex precondition violation; it can only read a status code and a body. So this project's real design work is a translation layer: turning "the interpreter's contract was violated" into "the HTTP contract says this was the client's fault" — status 400, with an error message describing what actually went wrong, not a crashed connection or a generic 500.</p>
+
+<p>The request and response shapes are settled first, the same discipline as every earlier chapter:</p>
+
+<pre><code>POST /evaluate
+{"expr": "1 + x", "vars": {"x": 2}}
+
+200 {"result": 3.0}
+400 {"error": "Precondition violation: known"}</code></pre>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p><code>Calc_Service</code>'s constructor registers exactly one route, and the handler is an ordinary method on the service itself:</p>
+
+<pre><code>class Calc_Service
+  create
+    make(port: Integer) do
+      this.server := create Http_Server.make(port)
+      this.json := create Json.make()
+      server.post("/evaluate", fn(req: Http_Request): Http_Server_Response do
+        result := this.handle_evaluate(req)
+      end)
+    end</code></pre>
+
+<p>That last line is doing more design work than it looks like — the route closure's entire body is a single call out to <code>this.handle_evaluate(req)</code>, which means the actual request-handling logic lives as a normal, testable method on <code>Calc_Service</code>, not smeared across an anonymous callback. The closure's only job is to be the thing <code>Http_Server</code>'s API wants; everything a reader would actually want to understand about how this service behaves is one method away, in ordinary object-oriented shape.</p>
+
+<p>The translation from interpreter contract to HTTP status lives in one place, wrapping the interpreter call in exactly the boundary this project exists to build:</p>
+
+<pre><code>handle_evaluate(req: Http_Request): Http_Server_Response do
+  do
+    let body: Map[String, Any] := json.parse(req.body())
+    let expr_text: String := body.get("expr")
+    let vars: Map[String, Real] := parse_vars(body)
+    let value: Real := evaluate(expr_text, vars)
+    let payload: Map[String, Any] := {}
+    payload.set("result", value)
+    result := json_response(200, payload)
+  rescue
+    let payload: Map[String, Any] := {}
+    payload.set("error", "" + exception)
+    result := json_response(400, payload)
+  end
+end</code></pre>
+
+<p>Every way <code>evaluate</code> can fail — a malformed expression the parser rejects, a division by zero, an undefined variable — is a Nex-level failure caught by the same <code>rescue</code>, and every one of them becomes the same shape of HTTP response: 400, with the failure's own message as the error text. The interpreter never had to change to support this; Chapter 4's contract violations already carried exactly the information this boundary needed, which is the payoff of having designed them as labeled failures in the first place rather than silent wrong answers.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p>One conversion detail is worth a look, because it is exactly the kind of small seam where two systems' type models disagree: JSON has one number type; Nex's parser distinguishes <code>Integer</code> from <code>Real</code>, and <code>evaluate</code> wants every variable as a <code>Real</code> regardless of how the client happened to write it in the request body:</p>
+
+<pre><code>-- JSON integers parse as Integer, JSON decimals as Real; evaluate wants
+-- Real either way.
+to_real_any(v: Any): Real do
+  if type_is("Integer", v) then
+    let n: Integer := v
+    result := n.to_real()
+  else
+    result := v
+  end
+end</code></pre>
+
+<p><code>{"x": 2}</code> and <code>{"x": 2.0}</code> both have to reach <code>evaluate</code> as the same kind of value, and this is the one place that reconciliation happens — a small, boring, necessary piece of code that exists entirely because two systems (JSON's number model, Nex's type system) meet at this boundary and do not agree on how many number types there are.</p>
+
+<p><code>json_response</code> closes the loop on the other side, the one place a status code and a payload become an actual HTTP response with the right content type:</p>
+
+<pre><code>json_response(status_code: Integer, payload: Map[String, Any]): Http_Server_Response do
+  let headers: Map[String, String] := {}
+  headers.set("Content-Type", "application/json")
+  result := create Http_Server_Response.make(status_code, json.stringify(payload), headers)
+end</code></pre>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p>The check suite starts a real <code>Calc_Service</code> on an ephemeral port and drives it with a real <code>Http_Client</code> — the same commitment to integration testing over mocking that Chapter 6's chat tests made, applied to HTTP instead of raw sockets:</p>
+
+<pre><code>let r2: Http_Response := client.post(base + "/evaluate",
+  "{\"expr\":\"x * x + y\",\"vars\":{\"x\":3,\"y\":1}}")
+let body2: Map[String, Any] := json.parse(r2.body())
+c.check("vars result", "10.0", "" + body2.get("result"))
+
+let r3: Http_Response := client.post(base + "/evaluate", "{\"expr\":\"1 / 0\"}")
+c.check("division by zero status", "400", "" + r3.status())
+c.check("division by zero has error", "true", "" + body3.contains_key("error"))</code></pre>
+
+<p>Notice what that last pair of checks actually proves: not just that a bad expression fails somehow, but that it fails with the specific, designed HTTP contract this project promises — status 400, an <code>error</code> key present in the body. A test that only checked "the request didn't crash the server" would miss the entire point of building the translation layer in the first place.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>Two of three issues hit here are fixed upstream, and the code was rewritten to match rather than kept defensive against bugs that no longer exist. A closure passed as a callback — <code>fn</code>, exactly like <code>Http_Server</code>'s route handler here — could not call a method on its enclosing object; fixed, so <code>handle_evaluate</code>, <code>parse_vars</code>, and <code>json_response</code> are ordinary <code>Calc_Service</code> methods again, called as <code>this.handle_evaluate(req)</code> directly from the route closure, instead of free functions threading a captured <code>json</code> local around by hand. <code>Integer</code> had no <code>to_real()</code> method; fixed, so <code>to_real_any</code> calls it directly instead of promoting with the workaround <code>n + 0.0</code>.</p>
+
+<p>One issue is real and still shapes this project's client. Interning both <code>net/Http_Client</code> and <code>data/Json</code>, then calling a method like <code>.get()</code> on a <code>Map</code> that <code>json.parse(...)</code> produced, still fails — but only inside a <code>function ... do ... end</code> body. The identical code as bare top-level statements does not fail, which is why <code>checks.nex</code> above, written as top-level statements throughout, has always read parsed response bodies with <code>.get()</code> without incident, while <code>calc_client.nex</code> — whose logic necessarily lives inside <code>main()</code> — cannot. That project's response handling reads the one field its own fixed response shape ever produces with a small, fixed-lookbehind <code>text/Regex</code> instead, entirely sidestepping <code>data/Json</code>'s parse result inside a function body:</p>
+
+<pre><code>let result_rx: Regex := create Regex.compile('(?&lt;="result":)[^,}]+')
+...
+print("= " + result_rx.find(body))</code></pre>
+
+<p>Building the request body still goes through <code>json.stringify</code> without issue — the bug is specific to reading a parsed <code>Map</code>'s fields inside a function, not to using <code>data/Json</code> at all.</p>
+
+<p>One process again in Chapter 8, but a boundary this book has not crossed yet: not the network this time, but the host platform's own GUI toolkit.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_6.html"><span class="label">&larr; Chapter 6</span><span class="ttl">A TCP Chat Server</span></a></div><div class="next"><a href="chapter_8.html"><span class="label">Chapter 8 &rarr;</span><span class="ttl">A Live Desktop Dashboard</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

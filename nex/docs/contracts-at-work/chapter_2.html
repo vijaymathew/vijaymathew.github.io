@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Persistent Task Tracker — Contracts at Work</title>
+<meta name="description" content="Modeling task state with refinement types, round-tripping it through JSON, and evolving a file format without breaking old data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="chapter_2.html" class="active">Ch. 2</a><a href="chapter_3.html">Ch. 3</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Chapter 2 &middot; Part I</span>
+<h1 class="opener-title">A Persistent Task Tracker</h1>
+<p class="opener-lede">Chapter 1's contracts guarded values that lived and died within a single run. This project's tasks have to survive being written to disk, closed, and read back, sometimes by a version of the program that no longer agrees with the file format it wrote a year earlier.</p>
+</div>
+<article class="prose">
+
+<p><code>tasks_cli</code> is a small, interactive task tracker: add a task with a priority, list them, mark one done, remove one, and have all of it still be there the next time the program starts. Nothing here is algorithmically hard either. The difficulty this project takes on is a different kind: state that outlives the process holding it, and a file format that has to be free to change without every previously saved file becoming garbage the moment it does.</p>
+
+<section id="problem" class="level2">
+<h2>Problem</h2>
+
+<p>Unlike Chapter 1's one-shot <code>nexwc</code>, a task tracker used across a session wants a running conversation, not a single argv line — <code>add 3 buy milk</code>, then <code>list</code>, then <code>done 1</code>, all against the same in-memory store, saved to disk after anything that changes it:</p>
+
+<pre><code>tasks_cli — commands: add &lt;priority&gt; &lt;text&gt;, list, done &lt;id&gt;, remove &lt;id&gt;, quit
+&gt; add 3 buy milk
+added #1
+&gt; add 1 write chapter
+added #2
+&gt; done 2
+marked #2 done
+&gt; list
+[ ] #1 (p3) buy milk
+[x] #2 (p1) write chapter
+&gt; quit</code></pre>
+
+<p>So the interface here is a REPL loop reading from stdin (<code>Console.read_line</code>) rather than a single parsed argv, which is a better fit for this project on its own terms — a tracker meant to run <code>add</code>, <code>list</code>, and <code>done</code> across one session has no natural single command line to parse. It is the same boundary-parsing discipline as Chapter 1, applied to a line of stdin instead of an argv entry: turn untrusted text into a validated command, once, at the edge, and let everything behind that edge trust the result.</p>
+
+<p>The harder boundary in this project is not the command line at all. It is the file on disk. What gets written today has to still be readable months from now, even after the schema has grown a field that did not exist when some of the saved files were written.</p>
+</section>
+
+<section id="design-as-contract" class="level2">
+<h2>Design as Contract</h2>
+
+<p>A task's status is a closed set of two states, and Nex's <code>union</code> makes that fact checkable rather than a convention someone has to remember:</p>
+
+<pre><code>union Task_Status
+  Open
+  Done
+end</code></pre>
+
+<p>There is no string to misspell and no boolean whose meaning is only in a comment: <code>is_done</code> reads as an exhaustive <code>match</code>, and if a third status ever joins <code>Open</code> and <code>Done</code>, every <code>match</code> like this one stops compiling until it accounts for the new case:</p>
+
+<pre><code>is_done(): Boolean do
+  match status of
+    when Done then result := true
+    when Open then result := false
+  end
+end</code></pre>
+
+<p>Priority takes the same idea further, onto a plain <code>Integer</code>: a task's priority is only ever meaningful between 1 and 5, so that constraint is written once, as the type itself, rather than re-checked at every place a priority value is accepted:</p>
+
+<pre><code>declare type Priority = Integer where p: p &gt;= 1 and p &lt;= 5</code></pre>
+
+<p><code>Task.make</code> takes a <code>Priority</code>, not an <code>Integer</code> plus a comment saying "must be 1–5" — the type checker enforces the range at the constructor's boundary, and every method inside <code>Task</code> that reads <code>priority</code> back out gets to assume the range holds, because there is no way to construct a <code>Task</code> that violates it. This is the same "parse, don't validate" instinct as Chapter 1's <code>parse_top_count</code>, pushed one level further: instead of a function that checks a condition and returns a plain value, the value's own type carries the condition, and the check happens exactly once, wherever a <code>Priority</code> first comes into existence.</p>
+
+<p>The collection itself, <code>Task_Store</code>, states its promises the same way. Adding a task is guaranteed to grow the collection by exactly one:</p>
+
+<pre><code>add(text: String, priority: Priority): Integer
+  require
+    non_empty: text /= ""
+  do
+    let t: Task := create Task.make(next_id, text, priority)
+    tasks.add(t)
+    result := next_id
+    next_id := next_id + 1
+  ensure
+    grew: tasks.length = old tasks.length + 1
+  end</code></pre>
+
+<p><code>old tasks.length</code> is doing real work in that postcondition: it names the collection's size <em>before</em> this method ran, so the <code>ensure</code> clause can state a relationship between two moments in time — not just "the length is some value" but "the length grew by exactly one" — in one line, checked automatically on every call.</p>
+
+<p>One more design decision looks, at first, like the kind of thing a reader might expect to be a mistake: <code>add</code> returns the new task's <code>id</code>, an <code>Integer</code>, not the <code>Task</code> object it just created. That was originally a workaround for an interpreter limitation, since fixed, but it is kept now on its own merits. A caller holding an id has to go back through <code>find</code> to get anything, which keeps <code>Task_Store</code> the single place that can tell you a task's current, authoritative state; a caller holding a direct reference to a <code>Task</code> object could let it go stale the moment the store's own copy changes underneath it. Sometimes the right fix and the original workaround end up being the same code for different reasons, and that happens rather than every bug getting reflexively reverted the moment it's found.</p>
+</section>
+
+<section id="build" class="level2">
+<h2>Build</h2>
+
+<p><code>Task_Store</code> keeps serialization and file I/O as two separate concerns on purpose: <code>to_json</code>/<code>parse_json</code> touch nothing but strings and are testable without a filesystem; <code>save_to</code>/<code>load_from</code> are the only two methods that know a <code>Path</code> exists at all.</p>
+
+<p>The interesting design decision is the file format itself. The current schema (version 2) writes one JSON object per line (a header line naming the schema version, then one line per task) rather than a single document with a nested array:</p>
+
+<pre><code>{"schema_version":2}
+{"id":1,"text":"buy milk","priority":3,"status":"open"}
+{"id":2,"text":"write chapter","priority":1,"status":"done"}</code></pre>
+
+<p>A flat, one-record-per-line format is easy to append to and easy to diff, a reasonable choice for a store that saves after every change, independent of anything the language does or doesn't do well. Reading it back has to handle two schema versions at once, because task files written before this project's schema grew a <code>priority</code> field, and used a plain boolean instead of an open/closed status, still have to load correctly:</p>
+
+<pre><code>-- schema version 1: one JSON document, a bare top-level array:
+-- [{"id":1,"text":"...","done":false}, ...]
+if trimmed.starts_with("[") then
+  let items: Array[Any] := json.parse(trimmed)
+  ...
+else
+  -- schema version 2: one JSON object per line; skip the header line.
+  let lines: Array[String] := trimmed.split("\n")
+  ...
+end</code></pre>
+
+<p>Whichever branch runs, both funnel into the same reconstruction step, where the two schemas' differences get resolved once, in one place, rather than scattered through the rest of the class:</p>
+
+<pre><code>let priority: Integer := m.try_get("priority", 3)
+let done: Boolean := false
+if m.contains_key("status") then
+  done := (m.get("status") = "done")
+elseif m.contains_key("done") then
+  done := m.get("done")
+end</code></pre>
+
+<p>A version-1 file with no <code>priority</code> field gets a sensible default (<code>3</code>) rather than a missing-field error; a version-1 file's boolean <code>done</code> and a version-2 file's string <code>status</code> both resolve to the same internal <code>Task_Status</code>. Migration happens once, at load, and everything downstream — including every method on <code>Task</code> — only ever sees the current shape.</p>
+</section>
+
+<section id="test" class="level2">
+<h2>Test</h2>
+
+<p>Eighteen checks cover the store's ordinary operations — add, find, <code>mark_done</code>, remove, and the failure cases (marking a nonexistent id, removing twice) — plus two that exercise persistence directly, without touching disk. A round trip through <code>to_json</code> and back through <code>parse_json</code> confirms the format preserves everything that matters:</p>
+
+<pre><code>let json_text: String := store.to_json()
+let reloaded: Task_Store := create Task_Store.make()
+reloaded.parse_json(json_text)
+c.check("round trip task text", "write chapter", reloaded.tasks.get(0).text)
+c.check("round trip status survives", "true", "" + reloaded.tasks.get(0).is_done())
+c.check("round trip priority survives", "1", "" + reloaded.tasks.get(0).priority)</code></pre>
+
+<p>And a hand-written schema-version-1 string, constructed directly in the test rather than loaded from a fixture file, confirms migration works without ever writing an old-format file to disk first:</p>
+
+<pre><code>let legacy_json: String := "[{\"id\":5,\"text\":\"legacy task\",\"done\":true}," +
+                            "{\"id\":7,\"text\":\"legacy open task\",\"done\":false}]"
+let migrated: Task_Store := create Task_Store.make()
+migrated.parse_json(legacy_json)
+c.check("migrated default priority", "3", "" + m5.priority)
+c.check("migrated next_id", "8", "" + migrated.next_id)</code></pre>
+
+<p>That last assertion — <code>next_id</code> correctly picking up at one past the highest id seen, even across a migrated file whose ids were never assigned by this store's own counter — is the kind of edge a manual smoke test tends to miss and an automated check catches for free, every time, forever.</p>
+</section>
+
+<section id="retrospective" class="level2">
+<h2>Retrospective</h2>
+
+<p>This project's first build needed <code>--interpret</code> for several independent reasons, all since fixed upstream, and its code was rewritten back to the idiomatic form each fix made possible rather than left defensive against bugs that no longer exist. Method calls on a <code>Map</code> produced by <code>data/Json.parse(...)</code> failed outright on the JVM backend; fixed, and this project no longer needs <code>--interpret</code> at all. Refinement types declared in a file loaded via <code>intern</code> from elsewhere weren't resolved by the type checker; fixed, so <code>Priority</code> is a real refinement type again rather than a <code>require</code> clause standing in for one. <code>old &lt;array-field&gt;.length</code> snapshotted the field's live reference instead of its value at entry, silently defeating exactly the kind of postcondition <code>add</code> depends on; fixed, so <code>ensure grew</code> reads <code>old tasks.length</code> directly. And mutating an object through a <code>?T</code>-typed binding on the interpreter didn't reliably persist; fixed, so <code>mark_done</code> goes back through <code>find</code> and mutates the optional it returns, instead of re-indexing into the array to route around the bug.</p>
+
+<p>One issue survives, narrower than it first looked: a <code>Map</code> returned by <code>json.parse(...)</code> works fine as a plain local variable or inside an <code>Array[Any]</code>, but storing one into a specifically <code>Array[Map[String, Any]]</code>-typed array still breaks a method call on retrieval, on the JVM backend, inside a class method. <code>parse_json</code>'s intermediate <code>rows</code> collection stays <code>Array[Any]</code> for exactly this reason, with each element cast back to <code>Map[String, Any]</code> via an ordinary <code>let</code> the instant it is read out — a one-line workaround, still needed, now precisely scoped rather than assumed to be part of a larger, already-fixed bug.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="chapter_1.html"><span class="label">&larr; Chapter 1</span><span class="ttl">A Text-Analysis CLI</span></a></div><div class="next"><a href="chapter_3.html"><span class="label">Chapter 3 &rarr;</span><span class="ttl">A Generic LRU Cache</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

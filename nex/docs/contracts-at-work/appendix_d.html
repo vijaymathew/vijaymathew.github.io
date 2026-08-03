@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appendix D &middot; Reading Guide — Contracts at Work</title>
+<meta name="description" content="For a reader who has not done Programming with Nex first.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="appendix_c.html">App. C</a><a href="appendix_d.html" class="active">App. D</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix D</span>
+<h1 class="opener-title">Reading Guide</h1>
+<p class="opener-lede">You do not need to have read <em>Programming with Nex</em> to follow the listings in this book. Here is the vocabulary they actually use, in one place, for a reader who already knows another statically typed language.</p>
+</div>
+<article class="prose">
+
+<section id="basics" class="level2">
+<h2>Comments, Values, and Classes</h2>
+
+<p>Comments begin with <code>--</code> and run to end of line. <code>let</code> declares a local with a type and an initial value; <code>:=</code> is both declaration-assignment and plain reassignment. Equality is <code>=</code>, inequality is <code>/=</code>.</p>
+
+<pre><code>let total: Integer := 3 + 4
+total := total + 1</code></pre>
+
+<p>A class groups data (<code>feature</code>) and constructors (<code>create</code>); inside a method, <code>this</code> is the current object and <code>result</code> is the name you assign to for a return value:</p>
+
+<pre><code>class Counter
+  create
+    make(start: Integer) do value := start end
+  feature
+    value: Integer
+    increment() do value := value + 1 end
+    current(): Integer do result := value end
+
+let c: Counter := create Counter.make(0)
+c.increment()</code></pre>
+
+<p>A no-argument method may be called without parentheses — <code>store.tasks</code> rather than <code>store.tasks()</code> — which is why several listings in this book read a field-like value with no trailing <code>()</code>.</p>
+</section>
+
+<section id="generics-collections" class="level2">
+<h2>Generics, Arrays, and Maps</h2>
+
+<p>Type parameters go in square brackets: <code>class Lru_Cache [K, V]</code> (<a href="chapter_3.html">Chapter 3</a>). The two collections every project in this book uses are <code>Array[T]</code> and <code>Map[K, V]</code>:</p>
+
+<pre><code>let xs: Array[Integer] := [1, 2, 3]
+xs.add(4)
+let first: Integer := xs.get(0)
+
+let prices: Map[String, Integer] := {}
+prices.set("apple", 150)
+if prices.contains_key("apple") then ... end</code></pre>
+
+<p><code>Any</code> is the top type every value inherits, used where a project deliberately steps outside static typing — parsing untyped JSON in Chapters 2, 7, and 9 is the only place this book does that.</p>
+</section>
+
+<section id="detachable-types" class="level2">
+<h2>Detachable Types: <code>?T</code></h2>
+
+<p>A leading <code>?</code> on a type marks it detachable — it may hold <code>nil</code>. <code>Task_Store.find</code> in <a href="chapter_2.html">Chapter 2</a> returns <code>?Task</code>: either a real task, or nothing, stated in the type rather than left to a caller's memory of whether a sentinel value might come back instead.</p>
+
+<pre><code>let t: ?Task := store.find(id)
+if t /= nil then
+  t.mark_done()
+end</code></pre>
+</section>
+
+<section id="union-match" class="level2">
+<h2>Sum Types: <code>union</code> and <code>match</code></h2>
+
+<p>A <em>sum type</em> — a value that is exactly one of a closed set of shapes — is written <code>union</code>, one line per shape:</p>
+
+<pre><code>union Task_Status
+  Open
+  Done
+end</code></pre>
+
+<p><code>match</code> takes a sum type apart, and because the set of shapes is closed, the compiler requires every case to be handled — a missing one is a compile error, not a runtime surprise:</p>
+
+<pre><code>match status of
+  when Done then result := true
+  when Open then result := false
+end</code></pre>
+
+<p>A <code>when</code> pattern can also destructure fields carried by a shape — <code>when Bin_Op(op, left, right) then ...</code> in <a href="chapter_4.html">Chapter 4</a>'s expression AST binds three locals directly from the matched variant.</p>
+</section>
+
+<section id="refinement-types" class="level2">
+<h2>Refinement Types</h2>
+
+<p>A refinement type narrows an existing type with a predicate, in one line, with no wrapper class — at runtime, the value <em>is</em> its base type:</p>
+
+<pre><code>declare type Priority = Integer where p: p &gt;= 1 and p &lt;= 5</code></pre>
+
+<p>The predicate is checked wherever a plain value is narrowed into the refined type — a parameter, a typed <code>let</code> — and never again; code that already holds a <code>Priority</code> can trust the range without re-checking it. <a href="chapter_2.html">Chapter 2</a> develops this fully.</p>
+</section>
+
+<section id="contracts" class="level2">
+<h2>Contracts</h2>
+
+<p>Contracts are ordinary syntax, not a library, and every chapter in this book uses at least one of the three forms below.</p>
+
+<ul>
+<li><strong><code>require</code></strong> — a precondition, checked before a method runs: what the caller must already guarantee.</li>
+<li><strong><code>ensure</code></strong> — a postcondition, checked on return: what the method itself guarantees. <code>old e</code> refers to <code>e</code>'s value on entry.</li>
+<li><strong><code>invariant</code></strong> — a property that holds of every instance of a class, before and after every method call (<a href="chapter_3.html">Chapter 3</a> builds a whole library around one).</li>
+</ul>
+
+<pre><code>add(text: String, priority: Priority): Integer
+  require
+    non_empty: text /= ""
+  do
+    ...
+  ensure
+    grew: tasks.length = old tasks.length + 1
+  end</code></pre>
+
+<p>Each clause has a name (<code>non_empty</code>, <code>grew</code>); a violated contract reports which named promise broke, which is the entire reason this book keeps calling contracts more informative than a generic exception.</p>
+</section>
+
+<section id="loops-functions" class="level2">
+<h2>Functions and Loops</h2>
+
+<p>A free-standing function is written with <code>function</code>. The loop form used throughout this book is <code>from ... until ... do ... end</code> — the <code>from</code> block initializes, the loop runs until its condition becomes true:</p>
+
+<pre><code>let i: Integer := 0
+from
+  i := 0
+until
+  i = xs.length
+do
+  ...
+  i := i + 1
+end</code></pre>
+
+<p>An anonymous function is written <code>fn(params): ReturnType do ... end</code> — <a href="chapter_7.html">Chapter 7</a>'s HTTP route handler and <a href="chapter_5.html">Chapter 5</a>'s sort comparator are both written this way, passed directly where a callback is expected.</p>
+</section>
+
+<section id="concurrency" class="level2">
+<h2>Concurrency: <code>Task</code>, <code>spawn</code>, <code>Channel</code></h2>
+
+<p><code>spawn do ... end</code> starts a block of code running concurrently and returns a <code>Task[T]</code> handle to it — nothing about the syntax differs from an ordinary block, which is deliberate:</p>
+
+<pre><code>let t: Task[Integer] := spawn do
+  result := expensive_computation()
+end
+let value: Integer := t.await()</code></pre>
+
+<p><code>await_all</code> takes an array of tasks and waits for every one, returning their results in order — <a href="chapter_5.html">Chapter 5</a>'s fan-out/fan-in over one file-read task per file is the clearest example in this book. <code>Channel[T]</code> is a typed, thread-safe queue for message passing between tasks, rather than shared mutable state guarded by a lock — <a href="chapter_6.html">Chapter 6</a>'s chat hub is built entirely around one.</p>
+</section>
+
+<section id="modules-interop" class="level2">
+<h2><code>intern</code> and Java Interop</h2>
+
+<p><code>intern &lt;Name&gt;</code> loads another Nex module by name, resolved against a file whose snake_case name matches; <a href="appendix_c.html">Appendix C</a> covers the naming rule this implies in full. <code>import</code> brings in a Java class by its fully-qualified name, and Java code is called from inside a <code>with "java" do ... end</code> block — only <a href="chapter_8.html">Chapter 8</a> and <a href="chapter_9.html">Chapter 9</a>'s dashboards use either. A Nex class implements a Java interface the same way it inherits a Nex one, with <code>inherit</code>:</p>
+
+<pre><code>class Increment_Listener
+  inherit
+    ActionListener
+  ...
+  actionPerformed(e: ActionEvent) do
+    state.increment()
+  end
+end</code></pre>
+
+<p>That is the whole vocabulary this book's listings depend on. Where a construct does something subtle, the chapter it appears in explains it in place.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="appendix_c.html"><span class="label">&larr; Appendix C</span><span class="ttl">The Project Layout Convention</span></a></div><div class="next"><a href="what_next.html"><span class="label">Next &rarr;</span><span class="ttl">What to Build Next</span></a></div></nav>
+</main>
+
+<script>
+document.querySelectorAll('.prose pre').forEach(function (pre) {
+  var wrap = document.createElement('div');
+  wrap.className = 'codeblock';
+  pre.parentNode.insertBefore(wrap, pre);
+  wrap.appendChild(pre);
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn'; btn.textContent = 'Copy';
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(pre.innerText).then(function () {
+      btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400);
+    });
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>

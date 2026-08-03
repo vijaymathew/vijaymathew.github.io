@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appendix B &middot; Building and Packaging Each Project — Contracts at Work</title>
+<meta name="description" content="nex compile jvm, standalone jars, and the interpreter/JVM-backend split.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header class="site-header"><div class="site-header-inner">
+<a class="book-title" href="cover.html">Contracts at Work</a>
+<nav class="book-nav"><a href="index.html">Contents</a><a href="appendix_a.html">App. A</a><a href="appendix_b.html" class="active">App. B</a></nav>
+</div></header>
+<main class="page">
+<div class="opener">
+<span class="opener-label">Appendix B</span>
+<h1 class="opener-title">Building and Packaging Each Project</h1>
+<p class="opener-lede">Everything in this book runs directly with <code>nex</code>. This appendix covers the one step further: turning a project into a standalone artifact someone can run without a Nex install at all.</p>
+</div>
+<article class="prose">
+
+<section id="running-directly" class="level2">
+<h2>Running Directly</h2>
+
+<p><code>nex &lt;file&gt;.nex</code> compiles to the JVM and runs the result in one step — the default for every project in this book, and the mode every check suite here was verified against:</p>
+
+<pre><code>nex checks.nex</code></pre>
+
+<p><code>--interpret</code> runs the same file on Nex's tree-walking interpreter instead of compiling it:</p>
+
+<pre><code>nex checks.nex --interpret</code></pre>
+
+<p>Every project in this book except Chapter 8's dashboard (and Chapter 9's dashboard client, which shares its design) gives identical results on either backend — pick whichever suits how you're working, a REPL-adjacent interpreter loop or a compiled run. Chapter 8 and 9's dashboards specifically require the default JVM backend; that chapter explains why in full.</p>
+</section>
+
+<section id="compiling-a-standalone-jar" class="level2">
+<h2>Compiling a Standalone Jar</h2>
+
+<p><code>nex compile jvm</code> produces a runnable jar that needs nothing but a JVM to execute — no Nex installation, no <code>nex</code> launcher, no source tree alongside it:</p>
+
+<pre><code>nex compile jvm nexwc.nex build/
+# Compiled nexwc.nex -> build/nexwc.jar
+
+java -jar build/nexwc.jar sample.txt --top 3</code></pre>
+
+<p>One thing this book's own relative-path workaround (<a href="chapter_1.html">Chapter 1</a>, and every project that reads a file by a bare relative path) depends on is worth knowing before packaging anything this way: <code>NEX_USER_DIR</code> is set by the <code>nex</code> launcher script itself, before it starts the JVM. Run a compiled jar directly with <code>java -jar</code>, bypassing the launcher entirely, and that variable is simply unset — confirmed directly, packaging <code>nexwc.jar</code> and running it against a relative path with no <code>NEX_USER_DIR</code> in the environment, which fails exactly the way a missing file would. Two ways around it, both confirmed working: pass an absolute path instead of a relative one, or set the variable yourself before invoking the jar —</p>
+
+<pre><code>NEX_USER_DIR="$(pwd)" java -jar build/nexwc.jar sample.txt --top 3</code></pre>
+
+<p>Any project in this book that reads a file by relative path (Chapters 1, 2, 5, and 9) is worth packaging with this in mind, rather than assuming a compiled jar inherits the same working-directory behavior the <code>nex</code> launcher gives it for free.</p>
+</section>
+
+<section id="two-process-projects" class="level2">
+<h2>Two-Process Projects</h2>
+
+<p>Chapters 6, 7, and 9 each run as more than one program talking over a socket or an HTTP connection. Compiling each side separately produces two independent jars, which is arguably the right packaging for a project whose whole design is two separate processes in the first place — Chapter 9's service and dashboard, in particular, were built as two processes for reasons that chapter argues are good ones on their own, and packaging them as two artifacts reflects that rather than papering over it.</p>
+</section>
+
+</article>
+<nav class="chapter-nav"><div class="prev"><a href="appendix_a.html"><span class="label">&larr; Appendix A</span><span class="ttl">Practice Index</span></a></div><div class="next"><a href="appendix_c.html"><span class="label">Appendix C &rarr;</span><span class="ttl">The Project Layout Convention</span></a></div></nav>
+</main>
+</body>
+</html>
