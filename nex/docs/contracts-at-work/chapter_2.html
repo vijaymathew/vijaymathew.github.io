@@ -42,7 +42,7 @@ marked #2 done
 [x] #2 (p1) write chapter
 &gt; quit</code></pre>
 
-<p>So the interface here is a REPL loop reading from stdin (<code>Console.read_line</code>) rather than a single parsed argv, which is a better fit for this project on its own terms — a tracker meant to run <code>add</code>, <code>list</code>, and <code>done</code> across one session has no natural single command line to parse. It is the same boundary-parsing discipline as Chapter 1, applied to a line of stdin instead of an argv entry: turn untrusted text into a validated command, once, at the edge, and let everything behind that edge trust the result.</p>
+<p>So the interface here is a REPL loop reading from stdin (<code>Console.read_line</code>) rather than a single parsed argv. This is a better fit for this project on its own terms — a tracker meant to run <code>add</code>, <code>list</code>, and <code>done</code> across one session has no natural single command line to parse. It is the same boundary-parsing discipline as Chapter 1, applied to a line of stdin instead of an argv entry: turn untrusted text into a validated command, once, at the edge, and let everything behind that edge trust the result.</p>
 
 <p>The harder boundary in this project is not the command line at all. It is the file on disk. What gets written today has to still be readable months from now, even after the schema has grown a field that did not exist when some of the saved files were written.</p>
 </section>
@@ -57,7 +57,7 @@ marked #2 done
   Done
 end</code></pre>
 
-<p>There is no string to misspell and no boolean whose meaning is only in a comment: <code>is_done</code> reads as an exhaustive <code>match</code>, and if a third status ever joins <code>Open</code> and <code>Done</code>, every <code>match</code> like this one stops compiling until it accounts for the new case:</p>
+<p>There is no string to misspell and no boolean whose meaning is only in a comment. If a third status ever joins <code>Open</code> and <code>Done</code>, every <code>match</code> like this one stops compiling until it accounts for the new case:</p>
 
 <pre><code>is_done(): Boolean do
   match status of
@@ -75,24 +75,26 @@ end</code></pre>
 <p>The collection itself, <code>Task_Store</code>, states its promises the same way. Adding a task is guaranteed to grow the collection by exactly one:</p>
 
 <pre><code>add(text: String, priority: Priority): Integer
-  require
-    non_empty: text /= ""
-  do
-    let t: Task := create Task.make(next_id, text, priority)
-    tasks.add(t)
-    result := next_id
-    next_id := next_id + 1
-  ensure
-    grew: tasks.length = old tasks.length + 1
-  end</code></pre>
+require
+  non_empty: text /= ""
+do
+  let t: Task := create Task.make(next_id, text, priority)
+  tasks.add(t)
+  result := next_id
+  next_id := next_id + 1
+ensure
+  grew: tasks.length = old tasks.length + 1
+end</code></pre>
 
 <p><code>old tasks.length</code> is doing real work in that postcondition: it names the collection's size <em>before</em> this method ran, so the <code>ensure</code> clause can state a relationship between two moments in time — not just "the length is some value" but "the length grew by exactly one" — in one line, checked automatically on every call.</p>
 
-<p>One more design decision looks, at first, like the kind of thing a reader might expect to be a mistake: <code>add</code> returns the new task's <code>id</code>, an <code>Integer</code>, not the <code>Task</code> object it just created. That was originally a workaround for an interpreter limitation, since fixed, but it is kept now on its own merits. A caller holding an id has to go back through <code>find</code> to get anything, which keeps <code>Task_Store</code> the single place that can tell you a task's current, authoritative state; a caller holding a direct reference to a <code>Task</code> object could let it go stale the moment the store's own copy changes underneath it. Sometimes the right fix and the original workaround end up being the same code for different reasons, and that happens rather than every bug getting reflexively reverted the moment it's found.</p>
+<p>One more design decision looks, at first, like the kind of thing a reader might expect to be a mistake: <code>add</code> returns the new task's <code>id</code>, an <code>Integer</code>, not the <code>Task</code> object it just created. A caller holding an id has to go back through <code>find</code> to get anything, which keeps <code>Task_Store</code> the single place that can tell you a task's current, authoritative state; a caller holding a direct reference to a <code>Task</code> object could let it go stale the moment the store's own copy changes underneath it.</p>
 </section>
 
 <section id="build" class="level2">
 <h2>Build</h2>
+
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/02_task_tracker">examples/contracts_at_work/02_task_tracker</a> on GitHub.</p></div>
 
 <p><code>Task_Store</code> keeps serialization and file I/O as two separate concerns on purpose: <code>to_json</code>/<code>parse_json</code> touch nothing but strings and are testable without a filesystem; <code>save_to</code>/<code>load_from</code> are the only two methods that know a <code>Path</code> exists at all.</p>
 
@@ -143,21 +145,23 @@ c.check("round trip priority survives", "1", "" + reloaded.tasks.get(0).priority
 <p>And a hand-written schema-version-1 string, constructed directly in the test rather than loaded from a fixture file, confirms migration works without ever writing an old-format file to disk first:</p>
 
 <pre><code>let legacy_json: String := "[{\"id\":5,\"text\":\"legacy task\",\"done\":true}," +
-                            "{\"id\":7,\"text\":\"legacy open task\",\"done\":false}]"
+"{\"id\":7,\"text\":\"legacy open task\",\"done\":false}]"
 let migrated: Task_Store := create Task_Store.make()
 migrated.parse_json(legacy_json)
+let m5: ?Task := migrated.find(5)
+...
 c.check("migrated default priority", "3", "" + m5.priority)
 c.check("migrated next_id", "8", "" + migrated.next_id)</code></pre>
 
 <p>That last assertion — <code>next_id</code> correctly picking up at one past the highest id seen, even across a migrated file whose ids were never assigned by this store's own counter — is the kind of edge a manual smoke test tends to miss and an automated check catches for free, every time, forever.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p>This project's first build needed <code>--interpret</code> for several independent reasons, all since fixed upstream, and its code was rewritten back to the idiomatic form each fix made possible rather than left defensive against bugs that no longer exist. Method calls on a <code>Map</code> produced by <code>data/Json.parse(...)</code> failed outright on the JVM backend; fixed, and this project no longer needs <code>--interpret</code> at all. Refinement types declared in a file loaded via <code>intern</code> from elsewhere weren't resolved by the type checker; fixed, so <code>Priority</code> is a real refinement type again rather than a <code>require</code> clause standing in for one. <code>old &lt;array-field&gt;.length</code> snapshotted the field's live reference instead of its value at entry, silently defeating exactly the kind of postcondition <code>add</code> depends on; fixed, so <code>ensure grew</code> reads <code>old tasks.length</code> directly. And mutating an object through a <code>?T</code>-typed binding on the interpreter didn't reliably persist; fixed, so <code>mark_done</code> goes back through <code>find</code> and mutates the optional it returns, instead of re-indexing into the array to route around the bug.</p>
+<p>A closed set of states is worth writing as a <code>union</code>, and a bounded number is worth writing as a refinement type, rather than either becoming a comment asking a future reader to remember a rule by hand. Both put the checking where the type checker can do it once, instead of at every place the value gets used. A method that returns an id instead of a direct reference keeps one object the single, authoritative source of an entity's current state; a caller holding a direct reference can end up trusting a copy that has already gone stale. And when a stored format has to change, handle every version's differences in exactly one place, at load — <code>parse_json</code> here — so that everything downstream, including every method on <code>Task</code>, only ever has to reason about the current shape.</p>
 
-<p>One issue survives, narrower than it first looked: a <code>Map</code> returned by <code>json.parse(...)</code> works fine as a plain local variable or inside an <code>Array[Any]</code>, but storing one into a specifically <code>Array[Map[String, Any]]</code>-typed array still breaks a method call on retrieval, on the JVM backend, inside a class method. <code>parse_json</code>'s intermediate <code>rows</code> collection stays <code>Array[Any]</code> for exactly this reason, with each element cast back to <code>Map[String, Any]</code> via an ordinary <code>let</code> the instant it is read out — a one-line workaround, still needed, now precisely scoped rather than assumed to be part of a larger, already-fixed bug.</p>
+<p>Chapter 3 turns to a simpler kind of state, one that never has to survive being written to disk at all, and asks what's left to say about a contract once persistence isn't part of the problem.</p>
 </section>
 
 </article>

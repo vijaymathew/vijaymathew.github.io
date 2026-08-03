@@ -37,16 +37,16 @@
 <p>The public surface is deliberately small:</p>
 
 <pre><code>class Lru_Cache [K, V]
-  create
-    make(capacity: Integer)
-      require
-        positive_capacity: capacity &gt; 0
-      do ... end
-  feature
-    size(): Integer do ... end
-    contains(key: K): Boolean do ... end
-    get(key: K): ?V do ... end
-    put(key: K, value: V) do ... end</code></pre>
+create
+  make(capacity: Integer)
+  require
+    positive_capacity: capacity &gt; 0
+  do ... end
+feature
+  size(): Integer do ... end
+  contains(key: K): Boolean do ... end
+  get(key: K): ?V do ... end
+  put(key: K, value: V) do ... end</code></pre>
 
 <p><code>[K, V]</code> makes the cache generic over any key and value type — the eviction policy does not care what it is caching, so nothing about its implementation should either. <code>get</code> returns <code>?V</code>, Nex's detachable-type syntax for "a <code>V</code>, or nothing" — a cache miss is represented in the type itself, not by a sentinel value the caller has to know to check for, and not by an exception for what is, for a cache, an entirely ordinary outcome.</p>
 
@@ -61,6 +61,8 @@
 
 <section id="build" class="level2">
 <h2>Build</h2>
+
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/03_lru_cache">examples/contracts_at_work/03_lru_cache</a> on GitHub.</p></div>
 
 <p><code>put</code> is where the invariant does its clearest work. Overwriting an existing key must not grow the cache or evict anything; inserting a genuinely new key past capacity must evict before inserting, never after:</p>
 
@@ -125,10 +127,10 @@ c.check("overwrite keeps size", "3", "" + cache.size())</code></pre>
 <p>A one-line capacity-1 case closes out the suite — a cache where every single <code>put</code> of a new key evicts something, which is the kind of boundary a generic algorithm's own logic should handle without a special case, and here does.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p>No issues. Both backends agree on all thirteen checks, on the first attempt — the first project in this book where that was true, and worth stating precisely because the others were not so lucky. <code>Lru_Cache</code>'s operations are all scalar and collection manipulation on <code>Map</code> and <code>Array</code>, with no file I/O, no JSON, no <code>?T</code>-typed mutation across a method boundary, and no <code>old</code> reference on a mutable field in a postcondition — which turns out to be close to an exact list of where this pass of Nex's now-fixed bugs clustered. A library kept to the core language plus <code>Map</code>/<code>Array</code> was, at the time this book's projects were built, the safest ground available — and remains, regardless of which bugs exist in which release, a reasonable default for a piece of code whose whole job is to be reusable everywhere without surprises.</p>
+<p>A class invariant can carry more of a specification than any individual method's own postcondition. State the relationship that must always hold between a class's fields once, as an invariant, and every method's own contract gets to stay modest, because the harder guarantee is already someone else's job — <code>ensure present</code> only ever has to say "the key you put is now in the cache," not re-derive what the invariant already promises. And a library whose only purpose is to be reused everywhere is easiest to trust when it depends on as little as possible: the fewer moving parts underneath it, the fewer ways it can surprise a caller who has never seen its implementation.</p>
 
 <p>Chapter 4 also stays inside a single process with no I/O, but its interface is a much larger one than this cache's four methods: every expression a small language can express.</p>
 </section>

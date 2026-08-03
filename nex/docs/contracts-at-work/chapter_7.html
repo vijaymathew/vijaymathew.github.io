@@ -45,14 +45,14 @@
 <p><code>Calc_Service</code>'s constructor registers exactly one route, and the handler is an ordinary method on the service itself:</p>
 
 <pre><code>class Calc_Service
-  create
-    make(port: Integer) do
-      this.server := create Http_Server.make(port)
-      this.json := create Json.make()
-      server.post("/evaluate", fn(req: Http_Request): Http_Server_Response do
-        result := this.handle_evaluate(req)
+create
+  make(port: Integer) do
+    this.server := create Http_Server.make(port)
+    this.json := create Json.make()
+    server.post("/evaluate", fn(req: Http_Request): Http_Server_Response do
+      result := this.handle_evaluate(req)
       end)
-    end</code></pre>
+  end</code></pre>
 
 <p>That last line is doing more design work than it looks like — the route closure's entire body is a single call out to <code>this.handle_evaluate(req)</code>, which means the actual request-handling logic lives as a normal, testable method on <code>Calc_Service</code>, not smeared across an anonymous callback. The closure's only job is to be the thing <code>Http_Server</code>'s API wants; everything a reader would actually want to understand about how this service behaves is one method away, in ordinary object-oriented shape.</p>
 
@@ -79,6 +79,8 @@ end</code></pre>
 
 <section id="build" class="level2">
 <h2>Build</h2>
+
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/07_http_calc">examples/contracts_at_work/07_http_calc</a> on GitHub.</p></div>
 
 <p>One conversion detail is worth a look, because it is exactly the kind of small seam where two systems' type models disagree: JSON has one number type; Nex's parser distinguishes <code>Integer</code> from <code>Real</code>, and <code>evaluate</code> wants every variable as a <code>Real</code> regardless of how the client happened to write it in the request body:</p>
 
@@ -116,23 +118,16 @@ c.check("vars result", "10.0", "" + body2.get("result"))
 
 let r3: Http_Response := client.post(base + "/evaluate", "{\"expr\":\"1 / 0\"}")
 c.check("division by zero status", "400", "" + r3.status())
+let body3: Map[String, Any] := json.parse(r3.body())
 c.check("division by zero has error", "true", "" + body3.contains_key("error"))</code></pre>
 
 <p>Notice what that last pair of checks actually proves: not just that a bad expression fails somehow, but that it fails with the specific, designed HTTP contract this project promises — status 400, an <code>error</code> key present in the body. A test that only checked "the request didn't crash the server" would miss the entire point of building the translation layer in the first place.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p>Two of three issues hit here are fixed upstream, and the code was rewritten to match rather than kept defensive against bugs that no longer exist. A closure passed as a callback — <code>fn</code>, exactly like <code>Http_Server</code>'s route handler here — could not call a method on its enclosing object; fixed, so <code>handle_evaluate</code>, <code>parse_vars</code>, and <code>json_response</code> are ordinary <code>Calc_Service</code> methods again, called as <code>this.handle_evaluate(req)</code> directly from the route closure, instead of free functions threading a captured <code>json</code> local around by hand. <code>Integer</code> had no <code>to_real()</code> method; fixed, so <code>to_real_any</code> calls it directly instead of promoting with the workaround <code>n + 0.0</code>.</p>
-
-<p>One issue is real and still shapes this project's client. Interning both <code>net/Http_Client</code> and <code>data/Json</code>, then calling a method like <code>.get()</code> on a <code>Map</code> that <code>json.parse(...)</code> produced, still fails — but only inside a <code>function ... do ... end</code> body. The identical code as bare top-level statements does not fail, which is why <code>checks.nex</code> above, written as top-level statements throughout, has always read parsed response bodies with <code>.get()</code> without incident, while <code>calc_client.nex</code> — whose logic necessarily lives inside <code>main()</code> — cannot. That project's response handling reads the one field its own fixed response shape ever produces with a small, fixed-lookbehind <code>text/Regex</code> instead, entirely sidestepping <code>data/Json</code>'s parse result inside a function body:</p>
-
-<pre><code>let result_rx: Regex := create Regex.compile('(?&lt;="result":)[^,}]+')
-...
-print("= " + result_rx.find(body))</code></pre>
-
-<p>Building the request body still goes through <code>json.stringify</code> without issue — the bug is specific to reading a parsed <code>Map</code>'s fields inside a function, not to using <code>data/Json</code> at all.</p>
+<p>A library designed to fail with a labeled, specific reason — not a generic exception — pays for that design the moment it gets reused somewhere its author never anticipated. Embedding Chapter 4's interpreter behind an HTTP endpoint needed no changes to the interpreter itself, because every failure it already produced was exactly the information this new boundary needed to translate a contract violation into an HTTP status code. Design a failure to name what broke, and that design decision keeps paying out in contexts you can't yet foresee.</p>
 
 <p>One process again in Chapter 8, but a boundary this book has not crossed yet: not the network this time, but the host platform's own GUI toolkit.</p>
 </section>

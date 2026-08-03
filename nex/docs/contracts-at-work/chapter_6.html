@@ -31,12 +31,12 @@
 <p>Two decisions get made before any networking code, the same discipline as every project so far, applied to a wire instead of an argv or a file. First, the protocol: one line per message, formatted <code>"NAME: text\n"</code>, with no framing beyond the newline itself — <code>Tcp_Socket</code>'s <code>read_line</code>/<code>send_line</code> already give a line boundary for free, so the protocol is "trust the transport's line boundary," not anything more elaborate:</p>
 
 <pre><code>class Chat_Protocol
-  create
-    make() do end
-  feature
-    format_message(sender: String, text: String): String do
-      result := sender + ": " + text
-    end
+create
+  make() do end
+feature
+  format_message(sender: String, text: String): String do
+    result := sender + ": " + text
+  end
 end</code></pre>
 
 <p>It is deliberately its own tiny module, <code>chat_protocol.nex</code>, <code>intern</code>ed by both the server and the client — the format lives in exactly one place both sides load, rather than being duplicated by convention across two files that could quietly drift apart.</p>
@@ -59,22 +59,22 @@ end</code></pre>
 <p><code>Chat_Hub</code> is the single owner the design promised — its <code>run</code> method holds the only variable in this entire program that names the list of connected clients, and every other piece of code that needs to affect that list does so exclusively by sending an event and letting the hub react:</p>
 
 <pre><code>class Chat_Hub
-  create
-    make() do end
-  feature
-    -- The single owner of `clients`. Runs until it receives Shutdown.
-    run(events: Channel[Hub_Event]) do
-      let clients: Array[Tcp_Socket] := []
-      ...
-      let ev: Hub_Event := events.receive()
-      match ev of
-        when Client_Joined(sock) then clients.add(sock)
-        when Client_Left(sock) then ...
-        when Broadcast(sender, text) then ...
-        when Shutdown then running := false
-      end
-      ...
+create
+  make() do end
+feature
+  -- The single owner of `clients`. Runs until it receives Shutdown.
+  run(events: Channel[Hub_Event]) do
+    let clients: Array[Tcp_Socket] := []
+    ...
+    let ev: Hub_Event := events.receive()
+    match ev of
+      when Client_Joined(sock) then clients.add(sock)
+      when Client_Left(sock) then ...
+      when Broadcast(sender, text) then ...
+      when Shutdown then running := false
     end
+    ...
+  end
 end</code></pre>
 
 <p>Read that signature again: <code>clients</code> is a local variable inside <code>run</code>, not a field on <code>Chat_Hub</code>, not visible anywhere else in the program, and never passed to another task. That is what "single owner" means as code rather than as a design intention — there is no mechanism by which two tasks could touch it at once, because only one task's stack frame ever names it.</p>
@@ -82,6 +82,8 @@ end</code></pre>
 
 <section id="build" class="level2">
 <h2>Build</h2>
+
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/06_chat">examples/contracts_at_work/06_chat</a> on GitHub.</p></div>
 
 <p>Every connected client gets one handler task, spawned from <code>accept_clients</code> as connections arrive:</p>
 
@@ -149,14 +151,10 @@ c.check("bob receives alice's message", "alice: hello from alice", bob_received)
 <p>This is a genuine integration test, not a unit test with the network faked out — real sockets, a real accept loop, a real hub task processing real channel events, all inside one process on one port that only this test run owns. Three checks (two handlers spawned, and a message correctly received in each direction) are enough to prove the whole pipeline — protocol, accept, hub, broadcast — works end to end, because nothing along that path could produce the right output for the wrong reason.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p>This project originally needed <code>--interpret</code> for a severe reason: <code>Server_Socket.accept()</code> was unusable on the JVM backend for any accepted connection at all, traced to <code>Tcp_Socket.from_socket</code> hitting a missing runtime binding. Fixed upstream; confirmed directly against this project's own check suite, which now passes on the default backend with no flag.</p>
-
-<p>One design detail changed along with that fix. <code>handle_client</code> was originally a free top-level function, not a <code>Chat_Server</code> method, because a <code>spawn do ... end</code> body could not call a method on its enclosing object — not even <code>this</code>, not even with an explicit <code>this.</code> prefix — so it had to live outside the class to be callable at all from inside <code>spawn</code>. That restriction is fixed too, and <code>handle_client</code> is back to being an ordinary method, called as <code>this.handle_client(...)</code> from inside <code>spawn</code> in <code>accept_clients</code>, which reads as what it actually is: the thing a <code>Chat_Server</code> does for each client it accepts.</p>
-
-<p>One rough edge remains that was never a language bug — it is this project's own code, and stays fixed on its own merits. Quitting <code>chat_client.nex</code> closes the socket from the main loop while its background reader task may still be blocked inside <code>read_line()</code> on the very same socket; that unblocks the read with a "stream closed" failure rather than a clean <code>nil</code>. The reader wraps its read in <code>rescue</code> and treats a closed-out-from-under-it read exactly like an ordinary disconnect, which is the correct description of what happened from that task's point of view.</p>
+<p>Shared mutable state doesn't need a lock if exactly one task is ever allowed to touch it. Every other task can affect that state only by sending an event and trusting the owner to react — a rule enforced by the code's own shape, since no other task's stack frame ever names the state at all, rather than a comment asking every future contributor to remember not to reach in directly. And not every rough edge you find belongs to the thing you're building on top of: a client that closes its own socket while its own reader task might still be blocked on it is worth handling on its own terms — treating a closed-out-from-under-it read exactly like an ordinary disconnect — rather than assumed away.</p>
 </section>
 
 </article>

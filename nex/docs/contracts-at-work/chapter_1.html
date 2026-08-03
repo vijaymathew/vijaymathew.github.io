@@ -23,7 +23,7 @@
 </div>
 <article class="prose">
 
-<p>Call it <code>nexwc</code> — a distant cousin of Unix's <code>wc</code>, with word frequency added. Given a file, it reports how many lines and words it contains, and its most common words. A programmer could write a version of this in twenty minutes without thinking about contracts at all. The point of walking through it carefully is to notice what changes when you do think about them — where the design gets stated before the code, where a boundary gets a real check instead of an assumption, and what ends up genuinely worth testing once the library underneath is separated from the command line wrapped around it.</p>
+<p>Call it <code>nexwc</code> — a distant cousin of Unix's <code>wc</code>, with word frequency added. Given a file, it reports how many lines and words it contains, and its most common words. A programmer could write a version of this in twenty minutes without thinking about contracts at all. The point of walking through it carefully is to notice what changes when you do think about them — the design gets stated before the code, boundaries gets real checks instead of an assumption, and testing is simplified because the library underneath is separated from the command line wrapped around it.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
@@ -35,69 +35,69 @@ nexwc &lt;file&gt; --top &lt;n&gt;     -- top n words instead of top 5</code></p
 
 <p>Everything about its behavior at the boundary has to be decided before any code: what happens when the file does not exist, what happens when <code>--top</code> is given a non-positive number or no number at all, and what the process's exit code means to whatever invoked it. A CLI's real interface isn't its function signatures. It's the shape of its arguments, the text of its errors, and the number it hands back to the shell. Decide that first, and the implementation underneath has very little room to be wrong in a way that matters.</p>
 
-<p>Nex's <code>Process</code> class has no way to set the exit code directly — there is no <code>Process.exit_with(n)</code> in the standard library, by design; a process's exit status is host machinery, not language machinery. So the one place this program reaches across that boundary explicitly is a single small function:</p>
+<p>The first function we write for this program is for handling abnormal conditions it may face while on duty:</p>
 
-<pre><code>import java.lang.System
-
-function fail(message: String, code: Integer) do
+<pre><code>function fail(message: String, code: Integer) do
   print("error: " + message)
-  with "java" do
-    System.exit(code)
-  end
+  exit(code)
 end</code></pre>
 
-<p>Every error path in <code>nexwc</code> goes through <code>fail</code>, and nowhere else. That is worth noticing before anything else in this chapter: the interop is not scattered through the program wherever an error might occur. It is named once, does one thing, and every caller trusts it to actually stop execution rather than falling through — which is exactly the kind of promise a contract is good at stating, even here, where the promise is about control flow rather than a value.</p>
+<p>Every error path in <code>nexwc</code> goes through <code>fail</code>, and nowhere else. That is worth noticing before anything else in this chapter: the message and the exit are printed and enforced from exactly one place, not scattered through the program wherever an error might occur. <code>fail</code> is named once, does one thing, and every caller trusts it to actually stop execution rather than falling through — which is exactly the kind of promise a contract is good at stating, even here, where the promise is about control flow rather than a value.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
 <h2>Design as Contract</h2>
 
-<p>The counting logic has nothing to do with files, flags, or exit codes, so it does not live anywhere near them. <code>Word_Stats</code> is a small, pure class: construct it with a block of text, ask it questions.</p>
+<p>The counting logic has nothing to do with files, flags, or exit codes, so it does not live anywhere near them. <code>Word_Stats</code> is a small, pure class.</p>
 
 <pre><code>class Word_Stats
-  create
-    make(text: String) do
-      this.text := text
+create
+  make(text: String) do
+    this.text := text
+  end
+feature
+  text: String
+
+  line_count(): Integer
+  do
+    if text = "" then
+      result := 0
+    else
+      result := text.split("\n").length
     end
-  feature
-    text: String
+  ensure
+    non_negative: result &gt;= 0
+  end
 
-    line_count(): Integer
-      do
-        if text = "" then
-          result := 0
-        else
-          result := text.split("\n").length
-        end
-      ensure
-        non_negative: result &gt;= 0
-      end
-
-    word_count(): Integer
-      do
-        result := words().length
-      ensure
-        non_negative: result &gt;= 0
-      end</code></pre>
+  word_count(): Integer
+  do
+    result := words().length
+  ensure
+    non_negative: result &gt;= 0
+  end
+  ...
+end</code></pre>
 
 <p>These postconditions look almost too obvious to write — of course a count is non-negative. That is the point of writing them anyway. A postcondition earns its keep the moment the implementation changes and stops being obviously correct; <code>non_negative</code> costs one line today and stands guard against every future edit to <code>line_count</code>'s body, including ones nobody has thought of yet. The interesting contract in this file is <code>top_words</code>, the one method with real work to do:</p>
 
 <pre><code>-- The n most frequent words, most frequent first; ties broken
 -- alphabetically so the output is deterministic.
 top_words(n: Integer): Array[Count_Entry]
-  require
-    positive: n &gt; 0
-  do
-    ...
-  ensure
-    bounded: result.length &lt;= n
-  end</code></pre>
+require
+  positive: n &gt; 0
+do
+  ...
+ensure
+  bounded: result.length &lt;= n
+end</code></pre>
 
-<p><code>require positive: n &gt; 0</code> is the contract's half of a promise that the CLI layer has to keep: <em>whatever calls this method has already made sure <code>n</code> is a positive count.</code> That single line is why <code>--top</code>'s validation belongs on the command-line side of this program rather than inside the library — the library states what it needs at its boundary and trusts the caller to have gotten there, rather than re-checking a condition its caller already checked. <code>ensure bounded</code> closes the other end: whatever the frequency table looks like, you never get back more entries than you asked for, even from a two-word input.</p>
+<p><code>require positive: n &gt; 0</code> is the contract's half of a promise that the CLI layer has to keep: <em>whatever calls this method has already made sure <code>n</code> is a positive count.</em> That single line is why <code>--top</code>'s validation belongs on the command-line side of this program rather than inside the library — the library states what it needs at its boundary and trusts the caller to have gotten there, rather than re-checking a condition its caller already checked. <code>ensure bounded</code> closes the other end: whatever the frequency table looks like, you never get back more entries than you asked for, even from a two-word input.</p>
 </section>
 
 <section id="build" class="level2">
 <h2>Build</h2>
+
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/01_text_stats">examples/contracts_at_work/01_text_stats</a> on GitHub.</p></div>
 
 <p>Word splitting uses a compiled regular expression rather than hand-rolled character scanning — this is what a CLI tool's arithmetic actually looks like once the interesting part is a library method away:</p>
 
@@ -127,29 +127,29 @@ end)</code></pre>
 <p>The CLI wrapper, <code>nexwc.nex</code>, is where argument parsing lives — and where the postcondition on <code>parse_top_count</code> mirrors <code>top_words</code>'s precondition on the other side of the same promise:</p>
 
 <pre><code>function parse_top_count(args: Array[String]): Integer
+do
+  result := 5
+  let i: Integer := 0
+  from
+    i := 0
+  until
+    i = args.length
   do
-    result := 5
-    let i: Integer := 0
-    from
-      i := 0
-    until
-      i = args.length
-    do
-      if args.get(i) = "--top" then
-        if i + 1 &gt;= args.length then
-          fail("--top requires a number", 2)
-        end
-        let n: Integer := args.get(i + 1).to_integer()
-        if n &lt;= 0 then
-          fail("--top must be a positive integer, got " + args.get(i + 1), 2)
-        end
-        result := n
+    if args.get(i) = "--top" then
+      if i + 1 &gt;= args.length then
+        fail("--top requires a number", 2)
       end
-      i := i + 1
+      let n: Integer := args.get(i + 1).to_integer()
+      if n &lt;= 0 then
+        fail("--top must be a positive integer, got " + args.get(i + 1), 2)
+      end
+      result := n
     end
-  ensure
-    positive: result &gt; 0
-  end</code></pre>
+    i := i + 1
+  end
+ensure
+  positive: result &gt; 0
+end</code></pre>
 
 <p>Notice the shape of this: <code>parse_top_count</code> never returns without either a positive number or having already called <code>fail</code>, which does not return at all. The <code>ensure positive: result &gt; 0</code> is not defensive filler — it is a machine-checked statement that this function's two exit paths (a good number, or no return) are the only two that exist, which is exactly the guarantee <code>top_words</code>'s precondition needs from its caller. This is "parse, don't validate" in miniature: <code>args</code> is parsed into a value that is positive <em>by construction</em> the moment it exists, so nothing downstream ever needs to ask again.</p>
 
@@ -181,15 +181,15 @@ let top2: Array[Count_Entry] := stats.top_words(2)
 c.check("top_words[0]", "the: 3", top2.get(0).to_string())
 c.check("top_words[1]", "fox: 2", top2.get(1).to_string())</code></pre>
 
-<p><code>nexwc.nex</code> itself has no automated check suite, and that is a deliberate choice rather than an omission. Once the counting logic is fully covered as a library, what is left in the entry-point file is argument parsing, an existence check, and a print loop — thin enough that the cost of scripting a subprocess harness to assert on stdout and exit codes would outweigh what it catches. It was still verified directly, by hand, before being trusted: run against the sample file with no flag, with <code>--top 3</code>, against a missing file, and against a malformed <code>--top</code> value, checking in each case that the output and exit code matched what <a href="#problem">Problem</a> promised. That is the real shape of testing a CLI tool built this way — exhaustive, automated coverage on the pure library beneath it, and a short, deliberate manual pass on the thin host-facing shell that calls it.</p>
+<p><code>nexwc.nex</code> itself has no automated check suite, and that is a deliberate choice rather than an omission. Once the counting logic is fully covered as a library, what is left in the entry-point file is argument parsing, an existence check, and a print loop — thin enough that the cost of scripting a subprocess harness to assert on stdout and exit codes would outweigh what it catches. It was still verified directly, by hand, before being trusted: run against the sample file with no flag, with <code>--top 3</code>, against a missing file, and against a malformed <code>--top</code> value, checking in each case that the output and exit code matched what the original <a href="#problem">problem</a> promised. In short, often the right way for testing a CLI tool built like this is: exhaustive, automated coverage on the pure library beneath it, and a short, deliberate manual pass on the thin host-facing shell that calls it.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p><code>Process.command_line()</code> — the method <code>nexwc.nex</code> depends on for its own <code>argv</code> — did not work correctly when this project was first built; it returned the JVM's own launch flags rather than the program's real arguments, which meant no Nex CLI tool could read its arguments at all, on any backend. It is fixed now, confirmed with a standalone program that prints its own argument count and values, checked against the interpreter, the default JVM backend, and a compiled standalone jar alike. <code>nexwc.nex</code> needed no changes when the fix landed — it was written correct against the language as documented, and simply started working. That says something about stating a boundary precisely, even against a library that was not yet behaving correctly: correctness arrived as a silent upgrade instead of a rewrite.</p>
+<p>Split a program's logic from the shell that reads arguments and prints output, and testing stops being a chore: the logic gets exhaustive, automated coverage with nothing to set up, and the thin shell left around it is small enough that a short manual pass covers it completely. A postcondition that looks too obvious to write — a count can't be negative — is still worth writing, because it costs one line today and stands guard against every future edit to that method's body, including the ones nobody has thought of yet. And "parse, don't validate" applies as much to a CLI's own arguments as to anything else: once <code>parse_top_count</code> hands back a value, nothing downstream ever needs to ask whether it's positive again.</p>
 
-<p>Everything else here held on the first pass: the counting logic, the postconditions, the relative-path workaround, and the split between what gets an automated check and what gets a careful manual one. Chapter 2 picks up a harder version of the same question this project answered quietly — what a contract owes a piece of state that has to survive being written to disk and read back.</p>
+<p>Chapter 2 asks a harder version of the same question this project answered quietly: what does a contract owe a piece of state that has to survive being written to disk and read back?</p>
 </section>
 
 </article>

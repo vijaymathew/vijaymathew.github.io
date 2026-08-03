@@ -69,24 +69,26 @@ end</code></pre>
 <p>The semantic failures — division by zero, an unbound variable — are stated as preconditions on the two small functions that can actually violate them, not checked inline wherever they might come up:</p>
 
 <pre><code>function divide(a: Real, b: Real): Real
-  require
-    non_zero: b /= 0.0
-  do
-    result := a / b
-  end
+require
+  non_zero: b /= 0.0
+do
+  result := a / b
+end
 
 function lookup(env: Map[String, Real], name: String): Real
-  require
-    known: env.contains_key(name)
-  do
-    result := env.get(name)
-  end</code></pre>
+require
+  known: env.contains_key(name)
+do
+  result := env.get(name)
+end</code></pre>
 
 <p>This is what "a caller gets a labeled failure" means concretely: a violated <code>require</code> names the clause that broke — <code>non_zero</code>, <code>known</code> — in the failure itself, which is strictly more information than a bare <code>ArithmeticException</code> or a null dereference would give the same caller, for the same mistake.</p>
 </section>
 
 <section id="build" class="level2">
 <h2>Build</h2>
+
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/04_expr_interpreter">examples/contracts_at_work/04_expr_interpreter</a> on GitHub.</p></div>
 
 <p>Tokenizing is one regular expression, doing the whole job in a single pass — numbers (with or without a decimal point), identifiers, and the six punctuation characters this grammar needs, in one alternation:</p>
 
@@ -112,15 +114,15 @@ end</code></pre>
 <p><code>parse</code> itself — the entry point — carries a postcondition that is easy to skip and cheap to keep: the whole token stream has to be consumed, or something was left over that the grammar never accounted for, which is exactly the kind of trailing-garbage input a hand-written parser can silently ignore if nobody thinks to check for it explicitly:</p>
 
 <pre><code>parse(): Expr
-  do
-    result := parse_expr()
-  ensure
-    consumed_everything: at_end()
-  end</code></pre>
+do
+  result := parse_expr()
+ensure
+  consumed_everything: at_end()
+end</code></pre>
 
 <p>One genuine language gotcha showed up writing the smallest-looking method in this file, <code>is_number</code>. The first version compared a token's first character against <code>#0</code> and <code>#9</code> as char literals — and in Nex, <code>#&lt;digit&gt;</code> parses as the ASCII control code with that numeric value, not the digit glyph. <code>#9</code> is a tab character, not <code>'9'</code>. Every numeric token was silently misclassified as a variable reference, which surfaced three method calls away from the actual defect, as a precondition failure on <code>lookup</code>'s <code>known</code> clause for input as simple as <code>1 + 2</code> — a textbook case of a contract catching a real bug, but at a distance from where the bug actually was. The fix sidesteps char literals for digits entirely:</p>
 
-<pre><code>-- Not `tok.char_at(0) >= #0 and ... &lt;= #9`: `#&lt;digit&gt;` char literals
+<pre><code>-- Not `tok.char_at(0) &gt;= #0 and ... &lt;= #9`: `#&lt;digit&gt;` char literals
 -- parse as the ASCII control code with that numeric value, not the digit
 -- glyph (`#9` is a tab character, not '9') — this is intentional, not a
 -- bug in the language.
@@ -147,10 +149,10 @@ c.check("division by zero caught", "true", "" + div_zero_failed)</code></pre>
 <p>Testing that a contract violation is caught, by name, is a different assertion than testing that a program does not crash — it confirms the failure arrives through the channel this design promised it would (a labeled precondition), not through whatever the host happens to do when the underlying arithmetic misbehaves. <code>calc_repl.nex</code> uses the identical <code>do ... rescue ... end</code> pattern at its own boundary, turning the same violation into a one-line <code>error:</code> message instead of a crashed REPL session.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p>Both backends agree on all eleven checks. The one real finding here was not a language bug at all, but a genuine trap in otherwise-correct-looking code — <code>#0</code> through <code>#9</code> reading as control characters rather than digit glyphs is documented, intentional grammar, and <code>is_number</code>'s string-membership check is the correct pattern for this kind of test, not a workaround standing in for something broken. It earns its place in this chapter anyway, because the failure it caused was genuinely confusing to chase — a precondition violation three calls downstream from a tokenizing mistake — and that gap between where a bug is and where a contract catches it is worth knowing to expect, in any language, not just this one.</p>
+<p>A contract violation tells you a promise was broken, not where the code that broke it actually lives. The two can be several calls apart — a mistake in <code>is_number</code> here surfaced three calls away, as a precondition failure on <code>lookup</code>'s <code>known</code> clause for input as ordinary as <code>1 + 2</code> — and mistaking a failure's location for the mistake's location costs real time in any codebase, not just this one. A check firing far from the actual defect is still the contract doing its job: it caught something a silent wrong answer would have let through unnoticed.</p>
 
 <p>Chapter 5 leaves the single-threaded world both this project and the last two lived in, and asks what a contract has to say once more than one task can be touching the same program at once.</p>
 </section>

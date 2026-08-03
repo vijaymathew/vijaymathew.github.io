@@ -19,7 +19,7 @@
 <div class="opener">
 <span class="opener-label">Chapter 9 &middot; Part VI &middot; Capstone</span>
 <h1 class="opener-title">Capstone: Nex Radar</h1>
-<p class="opener-lede">Nothing in this chapter is new. Every piece was already built, tested, and proven in an earlier chapter. What this project adds is composition — and composition, it turns out, is exactly where two real bugs were hiding that no individual project's own tests could ever have found.</p>
+<p class="opener-lede">Nothing in this chapter is new. Every piece was already built, tested, and proven in an earlier chapter. What this project adds is composition — and composition, it turns out, tests something no individual project's own check suite ever could.</p>
 </div>
 <article class="prose">
 
@@ -30,7 +30,7 @@
 
 <p>The brief is reuse without coupling: wire five independently-built pieces together through <code>intern</code>, with none of them changing to accommodate any of the others, and none of them aware the others exist. <code>dup_finder.nex</code> is copied into this project unmodified — the same file, the same class, doing exactly what Chapter 5 already proved it does. The service adds a background counter and an HTTP surface around it; the dashboard adds a window around that. If the pieces were actually as independent as this book has argued they should be, plugging them together should be the easy part.</p>
 
-<p>It was not, quite — and the reason why is the actual lesson of this chapter, saved for the retrospective below rather than smoothed over here.</p>
+<p>It was not, quite — plugging five independently-correct pieces together over a real process boundary turned out to be its own test, one none of their individual check suites had run. The reason why is the actual lesson of this chapter, saved for the takeaways below rather than smoothed over here.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
@@ -39,43 +39,43 @@
 <p><code>Radar_Metrics</code> is the smallest possible piece of new state this project needed — nothing <code>Dup_Finder</code> or <code>Http_Server</code> already provided, just the three numbers a status dashboard actually wants to show:</p>
 
 <pre><code>class Radar_Metrics
-  create
-    make() do
-      ticks := 0
-      duplicate_groups := 0
-      scan_count := 0
-    end
-  feature
-    ticks: Integer
-    duplicate_groups: Integer
-    scan_count: Integer
+create
+  make() do
+    ticks := 0
+    duplicate_groups := 0
+    scan_count := 0
+  end
+feature
+  ticks: Integer
+  duplicate_groups: Integer
+  scan_count: Integer
 
-    tick() do ticks := ticks + 1 end
-    record_scan(groups: Integer) do
-      duplicate_groups := groups
-      scan_count := scan_count + 1
-    end
+  tick() do ticks := ticks + 1 end
+  record_scan(groups: Integer) do
+    duplicate_groups := groups
+    scan_count := scan_count + 1
+  end
 end</code></pre>
 
 <p><code>Radar_Service</code>'s constructor is where composition actually happens — three <code>intern</code>ed pieces, wired together in a dozen lines, each one exactly as capable as it was in its own chapter and no more:</p>
 
 <pre><code>class Radar_Service
-  create
-    make(port: Integer, scan_root: String) do
-      this.server := create Http_Server.make(port)
-      this.metrics := create Radar_Metrics.make()
-      this.finder := create Dup_Finder.make()
-      ...
-      run_scan()
+create
+  make(port: Integer, scan_root: String) do
+    this.server := create Http_Server.make(port)
+    this.metrics := create Radar_Metrics.make()
+    this.finder := create Dup_Finder.make()
+    ...
+    run_scan()
 
-      server.get("/status", fn(req: Http_Request): Http_Server_Response do
-        result := this.status_payload()
+    server.get("/status", fn(req: Http_Request): Http_Server_Response do
+      result := this.status_payload()
       end)
-      server.post("/rescan", fn(req: Http_Request): Http_Server_Response do
-        this.run_scan()
-        result := this.status_payload()
+    server.post("/rescan", fn(req: Http_Request): Http_Server_Response do
+      this.run_scan()
+      result := this.status_payload()
       end)
-    end</code></pre>
+  end</code></pre>
 
 <p><code>Dup_Finder</code> has no idea it is running inside a service; <code>Http_Server</code> has no idea what it is serving status for. The only new contract this project adds is the shape of what <code>/status</code> reports, and it is the same design as Chapter 7's <code>json_response</code>, reused rather than reinvented: a status code, a <code>Map</code>, one method that turns both into an HTTP response with the right content type.</p>
 </section>
@@ -83,7 +83,9 @@ end</code></pre>
 <section id="build" class="level2">
 <h2>Build</h2>
 
-<p>The background tick counter runs the same way Chapter 6's hub task did — spawned once, at startup, running until the process itself ends, calling a method on <code>this</code> directly now that a closure is actually allowed to:</p>
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/09_radar">examples/contracts_at_work/09_radar</a> on GitHub.</p></div>
+
+<p>The background tick counter runs the same way Chapter 6's hub task did — spawned once, at startup, running until the process itself ends, calling a method on <code>this</code> directly from inside the spawned closure:</p>
 
 <pre><code>start() do
   server.start()
@@ -140,20 +142,12 @@ c.check("rescan count incremented", "2", "" + scans_rx.find(r2.body()))</code></
 <p>Beyond the automated suite, this project was smoke-tested the way its own design demands — live, across two real processes, over a real network boundary. <code>radar_service_main.nex</code> run in one terminal, <code>radar_dashboard_main.nex</code> in another, its background tick counter visibly climbing as it polls, its <code>refresh</code> and <code>rescan</code> buttons round-tripping real HTTP requests, <code>scan_count</code> confirmed incrementing from 1 to 2 by hitting <code>/rescan</code> directly with <code>curl</code> in parallel with the dashboard's own view of the same number. A capstone's real test is watching the whole thing run, not just its check suite passing.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p>This project went through three real integration attempts, and the first two failed for reasons no individual project's own tests could have caught — which is exactly what a capstone chapter is for.</p>
+<p>Keep a monitor and the thing it watches in separate processes, talking over a real boundary, and you get something closer to how monitoring actually works in practice than a monitor sharing a process with its subject — worth choosing on its own architectural merits, not only when something forces your hand into it. Reusing a pattern that already proved itself elsewhere in this book, rather than reaching for a fresh solution to a problem already solved once, is its own kind of design discipline — consistency a reader (or a future maintainer) can rely on.</p>
 
-<p><strong>Attempt one: one process.</strong> The natural design — a single Nex program running the service and the dashboard together — was blocked immediately. Chapter 8's <code>ActionListener</code> state needs the JVM backend, or mutations through it silently do not persist. This service's original design needed <code>data/Json</code>, which at the time was only usable under <code>--interpret</code>. No backend could satisfy both requirements inside the same process, and there is no way to run half a program on one backend and half on another.</p>
-
-<p><strong>Attempt two: two processes over HTTP, first try.</strong> Splitting the service and the dashboard into separate processes talking over a real network connection looked like the obvious way around attempt one's deadlock — until building the dashboard as an HTTP client hit a second, unrelated wall: <code>net/Http_Client</code> returned status <code>0</code> and an empty body for <em>every</em> request on the JVM backend, confirmed by hitting the exact same live server with <code>curl</code> at the same moment and getting a correct response while the identical Nex call returned nothing. The two-process design that was supposed to be the fix was, for a different reason, just as impossible as the one it replaced.</p>
-
-<p><strong>What actually fixed it.</strong> Both root causes — <code>data/Json</code>'s method calls failing on the JVM backend, and <code>Http_Client</code>'s broken response handling there — were fixed upstream in the language itself, along with the other issues this book surfaced along the way. Once both landed, attempt one's original one-process design became possible again. But by then the two-process, HTTP-boundary architecture was already built, tested, and — this is the part worth sitting with — arguably the better design regardless of which bugs had forced it. Watching a service from a separate process, over a real network boundary, is closer to how monitoring actually works in practice than a monitor sharing a process with the thing it watches. The split was kept on its own merits, not reverted the moment the constraint that originally forced it disappeared.</p>
-
-<p>One thing the fixes did not reach: interning <code>Http_Client</code> and <code>data/Json</code> together still breaks a parsed <code>Map</code>'s methods, narrowed now to specifically inside a <code>function ... do ... end</code> body. <code>fetch_status</code> and <code>fetch_rescan</code> are functions, so they still read responses with <code>text/Regex</code> rather than <code>data/Json</code>, exactly as Chapter 7's client does — a workaround that is still relevant, just precisely scoped now rather than assumed to cover more ground than it does.</p>
-
-<p>The lesson this chapter actually teaches is not "it all works now." It is that composing two independently-correct pieces surfaced two real, separate bugs that neither project's own isolated check suite ever exercised — because each was tested against the one backend it needed, in isolation, never in combination with a second library making outbound calls from inside the same function. That gap is what integration finds and unit-level work structurally cannot, in any language, whether or not the specific bugs this book hit happen to still exist by the time you read this. Blocked, blocked again for a different reason, fixed, and the better design kept anyway — that is the real shape of composing what you've already built.</p>
+<p>Composing independently-correct pieces is not automatic just because each piece's own check suite passes. Proving something correct in isolation and proving it correct as part of a whole system are two different tests, and only integration testing — wiring everything together, over a real process boundary, and watching what actually happens — runs the second one. Unit-level work, however thorough, structurally cannot.</p>
 </section>
 
 </article>

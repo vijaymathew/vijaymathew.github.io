@@ -39,31 +39,33 @@
 <p>The three phases become three methods on one class, each with a focused job:</p>
 
 <pre><code>class Dup_Finder
-  create
-    make() do end
-  feature
-    collect_files(dir: Directory): Array[Path] do ... end
-    read_all_concurrently(files: Array[Path]): Array[File_Content] do ... end
-    find_duplicates(root_dir: String): Map[String, Array[String]] do ... end</code></pre>
+create
+  make() do end
+feature
+  collect_files(dir: Directory): Array[Path] do ... end
+  read_all_concurrently(files: Array[Path]): Array[File_Content] do ... end
+  find_duplicates(root_dir: String): Map[String, Array[String]] do ... end</code></pre>
 
 <p>A small aside on why these are methods on a class at all, rather than three loose top-level functions in a file with no class in it, the more natural shape for what is, in effect, a small pipeline. Nex's <code>intern &lt;Name&gt;</code> requires a top-level declaration literally named <code>&lt;Name&gt;</code> in the file it loads; a functions-only module cannot be interned by a name that does not also label something declared in the file. <code>dup_finder.nex</code> originally held a <code>File_Content</code> class and three loose functions, and <code>intern Dup_Finder</code> failed outright: nothing in the file was named <code>Dup_Finder</code>. Wrapping the pipeline as methods on a real <code>Dup_Finder</code> class fixed the mechanical problem and reads better besides — <code>collect_files</code>, <code>read_all_concurrently</code>, and <code>find_duplicates</code> read as one coherent object's behavior rather than three functions that happen to share a file.</p>
 
 <p><code>File_Content</code> is the smallest possible result type for the concurrent step — a path and the text read from it, nothing else — which matters because it is what has to travel back across the fan-in:</p>
 
 <pre><code>class File_Content
-  create
-    make(path: String, content: String) do
-      this.path := path
-      this.content := content
-    end
-  feature
-    path: String
-    content: String
+create
+  make(path: String, content: String) do
+    this.path := path
+    this.content := content
+  end
+feature
+  path: String
+  content: String
 end</code></pre>
 </section>
 
 <section id="build" class="level2">
 <h2>Build</h2>
+
+<div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/05_dup_finder">examples/contracts_at_work/05_dup_finder</a> on GitHub.</p></div>
 
 <p>The walk is ordinary recursion, no concurrency involved, exactly as designed:</p>
 
@@ -131,15 +133,18 @@ sub.child_path("d.txt").write_text("also unique")
 
 let dups: Map[String, Array[String]] := finder.find_duplicates(base)
 c.check("one duplicate group", "1", "" + dups.size())
+
+let keys: Array[String] := dups.keys()
+let members: Array[String] := dups.get(keys.get(0))
 c.check("group has 3 members", "3", "" + members.length)</code></pre>
 
 <p>Four checks, and the tree is deleted immediately afterward, with the deletion itself checked. A concurrent test that leaves scratch files behind on the filesystem is a test that will eventually collide with itself on a second run.</p>
 </section>
 
-<section id="retrospective" class="level2">
-<h2>Retrospective</h2>
+<section id="takeaways" class="level2">
+<h2>Takeaways</h2>
 
-<p>No language bugs. <code>Task</code>, <code>await_all</code>, and recursive <code>Directory</code>/<code>Path</code> walking all behaved exactly as documented, on both backends, on the first fully-corrected attempt — the one real correction being the <code>intern</code> naming constraint above, a design fix rather than a bug workaround. This project is the cleanest evidence in the book so far that Nex's concurrency primitives themselves — <code>spawn</code>, <code>Task[T]</code>, <code>await_all</code> — were solid well before the JVM-backend method-call bugs the next two chapters have to work around were fixed; the trouble in those chapters, as it turns out, was never in the scheduler.</p>
+<p>Concurrency belongs exactly where the waiting happens, and nowhere else. A directory walk and an in-memory grouping step gain nothing from being parallelized — there's no I/O to overlap — while independent, I/O-bound reads gain everything from running at once; deciding which is which, before writing any concurrent code, is the actual design work. And a concurrent test should assert on the outcome alone, never on timing or interleaving, so that which spawned task happens to finish first is simply not a fact the test needs to know.</p>
 
 <p>The same fan-out shape, one task per unit of concurrent work, carries into Chapter 6, except the files on a local disk become sockets to clients who can misbehave, disconnect, or simply take their time.</p>
 </section>
