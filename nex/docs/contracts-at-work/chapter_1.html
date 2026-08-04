@@ -23,7 +23,7 @@
 </div>
 <article class="prose">
 
-<p>Call it <code>nexwc</code> — a distant cousin of Unix's <code>wc</code>, with word frequency added. Given a file, it reports how many lines and words it contains, and its most common words. A programmer could write a version of this in twenty minutes without thinking about contracts at all. The point of walking through it carefully is to notice what changes when you do think about them — the design gets stated before the code, boundaries gets real checks instead of an assumption, and testing is simplified because the library underneath is separated from the command line wrapped around it.</p>
+<p>Call it <code>nexwc</code> — a distant cousin of Unix's <code>wc</code>, with word frequency added. Given a file, it reports how many lines and words it contains, and its most common words. A programmer could write a version of this in twenty minutes without thinking about contracts at all. The point of walking through it carefully is to notice what changes when you do think about them. The design gets stated before the code. Boundaries get real checks instead of an assumption. And testing gets simpler, because the library underneath is separated from the command line wrapped around it.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
@@ -42,7 +42,7 @@ nexwc &lt;file&gt; --top &lt;n&gt;     -- top n words instead of top 5</code></p
   exit(code)
 end</code></pre>
 
-<p>Every error path in <code>nexwc</code> goes through <code>fail</code>, and nowhere else. That is worth noticing before anything else in this chapter: the message and the exit are printed and enforced from exactly one place, not scattered through the program wherever an error might occur. <code>fail</code> is named once, does one thing, and every caller trusts it to actually stop execution rather than falling through — which is exactly the kind of promise a contract is good at stating, even here, where the promise is about control flow rather than a value.</p>
+<p>Every error path in <code>nexwc</code> goes through <code>fail</code>, and nowhere else. That is worth noticing before anything else in this chapter: the message and the exit are printed and enforced from exactly one place, not scattered through the program wherever an error might occur. <code>fail</code> is named once, does one thing, and every caller trusts it to actually stop execution rather than falling through. That's exactly the kind of promise a contract is good at stating, even here, where the promise is about control flow rather than a value.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
@@ -78,7 +78,7 @@ feature
   ...
 end</code></pre>
 
-<p>These postconditions look almost too obvious to write — of course a count is non-negative. That is the point of writing them anyway. A postcondition earns its keep the moment the implementation changes and stops being obviously correct; <code>non_negative</code> costs one line today and stands guard against every future edit to <code>line_count</code>'s body, including ones nobody has thought of yet. The interesting contract in this file is <code>top_words</code>, the one method with real work to do:</p>
+<p>These postconditions look almost too obvious to write — of course a count is non-negative. That is the point of writing them anyway. A postcondition earns its value the moment the implementation changes and stops being obviously correct. <code>non_negative</code> costs one line today. It stands guard against every future edit to <code>line_count</code>'s body. The interesting contract in this file is <code>top_words</code>, the one method with real work to do:</p>
 
 <pre><code>-- The n most frequent words, most frequent first; ties broken
 -- alphabetically so the output is deterministic.
@@ -91,7 +91,7 @@ ensure
   bounded: result.length &lt;= n
 end</code></pre>
 
-<p><code>require positive: n &gt; 0</code> is the contract's half of a promise that the CLI layer has to keep: <em>whatever calls this method has already made sure <code>n</code> is a positive count.</em> That single line is why <code>--top</code>'s validation belongs on the command-line side of this program rather than inside the library — the library states what it needs at its boundary and trusts the caller to have gotten there, rather than re-checking a condition its caller already checked. <code>ensure bounded</code> closes the other end: whatever the frequency table looks like, you never get back more entries than you asked for, even from a two-word input.</p>
+<p><code>require positive: n &gt; 0</code> is the contract's half of a promise that the CLI layer has to keep: <em>whatever calls this method has already made sure <code>n</code> is a positive count.</em> That single line is why <code>--top</code>'s validation belongs on the command-line side of this program, not inside the library. The library states what it needs at its boundary and trusts the caller to have gotten there. It doesn't re-check a condition its caller already checked. <code>ensure bounded</code> closes the other end: whatever the frequency table looks like, you never get back more entries than you asked for, even from a two-word input.</p>
 </section>
 
 <section id="build" class="level2">
@@ -122,7 +122,7 @@ end</code></pre>
   end
 end)</code></pre>
 
-<p>The tiebreak matters more than it looks like it should: without it, two words with equal frequency could print in either order depending on <code>Map</code> iteration order, and a test asserting an exact top-N list would be flaky through no fault of its own. Deterministic output is a design decision, not an accident, and it is cheaper to build in here than to chase down later as an intermittent test failure.</p>
+<p>The tiebreak matters more than it looks like it should. Without it, two words with equal frequency could print in either order, depending on <code>Map</code> iteration order — and a test asserting an exact top-N list would be flaky through no fault of its own. Deterministic output is a design decision, not an accident. It's cheaper to build in here than to chase down later as an intermittent test failure.</p>
 
 <p>The CLI wrapper, <code>nexwc.nex</code>, is where argument parsing lives — and where the postcondition on <code>parse_top_count</code> mirrors <code>top_words</code>'s precondition on the other side of the same promise:</p>
 
@@ -151,9 +151,9 @@ ensure
   positive: result &gt; 0
 end</code></pre>
 
-<p>Notice the shape of this: <code>parse_top_count</code> never returns without either a positive number or having already called <code>fail</code>, which does not return at all. The <code>ensure positive: result &gt; 0</code> is not defensive filler — it is a machine-checked statement that this function's two exit paths (a good number, or no return) are the only two that exist, which is exactly the guarantee <code>top_words</code>'s precondition needs from its caller. This is "parse, don't validate" in miniature: <code>args</code> is parsed into a value that is positive <em>by construction</em> the moment it exists, so nothing downstream ever needs to ask again.</p>
+<p>Notice the shape of this: <code>parse_top_count</code> never returns without either a positive number, or having already called <code>fail</code> — which doesn't return at all. The <code>ensure positive: result &gt; 0</code> isn't defensive filler. It's a machine-checked statement that this function has only two exit paths: a good number, or no return at all. That's exactly the guarantee <code>top_words</code>'s precondition needs from its caller. This is "parse, don't validate" in miniature: <code>args</code> is parsed into a value that's positive <em>by construction</em> the moment it exists, so nothing downstream ever needs to ask again.</p>
 
-<p>The one thing this project needed that the design above did not anticipate: a bare relative path such as <code>nexwc.nex sample.txt</code> resolves against the <code>nex</code> CLI launcher's own installation directory, not wherever the program was actually invoked from — the launcher changes into <code>$NEX_HOME</code> before starting the JVM. This is documented behavior in the language, not a bug, and the fix is a few lines that read the caller's real working directory back out of an environment variable the launcher sets beforehand:</p>
+<p>The one thing this project needed that the design above did not anticipate: a bare relative path such as <code>nexwc.nex sample.txt</code> resolves against the <code>nex</code> CLI launcher's own installation directory, not wherever the program was actually invoked from — the launcher changes into <code>$NEX_HOME</code> before starting the JVM. This is documented behavior in the language, not a bug. The fix is a few lines that read the caller's real working directory back out of an environment variable the launcher sets beforehand:</p>
 
 <pre><code>function resolve_path(proc: Process, raw: String): String do
   if raw.starts_with("/") then
@@ -181,13 +181,13 @@ let top2: Array[Count_Entry] := stats.top_words(2)
 c.check("top_words[0]", "the: 3", top2.get(0).to_string())
 c.check("top_words[1]", "fox: 2", top2.get(1).to_string())</code></pre>
 
-<p><code>nexwc.nex</code> itself has no automated check suite, and that is a deliberate choice rather than an omission. Once the counting logic is fully covered as a library, what is left in the entry-point file is argument parsing, an existence check, and a print loop — thin enough that the cost of scripting a subprocess harness to assert on stdout and exit codes would outweigh what it catches. It was still verified directly, by hand, before being trusted: run against the sample file with no flag, with <code>--top 3</code>, against a missing file, and against a malformed <code>--top</code> value, checking in each case that the output and exit code matched what the original <a href="#problem">problem</a> promised. In short, often the right way for testing a CLI tool built like this is: exhaustive, automated coverage on the pure library beneath it, and a short, deliberate manual pass on the thin host-facing shell that calls it.</p>
+<p><code>nexwc.nex</code> itself has no automated check suite. That's a deliberate choice, not an omission. Once the counting logic is fully covered as a library, what's left in the entry-point file is argument parsing, an existence check, and a print loop — thin enough that scripting a subprocess harness to assert on stdout and exit codes would cost more than it catches. It was still tested by hand: run against the sample file with no flag, with <code>--top 3</code>, against a missing file, and against a malformed <code>--top</code> value — checking each time that the output and exit code matched what the original <a href="#problem">problem</a> promised. So often the right way to test a CLI tool built like this is: exhaustive, automated coverage on the pure library beneath it, and a short, deliberate manual pass on the thin host-facing shell that calls it.</p>
 </section>
 
 <section id="takeaways" class="level2">
 <h2>Takeaways</h2>
 
-<p>Split a program's logic from the shell that reads arguments and prints output, and testing stops being a chore: the logic gets exhaustive, automated coverage with nothing to set up, and the thin shell left around it is small enough that a short manual pass covers it completely. A postcondition that looks too obvious to write — a count can't be negative — is still worth writing, because it costs one line today and stands guard against every future edit to that method's body, including the ones nobody has thought of yet. And "parse, don't validate" applies as much to a CLI's own arguments as to anything else: once <code>parse_top_count</code> hands back a value, nothing downstream ever needs to ask whether it's positive again.</p>
+<p>Split a program's logic from the shell that reads arguments and prints output, and testing stops being a chore. The logic gets exhaustive, automated coverage with nothing to set up. The thin shell left around it is small enough that a short manual pass covers it completely. A postcondition that looks too obvious to write — a count can't be negative — is still worth writing. It costs one line today, and it stands guard against every future edit to that method's body, including edits nobody has thought of yet. And "parse, don't validate" applies as much to a CLI's own arguments as to anything else: once <code>parse_top_count</code> hands back a value, nothing downstream ever needs to ask whether it's positive again.</p>
 
 <p>Chapter 2 asks a harder version of the same question this project answered quietly: what does a contract owe a piece of state that has to survive being written to disk and read back?</p>
 </section>

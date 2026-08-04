@@ -23,12 +23,12 @@
 </div>
 <article class="prose">
 
-<p>Four buttons (<code>+</code>, <code>-</code>, <code>reset</code>, <code>quit</code>), each wired to a real <code>javax.swing.ActionListener</code> implemented as a Nex class, updating a counter shown in a live window. The counter itself is trivial. What makes this chapter different from every one before it is that Swing is not Nex's own type system reasoning about Nex's own values. It is a real Java GUI toolkit, calling back into Nex code from inside the JVM's own event dispatch machinery, and that boundary was genuinely untested territory when this project began.</p>
+<p>Four buttons (<code>+</code>, <code>-</code>, <code>reset</code>, <code>quit</code>), each wired to a real <code>javax.swing.ActionListener</code> implemented as a Nex class, updating a counter shown in a live window. The counter itself is trivial. What makes this chapter different from every one before it: Swing isn't Nex's own type system reasoning about Nex's own values. It's a real Java GUI toolkit, calling back into Nex code from inside the JVM's own event dispatch machinery. That boundary was genuinely untested territory when this project began.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
 
-<p>Before any of this project's design was settled, a separate feasibility spike answered one narrower question first: can a Nex class actually implement a Java interface, get handed to a real widget, and have a real click fire a real method call back into Nex? Anything built on top of a "no" would have been wasted design work, so this got confirmed directly, in isolation, before writing a line of the dashboard itself.</p>
+<p>Before any of this project's design was settled, a separate feasibility spike answered one narrower question first: can a Nex class actually implement a Java interface, get handed to a real widget, and have a real click fire a real method call back into Nex? Anything built on top of a "no" would have been wasted design work. So the spike ran in isolation, before writing a line of the dashboard itself.</p>
 
 <p>The spike's result: a Nex class can <code>inherit</code> <code>ActionListener</code>, be wired to a real <code>JButton</code> via <code>addActionListener</code>, and have <code>actionPerformed</code> fire on an actual <code>doClick()</code> — on the JVM backend, correct state throughout, no fallback required.</p>
 </section>
@@ -36,7 +36,7 @@
 <section id="design-as-contract" class="level2">
 <h2>Design as Contract</h2>
 
-<p>The design this project follows keeps listeners and rendering strictly apart: <strong>capture the event in plain Nex state; render that state separately.</strong> The alternative — a listener holding a <code>JLabel</code> field and calling <code>setText</code> directly from <code>actionPerformed</code> — is the single most natural-looking shape for code like this, and it would work. But it ties widget mutation to Swing's own event-dispatch thread, scattered across as many listeners as there are buttons, rather than living in one place a reader can find without hunting.</p>
+<p>The design this project follows keeps listeners and rendering strictly apart: <strong>capture the event in plain Nex state; render that state separately.</strong> The alternative — a listener holding a <code>JLabel</code> field and calling <code>setText</code> directly from <code>actionPerformed</code> — is the single most natural-looking shape for code like this. It would work. But it ties widget mutation to Swing's own event-dispatch thread, scattered across as many listeners as there are buttons, instead of living in one place a reader can find without hunting.</p>
 
 <p><code>Dashboard_State</code> holds nothing but plain Nex fields — no Java type anywhere in sight, by construction, not by care taken not to slip one in:</p>
 
@@ -103,7 +103,7 @@ end</code></pre>
   frame.dispose()
 end</code></pre>
 
-<p>The polling loop is deliberately the simplest thing that could work — no <code>Task</code>, just a tight sleep-and-redraw cycle reading <code>state.count</code> every hundred milliseconds. It is the single point of contact between "what happened" (an event, captured as a state mutation by a listener running on Swing's own event-dispatch thread) and "what the user sees" (a label's text, mutated only here, only from this loop). Even <code>should_quit</code> (a listener setting a flag rather than closing the window directly) follows the same rule: the listener describes an intent, and only the loop that owns the window acts on it.</p>
+<p>The polling loop is deliberately the simplest thing that could work — no <code>Task</code>, just a tight sleep-and-redraw cycle reading <code>state.count</code> every hundred milliseconds. It's the single point of contact between "what happened" (an event, captured as a state mutation by a listener running on Swing's own event-dispatch thread) and "what the user sees" (a label's text, mutated only here, only from this loop). Even <code>should_quit</code> follows the same rule: a listener sets a flag rather than closing the window directly. The listener describes an intent, and only the loop that owns the window acts on it.</p>
 
 <p>Keeping this split rigid — no listener ever touches a widget, full stop — is what makes the polling loop the one and only place rendering happens. It separates "what happened" from "how it's shown," the same separation of concerns this book has argued for since Chapter 1's split between <code>Word_Stats</code> and its CLI wrapper.</p>
 </section>
@@ -111,7 +111,7 @@ end</code></pre>
 <section id="test" class="level2">
 <h2>Test</h2>
 
-<p><code>checks.nex</code> drives the listeners through real <code>JButton.doClick()</code> calls, not direct method calls on the listener objects, the same style of check the spike itself used and the only style that actually proves the Swing wiring works rather than proving the underlying state methods work in isolation:</p>
+<p><code>checks.nex</code> drives the listeners through real <code>JButton.doClick()</code> calls, not direct method calls on the listener objects. That's the same style of check the spike itself used, and the only style that actually proves the Swing wiring works, rather than just proving the underlying state methods work in isolation:</p>
 
 <pre><code>inc_button.doClick()
 inc_button.doClick()
@@ -124,15 +124,15 @@ c.check("one decrement", "2", "" + state.count)
 quit_button.doClick()
 c.check("quit after click", "true", "" + state.should_quit)</code></pre>
 
-<p>No visible window is required for this: <code>JButton</code> and <code>ActionListener</code> both function without ever being shown on screen, which is what makes it possible to check real event dispatch in an automated suite at all, rather than only by a human clicking a real window.</p>
+<p>No visible window is required for this. <code>JButton</code> and <code>ActionListener</code> both function without ever being shown on screen — which is what makes it possible to check real event dispatch in an automated suite at all, rather than only by a human clicking a real window.</p>
 </section>
 
 <section id="takeaways" class="level2">
 <h2>Takeaways</h2>
 
-<p>When a design's whole point is to react to a real external event, test it by triggering that real event, not by calling the code underneath it directly. A real <code>JButton.doClick()</code> proves the wiring works in a way a direct call on the listener object never could — the same principle behind every integration test in this book, just applied here to a GUI instead of a socket or an HTTP connection. And capturing an event as a plain state mutation, then rendering that state separately from one single loop, is a pattern worth reaching for anywhere "what happened" and "how it's shown" can be pulled apart — it keeps a UI's own bookkeeping out of the code that actually responds to the user.</p>
+<p>When a design's whole point is to react to a real external event, test it by triggering that real event, not by calling the code underneath it directly. A real <code>JButton.doClick()</code> proves the wiring works in a way a direct call on the listener object never could. That's the same principle behind every integration test in this book, just applied here to a GUI instead of a socket or an HTTP connection. And capturing an event as a plain state mutation, then rendering that state separately from one single loop, is a pattern worth reaching for anywhere "what happened" and "how it's shown" can be pulled apart. It keeps a UI's own bookkeeping out of the code that actually responds to the user.</p>
 
-<p>Answering the one question that can sink an entire project's design — can this even work, mechanically — with a small, disposable spike before writing any of the project's real code buys a kind of confidence no amount of careful planning can substitute for.</p>
+<p>There's one question that can sink an entire project's design: can this even work, mechanically? Answering it with a small, disposable spike, before writing any of the project's real code, buys a kind of confidence no amount of careful planning can substitute for.</p>
 </section>
 
 </article>

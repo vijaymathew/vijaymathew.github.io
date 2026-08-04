@@ -23,7 +23,7 @@
 </div>
 <article class="prose">
 
-<p><code>tasks_cli</code> is a small, interactive task tracker: add a task with a priority, list them, mark one done, remove one, and have all of it still be there the next time the program starts. Nothing here is algorithmically hard either. The difficulty this project takes on is a different kind: state that outlives the process holding it, and a file format that has to be free to change without every previously saved file becoming garbage the moment it does.</p>
+<p><code>tasks_cli</code> is a small, interactive task tracker: add a task with a priority, list them, mark one done, remove one, and have all of it still be there the next time the program starts. Nothing here is algorithmically hard either. The difficulty this project takes on is a different kind: state that outlives the process holding it, and a file format that has to stay free to change. A previously saved file shouldn't become garbage the moment the format changes.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
@@ -42,7 +42,7 @@ marked #2 done
 [x] #2 (p1) write chapter
 &gt; quit</code></pre>
 
-<p>So the interface here is a REPL loop reading from stdin (<code>Console.read_line</code>) rather than a single parsed argv. This is a better fit for this project on its own terms — a tracker meant to run <code>add</code>, <code>list</code>, and <code>done</code> across one session has no natural single command line to parse. It is the same boundary-parsing discipline as Chapter 1, applied to a line of stdin instead of an argv entry: turn untrusted text into a validated command, once, at the edge, and let everything behind that edge trust the result.</p>
+<p>So the interface here is a REPL loop reading from stdin (<code>Console.read_line</code>) rather than a single parsed argv. This is a better fit for this project on its own terms — a tracker meant to run <code>add</code>, <code>list</code>, and <code>done</code> across one session has no natural single command line to parse. It's the same boundary-parsing discipline as Chapter 1, applied to a line of stdin instead of an argv entry. Turn untrusted text into a validated command, once, at the edge, and let everything behind that edge trust the result.</p>
 
 <p>The harder boundary in this project is not the command line at all. It is the file on disk. What gets written today has to still be readable months from now, even after the schema has grown a field that did not exist when some of the saved files were written.</p>
 </section>
@@ -66,11 +66,11 @@ end</code></pre>
   end
 end</code></pre>
 
-<p>Priority takes the same idea further, onto a plain <code>Integer</code>: a task's priority is only ever meaningful between 1 and 5, so that constraint is written once, as the type itself, rather than re-checked at every place a priority value is accepted:</p>
+<p>Priority takes the same idea further, onto a plain <code>Integer</code>. A task's priority is only ever meaningful between 1 and 5, so that constraint gets written once, as the type itself — not re-checked at every place a priority value is accepted:</p>
 
 <pre><code>declare type Priority = Integer where p: p &gt;= 1 and p &lt;= 5</code></pre>
 
-<p><code>Task.make</code> takes a <code>Priority</code>, not an <code>Integer</code> plus a comment saying "must be 1–5" — the type checker enforces the range at the constructor's boundary, and every method inside <code>Task</code> that reads <code>priority</code> back out gets to assume the range holds, because there is no way to construct a <code>Task</code> that violates it. This is the same "parse, don't validate" instinct as Chapter 1's <code>parse_top_count</code>, pushed one level further: instead of a function that checks a condition and returns a plain value, the value's own type carries the condition, and the check happens exactly once, wherever a <code>Priority</code> first comes into existence.</p>
+<p><code>Task.make</code> takes a <code>Priority</code>, not an <code>Integer</code> plus a comment saying "must be 1–5." The type checker enforces the range at the constructor's boundary. Every method inside <code>Task</code> that reads <code>priority</code> back out gets to assume the range holds, because there's no way to construct a <code>Task</code> that violates it. This is the same "parse, don't validate" instinct as Chapter 1's <code>parse_top_count</code>, pushed one level further. Instead of a function that checks a condition and returns a plain value, the value's own type carries the condition — and the check happens exactly once, wherever a <code>Priority</code> first comes into existence.</p>
 
 <p>The collection itself, <code>Task_Store</code>, states its promises the same way. Adding a task is guaranteed to grow the collection by exactly one:</p>
 
@@ -86,9 +86,9 @@ ensure
   grew: tasks.length = old tasks.length + 1
 end</code></pre>
 
-<p><code>old tasks.length</code> is doing real work in that postcondition: it names the collection's size <em>before</em> this method ran, so the <code>ensure</code> clause can state a relationship between two moments in time — not just "the length is some value" but "the length grew by exactly one" — in one line, checked automatically on every call.</p>
+<p><code>old tasks.length</code> is doing real work in that postcondition. It names the collection's size <em>before</em> this method ran, so the <code>ensure</code> clause can state a relationship between two moments in time. Not just "the length is some value," but "the length grew by exactly one" — in one line, checked automatically on every call.</p>
 
-<p>One more design decision looks, at first, like the kind of thing a reader might expect to be a mistake: <code>add</code> returns the new task's <code>id</code>, an <code>Integer</code>, not the <code>Task</code> object it just created. A caller holding an id has to go back through <code>find</code> to get anything, which keeps <code>Task_Store</code> the single place that can tell you a task's current, authoritative state; a caller holding a direct reference to a <code>Task</code> object could let it go stale the moment the store's own copy changes underneath it.</p>
+<p>One more design decision looks, at first, like a mistake: <code>add</code> returns the new task's <code>id</code>, an <code>Integer</code>, not the <code>Task</code> object it just created. A caller holding an id has to go back through <code>find</code> to get anything. That keeps <code>Task_Store</code> the single place that can tell you a task's current, authoritative state. A caller holding a direct reference to a <code>Task</code> object could let it go stale the moment the store's own copy changes underneath it.</p>
 </section>
 
 <section id="build" class="level2">
@@ -96,7 +96,7 @@ end</code></pre>
 
 <div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/02_task_tracker">examples/contracts_at_work/02_task_tracker</a> on GitHub.</p></div>
 
-<p><code>Task_Store</code> keeps serialization and file I/O as two separate concerns on purpose: <code>to_json</code>/<code>parse_json</code> touch nothing but strings and are testable without a filesystem; <code>save_to</code>/<code>load_from</code> are the only two methods that know a <code>Path</code> exists at all.</p>
+<p><code>Task_Store</code> keeps serialization and file I/O as two separate concerns on purpose. <code>to_json</code>/<code>parse_json</code> touch nothing but strings and are testable without a filesystem. <code>save_to</code>/<code>load_from</code> are the only two methods that know a <code>Path</code> exists at all.</p>
 
 <p>The interesting design decision is the file format itself. The current schema (version 2) writes one JSON object per line (a header line naming the schema version, then one line per task) rather than a single document with a nested array:</p>
 
@@ -104,7 +104,7 @@ end</code></pre>
 {"id":1,"text":"buy milk","priority":3,"status":"open"}
 {"id":2,"text":"write chapter","priority":1,"status":"done"}</code></pre>
 
-<p>A flat, one-record-per-line format is easy to append to and easy to diff, a reasonable choice for a store that saves after every change, independent of anything the language does or doesn't do well. Reading it back has to handle two schema versions at once, because task files written before this project's schema grew a <code>priority</code> field, and used a plain boolean instead of an open/closed status, still have to load correctly:</p>
+<p>A flat, one-record-per-line format is easy to append to and easy to diff — a reasonable choice for a store that saves after every change, independent of anything the language does or doesn't do well. Reading it back has to handle two schema versions at once. Task files written before this project's schema grew a <code>priority</code> field, and that used a plain boolean instead of an open/closed status, still have to load correctly:</p>
 
 <pre><code>-- schema version 1: one JSON document, a bare top-level array:
 -- [{"id":1,"text":"...","done":false}, ...]
@@ -127,7 +127,7 @@ elseif m.contains_key("done") then
   done := m.get("done")
 end</code></pre>
 
-<p>A version-1 file with no <code>priority</code> field gets a sensible default (<code>3</code>) rather than a missing-field error; a version-1 file's boolean <code>done</code> and a version-2 file's string <code>status</code> both resolve to the same internal <code>Task_Status</code>. Migration happens once, at load, and everything downstream — including every method on <code>Task</code> — only ever sees the current shape.</p>
+<p>A version-1 file with no <code>priority</code> field gets a sensible default (<code>3</code>) rather than a missing-field error. A version-1 file's boolean <code>done</code> and a version-2 file's string <code>status</code> both resolve to the same internal <code>Task_Status</code>. Migration happens once, at load. Everything downstream — including every method on <code>Task</code> — only ever sees the current shape.</p>
 </section>
 
 <section id="test" class="level2">
@@ -159,7 +159,7 @@ c.check("migrated next_id", "8", "" + migrated.next_id)</code></pre>
 <section id="takeaways" class="level2">
 <h2>Takeaways</h2>
 
-<p>A closed set of states is worth writing as a <code>union</code>, and a bounded number is worth writing as a refinement type, rather than either becoming a comment asking a future reader to remember a rule by hand. Both put the checking where the type checker can do it once, instead of at every place the value gets used. A method that returns an id instead of a direct reference keeps one object the single, authoritative source of an entity's current state; a caller holding a direct reference can end up trusting a copy that has already gone stale. And when a stored format has to change, handle every version's differences in exactly one place, at load — <code>parse_json</code> here — so that everything downstream, including every method on <code>Task</code>, only ever has to reason about the current shape.</p>
+<p>A closed set of states is worth writing as a <code>union</code>. A bounded number is worth writing as a refinement type. Neither should become a comment asking a future reader to remember a rule by hand. Both put the checking where the type checker can do it once, instead of at every place the value gets used. A method that returns an id instead of a direct reference keeps one object the single, authoritative source of an entity's current state. A caller holding a direct reference can end up trusting a copy that has already gone stale. And when a stored format has to change, handle every version's differences in exactly one place, at load — <code>parse_json</code> here — so that everything downstream, including every method on <code>Task</code>, only ever has to reason about the current shape.</p>
 
 <p>Chapter 3 turns to a simpler kind of state, one that never has to survive being written to disk at all, and asks what's left to say about a contract once persistence isn't part of the problem.</p>
 </section>

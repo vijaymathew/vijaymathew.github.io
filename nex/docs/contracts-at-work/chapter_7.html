@@ -23,12 +23,12 @@
 </div>
 <article class="prose">
 
-<p><code>calc_service</code> exposes <code>POST /evaluate</code>: send an expression, optionally with variable bindings, get back a result — or, for a malformed expression or a genuine contract violation like division by zero, a 400 response with an error body instead of a crash. The interpreter behind it is Chapter 4's <code>expr.nex</code>, embedded exactly as that chapter described: a library built for exactly this kind of reuse, with no idea it is being called over HTTP at all.</p>
+<p><code>calc_service</code> exposes <code>POST /evaluate</code>: send an expression, optionally with variable bindings, and get back a result. Or, for a malformed expression or a genuine contract violation like division by zero, a 400 response with an error body instead of a crash. The interpreter behind it is Chapter 4's <code>expr.nex</code>, embedded exactly as that chapter described — a library built for exactly this kind of reuse, with no idea it's being called over HTTP at all.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
 
-<p>The interpreter's own contracts — <code>require non_zero</code>, <code>require known</code> — are stated in terms of Nex's control flow: a violation is a program failure, caught with <code>rescue</code>. HTTP has no such mechanism. A network client cannot catch a Nex precondition violation; it can only read a status code and a body. So this project's real design work is a translation layer: turning "the interpreter's contract was violated" into "the HTTP contract says this was the client's fault" — status 400, with an error message describing what actually went wrong, not a crashed connection or a generic 500.</p>
+<p>The interpreter's own contracts — <code>require non_zero</code>, <code>require known</code> — are stated in terms of Nex's control flow. A violation is a program failure, caught with <code>rescue</code>. HTTP has no such mechanism. A network client can't catch a Nex precondition violation. It can only read a status code and a body. So this project's real design work is a translation layer: turning "the interpreter's contract was violated" into "the HTTP contract says this was the client's fault" — status 400, with an error message describing what actually went wrong, not a crashed connection or a generic 500.</p>
 
 <p>The request and response shapes are settled first, the same discipline as every earlier chapter:</p>
 
@@ -54,7 +54,7 @@ create
       end)
   end</code></pre>
 
-<p>That last line is doing more design work than it looks like — the route closure's entire body is a single call out to <code>this.handle_evaluate(req)</code>, which means the actual request-handling logic lives as a normal, testable method on <code>Calc_Service</code>, not smeared across an anonymous callback. The closure's only job is to be the thing <code>Http_Server</code>'s API wants; everything a reader would actually want to understand about how this service behaves is one method away, in ordinary object-oriented shape.</p>
+<p>That last line is doing more design work than it looks like. The route closure's entire body is a single call out to <code>this.handle_evaluate(req)</code>. That means the actual request-handling logic lives as a normal, testable method on <code>Calc_Service</code>, not smeared across an anonymous callback. The closure's only job is to be the thing <code>Http_Server</code>'s API wants. Everything a reader would actually want to understand about how this service behaves is one method away, in ordinary object-oriented shape.</p>
 
 <p>The translation from interpreter contract to HTTP status lives in one place, wrapping the interpreter call in exactly the boundary this project exists to build:</p>
 
@@ -74,7 +74,7 @@ create
   end
 end</code></pre>
 
-<p>Every way <code>evaluate</code> can fail — a malformed expression the parser rejects, a division by zero, an undefined variable — is a Nex-level failure caught by the same <code>rescue</code>, and every one of them becomes the same shape of HTTP response: 400, with the failure's own message as the error text. The interpreter never had to change to support this; Chapter 4's contract violations already carried exactly the information this boundary needed, which is the payoff of having designed them as labeled failures in the first place rather than silent wrong answers.</p>
+<p>Every way <code>evaluate</code> can fail — a malformed expression the parser rejects, a division by zero, an undefined variable — is a Nex-level failure caught by the same <code>rescue</code>. Every one of them becomes the same shape of HTTP response: 400, with the failure's own message as the error text. The interpreter never had to change to support this. Chapter 4's contract violations already carried exactly the information this boundary needed — the payoff of having designed them as labeled failures in the first place, rather than silent wrong answers.</p>
 </section>
 
 <section id="build" class="level2">
@@ -82,7 +82,7 @@ end</code></pre>
 
 <div class="note"><span class="note-label">Source</span><p>The complete, current code for this project is at <a href="https://github.com/vijaymathew/nex/tree/master/examples/contracts_at_work/07_http_calc">examples/contracts_at_work/07_http_calc</a> on GitHub.</p></div>
 
-<p>One conversion detail is worth a look, because it is exactly the kind of small seam where two systems' type models disagree: JSON has one number type; Nex's parser distinguishes <code>Integer</code> from <code>Real</code>, and <code>evaluate</code> wants every variable as a <code>Real</code> regardless of how the client happened to write it in the request body:</p>
+<p>One conversion detail is worth a look, because it's exactly the kind of small seam where two systems' type models disagree. JSON has one number type. Nex's parser distinguishes <code>Integer</code> from <code>Real</code>, and <code>evaluate</code> wants every variable as a <code>Real</code>, regardless of how the client happened to write it in the request body:</p>
 
 <pre><code>-- JSON integers parse as Integer, JSON decimals as Real; evaluate wants
 -- Real either way.
@@ -95,7 +95,7 @@ to_real_any(v: Any): Real do
   end
 end</code></pre>
 
-<p><code>{"x": 2}</code> and <code>{"x": 2.0}</code> both have to reach <code>evaluate</code> as the same kind of value, and this is the one place that reconciliation happens — a small, boring, necessary piece of code that exists entirely because two systems (JSON's number model, Nex's type system) meet at this boundary and do not agree on how many number types there are.</p>
+<p><code>{"x": 2}</code> and <code>{"x": 2.0}</code> both have to reach <code>evaluate</code> as the same kind of value. This is the one place that reconciliation happens — a small, boring, necessary piece of code that exists entirely because two systems (JSON's number model, Nex's type system) meet at this boundary and don't agree on how many number types there are.</p>
 
 <p><code>json_response</code> closes the loop on the other side, the one place a status code and a payload become an actual HTTP response with the right content type:</p>
 
@@ -121,13 +121,13 @@ c.check("division by zero status", "400", "" + r3.status())
 let body3: Map[String, Any] := json.parse(r3.body())
 c.check("division by zero has error", "true", "" + body3.contains_key("error"))</code></pre>
 
-<p>Notice what that last pair of checks actually proves: not just that a bad expression fails somehow, but that it fails with the specific, designed HTTP contract this project promises — status 400, an <code>error</code> key present in the body. A test that only checked "the request didn't crash the server" would miss the entire point of building the translation layer in the first place.</p>
+<p>Notice what that last pair of checks actually proves. It's not just that a bad expression fails somehow — it fails with the specific, designed HTTP contract this project promises: status 400, an <code>error</code> key present in the body. A test that only checked "the request didn't crash the server" would miss the entire point of building the translation layer in the first place.</p>
 </section>
 
 <section id="takeaways" class="level2">
 <h2>Takeaways</h2>
 
-<p>A library designed to fail with a labeled, specific reason — not a generic exception — pays for that design the moment it gets reused somewhere its author never anticipated. Embedding Chapter 4's interpreter behind an HTTP endpoint needed no changes to the interpreter itself, because every failure it already produced was exactly the information this new boundary needed to translate a contract violation into an HTTP status code. Design a failure to name what broke, and that design decision keeps paying out in contexts you can't yet foresee.</p>
+<p>A library designed to fail with a labeled, specific reason, not a generic exception, pays for that design the moment it gets reused somewhere its author never anticipated. Embedding Chapter 4's interpreter behind an HTTP endpoint needed no changes to the interpreter itself. Every failure it already produced was exactly the information this new boundary needed, to translate a contract violation into an HTTP status code. Design a failure to name what broke, and that design decision keeps paying out in contexts you can't yet foresee.</p>
 
 <p>One process again in Chapter 8, but a boundary this book has not crossed yet: not the network this time, but the host platform's own GUI toolkit.</p>
 </section>

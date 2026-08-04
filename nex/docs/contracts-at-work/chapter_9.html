@@ -23,14 +23,14 @@
 </div>
 <article class="prose">
 
-<p>"Nex Radar" watches a directory for duplicate files, live: Chapter 5's <code>Dup_Finder</code> does the scanning, an HTTP API in Chapter 7's style reports the results, a background task counts elapsed ticks the way Chapter 6's hub task ran continuously, and a Chapter 8-style Swing dashboard polls it all from a separate window, refreshing live. Every one of those pieces already has its own chapter, its own design, and its own passing check suite. This chapter is about what happens when they meet.</p>
+<p>"Nex Radar" watches a directory for duplicate files, live. Chapter 5's <code>Dup_Finder</code> does the scanning. An HTTP API in Chapter 7's style reports the results. A background task counts elapsed ticks the way Chapter 6's hub task ran continuously. And a Chapter 8-style Swing dashboard polls it all from a separate window, refreshing live. Every one of those pieces already has its own chapter, its own design, and its own passing check suite. This chapter is about what happens when they meet.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
 
-<p>The brief is reuse without coupling: wire five independently-built pieces together through <code>intern</code>, with none of them changing to accommodate any of the others, and none of them aware the others exist. <code>dup_finder.nex</code> is copied into this project unmodified — the same file, the same class, doing exactly what Chapter 5 already proved it does. The service adds a background counter and an HTTP surface around it; the dashboard adds a window around that. If the pieces were actually as independent as this book has argued they should be, plugging them together should be the easy part.</p>
+<p>The brief is reuse without coupling: wire five independently-built pieces together through <code>intern</code>, with none of them changing to accommodate any of the others, and none of them aware the others exist. <code>dup_finder.nex</code> is copied into this project unmodified — the same file, the same class, doing exactly what Chapter 5 already proved it does. The service adds a background counter and an HTTP surface around it. The dashboard adds a window around that. If the pieces were actually as independent as this book has argued they should be, plugging them together should be the easy part.</p>
 
-<p>It was not, quite — plugging five independently-correct pieces together over a real process boundary turned out to be its own test, one none of their individual check suites had run. The reason why is the actual lesson of this chapter, saved for the takeaways below rather than smoothed over here.</p>
+<p>It wasn't, quite. Plugging five independently-correct pieces together over a real process boundary turned out to be its own test — one none of their individual check suites had run. The reason why is the actual lesson of this chapter, saved for the takeaways below rather than smoothed over here.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
@@ -77,7 +77,7 @@ create
       end)
   end</code></pre>
 
-<p><code>Dup_Finder</code> has no idea it is running inside a service; <code>Http_Server</code> has no idea what it is serving status for. The only new contract this project adds is the shape of what <code>/status</code> reports, and it is the same design as Chapter 7's <code>json_response</code>, reused rather than reinvented: a status code, a <code>Map</code>, one method that turns both into an HTTP response with the right content type.</p>
+<p><code>Dup_Finder</code> has no idea it's running inside a service. <code>Http_Server</code> has no idea what it's serving status for. The only new contract this project adds is the shape of what <code>/status</code> reports, and it's the same design as Chapter 7's <code>json_response</code>, reused rather than reinvented: a status code, a <code>Map</code>, one method that turns both into an HTTP response with the right content type.</p>
 </section>
 
 <section id="build" class="level2">
@@ -119,13 +119,13 @@ do
   label.setText(state.status_text)
 end</code></pre>
 
-<p>The one addition Chapter 8's pattern did not need to make: the poll loop now performs a real network call, not just a local state read. <code>fetch_status</code> and <code>fetch_rescan</code> use <code>Http_Client</code> and a fixed-lookbehind <code>text/Regex</code> to pull three numbers out of the response body — the identical technique Chapter 7's <code>calc_client.nex</code> used: the response shape here is small and entirely under this project's own control, so a regex pulling out the one or two fields actually needed is simpler than parsing the whole body as JSON just to read them back out again.</p>
+<p>The one addition Chapter 8's pattern didn't need to make: the poll loop now performs a real network call, not just a local state read. <code>fetch_status</code> and <code>fetch_rescan</code> use <code>Http_Client</code> and a fixed-lookbehind <code>text/Regex</code> to pull three numbers out of the response body — the identical technique Chapter 7's <code>calc_client.nex</code> used. The response shape here is small and entirely under this project's own control, so a regex pulling out the one or two fields actually needed is simpler than parsing the whole body as JSON just to read them back out again.</p>
 </section>
 
 <section id="test" class="level2">
 <h2>Test</h2>
 
-<p>The check suite builds a small directory with two duplicate files, starts the service against it on an ephemeral port, and drives it with a real <code>Http_Client</code> — confirming not just that the pieces run together, but that a change on disk actually reaches the HTTP response through the whole composed chain:</p>
+<p>The check suite builds a small directory with two duplicate files, starts the service against it on an ephemeral port, and drives it with a real <code>Http_Client</code>. It confirms not just that the pieces run together, but that a change on disk actually reaches the HTTP response through the whole composed chain:</p>
 
 <pre><code>let r1: Http_Response := client.get(base + "/status")
 c.check("initial duplicate groups", "1", "" + groups_rx.find(r1.body()))
@@ -139,15 +139,15 @@ let r2: Http_Response := client.post(base + "/rescan", "")
 c.check("rescan finds two groups", "2", "" + groups_rx.find(r2.body()))
 c.check("rescan count incremented", "2", "" + scans_rx.find(r2.body()))</code></pre>
 
-<p>Beyond the automated suite, this project was smoke-tested the way its own design demands — live, across two real processes, over a real network boundary. <code>radar_service_main.nex</code> run in one terminal, <code>radar_dashboard_main.nex</code> in another, its background tick counter visibly climbing as it polls, its <code>refresh</code> and <code>rescan</code> buttons round-tripping real HTTP requests, <code>scan_count</code> confirmed incrementing from 1 to 2 by hitting <code>/rescan</code> directly with <code>curl</code> in parallel with the dashboard's own view of the same number. A capstone's real test is watching the whole thing run, not just its check suite passing.</p>
+<p>Beyond the automated suite, this project was smoke-tested live, across two real processes, over a real network boundary: <code>radar_service_main.nex</code> running in one terminal, <code>radar_dashboard_main.nex</code> in another. Its background tick counter climbed visibly as it polled. Its <code>refresh</code> and <code>rescan</code> buttons round-tripped real HTTP requests. <code>scan_count</code> climbed from 1 to 2 when hit directly with <code>curl</code>, matching the dashboard's own view of the same number. A capstone's real test is watching the whole thing run, not just its check suite passing.</p>
 </section>
 
 <section id="takeaways" class="level2">
 <h2>Takeaways</h2>
 
-<p>Keep a monitor and the thing it watches in separate processes, talking over a real boundary, and you get something closer to how monitoring actually works in practice than a monitor sharing a process with its subject — worth choosing on its own architectural merits, not only when something forces your hand into it. Reusing a pattern that already proved itself elsewhere in this book, rather than reaching for a fresh solution to a problem already solved once, is its own kind of design discipline — consistency a reader (or a future maintainer) can rely on.</p>
+<p>Keep a monitor and the thing it watches in separate processes, talking over a real boundary, and you get something closer to how monitoring actually works in practice than a monitor sharing a process with its subject. It's worth choosing on its own architectural merits, not only when something forces your hand into it. Reusing a pattern that already proved itself elsewhere in this book, rather than reaching for a fresh solution to a problem already solved once, is its own kind of design discipline — consistency a reader (or a future maintainer) can rely on.</p>
 
-<p>Composing independently-correct pieces is not automatic just because each piece's own check suite passes. Proving something correct in isolation and proving it correct as part of a whole system are two different tests, and only integration testing — wiring everything together, over a real process boundary, and watching what actually happens — runs the second one. Unit-level work, however thorough, structurally cannot.</p>
+<p>Composing independently-correct pieces isn't automatic just because each piece's own check suite passes. Proving something correct in isolation and proving it correct as part of a whole system are two different tests. Only integration testing — wiring everything together, over a real process boundary, and watching what actually happens — runs the second one. Unit-level work, however thorough, structurally can't.</p>
 </section>
 
 </article>

@@ -23,18 +23,18 @@
 </div>
 <article class="prose">
 
-<p>This project builds a tiny expression language — numbers, variables, <code>+ - * /</code>, unary minus, parentheses — the classic hand-written path from grammar to AST to evaluator. Unlike Chapters 1 and 2, it is built as a library from the start, not a REPL with logic bolted on: <code>calc_repl.nex</code> exists here as one consumer of <code>expr.nex</code>, and Chapter 7 will be another, embedding the same <code>evaluate</code> function as an HTTP endpoint without either file knowing the other exists.</p>
+<p>This project builds a tiny expression language with numbers, variables and arithmetic. It follows the classic hand-written path from grammar to AST to evaluator. Like Chapter 3, it is built as a library from the start. In Chapter 7 we will see how to expose this language over an HTTP endpoint.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
 
-<p>The grammar is settled before any parsing code, in the classic three-level shape that gives <code>*</code> and <code>/</code> higher precedence than <code>+</code> and <code>-</code> for free, just from the order productions call each other:</p>
+<p>The grammar comes first, before any parsing code. It uses the classic three-level structure, where <code>*</code> and <code>/</code> naturally get higher precedence than <code>+</code> and <code>-</code> — not because of any explicit rule, but simply because of the order in which the productions call each other.</p>
 
 <pre><code>expr   := term (('+' | '-') term)*
 term   := factor (('*' | '/') factor)*
 factor := NUMBER | IDENT | '(' expr ')' | '-' factor</code></pre>
 
-<p>The harder design question is not the grammar — it is what happens when a syntactically valid expression describes something semantically impossible: <code>1 / 0</code>, or a variable that was never bound. Both are common enough in a calculator's real usage that "throw whatever the host happens to throw" is not good enough; a caller needs a labeled failure that names <em>which</em> rule was broken, not a generic exception three frames away from the bad input.</p>
+<p>The harder design question is not the grammar — it is what happens when a syntactically valid expression describes something semantically impossible: <code>1 / 0</code>, or a variable that was never bound. Both are common enough in a calculator's real usage that "throw whatever the host happens to throw" is not good enough. A labeled failure that names <em>which</em> rule was broken will be more useful to a caller than a generic exception three frames away from the bad input.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
@@ -49,7 +49,7 @@ factor := NUMBER | IDENT | '(' expr ')' | '-' factor</code></pre>
   Neg(operand: Expr)
 end</code></pre>
 
-<p>The evaluator is one exhaustive <code>match</code> over that union — every constructor has a case, and the type checker holds the language to that, not a convention someone remembers to maintain by hand:</p>
+<p>The evaluator is a single <code>match</code> over that union, with a case for every constructor. This is exhaustive. The type checker enforces this — it's not just a convention someone has to remember to follow:</p>
 
 <pre><code>function eval_expr(e: Expr, env: Map[String, Real]): Real do
   match e of
@@ -119,18 +119,6 @@ do
 ensure
   consumed_everything: at_end()
 end</code></pre>
-
-<p>One genuine language gotcha showed up writing the smallest-looking method in this file, <code>is_number</code>. The first version compared a token's first character against <code>#0</code> and <code>#9</code> as char literals — and in Nex, <code>#&lt;digit&gt;</code> parses as the ASCII control code with that numeric value, not the digit glyph. <code>#9</code> is a tab character, not <code>'9'</code>. Every numeric token was silently misclassified as a variable reference, which surfaced three method calls away from the actual defect, as a precondition failure on <code>lookup</code>'s <code>known</code> clause for input as simple as <code>1 + 2</code> — a textbook case of a contract catching a real bug, but at a distance from where the bug actually was. The fix sidesteps char literals for digits entirely:</p>
-
-<pre><code>-- Not `tok.char_at(0) &gt;= #0 and ... &lt;= #9`: `#&lt;digit&gt;` char literals
--- parse as the ASCII control code with that numeric value, not the digit
--- glyph (`#9` is a tab character, not '9') — this is intentional, not a
--- bug in the language.
-is_number(tok: String): Boolean do
-  result := tok.length() &gt; 0 and "0123456789".contains(tok.substring(0, 1))
-end</code></pre>
-
-<p><code>#c</code>, <code>#a</code>, and letters generally behave exactly as expected as char literals — only the digit range reads as a trap, specifically to someone porting the habit of comparing against <code>'0'</code>/<code>'9'</code> from another language. String membership avoids the question rather than answering it, which is the right amount of caution for code that has no real need to know what <code>#9</code> means.</p>
 </section>
 
 <section id="test" class="level2">
@@ -152,7 +140,7 @@ c.check("division by zero caught", "true", "" + div_zero_failed)</code></pre>
 <section id="takeaways" class="level2">
 <h2>Takeaways</h2>
 
-<p>A contract violation tells you a promise was broken, not where the code that broke it actually lives. The two can be several calls apart — a mistake in <code>is_number</code> here surfaced three calls away, as a precondition failure on <code>lookup</code>'s <code>known</code> clause for input as ordinary as <code>1 + 2</code> — and mistaking a failure's location for the mistake's location costs real time in any codebase, not just this one. A check firing far from the actual defect is still the contract doing its job: it caught something a silent wrong answer would have let through unnoticed.</p>
+<p>A contract violation tells you a promise was broken, not where the code that broke it actually lives. The two can be several calls apart, and mistaking a failure's location for the mistake's location costs real time in any codebase, not just this one. A check firing far from the actual defect is still the contract doing its job. It caught something a silent wrong answer would have let through unnoticed.</p>
 
 <p>Chapter 5 leaves the single-threaded world both this project and the last two lived in, and asks what a contract has to say once more than one task can be touching the same program at once.</p>
 </section>

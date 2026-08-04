@@ -28,7 +28,7 @@
 <section id="problem" class="level2">
 <h2>Problem</h2>
 
-<p>A library earns its keep by being usable without its caller ever having to know how it works inside. So the design question here is not "how do I implement LRU eviction" — it is "what four operations does a caller actually need, and what does each one promise?" The answer, settled before any implementation: <code>put</code>, <code>get</code>, <code>contains</code>, and <code>size</code>, generic over any key and value type, with reading a key counting as using it just as much as writing one does — a <code>get</code> has to refresh recency exactly like a <code>put</code> does, or the "L" in LRU is a lie.</p>
+<p>A library earns its value by being usable without its caller ever having to know how it works inside. So the design question here is not "how do I implement LRU eviction" — it is "what four operations does a caller actually need, and what does each one promise?" The answer, decided before writing any code: four operations — <code>put</code>, <code>get</code>, <code>contains</code>, and <code>size</code> — generic over key and value type. Reading a key counts as using it, just like writing one does, so <code>get</code> must update recency the same way <code>put</code> does. Otherwise the cache isn't actually LRU.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
@@ -56,7 +56,7 @@ feature
   within_capacity: map.size() &lt;= capacity
   order_matches_map: order.length = map.size()</code></pre>
 
-<p>Two internal structures do the work — a <code>Map[K, V]</code> holding the values, and an <code>Array[K]</code> tracking recency, oldest first — and the invariant is the promise that they never disagree. Every method that touches either one is implicitly required to leave both invariant clauses true when it returns, which is a stronger specification than "here is what <code>put</code> does" written as prose: it is the actual condition the runtime holds every method to, on every call, for the life of the object — checked after each one returns, not proven once and assumed forever after.</p>
+<p>Two internal structures do the work — a <code>Map[K, V]</code> holding the values, and an <code>Array[K]</code> tracking recency, oldest first. The invariant makes sure they never disagree. Every method that touches either one is implicitly required to leave both invariant clauses true when it returns. This is a stronger specification than "here is what <code>put</code> does" written as prose. It is the actual condition the runtime holds every method to, on every call, for the life of the object — checked after each one returns, not proven once and assumed forever after.</p>
 </section>
 
 <section id="build" class="level2">
@@ -130,7 +130,7 @@ c.check("overwrite keeps size", "3", "" + cache.size())</code></pre>
 <section id="takeaways" class="level2">
 <h2>Takeaways</h2>
 
-<p>A class invariant can carry more of a specification than any individual method's own postcondition. State the relationship that must always hold between a class's fields once, as an invariant, and every method's own contract gets to stay modest, because the harder guarantee is already someone else's job — <code>ensure present</code> only ever has to say "the key you put is now in the cache," not re-derive what the invariant already promises. And a library whose only purpose is to be reused everywhere is easiest to trust when it depends on as little as possible: the fewer moving parts underneath it, the fewer ways it can surprise a caller who has never seen its implementation.</p>
+<p>A class invariant can carry more of a specification than any individual method's own postcondition. State the relationship that must always hold between a class's fields once, as an invariant. After that, every method's own contract gets to stay modest. The harder guarantee is already someone else's job. So <code>ensure present</code> only ever has to say 'the key you put is now in the cache.' It doesn't need to re-derive what the invariant already promises. And a library whose only purpose is to be reused everywhere is easiest to trust when it depends on as little as possible: the fewer moving parts underneath it, the fewer ways it can surprise a caller who has never seen its implementation.</p>
 
 <p>Chapter 4 also stays inside a single process with no I/O, but its interface is a much larger one than this cache's four methods: every expression a small language can express.</p>
 </section>
