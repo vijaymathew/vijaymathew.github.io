@@ -28,15 +28,15 @@
 <section id="problem" class="level2">
 <h2>Problem</h2>
 
-<p>Before any of this project's design was settled, a separate feasibility spike answered a narrower question first: can a Nex class actually implement a Java interface, get handed to a real widget, and have a real click fire a real method call back into Nex? That question was not rhetorical. The spike found that the answer is yes, but with two specific, narrow bugs along the way, one of which shapes every line of code in this chapter.</p>
+<p>Before any of this project's design was settled, a separate feasibility spike answered one narrower question first: can a Nex class actually implement a Java interface, get handed to a real widget, and have a real click fire a real method call back into Nex? Anything built on top of a "no" would have been wasted design work, so this got confirmed directly, in isolation, before writing a line of the dashboard itself.</p>
 
-<p>The spike's headline result, confirmed end to end: a Nex class can <code>inherit</code> <code>ActionListener</code>, be wired to a real <code>JButton</code> via <code>addActionListener</code>, and have <code>actionPerformed</code> fire on an actual <code>doClick()</code> (on the JVM backend, no fallback, correct state throughout), <em>provided the listener class holds no field typed as an imported Java class</em>. That proviso is not a footnote. It is the design constraint this entire project is built around.</p>
+<p>The spike's result: a Nex class can <code>inherit</code> <code>ActionListener</code>, be wired to a real <code>JButton</code> via <code>addActionListener</code>, and have <code>actionPerformed</code> fire on an actual <code>doClick()</code> — on the JVM backend, correct state throughout, no fallback required.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
 <h2>Design as Contract</h2>
 
-<p>The spike found that a Nex class field typed as an imported Java class (a <code>JLabel</code> field on a listener that wants to update a label directly, the single most natural-looking design for this kind of code) fails to compile cleanly on the JVM backend, whether or not that class implements any interface at all. So the design this project follows is not "the listener updates the label." It is a split, validated in the spike before this chapter's code was written: <strong>capture the event in plain Nex state; render that state separately.</strong></p>
+<p>The design this project follows keeps listeners and rendering strictly apart: <strong>capture the event in plain Nex state; render that state separately.</strong> The alternative — a listener holding a <code>JLabel</code> field and calling <code>setText</code> directly from <code>actionPerformed</code> — is the single most natural-looking shape for code like this, and it would work. But it ties widget mutation to Swing's own event-dispatch thread, scattered across as many listeners as there are buttons, rather than living in one place a reader can find without hunting.</p>
 
 <p><code>Dashboard_State</code> holds nothing but plain Nex fields — no Java type anywhere in sight, by construction, not by care taken not to slip one in:</p>
 
@@ -73,7 +73,7 @@ feature
   end
 end</code></pre>
 
-<p><code>Dashboard_State</code> is a Nex class, not a Java one, so a field typed with it is exactly the kind of field the spike's finding does not apply to. This listener sidesteps the bug entirely because of what it is built to hold, not because of any special-case handling inside it. Three more listeners (<code>Decrement</code>, <code>Reset</code>, <code>Quit</code>) follow the identical shape.</p>
+<p><code>Dashboard_State</code> is a Nex class, not a Java one — no widget reference anywhere near it, by construction. Three more listeners (<code>Decrement</code>, <code>Reset</code>, <code>Quit</code>) follow the identical shape.</p>
 </section>
 
 <section id="build" class="level2">
@@ -105,7 +105,7 @@ end</code></pre>
 
 <p>The polling loop is deliberately the simplest thing that could work — no <code>Task</code>, just a tight sleep-and-redraw cycle reading <code>state.count</code> every hundred milliseconds. It is the single point of contact between "what happened" (an event, captured as a state mutation by a listener running on Swing's own event-dispatch thread) and "what the user sees" (a label's text, mutated only here, only from this loop). Even <code>should_quit</code> (a listener setting a flag rather than closing the window directly) follows the same rule: the listener describes an intent, and only the loop that owns the window acts on it.</p>
 
-<p>This split follows directly from the constraint above, and it is kept, in this project's own judgment, because it is arguably the better design on its own merits: it separates "what happened" from "how it's shown," the same separation of concerns this book has argued for since Chapter 1's split between <code>Word_Stats</code> and its CLI wrapper.</p>
+<p>Keeping this split rigid — no listener ever touches a widget, full stop — is what makes the polling loop the one and only place rendering happens. It separates "what happened" from "how it's shown," the same separation of concerns this book has argued for since Chapter 1's split between <code>Word_Stats</code> and its CLI wrapper.</p>
 </section>
 
 <section id="test" class="level2">

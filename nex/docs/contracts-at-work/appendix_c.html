@@ -66,9 +66,11 @@ end</code></pre>
 </section>
 
 <section id="the-intern-naming-rule" class="level2">
-<h2>The <code>intern</code> Naming Rule</h2>
+<h2><code>intern</code> and Why Some Files Are Classes Anyway</h2>
 
-<p>One rule shapes several projects' file structure directly enough to be worth stating plainly here rather than only where it first bites, in <a href="chapter_5.html">Chapter 5</a>: <code>intern &lt;Name&gt;</code> requires a top-level declaration literally named <code>&lt;Name&gt;</code> in the file it loads (matched to the file's own snake_case name). A file holding only loose top-level functions, with no class of the matching name, cannot be <code>intern</code>ed by that name at all — which is why <code>Dup_Finder</code> in Chapter 5 and <code>Dashboard_Listeners</code> in Chapter 8 are real classes wrapping what would otherwise be free functions, and why <code>dashboard_listeners.nex</code>'s actual content (four <code>ActionListener</code> implementations) sits below a small "anchor" class that exists mainly to give the file something to be interned by.</p>
+<p>Worth stating plainly here rather than only where it first comes up, in <a href="chapter_5.html">Chapter 5</a>: <code>intern &lt;Name&gt;</code> uses <code>&lt;Name&gt;</code> to find a file (matched against the file's own snake_case name), not to require a declaration literally named <code>&lt;Name&gt;</code> inside it. On the JVM backend every project in this book compiles to, an interned file hands over everything it declares at top level — every class, every free function — regardless of what any of them are named. A file of loose functions interns and runs exactly as well as a file built around a class of the expected name.</p>
+
+<p>So <code>Dup_Finder</code> in Chapter 5 is a class for a different reason: three functions merged straight into a caller's namespace would be three bare global names, free to collide with anything else the interning program (or some other interned module) happens to define. A class keeps them reachable only through an instance — <code>finder.collect_files(...)</code> can't be shadowed the way a loose <code>collect_files</code> could. <code>Dashboard_Listeners</code> in Chapter 8, on the other hand, never needed an anchor class at all: that file's real content is already four classes (<code>Increment_Listener</code> and the rest), and <code>intern Dashboard_Listeners</code> loads them regardless of whether anything in the file is literally named <code>Dashboard_Listeners</code>. The small anchor class this file used to carry served no mechanical purpose and has been removed.</p>
 </section>
 
 </article>
