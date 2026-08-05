@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A Live Desktop Dashboard — Contracts at Work</title>
-<meta name="description" content="Real Swing listeners in Nex, and the isolation pattern a feasibility spike found and this project follows.">
+<meta name="description" content="Real Swing listeners in Nex, and the isolation pattern that keeps event handling and rendering apart.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -19,18 +19,18 @@
 <div class="opener">
 <span class="opener-label">Chapter 8 &middot; Part V</span>
 <h1 class="opener-title">A Live Desktop Dashboard</h1>
-<p class="opener-lede">A real window, with real buttons, wired to real Java event listeners written in Nex. This is the one chapter in this book that crosses out of the language entirely, into the host platform's own GUI toolkit. It is the one place where "does this even work" had to be answered before any design could be trusted.</p>
+<p class="opener-lede">A real window, with real buttons, wired to real Java event listeners written in Nex. This is the one chapter in this book that crosses out of the language entirely, into the host platform's own GUI toolkit — a Nex class standing in directly for a Java interface, called back into from inside the JVM's own event-dispatch machinery.</p>
 </div>
 <article class="prose">
 
-<p>Four buttons (<code>+</code>, <code>-</code>, <code>reset</code>, <code>quit</code>), each wired to a real <code>javax.swing.ActionListener</code> implemented as a Nex class, updating a counter shown in a live window. The counter itself is trivial. What makes this chapter different from every one before it: Swing isn't Nex's own type system reasoning about Nex's own values. It's a real Java GUI toolkit, calling back into Nex code from inside the JVM's own event dispatch machinery. That boundary was genuinely untested territory when this project began.</p>
+<p>Four buttons (<code>+</code>, <code>-</code>, <code>reset</code>, <code>quit</code>), each wired to a real <code>javax.swing.ActionListener</code> implemented as a Nex class, updating a counter shown in a live window. The counter itself is trivial. What makes this chapter different from every one before it: Swing isn't Nex's own type system reasoning about Nex's own values. It's a real Java GUI toolkit, calling back into Nex code from inside the JVM's own event dispatch machinery, the same way it would call back into any Java class implementing that interface.</p>
 
 <section id="problem" class="level2">
 <h2>Problem</h2>
 
-<p>Before any of this project's design was settled, a separate feasibility spike answered one narrower question first: can a Nex class actually implement a Java interface, get handed to a real widget, and have a real click fire a real method call back into Nex? Anything built on top of a "no" would have been wasted design work. So the spike ran in isolation, before writing a line of the dashboard itself.</p>
+<p>A Nex class can implement a Java interface directly: <code>inherit</code> <code>ActionListener</code>, get wired to a real <code>JButton</code> via <code>addActionListener</code>, and have <code>actionPerformed</code> fire on an actual click — on the JVM backend, correct state throughout, no fallback required. This project puts that capability to work behind a real window: four buttons, one counter, and a live label that stays in sync with it.</p>
 
-<p>The spike's result: a Nex class can <code>inherit</code> <code>ActionListener</code>, be wired to a real <code>JButton</code> via <code>addActionListener</code>, and have <code>actionPerformed</code> fire on an actual <code>doClick()</code> — on the JVM backend, correct state throughout, no fallback required.</p>
+<p>The design question worth deciding before any code: where does a click's effect live, and where does the window's redraw happen. Those are two different responsibilities, and this chapter keeps them apart on purpose.</p>
 </section>
 
 <section id="design-as-contract" class="level2">
@@ -38,7 +38,7 @@
 
 <p>The design this project follows keeps listeners and rendering strictly apart: <strong>capture the event in plain Nex state; render that state separately.</strong> The alternative — a listener holding a <code>JLabel</code> field and calling <code>setText</code> directly from <code>actionPerformed</code> — is the single most natural-looking shape for code like this. It would work. But it ties widget mutation to Swing's own event-dispatch thread, scattered across as many listeners as there are buttons, instead of living in one place a reader can find without hunting.</p>
 
-<p><code>Dashboard_State</code> holds nothing but plain Nex fields — no Java type anywhere in sight, by construction, not by care taken not to slip one in:</p>
+<p><code>Dashboard_State</code> holds nothing but plain Nex fields — no Java type anywhere in sight:</p>
 
 <pre><code>class Dashboard_State
 create
@@ -73,7 +73,7 @@ feature
   end
 end</code></pre>
 
-<p><code>Dashboard_State</code> is a Nex class, not a Java one — no widget reference anywhere near it, by construction. Three more listeners (<code>Decrement</code>, <code>Reset</code>, <code>Quit</code>) follow the identical shape.</p>
+<p><code>Dashboard_State</code> is a Nex class, not a Java one — no widget reference anywhere near it, by design. Three more listeners (<code>Decrement</code>, <code>Reset</code>, <code>Quit</code>) follow the identical shape.</p>
 </section>
 
 <section id="build" class="level2">
@@ -111,7 +111,7 @@ end</code></pre>
 <section id="test" class="level2">
 <h2>Test</h2>
 
-<p><code>checks.nex</code> drives the listeners through real <code>JButton.doClick()</code> calls, not direct method calls on the listener objects. That's the same style of check the spike itself used, and the only style that actually proves the Swing wiring works, rather than just proving the underlying state methods work in isolation:</p>
+<p><code>checks.nex</code> drives the listeners through real <code>JButton.doClick()</code> calls, not direct method calls on the listener objects. That's the only style of check that actually proves the Swing wiring works, rather than just proving the underlying state methods work in isolation:</p>
 
 <pre><code>inc_button.doClick()
 inc_button.doClick()
@@ -132,7 +132,7 @@ c.check("quit after click", "true", "" + state.should_quit)</code></pre>
 
 <p>When a design's whole point is to react to a real external event, test it by triggering that real event, not by calling the code underneath it directly. A real <code>JButton.doClick()</code> proves the wiring works in a way a direct call on the listener object never could. That's the same principle behind every integration test in this book, just applied here to a GUI instead of a socket or an HTTP connection. And capturing an event as a plain state mutation, then rendering that state separately from one single loop, is a pattern worth reaching for anywhere "what happened" and "how it's shown" can be pulled apart. It keeps a UI's own bookkeeping out of the code that actually responds to the user.</p>
 
-<p>There's one question that can sink an entire project's design: can this even work, mechanically? Answering it with a small, disposable spike, before writing any of the project's real code, buys a kind of confidence no amount of careful planning can substitute for.</p>
+<p>Implementing a Java interface from Nex costs nothing beyond an ordinary <code>inherit</code> clause. The real design work in this chapter was never about whether that boundary holds — it does — but about keeping what a listener captures separate from how a window renders it, so neither side ever has to know about the other's timing.</p>
 </section>
 
 </article>
