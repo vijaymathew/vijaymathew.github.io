@@ -34,7 +34,7 @@
 
 <p>One tradition of software design answers the first hardness by <em>narrowing what the program can even say</em>. If an empty shipped order is nonsense, then arrange the types so that an empty shipped order cannot be constructed. If a temperature is a number, then it should never have been possible for the string <code>"N/A"</code> to occupy that slot. The discipline here is subtractive: you remove the ability to express bad states, and what remains is, by construction, closer to correct.</p>
 
-<p>This is the world of precise domain models — of types that mean something, of making illegal states unrepresentable, of parsing untrusted input into trustworthy values once, at the boundary, so the interior never has to check again. Its instinct is to <em>close doors</em>. Every door closed is a class of bug that can no longer occur, and a class of test that no longer needs to be written because the compiler now carries the argument.</p>
+<p>This is the world of precise domain models — of types that mean something, of making illegal states unrepresentable, of parsing untrusted input into trustworthy values once, at the boundary, so the interior never has to check again. Its instinct is to <em>close doors</em>. Every door closed is a class of bug that can no longer occur, and a class of test that no longer needs to be written because the whole responsibility of keeping the model correct is now carried by the compiler.</p>
 
 <p>Here is the instinct in miniature. Rather than let an order be a bag of fields that any combination of code can leave in any state, we make the states themselves the type, and let the compiler enforce that only one is ever active:</p>
 
@@ -84,13 +84,13 @@ end</code></pre>
 
 <p>This is the world of generic operations, of combinators that snap together, of interpreters whose vocabulary grows at runtime, of systems that compute even when the answer arrives from several directions at once. Its instinct is the opposite of the first: it wants to <em>open doors</em> — to leave deliberate room for cases that have not been imagined yet, so that the future can be handled by extension instead of rewrite.</p>
 
-<p>Where the constraint tradition earns its keep by making certain programs impossible to write, the flexibility tradition earns its keep by making certain <em>changes</em> cheap to make. Both are responses to complexity. They are not the same response, and — this is the whole problem — they are frequently in tension.</p>
+<p>Where the constraint tradition earns its keep by making certain programs impossible to write, the flexibility tradition earns its keep by making certain <em>changes</em> cheap to make. Both are responses to complexity. They are not the same response, and — this is the whole problem — they are frequently in conflict.</p>
 </section>
 
 <section id="why-they-pull-apart" class="level2" data-number="1.3">
 <h2 class="anchored" data-anchor-id="why-they-pull-apart"><span class="header-section-number">1.3</span> Why They Pull Apart</h2>
 
-<p>The tension is not a matter of taste; it is structural. Constraint buys correctness by <em>removing</em> possibilities — the fewer shapes a value can take, the less can go wrong, and the more the compiler can prove. Flexibility buys adaptability by <em>preserving</em> possibilities — the more open a component is to cases it has not seen, the more the future can be absorbed without a rewrite. One discipline closes the set of things that can happen; the other keeps it open. Applied to the same code at the same time, they contradict each other.</p>
+<p>The conflict is not a matter of taste; it is structural. Constraint buys correctness by <em>removing</em> possibilities — the fewer shapes a value can take, the less can go wrong, and the more the compiler can prove. Flexibility buys adaptability by <em>preserving</em> possibilities — the more open a component is to cases it has not seen, the more the future can be absorbed without a rewrite. One discipline closes the set of things that can happen; the other keeps it open. Applied to the same code at the same time, they contradict each other.</p>
 
 <p>You can feel the contradiction in the extremes. A system constrained to the hilt — every value a precise type, every case enumerated, nothing left open — is a joy to reason about and agony to extend; adding a genuinely new kind of thing means changing every place that enumerated the old kinds. A system built for maximal flexibility — everything dynamic, everything a plug-in, everything late-bound — absorbs new requirements gracefully and gives you almost no help proving that any particular one is correct; the compiler has been asked to stay silent so the program can stay open.</p>
 
@@ -100,9 +100,9 @@ end</code></pre>
 <section id="the-resolution" class="level2" data-number="1.4">
 <h2 class="anchored" data-anchor-id="the-resolution"><span class="header-section-number">1.4</span> The Resolution: Core, Edge, Membrane</h2>
 
-<p>The resolution this book argues for is not a compromise between the two disciplines but a <em>placement</em> of them. Constrain the core. Open the edges. And put a contract on the boundary between them so each side can trust the other without seeing inside it.</p>
+<p>The resolution this book offers is not a compromise between the two disciplines but a <em>placement</em> of them. Constrain the core. Open the edges. And put a contract on the boundary between them so each side can trust the other without seeing inside it.</p>
 
-<p>The <strong>core</strong> is the part of the system whose correctness is not negotiable — the domain model, the invariants that define what a valid order or a valid price even <em>is</em>. That belongs to the constraint tradition. Make illegal states unrepresentable there; enumerate the cases; let the compiler carry the argument. The core should be the part of the program you are least afraid of, because it is the part that can least afford to be wrong.</p>
+<p>The <strong>core</strong> is the part of the system whose correctness is not negotiable — the domain model, the invariants that define what a valid order or a valid price even <em>is</em>. That belongs to the constraint tradition. Make illegal states unrepresentable there; enumerate the cases; let the compiler carry the load. The core should be the part of the program you are least afraid of, because it is the part that can least afford to be wrong.</p>
 
 <p>The <strong>edge</strong> is the part that must absorb change you cannot predict — the pricing rules, the payment methods, the export formats, the integrations. That belongs to the flexibility tradition. Leave it open; let it grow by registration and extension rather than by editing a closed enumeration. The edge should be the part of the program you can change without holding your breath, because it was built expecting to be changed.</p>
 
@@ -122,7 +122,7 @@ end</code></pre>
 
 <p>The pricing and rules engine is the opposite. The rules that decide what an order costs — promotions, tax by jurisdiction, volume discounts, loyalty tiers, whatever marketing invents next quarter — will change forever, and they must be addable without reopening the core. This is flexibility territory, and we will build it so that a new rule is a new plug-in, not a new branch in an old function.</p>
 
-<p>The boundary between them — the moment a price produced by some open-ended rule is handed back to a core that will not accept a malformed total — is where contracts do their work. We return to this system in every part and take it one step further, so that by the capstone you will have watched one codebase earn its flexibility without ever loosening its core.</p>
+<p>The boundary between them — the moment a price produced by some open-ended rule is handed back to a core that will not accept a malformed total — is where contracts do their work. We return to this system in every part and take it one step further, so that by the capstone you will have watched one codebase win its flexibility without ever loosening its core.</p>
 </section>
 
 <section id="why-nex-and-how-to-read" class="level2" data-number="1.6">
@@ -130,7 +130,7 @@ end</code></pre>
 
 <p>The ideas here are not about Nex, and they should transfer to any language with a real type system and a way to state contracts. But they are <em>shown</em> in Nex, for a specific reason: Nex puts Design by Contract — <code>require</code>, <code>ensure</code>, <code>invariant</code>, <code>variant</code> — in the ordinary vocabulary of the language rather than in a testing library or a comment. That makes the membrane visible on the page. When the type checker has to fall silent so an edge can stay open, you will see, in the same syntax you use everywhere else, exactly what promise takes over the guarding. A book about placing constraint against flexibility wants a language where both are first-class, and that is what Nex offers.</p>
 
-<p>The order of the chapters enacts the argument. Part I names the conflict and teaches contracts up front, because contracts are the through-line. Part II constrains the core. Part III learns to compose the trustworthy parts. Part IV deliberately opens the frontier — and it is only here, <em>after</em> we have seen what safety looks like, that we step outside the type system, so that openness reads as a considered trade rather than a default. Part V pushes flexibility to its limit, into systems that compute under partial information. Part VI is judgment: for the decision actually in front of you, do you constrain or open, and where does the membrane go?</p>
+<p>The chapters are grouped into six parts. Part I names the conflict and teaches contracts up front, because contracts are the through-line. Part II constrains the core. Part III learns to compose the trustworthy parts. Part IV deliberately opens the frontier — and it is only here, <em>after</em> we have seen what safety looks like, that we step outside the type system, so that openness reads as a considered trade rather than a default. Part V pushes flexibility to its limit, into systems that compute under partial information. Part VI is judgment: for the decision actually in front of you, do you constrain or open, and where does the membrane go?</p>
 
 <p>You do not need to be an expert in type theory, functional programming, or metaprogramming to follow along. You need to have felt software get hard — in either of its two ways — and to want a principled account of what to do about it.</p>
 </section>
