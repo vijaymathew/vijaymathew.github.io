@@ -104,7 +104,7 @@ The pipeline's vocabulary, in one place. Each entry gives the working definition
 
 **white point** — the chromaticity a system treats as "no color": D65 for sRGB and this book. (Chapters 1, 5)
 
-**XYZ** — the CIE's device-independent color coordinates, built on the standard observer; the space where color claims can be checked. (Chapter 5)
+**XYZ** — the CIE's device-independent color coordinates, built on the standard observer; the space where color statements can be checked. (Chapter 5)
 
 **YCbCr** — luma plus two color-difference channels; JFIF's basis, chosen so chroma can be treated roughly. (Chapter 9)
 

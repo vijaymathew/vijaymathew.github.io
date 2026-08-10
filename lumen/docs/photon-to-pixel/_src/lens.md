@@ -1,6 +1,6 @@
 Chapter 1 built a lens with three flaws, each governed by one coefficient we chose. Every capture since has carried those flaws along politely — the corners a stop dark, the corner dots wearing rainbows, the straight lines bowed. Now the pipeline pays the debt. This chapter inverts all three, and because we wrote the forward model, the inversions can be checked against it: each correction is measured, and each leaves a residual with a reason.
 
-Placement is half the chapter. The three corrections do not go in one place; they interleave with the stages already built, and each position has an argument behind it. The pipeline, as of this chapter:
+Placement is half the chapter. The three corrections do not go in one place; they interleave with the stages already built, and each position has a reason behind it. The pipeline, as of this chapter:
 
 ```text
 linearize → defects → vignetting ⁶·¹ → white balance → demosaic

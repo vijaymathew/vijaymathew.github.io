@@ -106,7 +106,7 @@ The package's one structural rule is Chapter 0's contract: every pipeline stage 
 | `reference_gains(light)` | the true gains, by simulator privilege — every estimator's yardstick |
 | `gray_world(mosaic)` / `white_patch(mosaic, keep=0.999)` | the two classic estimators, each faithful to its own assumption |
 | `gains_for_temperature(kelvin)` | the Kelvin slider: Planck's law run backwards |
-| `apply_gains(mosaic, gains)` | three multiplications, on the mosaic, before demosaicing — the chapter's thesis |
+| `apply_gains(mosaic, gains)` | three multiplications, on the mosaic, before demosaicing — the chapter's point |
 
 **`pxp.demosaic`** (Chapters 3–4)
 
@@ -166,7 +166,7 @@ The package's one structural rule is Chapter 0's contract: every pipeline stage 
 
 | name | what it does |
 |---|---|
-| `tent(x)` / `catmull_rom(x)` / `lanczos(x, lobes=3)` | the kernels: three claims about what lies between samples |
+| `tent(x)` / `catmull_rom(x)` / `lanczos(x, lobes=3)` | the kernels: three assumptions about what lies between samples |
 | `axis_weights(src, dst, kernel, support)` | tap positions and weights, stretched when shrinking; both tiers share it |
 | `resample(plane, width, height, method="lanczos")` | separable resize; `"nearest"` is the disclosed aliasing demo |
 
