@@ -503,9 +503,14 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="process" class="level2">
 <h2 class="anchored" data-anchor-id="process"><code>Process</code></h2>
+<p>A <code>Process</code> value is either the <em>self</em> process (the running Nex program) or a spawned <em>child</em>.</p>
 <section id="construction-1" class="level3">
 <h3 class="anchored" data-anchor-id="construction-1">Construction</h3>
-<pre class="nex"><code>create Process</code></pre>
+<pre class="nex"><code>create Process              -- self (the running program)
+create Process.self         -- same, explicit
+create Process.command("ls -lat")                      -- shell-word split
+create Process.command("ls", ["-lat", "/tmp"])          -- explicit argv, no shell</code></pre>
+<p>A child is only configured by its constructor — nothing runs until <code>start()</code> is called, which allows <code>set_working_directory</code>/<code>set_redirect_error_to_output</code>/<code>setenv</code> to be applied first.</p>
 </section>
 <section id="methods-1" class="level3">
 <h3 class="anchored" data-anchor-id="methods-1">Methods</h3>
@@ -529,22 +534,148 @@ ul.task-list li input[type="checkbox"] {
 <td><code>getenv</code></td>
 <td><code>name: String</code></td>
 <td><code>String</code></td>
-<td>Read environment variable (empty if missing).</td>
+<td>Self: the OS env var. Child: its configured/inherited value.</td>
 </tr>
 <tr class="even">
 <td><code>setenv</code></td>
 <td><code>name: String, value: String</code></td>
 <td><code>Void</code></td>
-<td>Set environment variable (platform dependent).</td>
+<td>Self: sets the current process's env (platform dependent, may raise). Child (pre-start only): records an override applied at <code>start()</code>.</td>
 </tr>
 <tr class="odd">
 <td><code>command_line</code></td>
 <td>none</td>
 <td><code>Array[String]</code></td>
-<td>Return command-line arguments.</td>
+<td>Self: this program's argv. Child: its own launch argv (command + arguments).</td>
+</tr>
+<tr class="even">
+<td><code>is_self</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>True for the self process.</td>
+</tr>
+<tr class="odd">
+<td><code>is_child</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>True for a spawned child.</td>
+</tr>
+<tr class="even">
+<td><code>set_working_directory</code></td>
+<td><code>dir: String</code></td>
+<td><code>Void</code></td>
+<td>Child, pre-start only.</td>
+</tr>
+<tr class="odd">
+<td><code>set_redirect_error_to_output</code></td>
+<td><code>flag: Boolean</code></td>
+<td><code>Void</code></td>
+<td>Child, pre-start only. Merges the child's stderr into its stdout stream.</td>
+</tr>
+<tr class="even">
+<td><code>start</code></td>
+<td>none</td>
+<td><code>Void</code></td>
+<td>Self: no-op. Child: launches the process; raises if the executable can't be found/run.</td>
+</tr>
+<tr class="odd">
+<td><code>is_started</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>Self: always <code>true</code>. Child: whether <code>start()</code> has run.</td>
+</tr>
+<tr class="even">
+<td><code>is_alive</code></td>
+<td>none</td>
+<td><code>Boolean</code></td>
+<td>Self: always <code>true</code>. Child: whether the process is still running.</td>
+</tr>
+<tr class="odd">
+<td><code>pid</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>Self: the current process id. Child: requires <code>start()</code>.</td>
+</tr>
+<tr class="even">
+<td><code>wait</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>Child only. Blocks until exit; returns the exit code.</td>
+</tr>
+<tr class="odd">
+<td><code>wait</code></td>
+<td><code>timeout_ms: Integer</code></td>
+<td><code>?Integer</code></td>
+<td>Child only. Blocks up to <code>timeout_ms</code>; <code>nil</code> means still running.</td>
+</tr>
+<tr class="even">
+<td><code>exit_code</code></td>
+<td>none</td>
+<td><code>?Integer</code></td>
+<td><code>nil</code> while running, not started, or self.</td>
+</tr>
+<tr class="odd">
+<td><code>terminate</code></td>
+<td>none</td>
+<td><code>Void</code></td>
+<td>Child only. Graceful shutdown (SIGTERM-equivalent).</td>
+</tr>
+<tr class="even">
+<td><code>kill</code></td>
+<td>none</td>
+<td><code>Void</code></td>
+<td>Child only. Forced shutdown (SIGKILL-equivalent).</td>
+</tr>
+<tr class="odd">
+<td><code>write</code></td>
+<td><code>text: String</code></td>
+<td><code>Void</code></td>
+<td>Child only, after <code>start()</code>. Writes to the child's stdin.</td>
+</tr>
+<tr class="even">
+<td><code>write_line</code></td>
+<td><code>text: String</code></td>
+<td><code>Void</code></td>
+<td>Same, plus a line terminator.</td>
+</tr>
+<tr class="odd">
+<td><code>close_stdin</code></td>
+<td>none</td>
+<td><code>Void</code></td>
+<td>Closes the child's stdin (signals EOF to it).</td>
+</tr>
+<tr class="even">
+<td><code>read_line</code></td>
+<td>none</td>
+<td><code>?String</code></td>
+<td>Reads one line of the child's stdout; <code>nil</code> at EOF.</td>
+</tr>
+<tr class="odd">
+<td><code>read_all</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>Reads the rest of the child's stdout up to EOF.</td>
+</tr>
+<tr class="even">
+<td><code>read_error_line</code></td>
+<td>none</td>
+<td><code>?String</code></td>
+<td>Reads one line of the child's stderr; <code>nil</code> at EOF or when merged via <code>set_redirect_error_to_output</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>read_error_all</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>Reads the rest of the child's stderr up to EOF.</td>
 </tr>
 </tbody>
 </table>
+<ul>
+<li>Every child-only method (<code>start</code>, <code>wait</code>, <code>terminate</code>, <code>kill</code>, the stream methods, etc.) raises if called on the self process.</li>
+<li><code>start()</code>/<code>wait()</code>/etc. also raise if called before <code>start()</code> where a started process is required, or if <code>start()</code> is called twice.</li>
+<li><code>command(str)</code> splits on whitespace, honoring <code>'...'</code>/<code>"..."</code> grouping (no escape-character support). Use <code>command(str, args)</code> for exact argv control.</li>
+<li>Suspend/resume isn't exposed: there is no portable pause primitive on the JVM (no SIGSTOP/SIGCONT equivalent).</li>
+</ul>
 </section>
 </section>
 <section id="task" class="level2">
@@ -974,6 +1105,18 @@ print(path.read_text())
 let p := create Process
 print(p.getenv("HOME"))
 print(p.command_line())
+
+let echo := create Process.command("echo", ["hello", "world"])
+echo.start()
+print(echo.read_line())
+print(echo.wait())
+
+let child := create Process.command("cat")
+child.start()
+child.write_line("ping")
+child.close_stdin()
+print(child.read_line())
+print(child.wait())
 
 let t: Task[Integer] := spawn do
   result := 42
