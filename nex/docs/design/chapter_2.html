@@ -40,13 +40,13 @@
 </ol>
 <p>That path takes you from source text to executable meaning with very little indirection.</p>
 <section id="the-grammar" class="level2" data-number="2.1">
-<h2 data-number="2.1" class="anchored" data-anchor-id="the-grammar"><span class="header-section-number">2.1</span> 2.1 The Grammar</h2>
+<h2 data-number="2.1" class="anchored" data-anchor-id="the-grammar"><span class="header-section-number">2.1</span> The Grammar</h2>
 <p>The ANTLR grammar defines the concrete syntax of Nex — what strings of characters constitute valid programs. It covers class declarations (including <code>sealed</code> classes and <code>once</code> fields), functions and anonymous functions, type aliases and forward declarations (<code>declare type</code> / <code>declare function</code>), generic parameters, function types, contracts, array and map and set literals, <code>intern</code> and <code>import</code>, <code>spawn</code> and <code>select</code>.</p>
 <p>The grammar’s job is narrow on purpose: answer whether a given string is syntactically well-formed. It should not know whether a call is type-correct, whether an inheritance relation is legal, or whether a contract is meaningful. Those are later questions, and forcing them into the grammar would make it harder to evolve and harder to reason about. A grammar that tries to solve semantic problems is not a grammar any more — it is a grammar with hidden semantics scattered through it.</p>
 <p>For a contributor, the practical consequence is simple: when a feature change is really a syntax change, start in the grammar. If it is not a syntax change, do not force it there.</p>
 </section>
 <section id="the-parser-layer" class="level2" data-number="2.2">
-<h2 data-number="2.2" class="anchored" data-anchor-id="the-parser-layer"><span class="header-section-number">2.2</span> 2.2 The Parser Layer</h2>
+<h2 data-number="2.2" class="anchored" data-anchor-id="the-parser-layer"><span class="header-section-number">2.2</span> The Parser Layer</h2>
 <p><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/parser.clj"><code>src/nex/parser.clj</code></a> is intentionally thin — setting one detail aside, it is:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode clojure code-with-copy"><code class="sourceCode clojure"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">def</span><span class="fu"> parser</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  (antlr/parser <span class="st">"grammar/nexlang.g4"</span>))</span>
@@ -64,7 +64,7 @@
 <p>It also means the first real implementation boundary is easy to locate. Everything before <code>walker/walk-node</code> is parsing infrastructure. Everything after it is language processing.</p>
 </section>
 <section id="the-walker-from-grammar-trees-to-semantic-asts" class="level2" data-number="2.3">
-<h2 data-number="2.3" class="anchored" data-anchor-id="the-walker-from-grammar-trees-to-semantic-asts"><span class="header-section-number">2.3</span> 2.3 The Walker: From Grammar Trees to Semantic ASTs</h2>
+<h2 data-number="2.3" class="anchored" data-anchor-id="the-walker-from-grammar-trees-to-semantic-asts"><span class="header-section-number">2.3</span> The Walker: From Grammar Trees to Semantic ASTs</h2>
 <p>The parse tree that ANTLR produces is faithful to the grammar, but grammar-faithful is not the same as easy to evaluate. Grammar trees carry syntactic noise — token boundaries, optional punctuation, production-rule artifacts — that the rest of the implementation should not have to navigate. The role of <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/walker.clj"><code>src/nex/walker.clj</code></a> is to convert grammar-shaped trees into semantic AST nodes that the interpreter and type-checker can work with directly.</p>
 <p>This conversion produces regular Clojure maps with a <code>:type</code> key and a set of named fields:</p>
 <ul>
@@ -93,13 +93,13 @@
 <p>A useful habit when reading the walker is to keep the corresponding grammar production open alongside it. The grammar shows how tokens are recognised; the walker shows which information survives into the semantic representation. The difference between the two is the walker’s entire purpose.</p>
 </section>
 <section id="the-ast-as-plain-data" class="level2" data-number="2.4">
-<h2 data-number="2.4" class="anchored" data-anchor-id="the-ast-as-plain-data"><span class="header-section-number">2.4</span> 2.4 The AST as Plain Data</h2>
+<h2 data-number="2.4" class="anchored" data-anchor-id="the-ast-as-plain-data"><span class="header-section-number">2.4</span> The AST as Plain Data</h2>
 <p>The AST is represented entirely in plain Clojure data: maps, vectors, strings, keywords, and numbers. This is not incidental — it is one of the strongest architectural decisions in the implementation.</p>
 <p>Because the AST is plain data, it can be inspected at the REPL without a special pretty-printer. Tests can construct or compare pieces of it without building a parser. Transformations stay explicit because there is no object graph to traverse imperatively. Later phases remain decoupled from parser internals because they receive ordinary data structures, not opaque parse-tree objects.</p>
 <p>It also means feature debugging is unusually direct. When something is wrong, you can inspect the AST produced for a piece of source and ask three separate questions: did the grammar accept the right structure? Did the walker preserve the right meaning? Is the bug actually in the interpreter or generator? Plain data makes those questions answerable without a debugger.</p>
 </section>
 <section id="the-program-node" class="level2" data-number="2.5">
-<h2 data-number="2.5" class="anchored" data-anchor-id="the-program-node"><span class="header-section-number">2.5</span> 2.5 The <code>:program</code> Node</h2>
+<h2 data-number="2.5" class="anchored" data-anchor-id="the-program-node"><span class="header-section-number">2.5</span> The <code>:program</code> Node</h2>
 <p>The <code>:program</code> node is the output of the entire front end and the input to everything that follows. Its structure is worth understanding in detail, because it is the main contract between parsing and execution.</p>
 <p>The walker collects top-level material into named buckets:</p>
 <ul>
@@ -113,7 +113,7 @@
 </ul>
 <p>This structure encodes an important distinction: declarations and executable statements are separated, not interleaved. That separation drives both typechecking order and interpretation order. Classes can reference each other regardless of source position; top-level statements execute after the static world is fully loaded. The <code>:program</code> shape is what makes both of those properties straightforward to implement.</p>
 <section id="declaration-forms" class="level3" data-number="2.5.1">
-<h3 data-number="2.5.1" class="anchored" data-anchor-id="declaration-forms"><span class="header-section-number">2.5.1</span> 2.5.1 Declaration Forms Beyond Classes and Functions</h3>
+<h3 data-number="2.5.1" class="anchored" data-anchor-id="declaration-forms"><span class="header-section-number">2.5.1</span> Declaration Forms Beyond Classes and Functions</h3>
 <p>Five declaration forms shape the static world without producing executable statements. Each is recognised by its own grammar production and turned into a distinct AST node, so the rest of the front end can treat it uniformly.</p>
 <p><strong>Type aliases.</strong> <code>declare type Name = T</code> binds a name to any type expression — a generic instantiation, a function type, or another alias. The production <code>declareTypeDecl : DECLARE TYPE_KW IDENTIFIER EQUAL type (WHERE IDENTIFIER ':' expression)?</code> produces a <code>:type-alias</code> node <code>{:type :type-alias, :name "Name", :type-expr T}</code>, which the walker gathers into the program's <code>:type-aliases</code> bucket. Aliases are purely a checking-time convenience: they carry no runtime representation and are gone before any backend runs (see Section 3.2).</p>
 
@@ -128,11 +128,11 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 
 <p><strong>Sum types.</strong> <code>union Name … end</code> is the one declaration form that is not merely annotated but <em>rewritten</em>. The walker desugars it into a <code>sealed deferred</code> parent class plus one class per variant inheriting from it, each variant's payload becoming feature fields plus a generated <code>make</code> constructor. Those classes are concatenated into the program's <code>:classes</code> bucket alongside hand-written ones, so nothing downstream knows a union was involved — exhaustiveness checking (Section 3.2) is just the sealed-class rule applied to the parent. The optional <code>enum</code> prefix, allowed only when every variant is payload-free, additionally interns the members and generates <code>ordinal</code>, <code>compare</code>, and <code>values</code>.</p>
 
-<p>This is the walker's most substantial rewrite, and it illustrates the division of labour the chapter has been describing: <code>union</code> is a syntactic convenience, so it is spent entirely in the front end, and the typechecker and both backends are left with a vocabulary they already had. The cost is paid in Section 2.10's terms — a desugared variant class has no source position of its own.</p>
+<p>This is the walker's most substantial rewrite, and it illustrates the division of labour the chapter has been describing: <code>union</code> is a syntactic convenience, so it is spent entirely in the front end, and the typechecker and both backends are left with a vocabulary they already had. The cost paid is that a desugared variant class has no source position of its own.</p>
 </section>
 </section>
 <section id="the-runtime-context" class="level2" data-number="2.6">
-<h2 data-number="2.6" class="anchored" data-anchor-id="the-runtime-context"><span class="header-section-number">2.6</span> 2.6 The Runtime Context</h2>
+<h2 data-number="2.6" class="anchored" data-anchor-id="the-runtime-context"><span class="header-section-number">2.6</span> The Runtime Context</h2>
 <p>The interpreter in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/interpreter.clj"><code>src/nex/interpreter.clj</code></a> keeps execution state inside a <code>Context</code> record. The context holds everything evaluation needs:</p>
 <ul>
 <li>known classes</li>
@@ -155,12 +155,12 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 </section>
 </section>
 <section id="the-environment-model" class="level2" data-number="2.7">
-<h2 data-number="2.7" class="anchored" data-anchor-id="the-environment-model"><span class="header-section-number">2.7</span> 2.7 The Environment Model</h2>
+<h2 data-number="2.7" class="anchored" data-anchor-id="the-environment-model"><span class="header-section-number">2.7</span> The Environment Model</h2>
 <p>Lexical scope is implemented through nested environments. Variables are introduced with <code>env-define</code>, looked up with <code>env-lookup</code>, and updated with <code>env-set!</code>. Each scope — method body, constructor, spawned task, nested block — gets its own environment that chains to its enclosing scope.</p>
-<p>This model is simple, but its simplicity is the point. Because every scope is an explicit structure in the chain, the reason a name resolves to a particular value is always traceable. When a value resolves unexpectedly, the environment chain is the first place to look — and it is always inspectable.</p>
+<p>This model is simple, and that's the point. Because every scope is an explicit structure in the chain, the reason a name resolves to a particular value is always traceable. When a value resolves unexpectedly, the environment chain is the first place to look — and it is always inspectable.</p>
 </section>
 <section id="how-evaluation-proceeds" class="level2" data-number="2.8">
-<h2 data-number="2.8" class="anchored" data-anchor-id="how-evaluation-proceeds"><span class="header-section-number">2.8</span> 2.8 How Evaluation Proceeds</h2>
+<h2 data-number="2.8" class="anchored" data-anchor-id="how-evaluation-proceeds"><span class="header-section-number">2.8</span> How Evaluation Proceeds</h2>
 <p>The core evaluator dispatches on node type. <code>eval-node :program</code> does the work described in Section 2.5: it processes imports, interns, class definitions, and function definitions before executing top-level statements in source order. The control flow is worth reading directly:</p>
 <ol type="1">
 <li>store import nodes in the context</li>
@@ -187,19 +187,19 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 </section>
 </section>
 <section id="built-in-types-and-the-types-subtree" class="level2" data-number="2.9">
-<h2 data-number="2.9" class="anchored" data-anchor-id="built-in-types-and-the-types-subtree"><span class="header-section-number">2.9</span> 2.9 Built-In Types and the <code>types/</code> Subtree</h2>
+<h2 data-number="2.9" class="anchored" data-anchor-id="built-in-types-and-the-types-subtree"><span class="header-section-number">2.9</span> Built-In Types and the <code>types/</code> Subtree</h2>
 <p>The interpreter hosts Nex’s built-in types and methods — arrays, maps, sets, strings, tasks, channels, cursors, and platform utilities — but it delegates the low-level mechanics of primitive operations to <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/types/"><code>src/nex/types/</code></a>. This split keeps the interpreter file from becoming a bag of primitive helpers while still keeping the meaning of the language — how methods are exposed, how built-in constructors behave, how runtime objects are represented — in the interpreter where it belongs.</p>
 <p>The practical consequence: if you are debugging the behaviour of an array method, look in <code>types/</code>. If you are debugging how array methods are dispatched or what contract checks apply, look in the interpreter.</p>
 </section>
 <section id="source-tracking-and-error-localisation" class="level2" data-number="2.10">
-<h2 data-number="2.10" class="anchored" data-anchor-id="source-tracking-and-error-localisation"><span class="header-section-number">2.10</span> 2.10 Source Tracking and Error Localisation</h2>
+<h2 data-number="2.10" class="anchored" data-anchor-id="source-tracking-and-error-localisation"><span class="header-section-number">2.10</span> Source Tracking and Error Localisation</h2>
 <p>The front end attaches source position metadata — <code>:dbg/line</code> and <code>:dbg/col</code>, both 1-based — as it walks. <code>attach-debug-pos</code> adds them to any AST map carrying a <code>:type</code> key, whenever ANTLR supplied a position for the parse node it came from. The interpreter carries debug stack information and source references through method and constructor calls. This infrastructure supports accurate error reporting, debugger integration, and contract failure localisation.</p>
 
 <p>The qualifier matters: only nodes that <em>came from source text</em> can carry a position. Every node the walker synthesises has none — the classes a <code>union</code> desugars into, the <code>let</code> bindings a destructuring <code>match</code> clause expands to, the predicate checks a refinement injects. These are the majority in code that leans on those features: a short program declaring a two-variant <code>union</code> and matching on it produces 22 typed AST maps, of which 10 carry a position. A diagnostic anchored to a synthesised node therefore has no line of its own and must borrow one from an enclosing node that does — which is why error messages about desugared constructs tend to point at the whole statement rather than the offending token.</p>
 <p>It is the kind of machinery that is easy to overlook when discussing a language in the abstract, but it is what makes a contract violation message say <em>which</em> condition failed on <em>which</em> line rather than simply crashing. Nex’s contract system only delivers its diagnostic value if the runtime can locate failures precisely. The source-tracking infrastructure is what makes that possible.</p>
 </section>
 <section id="the-interpreter-as-semantic-baseline" class="level2" data-number="2.11">
-<h2 data-number="2.11" class="anchored" data-anchor-id="the-interpreter-as-semantic-baseline"><span class="header-section-number">2.11</span> 2.11 The Interpreter as Semantic Baseline</h2>
+<h2 data-number="2.11" class="anchored" data-anchor-id="the-interpreter-as-semantic-baseline"><span class="header-section-number">2.11</span> The Interpreter as Semantic Baseline</h2>
 <p>The interpreter is the semantic baseline for Nex. Even when Nex is compiled to JVM bytecode, the interpreter remains the authoritative statement of what the language means. The compiler is correct when it produces behaviour that matches the interpreter. When they diverge, the interpreter wins.</p>
 <p>This has a practical consequence for contributors: if you are unsure what a feature should do, make it work correctly in the interpreter first. The generators should follow the interpreter, not define their own semantics independently. A generator that is easier to write by taking a shortcut from the intended semantics is a generator that is wrong.</p>
 <p>The interpreter’s clarity is therefore not just an aesthetic property. It is the guarantee that the rest of the implementation has something reliable to follow.</p>
