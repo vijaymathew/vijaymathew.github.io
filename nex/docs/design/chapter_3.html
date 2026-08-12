@@ -44,15 +44,19 @@
 <p>The best entry point into the typechecker is <code>check-program</code>. Its control flow is clear and worth reading directly:</p>
 <ol type="1">
 <li>create a fresh type environment</li>
+<li>reject duplicate free-function definitions and <code>declare function</code> signatures that disagree with their later definition</li>
 <li>register imported Java classes as placeholder class names</li>
-<li>collect class information for all declared classes</li>
 <li>register built-in methods and built-in classes</li>
+<li>register declared type aliases</li>
+<li>collect class information for all declared classes</li>
+<li>validate that every referenced type is actually defined</li>
 <li>inject any pre-existing variable types, such as REPL bindings</li>
 <li>register top-level functions as callable values</li>
+<li>register top-level <code>let</code> globals and enforce the def-before-use watermark described in Section 3.2.6</li>
 <li>check class bodies</li>
 <li>check top-level statements in source order</li>
 </ol>
-<p>The ordering is not arbitrary. Class information is collected before class bodies are checked so that forward references resolve correctly. Built-ins are registered after user class collection so that the checker has access to both before it begins body-checking. Top-level statements are checked last, preserving the source-order feel of the language while ensuring all declarations are already in scope when they are needed.</p>
+<p>The ordering is not arbitrary. Built-ins are registered <em>before</em> class collection, not after — deliberately, so that a user class can override a built-in placeholder name such as <code>Task</code> or <code>Channel</code> during collection rather than colliding with it. Class information is collected before class bodies are checked so that forward references resolve correctly, and the undefined-type validation pass that follows collection catches a bad reference in one place rather than letting it surface piecemeal as body-checking proceeds. Top-level statements are checked last, preserving the source-order feel of the language while ensuring all declarations — including the top-level globals registered just before class bodies are checked — are already in scope when they are needed.</p>
 <p>This is a good example of Nex’s general implementation style: a multi-pass pipeline with explicit, non-overlapping responsibilities.</p>
 </section>
 </section>
@@ -91,6 +95,11 @@
 <p><strong>Sealed types and exhaustive match.</strong> A <code>match</code> over a value whose static type is a sealed class becomes an exhaustive type switch. The checker computes the complete set of classes that directly inherit the sealed parent — which is well defined precisely because <code>sealed</code> closes the hierarchy — and requires a clause for every one of them. A missing variant is a compile-time <em>non-exhaustive match</em> error; an explicit <code>else</code> branch covers the remainder and suppresses the check.</p>
 <p>For that guarantee to hold, the checker also requires a sealed class to be <code>deferred</code>. The exhaustiveness check enumerates only the subclasses; if the sealed parent were itself instantiable, a bare parent instance would be a legal runtime value matching none of the subclass clauses, and the match the checker had certified as total would fail at run time. Rejecting a non-deferred sealed class — <em>“a sealed class must be declared <code>sealed deferred</code>”</em> — closes that gap at its source.</p>
 <p><strong>Once fields.</strong> While checking a constructor body the environment carries an <code>__in_constructor__</code> marker. An assignment to a <code>once</code> field is permitted only when that marker is present; anywhere else it is rejected at compile time with a message naming the field. This is the static half of the guarantee whose runtime half lives in the interpreter and whose code-generation consequences are described in Section 5.7.</p>
+</section>
+<section id="top-level-globals" class="level3" data-number="3.2.6">
+<h3 data-number="3.2.6" class="anchored" data-anchor-id="top-level-globals"><span class="header-section-number">3.2.6</span> Top-Level Globals</h3>
+<p>A top-level <code>let</code> is not confined to the statements that follow it in source order. Its value is also readable from any function or class body that runs later — a program global, in effect. That reach is checked, not assumed. The checker computes a <em>watermark</em>: the position of the first top-level statement able to transfer control into user code, by calling a free function or constructing a user-defined class. A global read anywhere in a function or class body must have its own <code>let</code> positioned before that watermark; one whose only definition sits at or after it is rejected at compile time with a message naming the global and the line where user code is first entered. A parameter, field, or nested <code>let</code> that shares a global's name shadows it exactly as it would inside an ordinary block, so reading the shadowing local does not count as reading the global.</p>
+<p>The check closes a real gap rather than a theoretical one. Without it, a function compiled against a global that is only initialized <em>after</em> that function is first reachable would type-check cleanly and then read an uninitialized value the first time it actually ran. The watermark turns that into a compile-time error at the point the ordering is actually violated, rather than a runtime surprise once the program is deployed.</p>
 </section>
 </section>
 <section id="conservative-by-design" class="level2" data-number="3.3">
