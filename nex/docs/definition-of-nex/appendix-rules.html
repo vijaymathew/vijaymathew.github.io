@@ -129,7 +129,25 @@ auxiliary judgements for contracts and generics (Sections&nbsp;4.6&ndash;4.7).</
 <div class="rule-block">
 \[ \frac{C \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x : \notin C}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16} \]
 \[ \frac{C(x) = \sigma \quad C \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \;\text{not a}\; \texttt{once}\;\text{field outside a constructor}}{C \vdash x := e \Rightarrow C} \tag{4.17} \]
-\[ \frac{C \vdash e \Rightarrow \texttt{Boolean} \quad C \vdash \mathit{block}_1 : C \quad C \vdash \mathit{block}_2 : C}{C \vdash \texttt{if}\; e \;\texttt{then}\; \mathit{block}_1 \;\texttt{else}\; \mathit{block}_2 \;\texttt{end} \Rightarrow C} \tag{4.18} \]
+</div>
+
+<p>Guard-derived facts. Two partial functions on the shape of a guard
+expression \(e\), used by the conditional rule below: \(\mathit{narrow}(C, e)\)
+gives the bindings a guard proves when \(e\) evaluates to \(\texttt{true}\), and
+\(\mathit{narrow}_{\lnot}(C, e)\) the bindings it proves when \(e\) evaluates to
+\(\texttt{false}\). Both are total, falling through to \(\emptyset\) on any
+expression shape not listed below. \(\oplus\) is extended to a set of
+bindings, \(C \oplus S = \bigcup_{(x:\tau)\in S} C \oplus \{x:\tau\}\), for
+\(S\) a set of pairwise-distinct names.</p>
+<div class="rule-block">
+\[ \mathit{narrow}(C, x \mathrel{/\!=} \texttt{nil}) = \{x : \tau\} \quad \text{where}\; C(x) = \tau\,? \tag{4.18a} \]
+\[ \mathit{narrow}(C, \texttt{convert}\;e\;\texttt{to}\;x{:}\sigma) = \{x : \sigma\} \tag{4.18b} \]
+\[ \mathit{narrow}(C, \texttt{?}\,e\,\texttt{as}\,x) = \{x : \tau\} \quad \text{where}\; C \vdash e \Rightarrow \tau\,? \tag{4.18c} \]
+\[ \mathit{narrow}(C, e_1\;\texttt{and}\;e_2) = \mathit{narrow}(C, e_1) \cup \mathit{narrow}(C \oplus \mathit{narrow}(C, e_1),\, e_2) \tag{4.18d} \]
+\[ \mathit{narrow}(C, e) = \emptyset \quad \text{otherwise} \tag{4.18e} \]
+\[ \mathit{narrow}_{\lnot}(C, x = \texttt{nil}) = \{x : \tau\} \quad \text{where}\; C(x) = \tau\,? \tag{4.18f} \]
+\[ \mathit{narrow}_{\lnot}(C, e) = \emptyset \quad \text{otherwise} \tag{4.18g} \]
+\[ \frac{C \vdash e \Rightarrow \texttt{Boolean} \quad C \oplus \mathit{narrow}(C,e) \vdash \mathit{block}_1 : C_1 \quad C \oplus \mathit{narrow}_{\lnot}(C,e) \vdash \mathit{block}_2 : C_2}{C \vdash \texttt{if}\; e \;\texttt{then}\; \mathit{block}_1 \;\texttt{else}\; \mathit{block}_2 \;\texttt{end} \Rightarrow C} \tag{4.18} \]
 </div>
 
 <h4>Type dispatch and exhaustiveness</h4>
@@ -140,6 +158,11 @@ auxiliary judgements for contracts and generics (Sections&nbsp;4.6&ndash;4.7).</
 <h4>Type conversion</h4>
 <div class="rule-block">
 \[ \frac{C \vdash e \Rightarrow \tau \quad (\tau \preceq \sigma \;\text{or}\; \sigma \preceq \tau)}{C \vdash \texttt{convert}\; e \;\texttt{to}\; x{:}\sigma \Rightarrow \texttt{Boolean},\;\; C \oplus \{x : \sigma\,?\}} \tag{4.20} \]
+</div>
+
+<h4>Object test</h4>
+<div class="rule-block">
+\[ \frac{C \vdash e \Rightarrow \tau\,?}{C \vdash \texttt{?}\,e\,\texttt{as}\,x \Rightarrow \texttt{Boolean}} \tag{4.20a} \]
 </div>
 
 <h4>Contract formation</h4>
