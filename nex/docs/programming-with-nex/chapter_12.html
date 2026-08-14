@@ -189,6 +189,25 @@ nex&gt; let p2 := create Point.make(3.0, 4.0)
 nex&gt; p2.distance_from_origin
 5.0</code></pre>
 <p>Named constructors communicate intent. <code>create Point.origin</code> clearly creates a point at the origin; <code>create Point.make(3.0, 4.0)</code> creates a point at specific coordinates. The name is part of the interface.</p>
+<p>When several constructors share setup logic, one can delegate to another with <code>this.&lt;constructor-name&gt;(...)</code>, rather than repeating the field assignments. <code>origin</code> is really just <code>make</code> called with zero for both coordinates:</p>
+<pre><code>nex&gt; class Point
+       create
+         make(px, py: Real) do
+           x := px
+           y := py
+         end
+         origin() do
+           this.make(0.0, 0.0)
+         end
+       feature
+         x: Real
+         y: Real
+     end
+
+nex&gt; let p1 := create Point.origin
+nex&gt; p1.x
+0.0</code></pre>
+<p>This only reaches a constructor declared directly on the same class — it is not a way to reach into a parent class. For that, see <code>super</code> in Chapter 14.</p>
 </section>
 <section class="level2" data-number="13.4" id="fields">
 <h2 class="anchored" data-anchor-id="fields" data-number="13.4"> Fields</h2>
@@ -491,6 +510,7 @@ nex&gt; s.size
 <ul>
 <li>A class has a <code>create</code> block (constructors) and a <code>feature</code> block (fields and methods)</li>
 <li>Constructors are named; <code>create ClassName.constructor_name(args)</code> creates an instance</li>
+<li>A constructor may delegate to another constructor of the same class with <code>this.constructor_name(args)</code>, to share setup logic</li>
 <li>Fields are <code>name: Type</code> inside <code>feature</code>; class constants use <code>NAME: Type = value</code> or <code>NAME = value</code>; methods are <code>name(params): ReturnType do ... end</code></li>
 <li><code>feature</code> is public by default; use <code>private feature</code> for fields and helper methods that should stay inside the class</li>
 <li>Public fields may be read with <code>obj.field</code>, but external code cannot assign to them; changes go through methods</li>

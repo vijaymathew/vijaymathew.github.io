@@ -507,6 +507,24 @@ end
 
 let c: Circle := create Circle.make(5.0)
 print(c.area)                    -- 78.53975</code></pre>
+<p>A constructor can delegate to another constructor of the same class with
+<code>this.&lt;ctor-name&gt;(...)</code>, so shared setup lives in one place:</p>
+<pre><code>class Box
+  feature
+    value: Integer
+  create
+    make(v: Integer) do
+      value := v
+    end
+    default do
+      this.make(0)              -- delegates to make
+    end
+end
+
+let b: Box := create Box.default
+print(b.value)                   -- 0</code></pre>
+<p>(To call a <em>parent</em> class's constructor instead, see
+<a href="#inheritance">Inheritance</a>.)</p>
     </div>
   </details>
 
@@ -776,6 +794,17 @@ end</code></pre>
     <div class="syntax-body">
 <pre><code>let add: Function := fn (a, b: Integer): Integer do result := a + b end
 print(add(3, 4))                -- 7</code></pre>
+<p>When the target already carries a concrete <code>Function(...)</code> type,
+<code>fn</code>'s own parameter and return types can be left out &mdash;
+they're inferred from that target:</p>
+<pre><code>let add2: Function(a: Integer, b: Integer): Integer := fn(a, b) do result := a + b end
+print(add2(3, 4))                -- 7</code></pre>
+<p>Inference only works where a target type is actually available (here, the
+<code>let</code>'s own annotation). With no such context, every parameter
+needs its own explicit type, or it's a compile error.</p>
+<p>A <code>Function(...)</code> type's parameter names are for documentation
+only &mdash; they can be dropped, leaving just the types:</p>
+<pre><code>let is_positive: Function(Integer): Boolean := fn(n: Integer): Boolean do result := n > 0 end</code></pre>
     </div>
   </details>
 

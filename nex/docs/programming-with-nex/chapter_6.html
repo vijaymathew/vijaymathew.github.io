@@ -332,6 +332,13 @@ nex&gt; apply_twice(fn (n: Integer): Integer do result := n + 3 end, 10)
 let dog_handler: Function(d: Dog): String := any_animal</code></pre>
 <p>The reverse is rejected: a dog-only function cannot stand in where any animal might be passed, because it could then be handed a value it was not written to accept. This is the same rule that governs overriding a method in a subclass (Chapter 14): an override may widen a parameter and narrow a return, never the reverse.</p>
 </section>
+<section class="level3" id="inferring-fn-parameter-types">
+<h3 class="anchored" data-anchor-id="inferring-fn-parameter-types">Letting <code>fn</code>&rsquo;s parameter types come from context</h3>
+<p>When an anonymous function is bound to something that already carries a concrete <code>Function(...)</code> type — a typed <code>let</code>, as above — its own parameter and return types can be left out. Nex infers them from that target type:</p>
+<pre class="nex"><code>let double2: Function(n: Integer): Integer := fn(n) do result := n * 2 end</code></pre>
+<p>This only works when a target type is actually available where the literal appears. Written with no target type to draw from, every parameter still needs its own explicit type — the type annotation on <code>fn</code>&rsquo;s parameters is not optional in general, only when Nex has somewhere else to get it from:</p>
+<pre class="nex"><code>let mystery := fn(n) do result := n * 2 end   -- error: cannot infer the type of n</code></pre>
+</section>
 <section class="level3" id="naming-function-types-with-declare-type">
 <h3 class="anchored" data-anchor-id="naming-function-types-with-declare-type">Naming function types with <code>declare type</code></h3>
 <p>If the same function shape appears in several places, repeating the full annotation becomes noise. <code>declare type</code> gives a name to any type expression:</p>
@@ -424,6 +431,7 @@ nex&gt; describe_temperature(body_temp_c)
 <li>A function with no <code>result</code> assignment returns the default value of its declared return type (e.g., <code>0</code> for <code>Integer</code>), or <code>nil</code> if no return type is specified</li>
 <li>Anonymous functions are defined with <code>fn</code> and can be assigned to variables or passed as arguments</li>
 <li>Function-typed variables can carry a full signature annotation: <code>let f: Function(n: Integer): Integer := ...</code></li>
+<li>When a target type like that is already in place, <code>fn</code>&rsquo;s own parameter and return types can be left out and inferred from it; with no target type available, they must be written explicitly</li>
 <li><code>declare type Name = TypeExpression</code> gives a compile-time alias to any type, most commonly used to name a function signature for reuse</li>
 <li>Write a function when a computation has a name, when it is used in more than one place, or when naming it makes the code that calls it clearer</li>
 <li>Functions calling other functions is natural and encouraged; decomposition is how manageable programs are built from simple pieces</li>
