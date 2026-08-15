@@ -383,6 +383,16 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#option-combinators" id="toc-option-combinators" class="nav-link" data-scroll-target="#option-combinators">Combinators</a></li>
   <li><a href="#option-example" id="toc-option-example" class="nav-link" data-scroll-target="#option-example">Example</a></li>
   </ul></li>
+  <li><a href="#datasexpr" id="toc-datasexpr" class="nav-link" data-scroll-target="#datasexpr"><code>data/Sexpr</code></a>
+  <ul class="collapse">
+  <li><a href="#sexpr-loading" id="toc-sexpr-loading" class="nav-link" data-scroll-target="#sexpr-loading">Loading</a></li>
+  <li><a href="#sexpr-types" id="toc-sexpr-types" class="nav-link" data-scroll-target="#sexpr-types">Types</a></li>
+  <li><a href="#sexpr-support" id="toc-sexpr-support" class="nav-link" data-scroll-target="#sexpr-support">Support</a></li>
+  <li><a href="#sexpr-grammar" id="toc-sexpr-grammar" class="nav-link" data-scroll-target="#sexpr-grammar">Grammar</a></li>
+  <li><a href="#sexpr-functions" id="toc-sexpr-functions" class="nav-link" data-scroll-target="#sexpr-functions">Functions</a></li>
+  <li><a href="#sexpr-example" id="toc-sexpr-example" class="nav-link" data-scroll-target="#sexpr-example">Example</a></li>
+  <li><a href="#sexpr-notes" id="toc-sexpr-notes" class="nav-link" data-scroll-target="#sexpr-notes">Notes</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -737,6 +747,99 @@ match big of
   when Some(value) then print(value)
   when None        then print("absent")
 end</code></pre>
+</section>
+</section>
+<section id="datasexpr" class="level2">
+<h2 class="anchored" data-anchor-id="datasexpr"><code>data/Sexpr</code></h2>
+<p><code>Sexpr</code> is a minimal s-expression parser and serializer shipped as a pure-Nex library under <a href="./home/vijay/Projects/nex/lib/data/sexpr.nex"><code>lib/data/sexpr.nex</code></a>. Unlike <code>data/Json</code>, it does not lean on any runtime parsing primitive &mdash; the parser is a hand-rolled character-cursor recursive descent over the input string, and the AST is an ordinary <code>union</code> type.</p>
+<section id="sexpr-loading" class="level3">
+<h3 class="anchored" data-anchor-id="sexpr-loading">Loading</h3>
+<pre class="nex"><code>intern data/Sexpr</code></pre>
+<p><code>intern data/Sexpr</code> brings the <code>Sexpr</code> type, its <code>Symbol</code>, <code>Int</code>, <code>Float</code>, <code>Str</code>, and <code>List</code> variants, the <code>Sexpr_Parser</code> class, and the <code>parse_sexpr_text</code> / <code>sexpr_to_string</code> functions into scope.</p>
+</section>
+<section id="sexpr-types" class="level3">
+<h3 class="anchored" data-anchor-id="sexpr-types">Types</h3>
+<ul>
+<li><code>Sexpr</code> &mdash; union AST type.</li>
+<li><code>Symbol(name: String)</code> &mdash; a bare identifier, e.g. <code>+</code> or <code>foo</code>.</li>
+<li><code>Int(value: Integer)</code> &mdash; an integer literal.</li>
+<li><code>Float(value: Real)</code> &mdash; a decimal literal (requires a digit on both sides of the <code>.</code>).</li>
+<li><code>Str(value: String)</code> &mdash; a double-quoted string literal, with <code>\</code>, <code>\"</code>, <code>\n</code>, <code>\t</code>, <code>\r</code> escapes.</li>
+<li><code>List(items: Array[Sexpr])</code> &mdash; a parenthesized, whitespace-separated, recursively-nested sequence.</li>
+</ul>
+</section>
+<section id="sexpr-support" class="level3">
+<h3 class="anchored" data-anchor-id="sexpr-support">Support</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Target</th>
+<th>Supported</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>JVM REPL / interpreter</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td>Generated JVM code</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sexpr-grammar" class="level3">
+<h3 class="anchored" data-anchor-id="sexpr-grammar">Grammar</h3>
+<pre><code>sexpr  := atom | list
+list   := '(' sexpr* ')'
+atom   := symbol | integer | float | string
+symbol := any run of non-whitespace, non-paren, non-quote characters</code></pre>
+<p>Deliberately out of scope: comments, quote/quasiquote shorthand, dotted pairs, vectors.</p>
+</section>
+<section id="sexpr-functions" class="level3">
+<h3 class="anchored" data-anchor-id="sexpr-functions">Functions</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>parse_sexpr_text</code></td>
+<td><code>(text: String): Sexpr</code></td>
+<td>Parse <code>text</code> as a single s-expression. Trailing whitespace is allowed; any other trailing content raises.</td>
+</tr>
+<tr class="even">
+<td><code>sexpr_to_string</code></td>
+<td><code>(e: Sexpr): String</code></td>
+<td>Render a <code>Sexpr</code> back into s-expression text (round-trips <code>parse_sexpr_text</code> for any input using only the constructs above).</td>
+</tr>
+</tbody>
+</table>
+<p>Malformed input (an unterminated list or string, a stray <code>)</code>, empty input) raises rather than returning a partial result.</p>
+</section>
+<section id="sexpr-example" class="level3">
+<h3 class="anchored" data-anchor-id="sexpr-example">Example</h3>
+<pre class="nex"><code>intern data/Sexpr
+
+let e: Sexpr := parse_sexpr_text("(+ 1 (foo \"bar\" 2.5) -3)")
+print(sexpr_to_string(e))
+
+match e of
+  when List(items) then print(items.length)  -- 4
+  else print("not a list")
+end</code></pre>
+</section>
+<section id="sexpr-notes" class="level3">
+<h3 class="anchored" data-anchor-id="sexpr-notes">Notes</h3>
+<ul>
+<li><code>Sexpr_Parser</code> (constructed via <code>create Sexpr_Parser.make(text)</code>, driven with <code>.parse()</code>) is the class <code>parse_sexpr_text</code> wraps; use it directly for incremental/streaming parsing.</li>
+<li>Numeric tokens are classified by shape: a run of digits (optional leading <code>+</code>/<code>-</code>) is <code>Int</code>; the same with exactly one <code>.</code> and digits on both sides is <code>Float</code>; anything else is a <code>Symbol</code> &mdash; so operators like <code>+</code> and <code>-</code> parse as symbols, not numbers.</li>
+</ul>
 </section>
 </section>
 
