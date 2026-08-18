@@ -263,7 +263,7 @@ class Substitution
     resolve(t: Term): Term
       do
         match t of
-          when Var(name) then
+          Var(name) then
             if bindings.contains_key(name) then result := resolve(bindings.get(name))
             else result := t end
           else
@@ -277,28 +277,28 @@ function unify(a: Term, b: Term, s: Substitution): Result[Substitution, String]
     let x: Term := s.resolve(a)
     let y: Term := s.resolve(b)
     match x of
-      when Var(name) then result := create Ok[Substitution, String].make(s.bind(name, y))
-      when Atom as ax then result := unify_atom(ax, y, s)
-      when Compound as cx then result := unify_compound(cx, y, s)
+      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, y))
+      Atom as ax then result := unify_atom(ax, y, s)
+      Compound as cx then result := unify_compound(cx, y, s)
     end
   end
 
 function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution, String]
   do
     match y of
-      when Var(name) then result := create Ok[Substitution, String].make(s.bind(name, ax))
-      when Atom(value as v) if v = ax.value then result := create Ok[Substitution, String].make(s)
-      when Atom(value as v) then result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
-      when Compound then result := create Err[Substitution, String].make("atom vs structure")
+      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, ax))
+      Atom(value as v) if v = ax.value then result := create Ok[Substitution, String].make(s)
+      Atom(value as v) then result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
+      Compound then result := create Err[Substitution, String].make("atom vs structure")
     end
   end
 
 function unify_compound(cx: Compound, y: Term, s: Substitution): Result[Substitution, String]
   do
     match y of
-      when Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
-      when Atom then result := create Err[Substitution, String].make("structure vs atom")
-      when Compound as cy then
+      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
+      Atom then result := create Err[Substitution, String].make("structure vs atom")
+      Compound as cy then
         if cx.functor = cy.functor and cx.args.length = cy.args.length then
           result := unify_args(cx.args, cy.args, s, 0)
         else
@@ -313,8 +313,8 @@ function unify_args(xs: Array[Term], ys: Array[Term], s: Substitution, i: Intege
       result := create Ok[Substitution, String].make(s)
     else
       match unify(xs.get(i), ys.get(i), s) of
-        when Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)
-        when Err as e then result := create Err[Substitution, String].make(e.error)
+        Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)
+        Err as e then result := create Err[Substitution, String].make(e.error)
       end
     end
   end
@@ -337,7 +337,7 @@ function satisfies_constraints(s: Substitution): Boolean
 function warehouse_of(s: Substitution): String
   do
     match s.resolve(create Var.make("Warehouse")) of
-      when Atom as a then result := a.value
+      Atom as a then result := a.value
       else result := "unknown"
     end
   end
@@ -357,13 +357,13 @@ function route(query: Term, routes: Array[Term]): Result[Substitution, String]
       i &gt;= routes.length or found
     do
       match unify(query, routes.get(i), create Substitution.make()) of
-        when Ok as s then
+        Ok as s then
           if satisfies_constraints(s.value) then
             result := create Ok[Substitution, String].make(s.value)
             found := true
           end
-        when Err then
-          -- structural mismatch: backtrack, try the next route
+        Err then
+          do end -- structural mismatch: backtrack, try the next route
       end
       i := i + 1
     end
@@ -379,16 +379,18 @@ function route(query: Term, routes: Array[Term]): Result[Substitution, String]
                      routes: Array[Term], now: Instant): Result[Placement, String]
   do
     match parse_order(request) of                        -- 1. boundary (Ch 4)
-      when Err as bad then
+      Err as bad then
         result := create Err[Placement, String].make(bad.error)
-      when Ok as parsed then
-        let draft: Draft := parsed.value
-        let quote: Money := rule.eval(draft)              -- 2. open edge (Ch 10)
-        match admit_quote(draft, quote) of                -- 3. membrane (Ch 2, 9)
-          when Err as rejected then
-            result := create Err[Placement, String].make(rejected.error)
-          when Ok as ok then
-            result := plan_fulfillment(ok.value, routes, now)   -- 4. core decides
+      Ok as parsed then
+        do
+          let draft: Draft := parsed.value
+          let quote: Money := rule.eval(draft)              -- 2. open edge (Ch 10)
+          match admit_quote(draft, quote) of                -- 3. membrane (Ch 2, 9)
+            Err as rejected then
+              result := create Err[Placement, String].make(rejected.error)
+            Ok as ok then
+              result := plan_fulfillment(ok.value, routes, now)   -- 4. core decides
+          end
         end
     end
   end
@@ -397,15 +399,17 @@ function plan_fulfillment(placed: Placed, routes: Array[Term],
                           now: Instant): Result[Placement, String]
   do
     match route(routing_query(placed), routes) of         -- 4a. routing (Ch 13)
-      when Err as e then
+      Err as e then
         result := create Err[Placement, String].make("unfulfillable: " + e.error)
-      when Ok as sol then
-        let fx: Array[Effect] := []                        -- 4b. effects as data (Ch 6)
-        fx.add(create Charge_Payment.make(placed.total))
-        fx.add(create Reserve_Stock.make(warehouse_of(sol.value), placed.items))
-        fx.add(create Send_Confirmation.make(placed.customer_email))
-        fx.add(create Record_Order.make(placed))
-        result := create Ok[Placement, String].make(create Placement.make(placed, fx))
+      Ok as sol then
+        do
+          let fx: Array[Effect] := []                        -- 4b. effects as data (Ch 6)
+          fx.add(create Charge_Payment.make(placed.total))
+          fx.add(create Reserve_Stock.make(warehouse_of(sol.value), placed.items))
+          fx.add(create Send_Confirmation.make(placed.customer_email))
+          fx.add(create Record_Order.make(placed))
+          result := create Ok[Placement, String].make(create Placement.make(placed, fx))
+        end
     end
   end</code></pre>
 </section>
@@ -419,10 +423,10 @@ function plan_fulfillment(placed: Placed, routes: Array[Term],
         store: Order_Store, warehouse: Warehouse_Api)
   do
     match e of
-      when Charge_Payment as c then gateway.charge(c.amount)
-      when Reserve_Stock as r then warehouse.reserve(r.warehouse, r.items)
-      when Send_Confirmation as s then mailer.send(s.recipient)
-      when Record_Order as rec then store.save(rec.order)
+      Charge_Payment as c then gateway.charge(c.amount)
+      Reserve_Stock as r then warehouse.reserve(r.warehouse, r.items)
+      Send_Confirmation as s then mailer.send(s.recipient)
+      Record_Order as rec then store.save(rec.order)
     end
   end
 
@@ -432,13 +436,15 @@ function handle_request(request: Order_Request, rule: Price_Expr, routes: Array[
                         store: Order_Store, warehouse: Warehouse_Api): Result[Placed, String]
   do
     match place_order(request, rule, routes, now) of
-      when Err as e then
+      Err as e then
         result := create Err[Placed, String].make(e.error)
-      when Ok as placement then
-        across placement.value.effects as fx do
-          perform(fx, gateway, mailer, store, warehouse)
+      Ok as placement then
+        do
+          across placement.value.effects as fx do
+            perform(fx, gateway, mailer, store, warehouse)
+          end
+          result := create Ok[Placed, String].make(placement.value.order)
         end
-        result := create Ok[Placed, String].make(placement.value.order)
     end
   end</code></pre>
 </section>

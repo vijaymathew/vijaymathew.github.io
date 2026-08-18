@@ -433,15 +433,15 @@ end</code></pre>
 <pre><code>let r: Result := create Ok.make(42)
 
 match r of
-  when Ok as ok then
+  Ok as ok then
     print(ok.value)       -- ok is typed as Ok here
-  when Err as err then
+  Err as err then
     print(err.msg)        -- err is typed as Err here
 end</code></pre>
-<p>If you added a third variant — say <code>Pending</code> — to the hierarchy but forgot to add a <code>when Pending</code> clause, the program would not compile. No silent missed case.</p>
+<p>If you added a third variant — say <code>Pending</code> — to the hierarchy but forgot to add a <code>Pending</code> clause, the program would not compile. No silent missed case.</p>
 <p>An <code>else</code> branch suppresses the exhaustiveness check and covers anything not matched by a preceding clause:</p>
 <pre><code>match r of
-  when Ok as ok then
+  Ok as ok then
     print(ok.value)
   else
     print("not ok")
@@ -479,15 +479,15 @@ end</code></pre>
 <h3 class="anchored" data-anchor-id="matching-into-values">Matching into values</h3>
 <p>Binding the whole variant with <code>as</code> and then reading its fields (<code>ok.value</code>) is fine, but a <code>match</code> can also take a variant apart directly. Naming the payload fields in the pattern binds them as locals of the same name:</p>
 <pre><code>match r of
-  when Ok(value)  then print(value)     -- 'value' is bound directly
-  when Err(msg)   then print(msg)
+  Ok(value)  then print(value)     -- 'value' is bound directly
+  Err(msg)   then print(msg)
 end</code></pre>
 <p>A field pattern can rename a field (<code>Err(msg as reason)</code> binds it to <code>reason</code>), ignore one with <code>_</code>, or constrain it to a literal or a type (<code>Err(msg: String)</code>). A clause may also carry an <code>if</code> <em>guard</em> — a boolean tested after the variant matches, with the destructured names in scope; when it is false, matching continues with the following clauses:</p>
 <pre><code>match shape of
-  when Circle(radius) if radius &gt; 100.0 then print("huge circle")
-  when Circle(radius)                    then print("circle")
-  when Rectangle(width, height)          then print(width * height)
-  when Empty                             then print("nothing")
+  Circle(radius) if radius &gt; 100.0 then print("huge circle")
+  Circle(radius)                    then print("circle")
+  Rectangle(width, height)          then print(width * height)
+  Empty                             then print("nothing")
 end</code></pre>
 <p>Because a guarded clause can fail after its variant matches, it does not by itself satisfy exhaustiveness: the guarded <code>Circle</code> clause above needs the plain <code>Circle</code> clause (or a wildcard, or <code>else</code>) to cover the case where the guard is false. A lone <code>_</code> pattern is a catch-all, a spelling of <code>else</code>.</p>
 </section>

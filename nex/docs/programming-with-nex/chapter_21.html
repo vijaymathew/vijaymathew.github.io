@@ -313,9 +313,9 @@ end</code></pre>
 <pre><code>let outcome: Parse_Result := parse_positive("42")
 
 match outcome of
-  when Parse_Ok as ok then
+  Parse_Ok as ok then
     print("got: " + ok.value.to_string)
-  when Parse_Error as err then
+  Parse_Error as err then
     print("failed: " + err.reason)
 end</code></pre>
 <p>Compared to string-based exceptions, this approach gives the caller a typed handle on the error — <code>err.reason</code> is a <code>String</code> field, not an opaque exception value — and moves the handling obligation from runtime to compile time.</p>
@@ -335,8 +335,8 @@ do
 end</code></pre>
 <p>A <code>Result[T, E]</code> is either <code>Ok</code> carrying a value of type <code>T</code> or <code>Err</code> carrying an error of type <code>E</code>. The two type parameters are independent, so an error can be passed up through several layers without being rewrapped. Callers still <code>match</code>, and can destructure the payload directly:</p>
 <pre><code>match parse_positive("42") of
-  when Ok(value)  then print(value)
-  when Err(error) then print(error)
+  Ok(value)  then print(value)
+  Err(error) then print(error)
 end</code></pre>
 <p>Query and unwrap are methods — <code>r.is_ok()</code>, <code>r.is_err()</code>, and <code>r.unwrap_or(0)</code> (the value, or a fallback when it is an <code>Err</code>). Transforming a result is done with free functions, because each introduces a new type: <code>result_map</code> applies a function to the success value, <code>result_and_then</code> chains a further fallible step and short-circuits on the first error, and <code>result_map_err</code> converts the error into a caller&rsquo;s own error type.</p>
 <pre><code>let doubled: Result[Integer, String] :=
@@ -346,8 +346,8 @@ end</code></pre>
 
 let found: Option[Integer] := create Some[Integer].make(10)
 match found of
-  when Some(value) then print(value)
-  when None        then print("absent")
+  Some(value) then print(value)
+  None        then print("absent")
 end</code></pre>
 <p>Reach for the hand-written sealed type of the previous section when the variants need their own methods or contracts; reach for the standard <code>Result</code> and <code>Option</code> when plain success/failure or presence/absence is all you need. Both are documented in Appendix&nbsp;C.</p>
 </section>

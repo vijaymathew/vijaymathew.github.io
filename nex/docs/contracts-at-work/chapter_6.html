@@ -68,10 +68,10 @@ feature
     ...
     let ev: Hub_Event := events.receive()
     match ev of
-      when Client_Joined(sock) then clients.add(sock)
-      when Client_Left(sock) then ...
-      when Broadcast(sender, text) then ...
-      when Shutdown then running := false
+      Client_Joined(sock) then clients.add(sock)
+      Client_Left(sock) then ...
+      Broadcast(sender, text) then ...
+      Shutdown then running := false
     end
     ...
   end
@@ -121,14 +121,16 @@ end</code></pre>
 
 <p>Broadcasting itself is the hub's own loop, run once per <code>Broadcast</code> event, skipping only the sender:</p>
 
-<pre><code>when Broadcast(sender, text) then
-  let i: Integer := 0
-  from i := 0 until i = clients.length do
-    let member: Tcp_Socket := clients.get(i)
-    if member /= sender then
-      member.send_line(text)
+<pre><code>Broadcast(sender, text) then
+  do
+    let i: Integer := 0
+    from i := 0 until i = clients.length do
+      let member: Tcp_Socket := clients.get(i)
+      if member /= sender then
+        member.send_line(text)
+      end
+      i := i + 1
     end
-    i := i + 1
   end</code></pre>
 </section>
 

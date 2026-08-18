@@ -52,7 +52,7 @@ end</code></pre>
     resolve(t: Term): Term
       do
         match t of
-          when Var(name) then
+          Var(name) then
             if bindings.contains_key(name) then result := resolve(bindings.get(name))
             else result := t end
           else
@@ -72,11 +72,11 @@ end</code></pre>
     let x: Term := s.resolve(a)          -- follow existing bindings first
     let y: Term := s.resolve(b)
     match x of
-      when Var(name) then
+      Var(name) then
         result := create Ok[Substitution, String].make(s.bind(name, y))   -- bind the unknown
-      when Atom as ax then
+      Atom as ax then
         result := unify_atom(ax, y, s)
-      when Compound as cx then
+      Compound as cx then
         result := unify_compound(cx, y, s)
     end
   end</code></pre>
@@ -86,13 +86,13 @@ end</code></pre>
 <pre><code>function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution, String]
   do
     match y of
-      when Var(name) then
+      Var(name) then
         result := create Ok[Substitution, String].make(s.bind(name, ax))
-      when Atom(value as v) if v = ax.value then
+      Atom(value as v) if v = ax.value then
         result := create Ok[Substitution, String].make(s)              -- atoms agree
-      when Atom(value as v) then
+      Atom(value as v) then
         result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
-      when Compound then
+      Compound then
         result := create Err[Substitution, String].make("atom does not match a structure")
     end
   end</code></pre>
@@ -104,9 +104,9 @@ end</code></pre>
 <pre><code>function unify_compound(cx: Compound, y: Term, s: Substitution): Result[Substitution, String]
   do
     match y of
-      when Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
-      when Atom then result := create Err[Substitution, String].make("structure vs atom")
-      when Compound as cy then
+      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
+      Atom then result := create Err[Substitution, String].make("structure vs atom")
+      Compound as cy then
         if cx.functor = cy.functor and cx.args.length = cy.args.length then
           result := unify_args(cx.args, cy.args, s, 0)       -- functor + arity agree; check the args
         else
@@ -122,8 +122,8 @@ function unify_args(xs: Array[Term], ys: Array[Term], s: Substitution, i: Intege
       result := create Ok[Substitution, String].make(s)       -- all arguments agreed
     else
       match unify(xs.get(i), ys.get(i), s) of
-        when Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)   -- carry bindings forward
-        when Err as e then result := create Err[Substitution, String].make(e.error)
+        Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)   -- carry bindings forward
+        Err as e then result := create Err[Substitution, String].make(e.error)
       end
     end
   end</code></pre>
@@ -159,14 +159,14 @@ function route(order: Term, routes: Array[Term]): Result[Substitution, String]
       i &gt;= routes.length or found
     do
       match unify(order, routes.get(i), create Substitution.make()) of
-        when Ok as s then
+        Ok as s then
           if satisfies_constraints(s.value) then
             result := create Ok[Substitution, String].make(s.value)   -- commit to this route
             found := true
           end
           -- else: bindings don't satisfy stock/deadline — fall through and backtrack
-        when Err then
-          -- structural mismatch — backtrack and try the next route
+        Err then
+          do end -- structural mismatch — backtrack and try the next route
       end
       i := i + 1
     end
@@ -200,11 +200,11 @@ let query: Term :=
   compound("route", [atom("zone-a"), unknown("Warehouse"), unknown("Carrier"), unknown("Cost")])
 
 match route(query, routes) of
-  when Ok as sol then
+  Ok as sol then
     let warehouse: Term := sol.value.resolve(unknown("Warehouse"))
     -- warehouse is now Atom("wh-1") — dispatch fulfillment there
-  when Err as e then
-    -- e.error is "no eligible route": nothing in the table can ship this order
+  Err as e then
+    do end -- e.error is "no eligible route": nothing in the table can ship this order
 end</code></pre>
 
 <p>The query fixes the zone and leaves the rest open; <code>route</code> walks the table, unifies against <code>zone-a</code>'s fact, and comes back with the unknowns filled — <code>wh-1</code>, <code>ground</code>, <code>500</code> — computed, not looked up. Point the same order at a zone no row serves and every unification clashes on the zone atom, the loop exhausts the table, and the result is the <code>Err</code> the search began with. Add a fulfillment path and it is one more row in <code>routes</code>; the searcher is never touched.</p>
