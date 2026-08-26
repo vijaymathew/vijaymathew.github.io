@@ -159,7 +159,7 @@
 <p>is not reliable in the current implementation, because both <code>items</code> and <code>old items</code> may observe the same mutated array object. In such cases, it is better to write a postcondition about the visible result after the update, for example:</p>
 <pre><code>ensure
   last_is_value: items.get(items.length - 1) = value</code></pre>
-<p>So the safest rule in current Nex is this: use <code>old</code> mainly for current-object fields and value-like expressions whose earlier state is not being mutated in place through the same reference.</p>
+<p>So the safest rule is this: use <code>old</code> mainly for current-object fields and value-like expressions whose earlier state is not being mutated in place through the same reference.</p>
 <p>For example:</p>
 <pre><code>nex&gt; class Counter
        create
@@ -313,10 +313,9 @@ Error: Postcondition violation: advanced</code></pre>
              not_empty: items.length &gt; 0
            do
              result := items.get(items.length - 1)
-             let old_len := items.length
              items.remove(items.length - 1)
            ensure
-             length_decreased_by_one: items.length = old_len-1
+             length_decreased_by_one: items.length = old items.length - 1
            end
      end</code></pre>
 <p>The postcondition on <code>pop</code> is particularly good because it specifies both effects:</p>
@@ -325,6 +324,8 @@ Error: Postcondition violation: advanced</code></pre>
 <li>the returned value is exactly the element that used to be last</li>
 </ul>
 <p>That is the behavior the caller cares about. The internal array representation is almost irrelevant.</p>
+
+<p><b>Note</b>: <code>items</code> is an Array, a mutable container — so <code>old items</code> can't just remember the same list <code>pop</code> is about to shrink; the runtime takes a shallow copy of it at entry and evaluates <code>old items.length</code> against that frozen copy. This shallow copy is optimal, meaning that only the fields required by <code>ensure</code> are stored. That's why <code>old items.length - 1</code> still refers to the pre-call length even though items itself is mutated by <code>pop</code>.</p>
 </section>
 <section class="level2" data-number="18.9" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="18.9"> Summary</h2>
