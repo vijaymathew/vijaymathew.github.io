@@ -213,38 +213,24 @@ end</code></pre>
 </section>
 <section class="level2" data-number="23.7" id="using-result-objects-instead-of-exceptions">
 <h2 class="anchored" data-anchor-id="using-result-objects-instead-of-exceptions" data-number="23.7"> Using Result Objects Instead of Exceptions</h2>
-<p>Chapter 14 introduced a generic <code>Result[V]</code> class. That pattern is often useful in robust code.</p>
-<p>Instead of raising an exception, a routine may return either a value or an explanation of failure:</p>
-<pre><code>nex&gt; class Result [V]
-       create
-         success(v: V) do
-           value := v
-           error := nil
-           ok := true
-         end
-         failure(msg: String) do
-           value := nil
-           error := msg
-           ok := false
-         end
-       feature
-         value: ?V
-         error: ?String
-         ok: Boolean
-         is_ok(): Boolean do
-           result := ok
-         end
-     end</code></pre>
-<p>A routine may then choose:</p>
-<pre><code>nex&gt; function safe_divide(a, b: Real): Result[Real]
+<p><a href="chapter_21.html#standard-result-and-option">Section 22.9</a> introduced the standard library&rsquo;s generic <code>Result[T, E]</code>. That pattern is often useful in robust code: instead of raising an exception, a routine can return either a value or an explanation of failure.</p>
+<pre><code>nex&gt; intern data/Result
+
+nex&gt; function safe_divide(a, b: Real): Result[Real, String]
      do
        if b = 0.0 then
-         result := create Result[Real].failure("division by zero")
+         result := create Err[Real, String].make("division by zero")
        else
-         result := create Result[Real].success(a / b)
+         result := create Ok[Real, String].make(a / b)
        end
      end</code></pre>
-<p>This style is often preferable when failure is expected and common rather than exceptional.</p>
+<p>A caller matches on the outcome instead of guarding against an exception:</p>
+<pre><code>nex&gt; match safe_divide(10.0, 0.0) of
+       Ok(value)  then print(value)
+       Err(error) then print(error)
+     end
+"division by zero"</code></pre>
+<p>This style is often preferable when failure is expected and common rather than exceptional — and, unlike a hand-rolled result class, <code>Ok</code>/<code>Err</code> are checked for exhaustiveness by <code>match</code>, and the same type composes with <code>result_map</code>, <code>result_and_then</code>, and the rest of the standard combinators.</p>
 </section>
 <section class="level2" data-number="23.8" id="a-worked-example-reading-configuration-safely">
 <h2 class="anchored" data-anchor-id="a-worked-example-reading-configuration-safely" data-number="23.8"> A Worked Example: Reading Configuration Safely</h2>

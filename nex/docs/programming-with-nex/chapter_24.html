@@ -160,10 +160,11 @@
 </section>
 <section class="level2" data-number="25.4" id="translation-targets">
 <h2 class="anchored" data-anchor-id="translation-targets" data-number="25.4"> Compilation Target</h2>
-<p>Nex compiles to JVM bytecode. From Clojure:</p>
-<pre><code>(require '[nex.compiler.jvm.file :as jvm])
-(jvm/compile-jar "input.nex" "build/")</code></pre>
-<p>This matters for design because a routine that depends only on arrays, maps, strings, and user-defined classes is much easier to move, test, and trust than one tangled with host APIs at every step.</p>
+<p>Nex compiles to JVM bytecode:</p>
+<pre><code>nex compile jvm script.nex ./build</code></pre>
+<p>The above command will compile <code>script.nex</code> to the standalone jar <code>./build/script.jar</code> which can be run as:</p>
+<pre><code>java -jar ./build/script.jar</code></pre>
+<p>The jar can be copied to any machine with a JVM and executed there. The target machine need not have the Nex runtime installed.</p>
 </section>
 <section class="level2" data-number="25.5" id="with-java-blocks">
 <h2 class="anchored" data-anchor-id="with-java-blocks" data-number="25.5"> <code>with "java"</code> Blocks</h2>
@@ -179,10 +180,7 @@ with "java" do
   print(System.getProperty("java.version"))
 end</code></pre>
 <p>This form is JVM-specific. It is useful when a small part of the program genuinely needs host behavior, but the surrounding design should remain ordinary Nex.</p>
-<p>At present, this is primarily a compiled-JVM feature. It works well in JVM REPL sessions and on the compiled JVM path, but it is not supported by the interpreter-based file runner used by:</p>
-<pre class="text"><code>nex some_file.nex</code></pre>
-<p>So if a file relies on <code>with "java"</code>, do not assume it will run correctly through the interpreter path. Use the compiled JVM route instead.</p>
-<p>In REPL-oriented wrapper classes, <code>with "java"</code> is often the most practical way to isolate the host boundary. A common pattern is:</p>
+<p>In wrapper classes, <code>with "java"</code> is often the most practical way to isolate the host boundary. A common pattern is:</p>
 <ul>
 <li>keep Java calls inside <code>with "java"</code> blocks</li>
 <li>expose ordinary Nex routines outside those blocks</li>
@@ -234,11 +232,10 @@ with "java" do
 end</code></pre>
 <p><code>Worker</code> declares no constructor of its own here, so nothing calls <code>super.new(...)</code> explicitly — that is fine as long as the Java class has a public no-argument constructor, which <code>Thread</code> does. Written out, the equivalent explicit form is <code>super.new()</code> or, naming the class directly, <code>Thread.new()</code>; either is accepted as the constructor’s first statement, and the typechecker rejects it anywhere else, since the JVM requires the superclass constructor to run before anything else touches the new object.</p>
 <p>Three things are happening in <code>run</code> that are worth noticing separately. <code>super.run()</code> reaches <code>Thread</code>’s own implementation of <code>run</code> — the same real method a Java subclass’s <code>super.run()</code> would reach, not a recursive call back into this override. <code>run</code> itself is an override: because a real <code>java.lang.Thread</code> calls its own <code>run()</code> internally when <code>start()</code> spawns the new thread, and that call must land on this class’s version for the override to mean anything. And <code>w.setName(...)</code>, <code>w.start()</code>, <code>w.join()</code>, and <code>w.getName()</code> are all methods <code>Worker</code> never defines — inherited, un-overridden members of <code>Thread</code>, callable on a <code>Worker</code> exactly as they would be on a plain <code>Thread</code>.</p>
-<p>The one gap worth knowing about: <code>super.new(...)</code> and <code>super.&lt;method&gt;(...)</code> currently only support the zero-argument case. A Java superclass whose only usable constructor takes arguments — reading a title into a windowing-toolkit base class, say — cannot yet be reached this way; the compiler reports this plainly rather than silently dropping the arguments.</p>
 </section>
 <section class="level2" data-number="25.6" id="a-small-interop-oriented-design">
 <h2 class="anchored" data-anchor-id="a-small-interop-oriented-design" data-number="25.6"> A Small Interop-Oriented Design</h2>
-<p>In JVM REPL sessions, a practical style is to import a Java class and wrap it in a small Nex class immediately. For example, suppose we want efficient string assembly. We could expose <code>StringBuilder</code> everywhere, but a better design keeps that host type inside one Nex wrapper:</p>
+<p>A practical style is to import a Java class and wrap it in a small Nex class immediately. For example, suppose we want efficient string assembly. We could expose <code>StringBuilder</code> everywhere, but a better design keeps that host type inside one Nex wrapper:</p>
 <pre class="text"><code>import java.lang.StringBuilder
 
 class Line_Buffer
@@ -274,35 +271,6 @@ class Greeting_Report
       result := buf.text()
     end
 end</code></pre>
-<p>In a REPL session, this is convenient:</p>
-<pre class="text"><code>nex&gt; import java.lang.StringBuilder
-nex&gt; class Line_Buffer
-       create
-         make() do
-           with "java" do
-             this.builder := create StringBuilder
-           end
-         end
-       feature
-         builder: Any
-         append_line(s: String) do
-           with "java" do
-             builder.append(s)
-             builder.append("\n")
-           end
-         end
-         text(): String do
-           with "java" do
-             result := builder.toString()
-           end
-         end
-     end
-nex&gt; let b := create Line_Buffer.make
-nex&gt; b.append_line("alpha")
-nex&gt; b.append_line("beta")
-nex&gt; print(b.text())
-alpha
-beta</code></pre>
 <p>The design point is the important part: <code>StringBuilder</code> is confined to <code>Line_Buffer</code>. The rest of the program depends on ordinary Nex routines such as <code>append_line</code> and <code>text</code>, not on Java library details.</p>
 </section>
 <section class="level2" data-number="25.7" id="portability-and-contracts">
@@ -318,7 +286,7 @@ beta</code></pre>
 </section>
 <section class="level2" data-number="25.8" id="a-worked-example-separating-core-logic-from-host-access">
 <h2 class="anchored" data-anchor-id="a-worked-example-separating-core-logic-from-host-access" data-number="25.8"> A Worked Example: Separating Core Logic from Host Access</h2>
-<p>Here is a complete JVM-oriented example. Suppose we want to print a short report about the current Java runtime. Reading system properties is host access. Formatting the report is ordinary program logic. We should separate those two concerns:</p>
+<p>Here is a complete example. Suppose we want to print a short report about the current Java runtime. Reading system properties is host access. Formatting the report is ordinary program logic. We should separate those two concerns:</p>
 <pre class="text"><code>import java.lang.System
 
 function line(label, value: String): String
@@ -380,7 +348,7 @@ print(app.run())</code></pre>
 <li>Keep interop code near system boundaries rather than scattering it through core logic</li>
 <li>Nex compiles to JVM bytecode</li>
 <li><code>inherit</code> an imported Java interface to implement it, with methods named exactly as Java names them — works on both the interpreter and the compiled path</li>
-<li><code>inherit</code> a concrete Java class to extend it, forwarding to its constructor with <code>super.new(...)</code> — compiled-JVM only, and only for a zero-argument constructor call so far</li>
+<li><code>inherit</code> a concrete Java class to extend it, forwarding to its constructor with <code>super.new(...)</code> — compiled-JVM only</li>
 <li>Contracts are especially valuable around interop boundaries</li>
 <li>Portable core logic is easier to test, reason about, and reuse</li>
 </ul>
