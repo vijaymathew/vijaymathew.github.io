@@ -67,6 +67,37 @@ collect, respectively, the fields and the named routine \(m\) visible in
 parents, with \(A\)&rsquo;s own declarations overriding inherited ones of the
 same name.</p>
 
+<h3><span class="secno">4.2.1</span>Qualified Names and Ambiguity</h3>
+
+<p>\(\Sigma\) is built from two sources: the classes the current compilation
+unit declares itself, and those brought in by each of its <code>intern</code>
+declarations (Section&nbsp;3.6), each entered under both its bare and its
+qualified name (Section&nbsp;3.6.1). The current unit&rsquo;s own declarations
+take precedence over anything interned: if the unit itself declares a class
+\(A\), \(\Sigma(A)\) is that declaration, regardless of what any interned unit
+also declares under the bare name \(A\). A qualified name is always
+well-defined in \(\Sigma\), and always denotes the one declaration it names,
+however many other units happen to share its bare spelling. Two
+<code>intern</code> declarations that name the same underlying compilation
+unit&mdash;directly, or transitively through what each in turn interns&mdash;
+contribute one declaration to \(\Sigma\), not two: the elaboration procedure of
+Section&nbsp;7.2 visits each compilation unit at most once, so this is never a
+source of ambiguity.</p>
+
+<p>A bare name \(A\) that the current unit does not declare itself is
+well-defined in \(\Sigma\) only when at most one interned unit declares a class
+of that name. When more than one does, \(A\) is an <strong>ambiguous
+reference</strong>: \(C(A)\) is undefined by ambiguity rather than by absence,
+and a program is rejected wherever such an \(A\) is written, unqualified, in a
+\(\mathit{ty}\), \(\mathit{parent}\), \(\mathit{createexp}\), or
+\(\mathit{pattern}\)&mdash;before any of the conditions of the rules below that
+read \(C(A)\) are checked. Writing the class in its qualified form is always
+well-defined and sidesteps the condition entirely, as does renaming the
+interned unit with <code>as</code> (Section&nbsp;3.6), provided the renamed
+<code>intern</code> is itself path-qualified: an alias of a bare, unpathed
+<code>intern</code> has no qualified spelling to fall back on, and merely
+renames access to whichever single class that bare name already denotes.</p>
+
 <h2><span class="secno">4.3</span>Conformance</h2>
 
 <p>The central relation of the static semantics is <em>conformance</em>, written
@@ -334,7 +365,11 @@ scope of those bindings.</p>
 
 <p>When \(A\) is sealed, the set of clause classes must exhaust
 \(\mathit{subclasses}(C, A)\), unless an <code>else</code> clause is present to
-cover the remainder. A missing variant is a compile-time error. A clause that can
+cover the remainder. A clause class is identified by the declaration \(C(B)\)
+it names, not by the spelling \(B\) is written with: a clause naming a variant
+by its qualified name (Section&nbsp;4.2.1) covers the same member of
+\(\mathit{subclasses}(C, A)\) a bare-named clause for it would, never an
+additional one. A missing variant is a compile-time error. A clause that can
 fail <em>after</em> its class matches&mdash;one carrying a guard, a literal field,
 or a nested pattern&mdash;does not count toward this coverage, since it may fall
 through; a variant whose only clause is so qualified therefore still requires an

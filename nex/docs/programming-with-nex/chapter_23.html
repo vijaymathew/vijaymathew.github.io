@@ -203,8 +203,34 @@ class Main
 end</code></pre>
 <p>The point is not merely that the code compiles. The point is that <code>Counter</code> now has its own module boundary. It can be read, tested, and reused on its own.</p>
 </section>
-<section class="level2" data-number="24.5" id="aliases">
-<h2 class="anchored" data-anchor-id="aliases" data-number="24.5"> Aliases</h2>
+<section class="level2" data-number="24.5" id="namespaces-and-ambiguous-references">
+<h2 class="anchored" data-anchor-id="namespaces-and-ambiguous-references" data-number="24.5"> Namespaces and Ambiguous References</h2>
+<p>The path in <code>intern path/Class</code> is not only a way to find a file. It also becomes that class's <strong>namespace</strong>. Two libraries can each define a class named <code>Account</code> without conflict, right up until a single program interns both of them:</p>
+<pre><code>intern finance/Account
+intern billing/Account
+
+let a := create Account.make(1)</code></pre>
+<p>Nex does not guess which <code>Account</code> is meant here, and it does not let whichever library happened to load first silently win. It rejects the program at compile time:</p>
+<pre class="text"><code>Ambiguous reference to 'Account': interned from billing.Account and finance.Account.
+Reference one directly by its qualified name (e.g. billing.Account), or rename it
+on the way in with a path-qualified `intern ... as`.</code></pre>
+<p>The fix is to write the class's full name — the same <code>path/Class</code> form used on the <code>intern</code> line — anywhere the class name would otherwise appear: in a type annotation, in <code>create</code>, in <code>inherit</code>, in a <code>match</code> clause.</p>
+<pre><code>intern finance/Account
+intern billing/Account
+
+let a: finance/Account := create finance/Account.make(1)
+let b: billing/Account := create billing/Account.make(2)
+print(a.balance)
+print(b.id)</code></pre>
+<p>Both classes are now usable in the same program, each referred to unambiguously by its own qualified name. Two things are worth noting about how this behaves:</p>
+<ul>
+<li>A class declared directly in the <em>current</em> file always wins over an interned one of the same name. Ambiguity is only ever between two <em>interned</em> classes — an unrelated library update can never silently break code that already worked by introducing a name clash with something you defined yourself.</li>
+<li>If two different <code>intern</code> paths happen to lead to the <em>same file</em> — two libraries that both depend on a third and each intern it — that is not a collision. It is one class, reachable two ways.</li>
+</ul>
+<p>A bare, unqualified name — no path at all, like a plain <code>intern Logger</code> — never collides with anything else brought in the same way, so this only comes up once a program starts interning path-qualified libraries.</p>
+</section>
+<section class="level2" data-number="24.6" id="aliases">
+<h2 class="anchored" data-anchor-id="aliases" data-number="24.6"> Aliases</h2>
 <p>Aliases are useful when:</p>
 <ul>
 <li>the imported name is long</li>
@@ -216,9 +242,17 @@ end</code></pre>
 <p>Now:</p>
 <pre><code>let p := create Polygon.with_sides(5)</code></pre>
 <p>Use aliases sparingly. The goal is clarity, not abbreviation for its own sake.</p>
+<h3>Aliasing to resolve a collision</h3>
+<p>A path-qualified alias is also a second way out of the ambiguity in the previous section — rename one side of a collision (or both) on the way in, and each alias refers unambiguously to its own class from then on:</p>
+<pre><code>intern finance/Account
+intern billing/Account as Billing_Account
+
+let a := create Account.make(1)
+let b := create Billing_Account.make(2)</code></pre>
+<p>Here the bare name <code>Account</code> still means finance's <code>Account</code> — nothing about it changed — while <code>Billing_Account</code> reaches billing's class directly, without ever touching the name it collides on. Aliasing only helps this way when the <code>intern</code> being renamed is path-qualified; aliasing a bare, unpathed intern is purely for shortening or readability, since there is no path to disambiguate with.</p>
 </section>
-<section class="level2" data-number="24.6" id="designing-module-boundaries">
-<h2 class="anchored" data-anchor-id="designing-module-boundaries" data-number="24.6"> Designing Module Boundaries</h2>
+<section class="level2" data-number="24.7" id="designing-module-boundaries">
+<h2 class="anchored" data-anchor-id="designing-module-boundaries" data-number="24.7"> Designing Module Boundaries</h2>
 <p>A good file boundary usually matches a good class boundary. As a rough rule:</p>
 <ul>
 <li>one main class per file</li>
@@ -233,8 +267,8 @@ end</code></pre>
 </ul>
 <p>Files are design documents as much as storage containers.</p>
 </section>
-<section class="level2" data-number="24.7" id="what-belongs-together">
-<h2 class="anchored" data-anchor-id="what-belongs-together" data-number="24.7"> What Belongs Together</h2>
+<section class="level2" data-number="24.8" id="what-belongs-together">
+<h2 class="anchored" data-anchor-id="what-belongs-together" data-number="24.8"> What Belongs Together</h2>
 <p>These belong together:</p>
 <ul>
 <li>a <code>Stack</code> class and helper routines whose only purpose is to support the stack</li>
@@ -246,13 +280,13 @@ end</code></pre>
 <p>If you feel tempted to group code by when it was written rather than by what it means, stop and redesign.</p>
 <p>The best modules reduce mental load. A reader opening a file should have a good guess what they are about to find.</p>
 </section>
-<section class="level2" data-number="24.8" id="intern-and-contracts">
-<h2 class="anchored" data-anchor-id="intern-and-contracts" data-number="24.8"> Intern and Contracts</h2>
+<section class="level2" data-number="24.9" id="intern-and-contracts">
+<h2 class="anchored" data-anchor-id="intern-and-contracts" data-number="24.9"> Intern and Contracts</h2>
 <p>Contracts become even more important once code is split across files. When a class is used from another module, the reader of the calling code should not have to open the original file to learn its basic obligations and guarantees; good preconditions, postconditions, and invariants are what make module boundaries trustworthy.</p>
 <p>In a multi-file program, the contract is often the first and most important documentation of a class.</p>
 </section>
-<section class="level2" data-number="24.9" id="a-worked-example-splitting-a-small-ledger">
-<h2 class="anchored" data-anchor-id="a-worked-example-splitting-a-small-ledger" data-number="24.9"> A Worked Example: Splitting a Small Ledger</h2>
+<section class="level2" data-number="24.10" id="a-worked-example-splitting-a-small-ledger">
+<h2 class="anchored" data-anchor-id="a-worked-example-splitting-a-small-ledger" data-number="24.10"> A Worked Example: Splitting a Small Ledger</h2>
 <p>Imagine a program with these concepts:</p>
 <ul>
 <li><code>Transaction</code></li>
@@ -304,24 +338,28 @@ class Ledger_Report
 end</code></pre>
 <p>Each file has one job. The design is visible in the file structure itself.</p>
 </section>
-<section class="level2" data-number="24.10" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="24.10"> Summary</h2>
+<section class="level2" data-number="24.11" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="24.11"> Summary</h2>
 <ul>
 <li>Split programs into files to express design boundaries, not merely to reduce length</li>
 <li>Use <code>intern path/Class_Name</code> to load Nex classes from other files</li>
-<li>Use <code>as</code> when a local alias improves clarity</li>
+<li>The <code>path</code> in <code>intern path/Class</code> is also the class's namespace: two interned classes with the same bare name are a compile-time <strong>ambiguous reference</strong> error, never a silent guess</li>
+<li>Resolve a collision by writing the class's qualified name (<code>path/Class</code>) directly, or by giving one side a path-qualified alias with <code>as</code></li>
+<li>A class declared in the current file always wins over an interned one of the same name; only two interned classes can collide</li>
+<li>Use <code>as</code> when a local alias improves clarity, even without a collision</li>
 <li>Good file boundaries usually follow good class boundaries</li>
 <li>Contracts make multi-file code easier to trust and reuse</li>
 <li>A clean module layout reduces coupling and mental overhead</li>
 </ul>
 </section>
-<section class="level2" data-number="24.11" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="24.11"> Exercises</h2>
+<section class="level2" data-number="24.12" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="24.12"> Exercises</h2>
 <p><strong>1.</strong> Split a simple earlier example into two files: one defining a class and one using it with <code>intern</code>.</p>
 <p><strong>2.</strong> Take a class that currently does too much and divide it into two classes in two files. Explain why the new boundary is better.</p>
 <p><strong>3.</strong> Write a short example using <code>intern ... as ...</code> and show why the alias is helpful.</p>
 <p><strong>4.</strong> Sketch a directory layout for a small address-book program with classes <code>Contact</code>, <code>Address_Book</code>, and <code>Csv_Exporter</code>.</p>
-<p><strong>5.*</strong> Choose a chapter 26-sized program idea of your own. Before writing any code, propose the file structure and justify each file in one sentence.</p>
+<p><strong>5.</strong> Write two small libraries that each define a class with the same name, then intern both into one program. Show two different ways to use both classes: a qualified reference, and an alias.</p>
+<p><strong>6.*</strong> Choose a chapter 26-sized program idea of your own. Before writing any code, propose the file structure and justify each file in one sentence.</p>
 </section>
 
   </div>

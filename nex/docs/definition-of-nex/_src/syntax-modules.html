@@ -43,7 +43,7 @@ set of features and obeying a set of invariants.</p>
 <tr><td></td><td></td><td>&nbsp;&nbsp;<span class="nt">classbody</span></td></tr>
 <tr><td></td><td></td><td>&nbsp;&nbsp;&langle;<span class="nt">invariant</span>&rangle; <span class="lit">end</span></td></tr>
 <tr><td class="nt">inherit</td><td class="op">::=</td><td><span class="lit">inherit</span> <span class="nt">parent</span> (<span class="lit">,</span> <span class="nt">parent</span>)<sup>*</sup></td></tr>
-<tr><td class="nt">parent</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="nt">tyargs</span>&rangle;</td></tr>
+<tr><td class="nt">parent</td><td class="op">::=</td><td><span class="nt">qid</span> &langle;<span class="nt">tyargs</span>&rangle;</td></tr>
 <tr><td class="nt">classbody</td><td class="op">::=</td><td>(<span class="nt">featuresec</span> <span class="op">|</span> <span class="nt">createsec</span>)<sup>*</sup></td></tr>
 <tr><td class="nt">invariant</td><td class="op">::=</td><td><span class="lit">invariant</span> <span class="nt">assertion</span><sup>+</sup></td></tr>
 <tr><td class="nt">note</td><td class="op">::=</td><td><span class="lit">note</span> <span class="nt">string</span></td></tr>
@@ -63,7 +63,9 @@ ordinarily another class declared in the program, but it need not be: the
 grammar admits no distinction, and an identifier that names an imported class
 from the host platform (Section&nbsp;3.6) rather than a Nex class is a parent
 like any other, subject to the further conditions of Section&nbsp;4.9 and
-Section&nbsp;5.8.</p>
+Section&nbsp;5.8. A parent may also be named by its qualified name
+(Section&nbsp;3.6.1), which matters only when the bare name would otherwise be
+ambiguous between two interned classes.</p>
 
 <h3><span class="secno">3.2.1</span>Generic Parameters</h3>
 
@@ -283,15 +285,16 @@ therefore took no identifier away from any program that existed before it.</p>
 <h2><span class="secno">3.5</span>Type Expressions</h2>
 
 <p>A type expression denotes a type. The built-in scalar types and
-<code>Function</code> are reserved names; a class name, possibly applied to type
-arguments, denotes the corresponding class type; a leading <code>?</code> forms
-the <em>optional</em> type that additionally admits <code>nil</code>.</p>
+<code>Function</code> are reserved names; a class name, bare or qualified
+(Section&nbsp;3.6.1) and possibly applied to type arguments, denotes the
+corresponding class type; a leading <code>?</code> forms the <em>optional</em>
+type that additionally admits <code>nil</code>.</p>
 
 <div class="grammar">
 <table>
 <tr><td class="nt">ty</td><td class="op">::=</td><td><span class="lit">Integer</span> <span class="op">|</span> <span class="lit">Real</span></td></tr>
 <tr><td></td><td class="op">|</td><td><span class="lit">Char</span> <span class="op">|</span> <span class="lit">Boolean</span> <span class="op">|</span> <span class="lit">String</span></td></tr>
-<tr><td></td><td class="op">|</td><td><span class="nt">id</span> &langle;<span class="nt">tyargs</span>&rangle;</td><td class="cmt">&mdash; class type, possibly generic</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">qid</span> &langle;<span class="nt">tyargs</span>&rangle;</td><td class="cmt">&mdash; class type, possibly generic, bare or qualified (Section&nbsp;3.6.1)</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="lit">?</span> <span class="nt">ty</span></td><td class="cmt">&mdash; optional (nilable) type</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">funty</span></td><td class="cmt">&mdash; function type</td></tr>
 <tr><td class="nt">funty</td><td class="op">::=</td><td><span class="lit">Function</span> &langle;<span class="lit">(</span> &langle;<span class="nt">funtyparams</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle;&rangle;</td></tr>
@@ -359,6 +362,45 @@ without the grammar growing: new operations and conveniences live in library
 units loaded by <code>intern</code>, not in new keywords. The meaning of these
 declarations&mdash;which is, in essence, the elaboration of the named unit in the
 current environment&mdash;is given in Chapter&nbsp;7.</p>
+
+<h3><span class="secno">3.6.1</span>Qualified Names and Ambiguous References</h3>
+
+<p>The path segments preceding the class name in an <code>intern</code>
+declaration are not merely a means of locating a file: taken together with the
+class&rsquo;s own name, they form its <strong>qualified name</strong>, a second,
+always-unambiguous spelling by which the class may be named wherever a bare
+class name may&mdash;a <code>parent</code> (Section&nbsp;3.2), a class <code>ty</code>
+(Section&nbsp;3.5), a <code>createexp</code> (Appendix&nbsp;A.5), or a
+<code>pattern</code> (Section&nbsp;2.8). We write <span
+class="nt">qid</span> for a class name in either spelling:</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">qid</td><td class="op">::=</td><td><span class="nt">id</span> (<span class="lit">/</span> <span class="nt">id</span>)<sup>*</sup></td><td class="cmt">&mdash; bare (zero segments) or path-qualified</td></tr>
+</table>
+</div>
+
+<p>Every <code>ty</code>, <code>parent</code>, <code>createexp</code>, and
+<code>pattern</code> production that named a bare class <code>id</code> in
+earlier sections in fact names a <code>qid</code>; those sections write
+<code>id</code> for readability where no unit interns a colliding name, which
+is the ordinary case.</p>
+
+<p>Two source units, interned into the same program, may each declare a class
+under the same bare name&mdash;nothing in the grammar of either unit, read on
+its own, can detect this. Section&nbsp;4.2 gives the resulting static rule: a
+bare class name that denotes more than one class once both units are elaborated
+together is an <strong>ambiguous reference</strong>, rejected wherever it is
+written, unqualified, in the program that interned both. Writing the class in
+its qualified form resolves the reference unambiguously regardless of how many
+other units also declare a class of that bare name; so does giving one of the
+colliding interns a local name with <code>as</code>, provided the renamed
+<code>intern</code> is itself path-qualified&mdash;an <code>as</code> on a bare,
+unpathed <code>intern</code> has no qualified spelling to fall back on, and
+merely renames access to whichever single class that bare name already denotes.
+A class declared directly in the current unit is never part of such an
+ambiguity: it shadows an interned class of the same bare name outright, the
+same way a local variable shadows a global (Section&nbsp;7.4).</p>
 
 <p>An imported class is not confined to the role of a value manufactured and
 called&mdash;it may also be named in a class declaration&rsquo;s
