@@ -440,10 +440,14 @@ the named one.</p>
 
 <p>Every assertion must elaborate to <code>Boolean</code> (rule 4.21 in
 Appendix&nbsp;D). The keystone is the typing of <code>old</code>, which is
-admitted only in a postcondition and only on a field of the current object:</p>
+admitted only in a postcondition and whose operand is elaborated over the fields
+of the current object alone. Writing \(C^{\mathsf{fields}}\) for the environment
+holding just those fields &mdash; the one an invariant elaborates in &mdash; the
+operand \(e\) may be any expression well-typed there, and <code>old</code>&nbsp;\(e\)
+carries its type:</p>
 
 <div class="rule-block">
-\[ \frac{C \vdash f \Rightarrow \tau \quad f \in \mathit{fields}(C, \text{current class})}{C^{\mathsf{ensure}} \vdash \texttt{old}\; f \Rightarrow \tau} \tag{4.22} \]
+\[ \frac{C^{\mathsf{fields}} \vdash e \Rightarrow \tau}{C^{\mathsf{ensure}} \vdash \texttt{old}\; e \Rightarrow \tau} \tag{4.22} \]
 </div>
 
 <pre><code>class Counter
@@ -466,15 +470,18 @@ print(c.count)</code></pre>
 a field of the current class, so <code>old count</code> has type
 <code>Integer</code> by (4.22); the assertion as a whole is <code>Boolean</code> by
 (4.21). At run time <code>old count</code> is the value held on entry, so after one
-<code>bump</code> the count is <code>1</code> and the postcondition holds. Writing
-<code>old</code> on a parameter, or outside an <code>ensure</code>, is a
-compile-time error.</p>
+<code>bump</code> the count is <code>1</code> and the postcondition holds. The
+operand need not be a bare field: <code>old items.length</code> elaborates just as
+well, since every name it reads is a field, and its value is the length the
+collection had on entry (Section&nbsp;5.6). Writing <code>old</code> on a
+parameter, or outside an <code>ensure</code>, is a compile-time error.</p>
 
-<p>Rule (4.22) records the restriction of Section&nbsp;2.9: <code>old</code>
-applies only to a field of the current object, and only within a postcondition
-(the superscript \(\mathsf{ensure}\) marks that environment). The label of an assertion
-has no effect on its type; it is carried into the dynamic semantics solely to
-name the condition in a violation report.</p>
+<p>Rule (4.22) records the restriction of Section&nbsp;2.9: beneath <code>old</code>
+only the fields of the current object are in scope &mdash; not the parameters, the
+locals, or <code>result</code> &mdash; and <code>old</code> itself may stand only
+within a postcondition (the superscript \(\mathsf{ensure}\) marks that
+environment). The label of an assertion has no effect on its type; it is carried
+into the dynamic semantics solely to name the condition in a violation report.</p>
 
 <h2><span class="secno">4.7</span>Generic Elaboration</h2>
 

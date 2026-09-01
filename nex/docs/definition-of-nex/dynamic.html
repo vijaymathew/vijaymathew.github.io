@@ -414,8 +414,9 @@ condition failed on <em>which</em> line.</p>
   <li>\(\mathit{pre}\) is checked on entry, after the parameters are bound but
   before the body runs; a failed precondition is the caller&rsquo;s fault.</li>
   <li>The <code>old</code> expressions of \(\mathit{post}\) are snapshotted on
-  entry: for each <code>old</code> \(f\) the current value of the field \(f\) is
-  recorded, to be supplied when \(\mathit{post}\) is later evaluated.</li>
+  entry: for each field an <code>old</code> expression reads, the current value of
+  that field is recorded, to be supplied when \(\mathit{post}\) is later
+  evaluated.</li>
   <li>\(\mathit{post}\) is checked on normal exit, with <code>result</code>
   bound and the recorded <code>old</code> values in scope; a failed
   postcondition is the routine&rsquo;s fault.</li>
@@ -465,14 +466,19 @@ failure but the clause it came from.</p>
 
 <div class="note">
   <span class="note-label">What <code>old</code> captures</span>
-  The snapshot of <code>old</code> \(f\) records the <em>value</em> the field
-  held on entry. For a field of scalar or reference type this is exactly the
-  pre-state value; but for a mutable object reached <em>through</em> the field,
-  the snapshot is the reference, not a copy, so a later mutation of that object
-  is visible through <code>old</code>. A postcondition that must speak of the
-  prior <em>size</em> of a mutable collection should therefore record that size
-  in a field of its own, and refer to <code>old</code> of that field. This is a
-  consequence of (5.7) and the reference nature of objects, not a special rule.
+  <code>old</code> takes an expression, not only a bare field name: <code>old</code> \(e\)
+  is admitted whenever \(e\) is built over the fields of the current object, so
+  <code>old xs.length</code> is as legitimate as <code>old count</code>. On entry,
+  each field such an \(e\) reads is snapshotted (5.6), and <code>old</code> \(e\)
+  is \(e\) evaluated against those snapshots rather than the current store. For a
+  field of scalar or reference type the snapshot is the <em>value</em> held on
+  entry &mdash; for a reference, the object it then denoted. A mutable collection
+  field &mdash; an array or a map &mdash; is snapshotted so that the
+  container&rsquo;s own membership is fixed as of entry: its length, its keys, and
+  which element occupies each position. So <code>old xs.length</code>,
+  <code>old xs.get(i)</code>, and <code>old m.contains_key(k)</code> all report the
+  pre-state, and a postcondition may speak of a collection&rsquo;s prior size
+  directly, with no auxiliary field.
 </div>
 
 <p>The predicate of a refinement type is checked by the same
