@@ -447,6 +447,47 @@ A class declared directly in the current unit is never part of such an
 ambiguity: it shadows an interned class of the same bare name outright, the
 same way a local variable shadows a global (Section&nbsp;7.4).</p>
 
+<h3><span class="secno">3.6.2</span>Qualified Calls to Free Functions</h3>
+
+<p>A unit&rsquo;s free functions are carried into the current program by
+<code>intern</code> exactly as its classes are: the declaration loads the
+whole named unit, not merely the one name written after its path, so a
+function sharing a file with the interned class arrives alongside it under
+its own bare name.</p>
+
+<p>A free function has no <span class="nt">qid</span> spelling and no
+path-qualified <code>as</code>: <code>as</code> renames a class only, never a
+function (Section&nbsp;3.6). Two units interned into the same program may
+nonetheless each declare a function under the same bare name, and a bare
+application of that name is then an <strong>ambiguous reference</strong>,
+rejected wherever it is written&mdash;Section&nbsp;4.8.1 gives the static
+rule, which mirrors 3.6.1&rsquo;s class rule in substance but not in form:
+there is no <span class="nt">qid</span> to fall back on directly at the
+syntax level.</p>
+
+<p>The escape from such a collision is instead a <strong>qualified
+call</strong>: <code>path.m(e<sub>1</sub>,&hellip;,e<sub>n</sub>)</code>, written
+in the ordinary member-access/call form of the expression grammar
+(Section&nbsp;2.7)&mdash;syntactically indistinguishable from a real method
+call on a variable named <code>path</code>. It is elaborated as naming the
+free function whose unit path and own name, joined by <code>.</code>, spell
+<code>path.m</code> only when <code>path</code>&rsquo;s leading identifier has
+no ordinary binding at that point in the program; an existing local,
+parameter, field, or class of that name always takes precedence, and the
+qualified reading is tried only once ordinary elaboration of the leading name
+has already failed (Section&nbsp;4.8.1).</p>
+
+<p>This differs from a class&rsquo;s <span class="nt">qid</span> in spelling
+because it must: <span class="nt">qid</span> separates path segments with
+<code>/</code>, which is available there only because a <code>ty</code>,
+<code>parent</code>, <code>createexp</code>, and <code>pattern</code> are
+never <code>exp</code> positions, so <code>/</code> never has to be told apart
+from the division operator (Section&nbsp;2.6). A function call is an
+<code>exp</code>, and division is written there too, so a qualified call
+instead reuses <code>.</code>&mdash;already the member-access
+operator&mdash;resolved by this special case of elaboration rather than by a
+new grammar production.</p>
+
 <p>An imported class is not confined to the role of a value manufactured and
 called&mdash;it may also be named in a class declaration&rsquo;s
 <code>inherit</code> clause (Section&nbsp;3.2), so that a Nex class implements

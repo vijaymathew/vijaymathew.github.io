@@ -250,6 +250,42 @@ intern billing/Account as Billing_Account
 let a := create Account.make(1)
 let b := create Billing_Account.make(2)</code></pre>
 <p>Here the bare name <code>Account</code> still means finance's <code>Account</code> — nothing about it changed — while <code>Billing_Account</code> reaches billing's class directly, without ever touching the name it collides on. Aliasing only helps this way when the <code>intern</code> being renamed is path-qualified; aliasing a bare, unpathed intern is purely for shortening or readability, since there is no path to disambiguate with.</p>
+<h3>Free Functions and intern</h3>
+<p><code>intern</code> brings in a unit's free functions exactly as it brings in its classes — the whole file, not only the one name written after the path. A function sharing a file with an interned class arrives alongside it, under its own bare name, whether or not you ever use it.</p>
+<p>But a function has none of the escape hatches above: <code>as</code> only ever renames a class. Given two warehouses that each define a <code>ship</code> function, rounding a shipment quantity a different way:</p>
+<pre><code>-- trade/ship.nex
+function ship(qty: Integer): Integer do result := qty + 1 end
+
+-- other/ship.nex
+function ship(qty: Integer): Integer do result := qty - 1 end</code></pre>
+<pre><code>intern trade/ship
+intern other/ship
+
+print(ship(10))</code></pre>
+<p>a bare call is rejected the same way a bare class reference is:</p>
+<pre class="text"><code>Ambiguous reference to 'ship': interned from other.ship and trade.ship.
+Call one directly by its qualified name, e.g. other.ship(...).</code></pre>
+<p>The fix looks similar to a class's qualified name, but is spelled differently — with <code>.</code> rather than <code>/</code>:</p>
+<pre><code>intern trade/ship
+intern other/ship
+
+print(trade.ship(10))  -- 11
+print(other.ship(10))  -- 9</code></pre>
+<p>The different spelling is a matter of syntax, not style. A class's <code>path/Class</code> form only ever appears in a type annotation, a <code>create</code>, an <code>inherit</code>, or a <code>match</code> clause — never in the middle of an ordinary expression, so <code>/</code> can be used there without ever being mistaken for division. A function call <em>is</em> an ordinary expression, and <code>/</code> already means division inside one, so a qualified call instead reuses <code>.</code> — the same character an ordinary method call already uses.</p>
+<p><code>trade.ship(&hellip;)</code> parses exactly like a method call on a variable named <code>trade</code>. Nex only reads it as a qualified call when <code>trade</code> is not otherwise bound to anything in the program — no local, parameter, field, or class of that name. An ordinary binding always wins, even one out of scope at the call site itself:</p>
+<pre><code>intern trade/ship
+
+function use(trade: Integer): Integer do
+  result := trade + 1
+end
+
+print(trade.ship(10))  -- Undefined variable: trade</code></pre>
+<p>Because <code>trade</code> is used as a parameter name somewhere in this program, <code>trade.ship(&hellip;)</code> is always read as an ordinary member access — never as the module path, even on a line where no such parameter is in scope. Avoid naming a local or parameter after an intern path segment you also plan to call qualified.</p>
+<p>A multi-segment path is written the same way, one more <code>.</code>:</p>
+<pre><code>intern trade/core/ship
+
+print(trade.core.ship(10))</code></pre>
+<p>As with classes, none of this matters until two interned functions actually collide. Most of the time a function is simply called by its bare name, exactly as before.</p>
 </section>
 <section class="level2" data-number="24.7" id="designing-module-boundaries">
 <h2 class="anchored" data-anchor-id="designing-module-boundaries" data-number="24.7"> Designing Module Boundaries</h2>
@@ -347,6 +383,8 @@ end</code></pre>
 <li>Resolve a collision by writing the class's qualified name (<code>path/Class</code>) directly, or by giving one side a path-qualified alias with <code>as</code></li>
 <li>A class declared in the current file always wins over an interned one of the same name; only two interned classes can collide</li>
 <li>Use <code>as</code> when a local alias improves clarity, even without a collision</li>
+<li><code>intern</code> brings in a unit's free functions the same way it brings in its classes, but a function has no qualified name and no <code>as</code>; a colliding bare call is an ambiguous reference too, resolved instead with a <strong>qualified call</strong> — <code>path.name(&hellip;)</code>, spelled with <code>.</code> rather than <code>/</code> because a function call, unlike a class reference, is an ordinary expression where <code>/</code> already means division</li>
+<li>A qualified call is read that way only when its leading name is not already bound to something else in the program — an ordinary local, parameter, field, or class always takes precedence</li>
 <li>Good file boundaries usually follow good class boundaries</li>
 <li>Contracts make multi-file code easier to trust and reuse</li>
 <li>A clean module layout reduces coupling and mental overhead</li>
@@ -359,7 +397,8 @@ end</code></pre>
 <p><strong>3.</strong> Write a short example using <code>intern ... as ...</code> and show why the alias is helpful.</p>
 <p><strong>4.</strong> Sketch a directory layout for a small address-book program with classes <code>Contact</code>, <code>Address_Book</code>, and <code>Csv_Exporter</code>.</p>
 <p><strong>5.</strong> Write two small libraries that each define a class with the same name, then intern both into one program. Show two different ways to use both classes: a qualified reference, and an alias.</p>
-<p><strong>6.*</strong> Choose a chapter 26-sized program idea of your own. Before writing any code, propose the file structure and justify each file in one sentence.</p>
+<p><strong>6.</strong> Write two small libraries that each define a free function with the same name, then intern both into one program. Show the ambiguous-reference error a bare call produces, then fix it with a qualified call to each.</p>
+<p><strong>7.*</strong> Choose a chapter 26-sized program idea of your own. Before writing any code, propose the file structure and justify each file in one sentence.</p>
 </section>
 
   </div>
