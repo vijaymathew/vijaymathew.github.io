@@ -351,7 +351,7 @@ free functions: when \(e\) is itself an anonymous function
 \(e\) is elaborated, not withheld from it.</p>
 
 <div class="rule-block">
-\[ \frac{C \oplus \{x : \sigma\} \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \notin C \quad e = \texttt{fn}\ldots}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16$'$} \]
+\[ \frac{C \oplus \{x : \sigma\} \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \notin C \quad e = \texttt{fn}\ldots}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16'} \]
 </div>
 
 <pre><code>let fact: Function(n: Integer): Integer := fn(n: Integer): Integer do
@@ -388,6 +388,26 @@ another <code>let</code> in the same block, or as a parameter of one of the
 closures themselves. A program that relies on self- or mutual reference
 should therefore give each such closure, and every name it closes over, a
 name found nowhere else in the enclosing block.</p>
+
+<div class="note">
+  <span class="note-label">A REPL implementation limitation, not a language one</span>
+  (4.16&prime;) is elaboration, not execution, and holds everywhere a whole
+  program or a single interactive input is elaborated as one unit&mdash;which
+  is what a <code>let</code> naming a nested closure two levels deep, an
+  entire file, or one multi-statement REPL input all are. The one place it
+  is known not to reach, in the current implementation, is a mutually
+  recursive pair defined together in <em>one</em> REPL input and then called
+  from a <em>later, separate</em> one: the interactive session keeps the two
+  closures&rsquo; runtime values and their compiled metadata in ways that can
+  disagree once a later input asks the interpreter to re-run one of them, and
+  the call fails there even though (4.16&prime;) accepted the definition. A
+  closure that only calls itself is unaffected&mdash;the gap is specific to
+  two or more closures elaborated together and then invoked from a
+  <em>different</em> REPL input than the one that defined them. Ordinary
+  <code>function</code> definitions (&sect;4.8), including ones using
+  <code>declare function</code>, are unaffected in every case: give the
+  mutually recursive routines names via <code>function</code> instead of
+  <code>let</code> when they must be called across separate REPL inputs.</div>
 
 <p>A <code>let</code> with no type annotation takes \(\sigma\) to be the inferred
 type \(\tau\) of its initialiser. The premise &ldquo;\(x\) not a <code>once</code>
