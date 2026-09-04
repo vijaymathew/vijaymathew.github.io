@@ -381,6 +381,72 @@ Assignment requires the value to conform to the variable&rsquo;s type and leaves
 the environment unchanged; the <code>if</code> checks each branch under the
 environment it is given (rules 4.17&ndash;4.18 in Appendix&nbsp;D).</p>
 
+<h4>Self- and mutually recursive closures</h4>
+
+<p>Rule (4.16) has one exception, symmetric with &sect;4.8&rsquo;s treatment of
+free functions: when \(e\) is itself an anonymous function
+<code>fn</code>&hellip;, \(x\) is bound in the environment under which
+\(e\) is elaborated, not withheld from it.</p>
+
+<div class="rule-block">
+\[ \frac{C \oplus \{x : \sigma\} \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \notin C \quad e = \texttt{fn}\ldots}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16'} \]
+</div>
+
+<pre><code>let fact: Function(n: Integer): Integer := fn(n: Integer): Integer do
+  if n <= 1 then
+    result := 1
+  else
+    result := n * fact(n - 1)
+  end
+end
+print(fact(5))                       -- 120</code></pre>
+
+<p>A closure so bound may therefore call itself, exactly as a named
+<code>function</code> already could under &sect;4.8. The same widening extends to
+a run of consecutive closure-literal <code>let</code>s within one block: every
+name so introduced is added to the environment together, before any of their
+bodies is elaborated, so two or more such closures may call one another
+regardless of which is written first&mdash;the closure-literal analogue of
+&sect;4.8&rsquo;s &ldquo;any function may call any other regardless of textual
+order,&rdquo; needing no <code>declare function</code>-style forecast because the
+whole run is elaborated as one unit.</p>
+
+<pre><code>let is_even := fn(n: Integer): Boolean do
+  if n = 0 then result := true else result := is_odd(n - 1) end
+end
+let is_odd := fn(n: Integer): Boolean do
+  if n = 0 then result := false else result := is_even(n - 1) end
+end
+print(is_even(10))                   -- true</code></pre>
+
+<p>This widening is withdrawn&mdash;falling back to the ordinary rule
+(4.16), under which the name is simply not yet visible&mdash;for any name that
+is also introduced a second time within reach of the closures involved: by
+another <code>let</code> in the same block, or as a parameter of one of the
+closures themselves. A program that relies on self- or mutual reference
+should therefore give each such closure, and every name it closes over, a
+name found nowhere else in the enclosing block.</p>
+
+<div class="note">
+  <span class="note-label">A REPL implementation limitation, not a language one</span>
+  (4.16&prime;) is elaboration, not execution, and holds everywhere a whole
+  program or a single interactive input is elaborated as one unit&mdash;which
+  is what a <code>let</code> naming a nested closure two levels deep, an
+  entire file, or one multi-statement REPL input all are. The one place it
+  is known not to reach, in the current implementation, is a mutually
+  recursive pair defined together in <em>one</em> REPL input and then called
+  from a <em>later, separate</em> one: the interactive session keeps the two
+  closures&rsquo; runtime values and their compiled metadata in ways that can
+  disagree once a later input asks the interpreter to re-run one of them, and
+  the call fails there even though (4.16&prime;) accepted the definition. A
+  closure that only calls itself is unaffected&mdash;the gap is specific to
+  two or more closures elaborated together and then invoked from a
+  <em>different</em> REPL input than the one that defined them. Ordinary
+  <code>function</code> definitions (&sect;4.8), including ones using
+  <code>declare function</code>, are unaffected in every case: give the
+  mutually recursive routines names via <code>function</code> instead of
+  <code>let</code> when they must be called across separate REPL inputs.</div>
+
 <p>A <code>let</code> with no type annotation takes \(\sigma\) to be the inferred
 type \(\tau\) of its initialiser. The premise &ldquo;\(x\) not a <code>once</code>
 field outside a constructor&rdquo; in (4.17) is the static enforcement of
@@ -538,17 +604,21 @@ one does not conform to the other.</p>
 <h2><span class="secno">4.8</span>Free Functions and the Static World</h2>
 
 <p>The free functions of a program are elaborated together with its classes, so
-that any function may call any other regardless of textual order. A bare
-application \(m(e_1,\dots,e_n)\), where \(m\) is not a routine of the current
-class, is elaborated against the signature of the free function \(m\); a
-<code>declare function</code> signature supplies that type before the definition
-is seen, which is how mutual recursion is admitted (Section&nbsp;3.4). A later
-definition must match its declaration exactly. Free functions, unlike methods,
-may not be overloaded: each free function name is meant to be unique, and a
-definition matching an earlier <code>declare function</code> must agree with it
-in full. Both rules are enforced: a repeated definition, and a definition whose
-signature disagrees with its declaration, are each rejected, naming the
-function.</p>
+that any function may call any other regardless of textual order &mdash; this
+alone is what admits mutual recursion among them, needing no forecast of a
+callee&rsquo;s signature ahead of its own definition. A bare application
+\(m(e_1,\dots,e_n)\), where \(m\) is not a routine of the current class, is
+elaborated against the signature of the free function \(m\), gathered from
+wherever in the program \(m\) is defined. A <code>declare function</code>
+signature (Section&nbsp;3.4) is a separate, optional device: it pins \(m\)&rsquo;s
+signature explicitly, at the point a reader (or a much later definition) most
+wants to see it, and its later definition must then match it exactly &mdash; a
+self-check on the declaration, not a precondition for calling \(m\) before that
+definition is reached. Free functions, unlike methods, may not be overloaded:
+each free function name is meant to be unique, and a definition matching an
+earlier <code>declare function</code> must agree with it in full. Both rules are
+enforced: a repeated definition, and a definition whose signature disagrees
+with its declaration, are each rejected, naming the function.</p>
 
 <h3><span class="secno">4.8.1</span>Qualified Calls and Ambiguous References</h3>
 
