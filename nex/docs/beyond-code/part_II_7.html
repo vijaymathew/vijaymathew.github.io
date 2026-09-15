@@ -36,16 +36,16 @@
 <p><strong>State</strong> answers: <em>what is true about this thing right now?</em> It is everything that can change while identity stays fixed — position, status, assignment.</p>
 <p>The separation is not cosmetic. If your model treats a state change as the creation of a new entity, you lose continuity: there is no way to say that the robot before the reroute and the robot after it are the same robot. If your model merges entities that are genuinely distinct, you corrupt behavior: two delivery tasks that happen to share a destination are not the same task.</p>
 <p>Applied to our three systems, the separation looks like this:</p>
-<p><strong>Delivery network.</strong> The entities are <code>Robot</code>, <code>Location</code>, and <code>DeliveryTask</code>. A robot’s identity persists across reroutes and retries; its current location is state. A delivery task’s identity persists across status changes; whether it is pending or in transit is state.</p>
-<p><strong>Knowledge engine.</strong> The entities are <code>Document</code>, <code>Tag</code>, and <code>QuerySession</code>. A document can be edited, annotated, or re-indexed, but it remains the same document. Its content is state; its identity is not.</p>
-<p><strong>Virtual world.</strong> The entities are <code>WorldObject</code>, <code>Player</code>, and <code>InteractionRule</code>. An object’s position changes every tick. Its identity does not.</p>
+<p><strong>Delivery network.</strong> The entities are <code>Robot</code>, <code>Location</code>, and <code>Delivery_Task</code>. A robot’s identity persists across reroutes and retries; its current location is state. A delivery task’s identity persists across status changes; whether it is pending or in transit is state.</p>
+<p><strong>Knowledge engine.</strong> The entities are <code>Document</code>, <code>Tag</code>, and <code>Query_Session</code>. A document can be edited, annotated, or re-indexed, but it remains the same document. Its content is state; its identity is not.</p>
+<p><strong>Virtual world.</strong> The entities are <code>World_Object</code>, <code>Player</code>, and <code>Interaction_Rule</code>. An object’s position changes every tick. Its identity does not.</p>
 </section>
 <section class="level2" data-number="8.2" id="responsibilities-belong-to-entities">
 <h2 class="anchored" data-anchor-id="responsibilities-belong-to-entities" data-number="8.2"> Responsibilities Belong to Entities</h2>
 <p>Once entities are named, the next question is what they are responsible for.</p>
 <p>The temptation — especially in codebases that grew without an explicit model — is to collect entity-related logic in global helper functions or service layers that reach into shared data structures and mutate them directly. This pattern works at small scale and degrades badly at large scale: ownership becomes unclear, invariants are enforced inconsistently, and changing one entity’s representation requires finding and updating code in many places.</p>
 <p>The better pattern is to assign each entity responsibility for the invariants that govern its own state, and to expose state changes only through explicit operations. An entity that controls its own transitions is an entity whose behavior can be reasoned about locally.</p>
-<p>In concrete terms: <code>DeliveryTask</code> should validate its own status transitions — it should not be possible for external code to move a delivered task back to pending. <code>Document</code> should guard the integrity of its own metadata. <code>WorldObject</code> should enforce whatever bounds constrain legal movement or state change.</p>
+<p>In concrete terms: <code>Delivery_Task</code> should validate its own status transitions — it should not be possible for external code to move a delivered task back to pending. <code>Document</code> should guard the integrity of its own metadata. <code>World_Object</code> should enforce whatever bounds constrain legal movement or state change.</p>
 <p>This is not about strict encapsulation as a stylistic preference. It is about making invariants enforceable rather than merely conventional.</p>
 </section>
 <section class="level2" data-number="8.3" id="from-requirement-to-entity-model">
@@ -56,16 +56,16 @@
 </blockquote>
 <p>It mentions things — packages, status, presumably robots and locations — but gives them no structure. The following steps convert it into a model.</p>
 <p><strong>Step 1: Extract candidate entities.</strong> Read the requirement and list the nouns that might deserve persistent identity: package, robot, route, user notification. Do not commit yet.</p>
-<p><strong>Step 2: Keep only stable identity carriers.</strong> A route is often the output of a computation — a derived value, not a persistent thing. User notifications may be events rather than entities. After filtering: <code>DeliveryTask</code>, <code>Robot</code>, <code>Location</code> are likely stable identity carriers.</p>
-<p><strong>Step 3: Define identity keys.</strong> Assign each entity a field that uniquely identifies it across time: <code>DeliveryTask.task_id</code>, <code>Robot.robot_id</code>, <code>Location.location_id</code>. Choosing these fields early forces clarity about what makes two instances the same thing.</p>
-<p><strong>Step 4: Define minimal state.</strong> For <code>DeliveryTask</code>: origin, destination, status (<code>PENDING</code>, <code>IN_TRANSIT</code>, <code>DELIVERED</code>, <code>FAILED</code>), and optionally an assigned robot identifier. Start small. State can be extended; a bloated initial model is harder to correct.</p>
+<p><strong>Step 2: Keep only stable identity carriers.</strong> A route is often the output of a computation — a derived value, not a persistent thing. User notifications may be events rather than entities. After filtering: <code>Delivery_Task</code>, <code>Robot</code>, <code>Location</code> are likely stable identity carriers.</p>
+<p><strong>Step 3: Define identity keys.</strong> Assign each entity a field that uniquely identifies it across time: <code>Delivery_Task.task_id</code>, <code>Robot.robot_id</code>, <code>Location.location_id</code>. Choosing these fields early forces clarity about what makes two instances the same thing.</p>
+<p><strong>Step 4: Define minimal state.</strong> For <code>Delivery_Task</code>: origin, destination, status (<code>PENDING</code>, <code>IN_TRANSIT</code>, <code>DELIVERED</code>, <code>FAILED</code>), and optionally an assigned robot identifier. Start small. State can be extended; a bloated initial model is harder to correct.</p>
 <p><strong>Step 5: Add invariants.</strong> The task identifier must be non-empty. Origin and destination must be non-empty. A delivered task cannot return to pending. These are not validation rules to be added later — they are properties of the entity itself, and they belong in the model now.</p>
 <p><strong>Step 6: Add transition operations.</strong> Assign robot, mark in transit, mark delivered, mark failed. Each transition is an explicit operation, not a field assignment scattered across the codebase.</p>
 <p>At the end of this process, we have entity structure rather than feature prose. Implementation can begin with a clear target.</p>
 </section>
 <section class="level2" data-number="8.4" id="an-entity-in-code">
 <h2 class="anchored" data-anchor-id="an-entity-in-code" data-number="8.4"> An Entity in Code</h2>
-<p>The following sketch shows how the <code>DeliveryTask</code> entity might be expressed in Nex:</p>
+<p>The following sketch shows how the <code>Delivery_Task</code> entity might be expressed in Nex:</p>
 <pre class="nex"><code>class Delivery_Task
 feature
   task_id: String
