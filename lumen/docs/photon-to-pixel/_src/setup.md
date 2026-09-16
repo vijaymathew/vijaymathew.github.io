@@ -4,21 +4,19 @@ This book walks the whole way: from photons to JPEG bytes, one stage at a time, 
 
 ## 0.1 Why this book exists
 
-The material that explains this territory splits into two camps that don't talk to each other. Academic textbooks treat demosaicing, color science, and tone mapping as scattered topics inside a much broader survey of vision research — you get the math, but rarely the pipeline *as a pipeline*: the order of operations, the reason each stage exists, the way a choice made early compounds into an artifact three stages later. Practical sources — patents, raw-processor source code, photography forums — are written to document or to argue, not to teach.
+The material that explains this territory splits into two camps that don't talk to each other. Academic textbooks treat demosaicing, color science, and tone mapping as scattered topics inside a much broader survey of vision research — you get the math, but rarely the pipeline *as a pipeline*: the order of operations, the reason each stage exists, the way a choice made early compounds into an artifact three stages later. Practical sources — patents, raw-processor source code, photography forums — are written to document or to debate, not to teach.
 
 This book is for the reader in between: someone who can code but isn't a computer vision researcher. A hobbyist photographer who wants to know what a raw file actually contains. A developer building photo tools. An ML engineer who needs intuition for what an image signal processor does to training data. A darktable or RawTherapee user who wants to know what the sliders actually move.
 
-The core promise is simple: **every algorithm in this book is implemented in plain, explicit code with no hidden operations.** If something happens to a pixel, you can watch it happen, line by line. No library call stands in for a concept; no vectorized one-liner asks you to take the arithmetic on faith.
-
-Two commitments follow from that promise, and they shape everything about how the book is built.
+Every algorithm in this book is implemented in plain, explicit code with no hidden operations. If something happens to a pixel, you can watch it happen, line by line. No library call stands in for a concept; no vectorized one-liner asks you to take the arithmetic on faith. To achieve that goal, we have to make the following two commitments:
 
 The first is that the book runs on a **simulated camera**. Chapter 1 builds a small synthetic forward model — scenes described as reflectance spectra, a fictional lens with known flaws, a sensor with known noise — and every worked example in the book photographs *that*. The payoff is something real photography can never give you: ground truth. When we demosaic, we can measure the error against the true full-color scene, because we rendered it. When we white-balance, we know the true illuminant, because we chose it. Every reader gets identical inputs and identical results, whatever camera they own or don't.
 
-The second commitment is a rule about code, and it deserves its own section — because it resolves a tension that would otherwise quietly undermine the whole project.
+The second commitment is a rule about code, and is explained in the next section.
 
 ## 0.2 The toolkit
 
-Everything in this book is written in ordinary Python. Not because Python is fast — it is spectacularly not — but because it reads almost like the pseudocode it is standing in for, and because you certainly have it.
+Everything in this book is written in ordinary Python. Not because Python is fast — it is spectacularly not — but because it reads almost like pseudocode and because you most likely already have the Python interpreter on your system (if not, it's easy to [download and install](https://www.python.org/)).
 
 The main explanatory code uses **no libraries at all** beyond the standard library. There is no NumPy in the teaching tier of this book. That is a deliberate, slightly extreme choice, and it exists because array programming — for all its power — lets an author hide a concept inside a broadcast. `image * gain` is a fine line of production code and a terrible explanation; it works equally well whether or not you understand what it does. A `for` loop over rows and columns cannot pull that trick.
 

@@ -137,7 +137,7 @@ each member is exposed as an interned class constant on the type
 (<code>P.V</code><sub>i</sub>, one canonical value per variant), and
 <code>P.values</code> is an array of all members in order; the full translation is
 in Appendix&nbsp;C. Because the enrichment occupies the names <code>ordinal</code>,
-<code>compare</code>, and <code>values</code>, no variant may bear them. A plain
+<code>compare</code>, and <code>values</code>, no variant may re-declare them. A plain
 <code>union</code> is never so enriched; <code>enum</code> requests it.</p>
 
 <pre><code>enum union Color
@@ -180,7 +180,7 @@ annotation is omitted, the type is inferred from the initialising
 expression.</p>
 
 <p>The initialising expression is unrestricted: as well as a scalar it may be an
-object (<code>create&nbsp;&hellip;</code>) or a collection display. Since the
+object (<code>create&nbsp;&hellip;</code>) or a collection literal. Since the
 constant is fixed once when the class is elaborated, such a value is evaluated a
 single time and shared by every use, so an object- or collection-valued constant
 is one canonical value&mdash;<code>C.x == C.x</code> holds. An initialiser may
@@ -241,9 +241,9 @@ when the body finishes is the value of the call.</p>
 <p>A one-argument routine may bind itself to an arithmetic operator with an
 <code>alias</code> clause. The operator is then <em>exactly</em> sugar for the
 call: <code>a - b</code> <em>is</em> <code>a.minus(b)</code>, and so the
-routine&rsquo;s precondition and postcondition hold at the operator no less than
-at an explicit call. This is what makes the example above, <code>money = old
-money - amount</code>, meaningful for a class of one&rsquo;s own and not only for
+routine&rsquo;s precondition and postcondition hold at the operator the same way it does for
+an explicit call. This is what makes the example above, <code>money = old
+money - amount</code>, meaningful for a user-defined class, just like for
 the built-in numbers.</p>
 
 <pre><code>class Money
@@ -276,8 +276,7 @@ implementation.</p>
 
 <p>The word <code>alias</code> is contextual, not reserved (Section&nbsp;2.1): it
 has this meaning only in the position shown, and a program may still name a field,
-parameter, or routine <code>alias</code>. Adding the clause to the language
-therefore took no identifier away from any program that existed before it.</p>
+parameter, or routine <code>alias</code>.</p>
 
 <div class="note">
   <span class="note-label">A deferred routine has no body</span>
@@ -347,7 +346,7 @@ contextual (Section&nbsp;2.1): it is recognised as the refinement clause only
 immediately after <code>declare type id = ty</code>, and remains available
 everywhere else as the name of a variable, field, parameter, or routine&mdash;
 unlike <code>union</code> (Section&nbsp;3.2.2), which is contextual only as a
-member name.</p>
+built-in member name.</p>
 
 <h2><span class="secno">3.6</span>Modules</h2>
 
@@ -358,8 +357,7 @@ declarations connect a program to code outside it.</p>
 identified by a slash-separated path, optionally renaming it with
 <code>as</code>. The named unit&rsquo;s declarations become available to the
 current program. An <strong>import</strong> declaration brings in a class from
-the host platform&mdash;the Java virtual machine or the JavaScript
-runtime&mdash;named by a dotted path and an optional source string.</p>
+the host platform&mdash;as of now the Java virtual machine&mdash;named by a dotted path and an optional source string.</p>
 
 <div class="grammar">
 <table>
@@ -413,6 +411,14 @@ A class declared directly in the current unit is never part of such an
 ambiguity: it shadows an interned class of the same bare name outright, the
 same way a local variable shadows a global (Section&nbsp;7.4).</p>
 
+<p>An imported class is not confined to the role of a value manufactured and
+called&mdash;it may also be named in a class declaration&rsquo;s
+<code>inherit</code> clause (Section&nbsp;3.2), so that a Nex class implements
+a host interface or extends a host class. The conditions this places on the
+inheriting class are given in Section&nbsp;4.9; the dispatch semantics that
+follow from it are given in Section&nbsp;5.4, and the constructor-forwarding
+semantics in Section&nbsp;5.5.</p>
+
 <h3><span class="secno">3.6.2</span>Qualified Calls to Free Functions</h3>
 
 <p>A unit&rsquo;s free functions are carried into the current program by
@@ -453,14 +459,6 @@ from the division operator (Section&nbsp;2.6). A function call is an
 instead reuses <code>.</code>&mdash;already the member-access
 operator&mdash;resolved by this special case of elaboration rather than by a
 new grammar production.</p>
-
-<p>An imported class is not confined to the role of a value manufactured and
-called&mdash;it may also be named in a class declaration&rsquo;s
-<code>inherit</code> clause (Section&nbsp;3.2), so that a Nex class implements
-a host interface or extends a host class. The conditions this places on the
-inheriting class are given in Section&nbsp;4.9; the dispatch semantics that
-follow from it are given in Section&nbsp;5.4, and the constructor-forwarding
-semantics in Section&nbsp;5.5.</p>
 
 <h2><span class="secno">3.7</span>Syntactic Restrictions</h2>
 
