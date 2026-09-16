@@ -182,8 +182,21 @@ Section&nbsp;5.2 and its statement analogue \(s, E \vdash \mathit{stmt}
 \[ s, E \vdash \mathit{scon} \Rightarrow \mathcal{V}(\mathit{scon}),\, s \tag{5.1} \]
 \[ \frac{E(x) = v}{s, E \vdash x \Rightarrow v,\, s} \tag{5.2} \]
 \[ s, E \vdash \texttt{this} \Rightarrow E(\texttt{this}),\, s \tag{5.3} \]
-\[ s, E \vdash \texttt{super} \Rightarrow E(\texttt{this}),\, s \tag{5.3a} \]
+\[ \frac{E(\texttt{this}) = \ell \quad \mathit{class}(s(\ell)) = A \quad \{Q : A\,\text{inherits}\,Q\} = \{P\}}{s, E \vdash \texttt{super} \Rightarrow s(\ell).\mathit{parents}(P),\, s} \tag{5.3a} \]
+\[ \frac{E(\texttt{this}) = \ell \quad \mathit{class}(s(\ell)) = A \quad \pi = \mathit{reach}(A, P)}{s, E \vdash P \Rightarrow \mathit{follow}(s, \ell, \pi),\, s} \tag{5.3b} \]
 </div>
+
+<p>\(\mathit{home}\) and \(\mathit{reach}\) (Section&nbsp;4.9) are static:
+computed once, from the class whose text contains the reference, not
+recomputed against whatever object happens to fill \(\mathit{this}\) at run
+time &mdash; which is safe because \(A\), the class read from
+\(\mathit{class}(s(\ell))\) here, is always exactly that class. Every rule
+that dispatches into an ancestor&rsquo;s own routine or constructor body
+(5.10, 5.10a, 5.11a) rebinds <code>this</code> there to the reference this
+section computes, so by the time that body runs, its own <code>this</code>
+again names exactly the class its text belongs to &mdash; the invariant
+holds throughout, not only at the point <code>super</code> or \(P\) is
+first evaluated.</p>
 
 <h4>Operators</h4>
 <div class="rule-block">
@@ -201,22 +214,51 @@ Section&nbsp;5.2 and its statement analogue \(s, E \vdash \mathit{stmt}
 
 <h4>Member access and the safe access</h4>
 <div class="rule-block">
-\[ \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad s_1(\ell) = o \quad o.f = v}{s, E \vdash e.f \Rightarrow v,\, s_1} \tag{5.7} \]
+\[ \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad \ell' = \mathit{follow}(s_1, \ell, \mathit{home}(B, f))}{s, E \vdash e.f \Rightarrow s_1(\ell').f,\, s_1} \tag{5.7} \]
 \[ \frac{s, E \vdash e \Rightarrow \texttt{nil}, s_1}{s, E \vdash e\,?.f \Rightarrow \texttt{nil},\, s_1} \tag{5.8} \]
-\[ \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad \ell \ne \texttt{nil}}{s, E \vdash e\,?.f \Rightarrow s_1(\ell).f,\, s_1} \tag{5.9} \]
+\[ \frac{s, E \vdash e \Rightarrow \ell, s_1 \quad \ell \ne \texttt{nil} \quad \ell' = \mathit{follow}(s_1, \ell, \mathit{home}(B, f))}{s, E \vdash e\,?.f \Rightarrow s_1(\ell').f,\, s_1} \tag{5.9} \]
 </div>
+
+<p>\(B\), here and in (5.18) below, is \(e\)&rsquo;s static type, fixed once
+by elaboration (4.11) rather than recomputed at run time: fields are not
+looked up virtually, by the receiver&rsquo;s actual class, the way
+(5.10)&rsquo;s routines are. \(\mathit{home}(B,f) = \varepsilon\) whenever
+\(B\) declares \(f\) directly, so a receiver typed exactly at the declaring
+class &mdash; in particular <code>this</code>, whenever
+\(C(\texttt{this})\) is that same class &mdash; makes \(\ell' = \ell\), and
+(5.7)/(5.9) specialise to the plain \(s_1(\ell).f\) they generalise.</p>
 
 <h4>Calls and dynamic dispatch</h4>
 <div class="rule-block">
-\[ \frac{\begin{array}{c} s, E \vdash e \Rightarrow \ell, s_0 \quad s_0(\ell) = o \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(\mathit{class}(o), m, n) = (x_1,\dots,x_n; \mathit{body}) \\ E' = E_0[\texttt{this} \mapsto \ell,\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash e.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10} \]
-\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(P, m, n) = (x_1,\dots,x_n; \mathit{body}) \\ E' = E_0[\texttt{this} \mapsto \ell,\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash P.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10a} \]
+\[ \frac{\begin{array}{c} s, E \vdash e \Rightarrow \ell, s_0 \quad s_0(\ell) = o \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(\mathit{class}(o), m, n) = (x_1,\dots,x_n; \mathit{body}) \quad \ell' = \mathit{follow}(s_n, \ell, \mathit{home}(\mathit{class}(o), m)) \\ E' = E_0[\texttt{this} \mapsto \ell',\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash e.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10} \]
+\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(P, m, n) = (x_1,\dots,x_n; \mathit{body}) \quad \ell' = \mathit{follow}(s_n, \ell, P \cdot \mathit{home}(P, m)) \\ E' = E_0[\texttt{this} \mapsto \ell',\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash P.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10a} \]
 </div>
 
 <h4>Object creation and constructors</h4>
 <div class="rule-block">
-\[ \frac{\begin{array}{c} \ell \;\text{fresh} \quad o_0 = \mathit{initial}(A[\bar\tau]) \quad s_0 = s + \{\ell \mapsto o_0\} \\ s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(A) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \\ \mathit{check}(\mathit{post}) \quad \mathit{check}(\mathit{invariant}(A)\;\text{at}\;\ell) \end{array}}{s, E \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow \ell,\, s'} \tag{5.11} \]
-\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(P) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \quad \mathit{check}(\mathit{post}) \end{array}}{s, E \vdash P.k(e_1,\dots,e_n) \Rightarrow s'} \tag{5.11a} \]
+\[ \frac{\begin{array}{c} (\mathit{fields}_0, \mathit{parents}_0, s_0') = \mathit{initial}(s, A[\bar\tau]) \quad \ell \;\text{fresh} \quad s_0 = s_0' + \{\ell \mapsto \langle A, \mathit{fields}_0, \mathit{parents}_0\rangle\} \\ s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(A) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \\ \mathit{check}(\mathit{post}) \quad \mathit{check}(\mathit{invariant}(A)\;\text{at}\;\ell) \end{array}}{s, E \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow \ell,\, s'} \tag{5.11} \]
+\[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad \ell' = s(\ell).\mathit{parents}(P) \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{ownConstructors}(P) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell', x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \quad \mathit{check}(\mathit{post}) \end{array}}{s, E \vdash P.k(e_1,\dots,e_n) \Rightarrow s'} \tag{5.11a} \]
 </div>
+
+<p>\(\mathit{initial}(s, A[\bar\tau])\) builds the whole nested shape (5.1)
+a fresh \(A[\bar\tau]\) needs before any constructor runs, threading the
+store through as it goes:</p>
+<div class="rule-block">
+\[ \mathit{initial}(s, A[\bar\tau]) = \big(\{f \mapsto \mathit{default}(\sigma_f)\}_{f:\sigma_f \,\in\, \mathit{ownFields}(A)},\;\; \{P_1 \mapsto \ell_1, \dots, P_k \mapsto \ell_k\},\;\; s_k\big) \]
+</div>
+<p>where \(P_1,\dots,P_k\) are the parents named in \(A\)&rsquo;s own
+<code>inherit</code> clause, in that order; \(s_0 = s\); and for each
+\(i\) in turn, \((\mathit{fields}_i, \mathit{parents}_i, s_i') =
+\mathit{initial}(s_{i-1}, P_i[\dots])\), \(\ell_i\) fresh, and
+\(s_i = s_i' + \{\ell_i \mapsto \langle P_i, \mathit{fields}_i,
+\mathit{parents}_i\rangle\}\) &mdash; recursing the same way into each
+\(P_i\)&rsquo;s own parents, and terminating because inheritance is
+acyclic. \(\mathit{default}(\sigma)\) is the zero value for a scalar type,
+<code>nil</code> for an optional one, and otherwise unattached: Attachment
+(Section&nbsp;4.9) obliges the constructor that runs next to leave nothing
+of that shape unattached by the time it returns, but places no such
+obligation on \(\mathit{initial}\) itself, which only ever runs with a
+constructor call still to come.</p>
 
 <h4>Exceptions: raise, rescue, retry</h4>
 <div class="rule-block">
@@ -230,8 +272,18 @@ Section&nbsp;5.2 and its statement analogue \(s, E \vdash \mathit{stmt}
 <div class="rule-block">
 \[ \frac{s, E \vdash e \Rightarrow v, s_1}{s, E \vdash \texttt{let}\; x := e \Rightarrow E + \{x \mapsto v\},\, s_1} \tag{5.16} \]
 \[ \frac{s, E \vdash e \Rightarrow v, s_1}{s, E \vdash x := e \Rightarrow E\langle x \mapsto v\rangle,\, s_1} \tag{5.17} \]
-\[ \frac{s, E \vdash e_1 \Rightarrow \ell, s_1 \quad s_1, E \vdash e_2 \Rightarrow v, s_2}{s, E \vdash e_1.f := e_2 \Rightarrow E,\; s_2\langle \ell.f \mapsto v\rangle} \tag{5.18} \]
+\[ \frac{s, E \vdash e_1 \Rightarrow \ell, s_1 \quad s_1, E \vdash e_2 \Rightarrow v, s_2 \quad \ell' = \mathit{follow}(s_2, \ell, \mathit{home}(B, f))}{s, E \vdash e_1.f := e_2 \Rightarrow E,\; s_2\langle \ell'.f \mapsto v\rangle} \tag{5.18} \]
 </div>
+
+<p>\(B\) in (5.18) is \(e_1\)&rsquo;s static type, in the same sense as (5.7)
+and (5.9) above. Here it specialises further still: (4.17a) requires
+\(C(\texttt{this}) = A\) for a write to type-check at all, where
+\(A = \mathit{declaredBy}(B,f)\), so by the time (5.18) runs, the enclosing
+method or constructor&rsquo;s own <code>this</code> already names \(A\)
+exactly (Section&nbsp;5.3), and \(\mathit{home}(B,f)\) is empty whenever
+\(e_1\) is that same <code>this</code>: a field is written only ever
+&ldquo;at home,&rdquo; on the object level that declares it, never reached
+from further out.</p>
 
 <h4>Conditionals and loops</h4>
 <div class="rule-block">

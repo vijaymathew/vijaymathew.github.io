@@ -128,11 +128,12 @@ variant&rsquo;s <code>make</code> records its declaration index.</p>
 <tr><td>\(\llbracket\) <code>enum union P V₁ … Vₙ end</code> \(\rrbracket\)</td><td class="op">=</td><td></td></tr>
 <tr><td colspan="3"><code>sealed deferred class P inherit Comparable</code></td></tr>
 <tr><td colspan="3">&nbsp;&nbsp;<code>feature ordinal: Integer</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;<code>set_ordinal(o: Integer) do ordinal := o end</code></td></tr>
 <tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;<code>compare(o: P): Integer do result := ordinal &minus; o.ordinal end</code></td></tr>
 <tr><td colspan="3">&nbsp;&nbsp;<code>feature V₁: P = create V₁.make() ; … ; Vₙ: P = create Vₙ.make()</code></td></tr>
 <tr><td colspan="3">&nbsp;&nbsp;&nbsp;&nbsp;<code>values: Array[P] = [V₁, …, Vₙ] end</code></td></tr>
 <tr><td colspan="3">&nbsp;&nbsp;and, for each variant <code>Vᵢ</code> at 0-based declaration index <code>i</code>,</td></tr>
-<tr><td colspan="3">&nbsp;&nbsp;<code>class Vᵢ inherit P create make() do ordinal := i end end</code></td></tr>
+<tr><td colspan="3">&nbsp;&nbsp;<code>class Vᵢ inherit P create make() do this.set_ordinal(i) end end</code></td></tr>
 </table>
 </div>
 
@@ -140,9 +141,15 @@ variant&rsquo;s <code>make</code> records its declaration index.</p>
 constant, evaluated once &mdash; Section&nbsp;3.3&nbsp;&mdash; so <code>P.Vᵢ ==
 P.Vⱼ</code> tests identity), the members order by the sequence in which they are
 written, and <code>P.values</code> lists them all. Because the enrichment claims
-those three names, a variant may not be named <code>ordinal</code>,
-<code>compare</code>, or <code>values</code>. A plain <code>union</code> never
-gains this; the enrichment is requested, never inferred.</p>
+those four names, a variant may not be named <code>ordinal</code>,
+<code>set_ordinal</code>, <code>compare</code>, or <code>values</code>. Each
+variant&rsquo;s constructor reaches <code>ordinal</code> through
+<code>set_ordinal</code> rather than assigning it directly, since it is a
+field \(P\) declares, not one \(V_i\) does &mdash; §4.4&rsquo;s Field
+assignment rule confines a field write to its own declaring class
+regardless of receiver, so \(V_i\) could not assign it any other way (bare
+or otherwise). A plain <code>union</code> never gains any of this; the
+enrichment is requested, never inferred.</p>
 
 <h2><span class="secno">C.7</span>Match Patterns and Guards</h2>
 

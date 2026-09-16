@@ -244,14 +244,23 @@ constructor-delegation counterpart (the corresponding dynamic rule, 5.11a, is
 in Section&nbsp;5.5). This form is narrower than the routine form in one
 respect: the named ancestor must declare that constructor itself, not merely
 inherit it, so that a match found only further up its own chain does not
-count. Neither form ever names a
-<em>field</em>: a field has no override for the explicit qualification to
-choose between, unlike a routine or constructor a parent may redefine. Where
-repeated inheritance makes more than one copy of a field reachable, there is
-no syntax to select one over the other (Section&nbsp;4.9, <em>Ambiguous
-member resolution</em> and <em>Repeated inheritance and shared
-ancestors</em>) &mdash; only a routine, which does admit
-this explicit qualification, can expose one copy specifically.</p>
+count. The same explicit form also reaches a <em>field</em>,
+<code>B.f</code>, exactly as rule 4.12 reaches it for a routine &mdash; a
+read, by rule 4.11, of \(f\) as \(B\) itself would see it, reachable whether
+\(B\) declares \(f\) or only inherits it in turn. This is the one way to
+select a specific ancestor path&rsquo;s copy where repeated inheritance
+would otherwise duplicate a field (Section&nbsp;4.9, <em>Ambiguous member
+resolution</em> and <em>Repeated inheritance and shared ancestors</em>): an
+unqualified <code>f</code> alone cannot say which copy is meant, but
+<code>B.f</code> can, the same way <code>B.describe</code> already
+disambiguates which copy of an overridden routine to run. Naming an ancestor
+this way carries no license to assign through it, though: field assignment,
+of any receiver spelling &mdash; bare, <code>this.f</code>,
+<code>super.f</code>, or <code>B.f</code> alike &mdash; is confined by one
+rule (4.17a, below) to the class that actually declares \(f\), so
+<code>B.f := e'</code> parses like any other field assignment but succeeds
+only in the vacuous case where that happens to be the class doing the
+writing; naming a different ancestor does not open a way around it.</p>
 
 <h4>Operators</h4>
 <p>An infix operator denotes a routine of the operand&rsquo;s class. The
@@ -387,31 +396,44 @@ environment it is given (rules 4.17&ndash;4.18 in Appendix&nbsp;D).</p>
 
 <h4>Field assignment</h4>
 
-<p>Assignment to a field, \(e.f := e'\) &mdash; including <code>this.f :=
-e'</code>, <code>super.f := e'</code>, and the bare form <code>f := e'</code>
-where no local of that name is in scope, all of which name the same
-statement &mdash; is elaborated by a separate rule from (4.17): besides
-requiring \(e'\) to conform to \(f\)&rsquo;s declared type, it requires the
-assignment to occur textually within the class that declares \(f\), whatever
-the static type of \(e\) is or what object it denotes at run time. A class
-may therefore assign a field on <em>another</em> instance of its own class
-(<code>other.f := e'</code> from within a routine of the class that declares
-\(f\)), but never a field it only inherits, on any receiver including its
-own <code>this</code> &mdash; not even from within a constructor. This is
-what makes a constructor-delegation call (4.13a) more than a convenience for
-an inherited field: it is the only means by which one can be attached at
-all, since Attachment (Section&nbsp;4.9) admits no other route to it. Where
-\(f\) is instead a name currently bound by an enclosing <code>let</code>,
-(4.17) applies to it as an ordinary variable, not this rule, exactly as
-reading the same name would resolve to the local, not the field, wherever
-the two coincide. The corresponding dynamic rule, (5.18) in Section&nbsp;5.8,
-carries no such restriction of its own: by the time a statically valid
-program runs, (4.17a) has already ensured every field write in it is one
-this rule permits.</p>
+<p>Assignment to a field &mdash; <code>this.f := e'</code>,
+<code>super.f := e'</code>, an arbitrary object expression
+<code>e.f := e'</code>, an explicit ancestor name <code>B.f := e'</code>, or
+the bare form <code>f := e'</code> with no receiver written at all &mdash;
+is elaborated by one rule, separate from (4.17), regardless of which of
+these it is written as. Besides requiring \(e'\) to conform to \(f\)&rsquo;s
+declared type, it requires the assignment to occur textually within the
+class that declares \(f\), whatever the static type of the receiver is, what
+object it denotes at run time, or whether a receiver was written at all
+(the bare form is exactly <code>this.f := e'</code> without the receiver
+token). A class may therefore write a field on <em>another</em> instance of
+its own class (<code>other.f := e'</code> from within a routine of the class
+that declares \(f\)), but never a field it only inherits, under any
+spelling &mdash; not even from within a constructor, and not by dropping
+<code>this.</code> to reach it bare. Where an enclosing <code>let</code> or
+parameter binds \(f\), (4.17) applies to it as an ordinary variable instead;
+that is the only circumstance under which the bare spelling of an
+assignment to a name shared with a field is not this rule.</p>
 
 <div class="rule-block">
 \[ \frac{\begin{array}{c} C \vdash e \Rightarrow B \quad f : \sigma \in \mathit{fields}(C, B) \quad \mathit{declaredBy}(B, f) = A \quad C(\texttt{this}) = A \\ C \vdash e' \Rightarrow \tau \quad \tau \preceq \sigma \end{array}}{C \vdash e.f := e' \Rightarrow C} \tag{4.17a} \]
 </div>
+
+<p>Inheriting a field, then, does not carry with it any way to attach or
+change it directly &mdash; only to read it. A subclass constructor that
+needs to initialise a field it inherits must delegate to a constructor of
+the declaring class (4.13a) or call a routine the declaring class exposes
+for the purpose, the same as any other code reaching the field from outside
+its own class would; this is why the derived forms of Appendix&nbsp;C (an
+<code>enum union</code>&rsquo;s generated variant constructors, among
+others) route every such assignment through a routine the parent declares
+&mdash; a plain method dispatches normally and needs no allocation, so it
+is the ordinary way to expose this without resorting to constructor
+delegation for a case that is not really about construction at all. (4.17)&rsquo;s
+own <code>once</code> premise applies here exactly as it does there. The
+corresponding dynamic rule, (5.18) in Section&nbsp;5.8, carries no
+restriction of its own: by the time a statically valid program runs, (4.17a)
+has already ensured every field write in it is one this rule permits.</p>
 
 <h4>Self- and mutually recursive closures</h4>
 
@@ -701,12 +723,32 @@ class structure. These are checked once, over the whole static world.</p>
   is not itself rejected: a bare, unqualified reference to such a member is
   taken from the copy reached through the first parent named in
   <code>inherit</code>, tried depth-first through that parent&rsquo;s own
-  ancestors before the next-named parent is tried at all. A routine or
-  constructor along another path may still be reached deliberately, by
-  naming the ancestor that declares it explicitly (Section&nbsp;4.4); a field
-  has no such explicit form (see Repeated inheritance, below), and so is
-  reachable only as this order already picks it, or through a routine
-  written on the ancestor whose copy is wanted.</li>
+  ancestors before the next-named parent is tried at all. A member along
+  another path may still be reached deliberately, by naming the ancestor
+  that declares it explicitly (Section&nbsp;4.4) &mdash; for a routine or
+  constructor, a call; for a field, a read. Assignment is the one exception:
+  no explicit-ancestor spelling grants license to write a field it would not
+  already reach (Section&nbsp;4.4, <em>Field assignment</em>), so a specific
+  path&rsquo;s copy can only be attached or changed through a routine
+  written on the ancestor that declares it.
+  <p>Made precise, for a class \(B\) and a member \(x\) &mdash; field,
+  routine, or constructor &mdash; it can reach at all:</p>
+  <div class="rule-block">
+  \[ \mathit{home}(B, x) = \begin{cases} \varepsilon & B \text{ declares } x \text{ directly} \\ P \cdot \mathit{home}(P, x) & \text{otherwise, } P \text{ the first parent of } B \text{ (inherit order) reaching } x \end{cases} \]
+  </div>
+  <p>a path of parent names, well-defined because inheritance is acyclic
+  (<em>Acyclic inheritance</em>, above). An unqualified reference to \(x\)
+  written in \(B\)&rsquo;s own text is exactly \(\mathit{home}(B, x)\); an
+  explicit ancestor name \(P\) (or <code>super</code>, which rule 4.7a
+  resolves to a specific \(P\)) instead fixes the first step outright and
+  continues with \(\mathit{home}(P, x)\) for whatever remains &mdash; which
+  is empty, and so contributes nothing further, exactly when \(P\) declares
+  \(x\) directly. A related function, \(\mathit{reach}(B, P)\), gives the
+  path to \(B\)&rsquo;s own nested copy of a named ancestor \(P\) itself
+  (Section&nbsp;5.3 needs it to evaluate a bare ancestor name as a value):
+  \(\varepsilon\) if \(B = P\), otherwise \(Q \cdot \mathit{reach}(Q, P)\)
+  for the first parent \(Q\) of \(B\) (inherit order) that conforms to
+  \(P\).</p></li>
   <li><strong>Attachment (void safety).</strong> Every constructor of a class
   must leave each of the class&rsquo;s fields <em>attached</em>&mdash;holding a
   value of its declared type rather than <code>nil</code>&mdash;unless the field
@@ -717,13 +759,17 @@ class structure. These are checked once, over the whole static world.</p>
   this discipline that makes the absence of a rule for <code>nil</code>-dereference
   (Section&nbsp;5.3) a guarantee rather than a hazard: a non-optional reference is
   never observed to be <code>nil</code>. &ldquo;The class&rsquo;s fields&rdquo;
-  includes one declared by an ancestor: assignment to a field is permitted only
-  from within the class that declares it, so a subclass constructor cannot
-  attach such a field by assigning it directly. It can only satisfy Attachment
-  for one by a constructor-delegation call (4.13a) that reaches, directly or in
-  turn, some ancestor constructor that attaches it &mdash; which is why a class
-  inheriting attachable fields it does not itself redeclare must still open (or
-  otherwise route) each of its own constructors through one.</li>
+  includes one declared by an ancestor, and inheriting a field carries
+  Attachment&rsquo;s obligation for it along; it does not exempt it. A
+  subclass cannot discharge that obligation by assigning the field directly,
+  under any spelling &mdash; field assignment is confined to the declaring
+  class regardless of receiver (Section&nbsp;4.4, <em>Field assignment</em>),
+  and inheriting a field is not itself membership in that class. The only way
+  a subclass constructor can attach such a field is to delegate to a
+  constructor of the declaring class (4.13a), directly or in turn, or to call
+  a routine the declaring class exposes for the purpose &mdash; which is why
+  a class inheriting attachable fields it does not itself redeclare must
+  still route each of its own constructors through one or the other.</li>
   <li><strong>Repeated inheritance and shared ancestors.</strong> When a
   common ancestor reached this way (see Ambiguous member resolution, above)
   declares a field, the field is not thereby shared: each path to it holds
