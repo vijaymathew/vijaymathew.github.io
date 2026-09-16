@@ -228,6 +228,31 @@ explicitly, as in <code>Shape.describe</code> (rule 4.7a in Appendix&nbsp;D).
 <code>result</code> has the declared return
 type of the enclosing routine, and is in \(C\) only there (Section&nbsp;2.9).</p>
 
+<p>An ancestor named explicitly this way &mdash; in place of <code>super</code>, or
+because the current class conforms to it but does not inherit it directly &mdash;
+elaborates by naming itself: for \(C(\texttt{this}) = A\) and any \(B \ne A\) with
+\(A \preceq B\) (Section&nbsp;4.3), the bare name \(B\) has type \(B\) in \(C\)
+(rule 4.7b in Appendix&nbsp;D). Rule 4.12 below then applies to
+<code>B.describe</code> exactly as it would to a variable of type \(B\), reaching
+a routine \(B\) declares itself or inherits in turn &mdash; so the ancestor named
+need not be a <em>direct</em> parent, only one the current class conforms to.
+The same explicit form, written before a constructor&rsquo;s own name
+(<code>Shape.make(&hellip;)</code>), delegates to that ancestor&rsquo;s
+constructor rather than creating a new object &mdash; not an application of
+rule 4.13, since nothing is allocated, but of rule 4.13a below, its
+constructor-delegation counterpart (the corresponding dynamic rule, 5.11a, is
+in Section&nbsp;5.5). This form is narrower than the routine form in one
+respect: the named ancestor must declare that constructor itself, not merely
+inherit it, so that a match found only further up its own chain does not
+count. Neither form ever names a
+<em>field</em>: a field has no override for the explicit qualification to
+choose between, unlike a routine or constructor a parent may redefine. Where
+repeated inheritance makes more than one copy of a field reachable, there is
+no syntax to select one over the other (Section&nbsp;4.9, <em>Ambiguous
+member resolution</em> and <em>Repeated inheritance and shared
+ancestors</em>) &mdash; only a routine, which does admit
+this explicit qualification, can expose one copy specifically.</p>
+
 <h4>Operators</h4>
 <p>An infix operator denotes a routine of the operand&rsquo;s class. The
 arithmetic and comparison operators are elaborated through the signatures
@@ -308,6 +333,23 @@ that the arguments conform to \(k\)&rsquo;s parameters; its type is
 have a constructor taking no arguments, or none at all. The type of the
 expression is the class type created (rule 4.13 in Appendix&nbsp;D).</p>
 
+<p>A <strong>constructor-delegation call</strong>, \(P.k(e_1,\dots,e_n)\) or,
+where rule 4.7a permits <code>super</code>, \(\texttt{super}.k(e_1,\dots,e_n)\)
+with \(P\) supplied implicitly, runs another constructor on the object already
+under construction instead of creating a new one; it may appear anywhere a
+statement may, most often as the opening statement of a constructor
+delegating to a parent&rsquo;s. Unlike <code>create</code>, it requires that
+\(P\) be an ancestor the current class \(A\) conforms to but is not itself,
+and that \(P\) <em>itself</em> declare \(k\) &mdash; an arity match reachable
+only further up \(P\)&rsquo;s own chain does not count, unlike the ordinary
+routine form above, which does reach such a match. This asymmetry exists
+because a constructor initialises the fields declared alongside it in
+particular, so delegating to one two levels removed would skip whatever the
+intermediate ancestor&rsquo;s own constructor was meant to establish for its
+own fields. The call itself has no result and leaves the environment
+unchanged (rule 4.13a in Appendix&nbsp;D; the dynamic rule is 5.11a in
+Section&nbsp;5.5).</p>
+
 <h4>Conditional and anonymous-function expressions</h4>
 <p>The conditional expression requires a boolean condition and two branches; its
 type is the join&mdash;the least common supertype&mdash;of the branch types,
@@ -342,6 +384,34 @@ within the block (it does not leak to the statements after the <code>if</code>).
 Assignment requires the value to conform to the variable&rsquo;s type and leaves
 the environment unchanged; the <code>if</code> checks each branch under the
 environment it is given (rules 4.17&ndash;4.18 in Appendix&nbsp;D).</p>
+
+<h4>Field assignment</h4>
+
+<p>Assignment to a field, \(e.f := e'\) &mdash; including <code>this.f :=
+e'</code>, <code>super.f := e'</code>, and the bare form <code>f := e'</code>
+where no local of that name is in scope, all of which name the same
+statement &mdash; is elaborated by a separate rule from (4.17): besides
+requiring \(e'\) to conform to \(f\)&rsquo;s declared type, it requires the
+assignment to occur textually within the class that declares \(f\), whatever
+the static type of \(e\) is or what object it denotes at run time. A class
+may therefore assign a field on <em>another</em> instance of its own class
+(<code>other.f := e'</code> from within a routine of the class that declares
+\(f\)), but never a field it only inherits, on any receiver including its
+own <code>this</code> &mdash; not even from within a constructor. This is
+what makes a constructor-delegation call (4.13a) more than a convenience for
+an inherited field: it is the only means by which one can be attached at
+all, since Attachment (Section&nbsp;4.9) admits no other route to it. Where
+\(f\) is instead a name currently bound by an enclosing <code>let</code>,
+(4.17) applies to it as an ordinary variable, not this rule, exactly as
+reading the same name would resolve to the local, not the field, wherever
+the two coincide. The corresponding dynamic rule, (5.18) in Section&nbsp;5.8,
+carries no such restriction of its own: by the time a statically valid
+program runs, (4.17a) has already ensured every field write in it is one
+this rule permits.</p>
+
+<div class="rule-block">
+\[ \frac{\begin{array}{c} C \vdash e \Rightarrow B \quad f : \sigma \in \mathit{fields}(C, B) \quad \mathit{declaredBy}(B, f) = A \quad C(\texttt{this}) = A \\ C \vdash e' \Rightarrow \tau \quad \tau \preceq \sigma \end{array}}{C \vdash e.f := e' \Rightarrow C} \tag{4.17a} \]
+</div>
 
 <h4>Self- and mutually recursive closures</h4>
 
@@ -624,6 +694,19 @@ class structure. These are checked once, over the whole static world.</p>
   <li><strong>Acyclic inheritance.</strong> The relation &ldquo;\(A\) inherits
   \(B\)&rdquo; must be acyclic; its reflexive-transitive closure is the
   conformance among class types of (C-Inherit).</li>
+  <li><strong>Ambiguous member resolution.</strong> Two parents named in one
+  class&rsquo;s <code>inherit</code>, or two ancestors reached through them,
+  may themselves share a common ancestor, making a member it declares &mdash;
+  field, routine, or constructor &mdash; reachable by more than one path. This
+  is not itself rejected: a bare, unqualified reference to such a member is
+  taken from the copy reached through the first parent named in
+  <code>inherit</code>, tried depth-first through that parent&rsquo;s own
+  ancestors before the next-named parent is tried at all. A routine or
+  constructor along another path may still be reached deliberately, by
+  naming the ancestor that declares it explicitly (Section&nbsp;4.4); a field
+  has no such explicit form (see Repeated inheritance, below), and so is
+  reachable only as this order already picks it, or through a routine
+  written on the ancestor whose copy is wanted.</li>
   <li><strong>Attachment (void safety).</strong> Every constructor of a class
   must leave each of the class&rsquo;s fields <em>attached</em>&mdash;holding a
   value of its declared type rather than <code>nil</code>&mdash;unless the field
@@ -633,7 +716,20 @@ class structure. These are checked once, over the whole static world.</p>
   assignment; optional fields are attached to <code>nil</code> by default. It is
   this discipline that makes the absence of a rule for <code>nil</code>-dereference
   (Section&nbsp;5.3) a guarantee rather than a hazard: a non-optional reference is
-  never observed to be <code>nil</code>.</li>
+  never observed to be <code>nil</code>. &ldquo;The class&rsquo;s fields&rdquo;
+  includes one declared by an ancestor: assignment to a field is permitted only
+  from within the class that declares it, so a subclass constructor cannot
+  attach such a field by assigning it directly. It can only satisfy Attachment
+  for one by a constructor-delegation call (4.13a) that reaches, directly or in
+  turn, some ancestor constructor that attaches it &mdash; which is why a class
+  inheriting attachable fields it does not itself redeclare must still open (or
+  otherwise route) each of its own constructors through one.</li>
+  <li><strong>Repeated inheritance and shared ancestors.</strong> When a
+  common ancestor reached this way (see Ambiguous member resolution, above)
+  declares a field, the field is not thereby shared: each path to it holds
+  its own copy, attached independently by whichever constructor delegation
+  reaches it along that path (4.13a). A write through one path&rsquo;s copy
+  is never observed through another&rsquo;s.</li>
   <li><strong>Conformant overriding.</strong> When \(A\) inherits \(B\) and
   redefines a routine \(m\) of \(B\), the signature of \(A\)&rsquo;s \(m\) must
   conform to that of \(B\)&rsquo;s \(m\) under (C-Fun): each parameter may be

@@ -98,6 +98,7 @@ auxiliary judgements for contracts and generics (Sections&nbsp;4.6&ndash;4.7).</
 \[ C \vdash \texttt{nil} \Rightarrow \mathsf{Nil} \tag{4.6} \]
 \[ \frac{C(x) = \tau}{C \vdash x \Rightarrow \tau} \tag{4.7} \]
 \[ \frac{C(\texttt{this}) = A \quad \{B : A\,\text{inherits}\,B\} = \{P\}}{C \vdash \texttt{super} \Rightarrow P} \tag{4.7a} \]
+\[ \frac{C(\texttt{this}) = A \quad A \preceq B \quad B \ne A}{C \vdash B \Rightarrow B} \tag{4.7b} \]
 </div>
 
 <h4>Operators</h4>
@@ -117,7 +118,15 @@ auxiliary judgements for contracts and generics (Sections&nbsp;4.6&ndash;4.7).</
 <h4>Object creation</h4>
 <div class="rule-block">
 \[ \frac{\begin{array}{c} A \;\text{not deferred} \quad k \in \mathit{constructors}(C, A) \quad k : \sigma_1 \times \cdots \times \sigma_n \to A[\bar\tau] \\ C \vdash e_i \Rightarrow \rho_i \quad \rho_i \preceq \sigma_i \;\;(1 \le i \le n) \end{array}}{C \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow A[\bar\tau]} \tag{4.13} \]
+\[ \frac{\begin{array}{c} C(\texttt{this}) = A \quad A \ne P \quad A \preceq P \quad k \in \mathit{ownConstructors}(P) \quad k : \sigma_1 \times \cdots \times \sigma_n \to P \\ C \vdash e_i \Rightarrow \rho_i \quad \rho_i \preceq \sigma_i \;\;(1 \le i \le n) \end{array}}{C \vdash P.k(e_1,\dots,e_n) \Rightarrow C} \tag{4.13a} \]
 </div>
+
+<p><em>ownConstructors</em>(\(P\)) is \(P\)&rsquo;s own
+constructor set, declared directly in \(P\) &mdash; unlike
+<em>constructors</em>(\(C, A\)) in (4.13), which also admits one \(A\) merely
+inherits. (4.13a) never binds a name, so it produces \(C\) unchanged, in the
+manner of a statement (Section&nbsp;4.5) even though it is written with
+call syntax.</p>
 
 <h4>Conditional and anonymous-function expressions</h4>
 <div class="rule-block">
@@ -130,7 +139,18 @@ auxiliary judgements for contracts and generics (Sections&nbsp;4.6&ndash;4.7).</
 \[ \frac{C \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x : \notin C}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16} \]
 \[ \frac{C \oplus \{x : \sigma\} \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \notin C \quad e = \texttt{fn}\ldots}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16'} \]
 \[ \frac{C(x) = \sigma \quad C \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \;\text{not a}\; \texttt{once}\;\text{field outside a constructor}}{C \vdash x := e \Rightarrow C} \tag{4.17} \]
+\[ \frac{\begin{array}{c} C \vdash e \Rightarrow B \quad f : \sigma \in \mathit{fields}(C, B) \quad \mathit{declaredBy}(B, f) = A \quad C(\texttt{this}) = A \\ C \vdash e' \Rightarrow \tau \quad \tau \preceq \sigma \end{array}}{C \vdash e.f := e' \Rightarrow C} \tag{4.17a} \]
 </div>
+
+<p><em>fields</em>(\(C, B\)) is the same function (4.11) draws \(f\)&rsquo;s
+type from; <em>declaredBy</em>(\(B, f\)) is the one class among \(B\) and its
+ancestors whose own feature section introduces \(f\) &mdash; \(A\) itself
+when \(f\) is not inherited, an ancestor of \(A\) when it is. (4.17a) applies
+to <code>this.f := e'</code>, <code>super.f := e'</code>, and the bare
+<code>f := e'</code> alike (the last is (4.17a), not (4.17), exactly when
+\(f\) does not satisfy (4.17)&rsquo;s own \(C(x) = \sigma\) premise from an
+enclosing <code>let</code> or parameter first &mdash; ordinary shadowing,
+tried in that order).</p>
 
 <p>(4.16&prime;) is (4.16)&rsquo;s exception for a closure-literal value: \(x\)
 is visible while \(e\) itself is elaborated, so a closure so bound may call
