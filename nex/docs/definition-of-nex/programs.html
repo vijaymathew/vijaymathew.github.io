@@ -42,25 +42,29 @@ its declarations and statements are processed, and in what order.</p>
 
 <h2><span class="secno">7.1</span>The Two Worlds of a Program</h2>
 
-<p>Recall from Section&nbsp;3.1 that a program is a sequence of top-level items in
-any order, and that these fall into two kinds. The <em>declarations</em>&mdash;the
-classes, free functions, and type aliases, together with the module links that
-bring further declarations into scope&mdash;form the <strong>static world</strong>.
-The top-level <em>statements</em> form the <strong>dynamic world</strong>. A
-program is processed by first building the static world in full, and then
-executing the dynamic world against it.</p>
+<p>Recall from Section&nbsp;3.1 that a program is a sequence of top-level items
+in any order, and that these fall into two kinds. The <em>declarations</em>
+&mdash; the classes, free functions, and type aliases, together with the
+module links that bring further declarations into scope &mdash; form the
+<strong>static world</strong>. The top-level <em>statements</em> form the
+<strong>dynamic world</strong>.</p>
 
-<p>This order is not the textual order of the items but a reordering imposed by
-the Definition: every declaration is in scope throughout every other, so that
-classes and functions may refer to one another freely, while a top-level
-statement runs only after the entire static world exists. The benefit is that
-the programmer need not arrange declarations in dependency order, and that
-forward reference among classes and functions is always available.</p>
+<p>A program is processed by first building the static world in full, and
+then executing the dynamic world against it.</p>
 
-<p>The two worlds are not wholly sealed from one another: a function or class
-body may <em>read</em> a top-level <code>let</code> binding&mdash;a
-<em>global</em>&mdash;though it may not assign to one. Section&nbsp;7.4 gives the
-rule that keeps such reads well-defined.</p>
+<p>This order is not the textual order of the items, but a reordering
+imposed by the Definition. Every declaration is in scope throughout every
+other, so classes and functions may refer to one another freely. A top-level
+statement runs only after the entire static world exists.</p>
+
+<p>The benefit is that the programmer need not arrange declarations in
+dependency order, and that forward reference among classes and functions is
+always available.</p>
+
+<p>The two worlds are not wholly sealed from one another: a function or
+class body may <em>read</em> a top-level <code>let</code> binding &mdash; a
+<em>global</em> &mdash; though it may not assign to one. Section&nbsp;7.4
+gives the rule that keeps such reads well-defined.</p>
 
 <h2><span class="secno">7.2</span>Building the Static World</h2>
 
@@ -69,106 +73,123 @@ rule that keeps such reads well-defined.</p>
 user code.</p>
 
 <ol>
-  <li><strong>Module links.</strong> Each <code>import</code> declaration adds a
-  host class to the environment; each <code>intern</code> declaration elaborates the
-  named unit&mdash;recursively, by this same procedure&mdash;and adds
-  <em>all</em> of its declarations, classes and free functions alike, not only
-  the one named after the path. A class is added under the given name or
-  alias and also under its qualified name (Section&nbsp;3.6.1); a function has
-  no <code>as</code> and no qualified spelling of its own to be added under
-  (Section&nbsp;3.6.2), only its bare name. A unit is elaborated once however
-  often it is interned, whether by the same path or by two different paths
-  that resolve to it. A bare class name entered this way by more than one
-  interned unit is an ambiguous reference (Section&nbsp;4.2.1), rejected
-  wherever it is written unqualified&mdash;except where the current unit
-  declares a class of that name itself, which always takes precedence; a bare
-  function name is subject to the same rule (Section&nbsp;4.8.1), by a
-  qualified call rather than a qualified name.</li>
-  <li><strong>Class and function registration.</strong> The names of all classes
-  and all functions (including the signatures announced by <code>declare</code>)
-  are entered into the class bindings \(\Sigma\), so that every later step
-  sees every name.</li>
-  <li><strong>Elaboration.</strong> Each class is elaborated&mdash;its parents
-  resolved, its fields and routines typed, its contracts checked for
-  well-formedness&mdash;and each function body is typed against the registered
-  signatures. The class well-formedness conditions of Section&nbsp;4.9 (acyclic
-  inheritance, conformant overriding, complete deferral, sealed-implies-deferred)
-  are verified here.</li>
+  <li><strong>Module links.</strong> Each <code>import</code> declaration adds
+  a host class to the environment. Each <code>intern</code> declaration
+  elaborates the named unit &mdash; recursively, by this same procedure
+  &mdash; and adds <em>all</em> of its declarations, classes and free
+  functions alike, not only the one named after the path.
+  <p>A class is added under the given name or alias, and also under its
+  qualified name (Section&nbsp;3.6.1). A function has no <code>as</code> and
+  no qualified spelling of its own to be added under (Section&nbsp;3.6.2),
+  only its bare name. A unit is elaborated once however often it is
+  interned, whether by the same path or by two different paths that resolve
+  to it.</p>
+  <p>A bare class name entered this way by more than one interned unit is an
+  ambiguous reference (Section&nbsp;4.2.1), rejected wherever it is written
+  unqualified &mdash; except where the current unit declares a class of that
+  name itself, which always takes precedence. A bare function name is
+  subject to the same rule (Section&nbsp;4.8.1), by a qualified call rather
+  than a qualified name.</p></li>
+  <li><strong>Class and function registration.</strong> The names of all
+  classes and all functions (including the signatures announced by
+  <code>declare</code>) are entered into the class bindings \(\Sigma\), so
+  that every later step sees every name.</li>
+  <li><strong>Elaboration.</strong> Each class is elaborated: its parents
+  are resolved, its fields and routines typed, and its contracts checked for
+  well-formedness. Each function body is typed against the registered
+  signatures. The class well-formedness conditions of Section&nbsp;4.9
+  (acyclic inheritance, conformant overriding, complete deferral,
+  sealed-implies-deferred) are verified here.</li>
 </ol>
 
-<p>If any step fails, the program is rejected and nothing is executed. A program
-that survives all three stages is statically valid, and yields a static environment
-\(C\) together with the initial dynamic bindings \(E_1\) and store \(s_0\), extending
-the standard environment \(E_0\) with the elaborated classes and the function and
-constructor closures.</p>
+<p>If any step fails, the program is rejected and nothing is executed.</p>
+
+<p>A program that survives all three stages is statically valid, and yields
+a static environment \(C\) together with the initial dynamic bindings
+\(E_1\) and store \(s_0\) &mdash; extending the standard environment
+\(E_0\) with the elaborated classes and the function and constructor
+closures.</p>
 
 <h2><span class="secno">7.3</span>Executing the Dynamic World</h2>
 
-<p>The top-level statements are then evaluated in source order, against \(E_1\),
-by the statement judgement of Chapter&nbsp;5. The bindings thread from one
-statement to the next, so a top-level <code>let</code> is visible to the
-statements that follow it; the store threads likewise. The program&rsquo;s
-observable behaviour&mdash;its output, the host effects of its <code>import</code>ed
-classes, the final store&mdash;is the cumulative effect of this evaluation.</p>
+<p>The top-level statements are then evaluated in source order, against
+\(E_1\), by the statement judgement of Chapter&nbsp;5. The bindings thread
+from one statement to the next, so a top-level <code>let</code> is visible
+to the statements that follow it; the store threads likewise.</p>
+
+<p>The program&rsquo;s observable behaviour &mdash; its output, the host
+effects of its <code>import</code>ed classes, the final store &mdash; is the
+cumulative effect of this evaluation.</p>
 
 <div class="rule-block">
 \[ \frac{\vdash \mathit{decs} \;\leadsto\; C, E_1 \quad s_0, E_1 \vdash \mathit{stmts} \Rightarrow E', s'}{\vdash \mathit{program} \;\Downarrow\; s'} \tag{7.1} \]
 </div>
 
 <p>Here \(\mathit{decs}\) are the declarations of the program and
-\(\mathit{stmts}\) its top-level statements; the relation \(\leadsto\) is the
-construction of Section&nbsp;7.2, \(E_1\) and \(s_0\) the initial dynamic bindings
-and store, and \(\Downarrow\) the evaluation of the whole program to
-a final store.</p>
+\(\mathit{stmts}\) its top-level statements. The relation \(\leadsto\) is
+the construction of Section&nbsp;7.2, \(E_1\) and \(s_0\) are the initial
+dynamic bindings and store, and \(\Downarrow\) is the evaluation of the
+whole program to a final store.</p>
 
-<p>An uncaught exception raised by a top-level statement terminates the program;
-its value and position are reported, and no further statement runs. A program
-that spawns tasks (Chapter&nbsp;6) completes when its top-level statements have
-been evaluated and the policy of the host for outstanding tasks has been
-applied; the Definition fixes the meaning of each communication but, as in
-Section&nbsp;6.4, leaves the disposal of unawaited tasks to the realisation.</p>
+<p>An uncaught exception raised by a top-level statement terminates the
+program; its value and position are reported, and no further statement
+runs.</p>
+
+<p>A program that spawns tasks (Chapter&nbsp;6) completes when its top-level
+statements have been evaluated and the host&rsquo;s policy for outstanding
+tasks has been applied. The Definition fixes the meaning of each
+communication, but &mdash; as in Section&nbsp;6.4 &mdash; leaves the
+disposal of unawaited tasks to the realisation.</p>
 
 <h2><span class="secno">7.4</span>Readable Globals</h2>
 
-<p>A top-level <code>let</code> binds a <em>global</em>. Within the static world&mdash;the
-body of any free function or class routine&mdash;a global is <strong>readable</strong>:
-an otherwise-unbound name that matches a global denotes that global&rsquo;s current
-value. A global is <strong>not assignable</strong> from the static world; an
-assignment to a global inside a function or class body is a static error. Ordinary
-scoping still applies, so a parameter, field, or local of the same name shadows the
-global throughout the body in which it is bound.</p>
+<p>A top-level <code>let</code> binds a <em>global</em>. Within the static
+world &mdash; the body of any free function or class routine &mdash; a
+global is <strong>readable</strong>: an otherwise-unbound name that matches
+a global denotes that global&rsquo;s current value.</p>
 
-<p>Because a global belongs to the dynamic world, it holds no value until the
-<code>let</code> that binds it has executed (Section&nbsp;7.3). To keep every static-world
-read well-defined, the Definition imposes a <em>def-before-use watermark</em>. Let the
-<em>entry point</em> be the first top-level statement, in source order, that transfers
-control into the static world&mdash;one that calls a free function or creates an
-instance of a user-defined class. (A method call need not be considered: its
-receiver must already have been created, so a <code>create</code> always precedes it.)
-The rule is:</p>
+<p>A global is <strong>not assignable</strong> from the static world; an
+assignment to a global inside a function or class body is a static error.
+Ordinary scoping still applies, so a parameter, field, or local of the same
+name shadows the global throughout the body in which it is bound.</p>
+
+<p>Because a global belongs to the dynamic world, it holds no value until
+the <code>let</code> that binds it has executed (Section&nbsp;7.3). To keep
+every static-world read well-defined, the Definition imposes a
+<em>def-before-use watermark</em>.</p>
+
+<p>Let the <em>entry point</em> be the first top-level statement, in source
+order, that transfers control into the static world &mdash; one that calls
+a free function or creates an instance of a user-defined class. (A method
+call need not be considered: its receiver must already have been created,
+so a <code>create</code> always precedes it.) The rule is:</p>
 
 <blockquote>Every global read by any function or class body must be bound by a
 <code>let</code> that stands, at top level, strictly before the entry point.</blockquote>
 
-<p>A program that violates the watermark is rejected before it runs. The rule is
-sound because nothing in the static world executes before the entry point, so a
-global bound before that point is guaranteed to hold its value at every static-world
-read. It is deliberately conservative: it treats all globals read anywhere in the
-static world uniformly, rather than tracing which body a given execution can reach.
-The programmer&rsquo;s obligation is therefore simple&mdash;initialize the globals a
-program&rsquo;s functions and classes depend on before the program begins calling into
-them.</p>
+<p>A program that violates the watermark is rejected before it runs.</p>
+
+<p>The rule is sound because nothing in the static world executes before
+the entry point, so a global bound before that point is guaranteed to hold
+its value at every static-world read.</p>
+
+<p>It is deliberately conservative: it treats all globals read anywhere in
+the static world uniformly, rather than tracing which body a given
+execution can reach. The programmer&rsquo;s obligation is therefore simple
+&mdash; initialize the globals a program&rsquo;s functions and classes
+depend on before the program begins calling into them.</p>
 
 <h2><span class="secno">7.5</span>The Definition and the Implementation</h2>
 
 <p>The procedure of this chapter mirrors the reference interpreter, which
 registers imports and interns, then classes, then functions, and only then
-executes the top-level statements&mdash;loading the static world before running
-the dynamic one. That correspondence is intentional: the Definition is meant to
-describe the same language the interpreter implements. Where the bytecode back end is
-concerned, it is required to reproduce the behaviour
-defined here; a back end that diverges is, by the project&rsquo;s own rule, in
-error, and the divergence is a defect to be repaired rather than a second
+executes the top-level statements &mdash; loading the static world before
+running the dynamic one. That correspondence is intentional: the Definition
+is meant to describe the same language the interpreter implements.</p>
+
+<p>The bytecode back end is required to reproduce the behaviour defined
+here. A back end that diverges is, by the project&rsquo;s own rule, in
+error &mdash; the divergence is a defect to be repaired, not a second
 meaning to be admitted.</p>
 
 </article>

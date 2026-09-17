@@ -59,27 +59,34 @@ fall away and the values themselves take the stage.</p>
 </ul>
 
 <p>An <em>object</em> is a mutable record held in the store, shaped by its
-class&rsquo;s <code>inherit</code> clause the way that class itself is: it
-carries its <em>class</em>&mdash;needed for dynamic dispatch, for
-<code>match</code>, and for <code>convert</code>&mdash;a map from the names
-of the fields its class declares <em>directly</em> to their values, and, for
+class&rsquo;s <code>inherit</code> clause the way the class itself is. It
+carries three things: its <em>class</em> (needed for dynamic dispatch, for
+<code>match</code>, and for <code>convert</code>); a map from the names of
+the fields its class declares <em>directly</em> to their values; and, for
 each parent named in that <code>inherit</code> clause, a reference to a
 further object, of that parent&rsquo;s own shape, held at its own place in
-the store. A field the class only inherits is never in this map; it lives in
-one of these nested objects, found by following the chain of parent
-references down to whichever one declares it (formalised as
-<em>home</em>, Section&nbsp;4.9). Two of a class&rsquo;s parents that
-independently trace back to one further common ancestor do not converge
-back onto a single nested object for it: composition follows the
-<code>inherit</code> graph outward from the object itself without ever
-rejoining, so each traces to its own separately allocated copy (Section&nbsp;4.9,
-<em>Repeated inheritance and shared ancestors</em>) &mdash; a write through
-one is never observed through the other. This is why the object is a
-<em>tree</em> of nested objects, one per composition level, rather than a
-single flat record: acyclic inheritance (Section&nbsp;4.9) guarantees it
-terminates, and the absence of rejoining guarantees no level is shared.
-Scalars and <code>nil</code> are not objects and are not stored; two scalar
-values are identical exactly when they are equal, which is why
+the store.</p>
+
+<p>A field the class only inherits is never in this map. It lives in one of
+these nested objects, found by following the chain of parent references
+down to whichever one declares it (formalised as <em>home</em>,
+Section&nbsp;4.9).</p>
+
+<p>Two of a class&rsquo;s parents can independently trace back to one
+further common ancestor, but they do not converge onto a single nested
+object for it. Composition follows the <code>inherit</code> graph outward
+from the object itself without ever rejoining, so each parent traces to its
+own separately allocated copy (Section&nbsp;4.9, <em>Repeated inheritance
+and shared ancestors</em>). A write through one copy is never observed
+through the other.</p>
+
+<p>This is why the object is a <em>tree</em> of nested objects, one per
+composition level, rather than a single flat record: acyclic inheritance
+(Section&nbsp;4.9) guarantees the tree terminates, and the absence of
+rejoining guarantees no level is shared.</p>
+
+<p>Scalars and <code>nil</code> are not objects and are not stored. Two
+scalar values are identical exactly when they are equal, which is why
 <code>==</code> and <code>=</code> coincide on them (Section&nbsp;5.4).</p>
 
 <h2><span class="secno">5.2</span>The Dynamic Environment</h2>
@@ -97,12 +104,14 @@ values are identical exactly when they are equal, which is why
 
 <p>We write \(E(x)\) for the value bound to \(x\), \(E\langle x \mapsto v\rangle\)
 for \(E\) with \(x\) rebound to \(v\), and \(E + \{x \mapsto v\}\) for \(E\)
-extended with a new binding. For the store, \(s(\ell)\) is the object at
-\(\ell\); \(s\langle \ell.f \mapsto v\rangle\) is \(s\) with the field \(f\) of
-<em>that</em> object&rsquo;s own map updated to \(v\) &mdash; a field the object
-holds directly, never one reached through a nested parent; and
-\(s + \{\ell \mapsto o\}\), for \(\ell\) fresh, is \(s\) extended with a new
-object \(o\).</p>
+extended with a new binding.</p>
+
+<p>For the store, \(s(\ell)\) is the object at \(\ell\). \(s\langle \ell.f
+\mapsto v\rangle\) is \(s\) with the field \(f\) of <em>that</em>
+object&rsquo;s own map updated to \(v\) &mdash; a field the object holds
+directly, never one reached through a nested parent. And \(s + \{\ell
+\mapsto o\}\), for \(\ell\) fresh, is \(s\) extended with a new object
+\(o\).</p>
 
 <p>Reaching a field an object only inherits means stepping through its
 nested parents first. Write \(\pi\) for a <em>path</em>, a sequence of
@@ -114,12 +123,14 @@ define</p>
    \mathit{follow}(s, \ell, P{\cdot}\pi) = \mathit{follow}(s,\, s(\ell).\mathit{parents}(P),\, \pi) \]
 </div>
 
-<p>for the reference reached by following \(\pi\)&rsquo;s parent names,
-one nested object at a time, from \(\ell\). \(\mathit{follow}(s,\ell,\varepsilon) = \ell\)
-is why an object with nothing to inherit, or a field it declares itself,
-needs no path at all: every rule that reads or writes a field below
-specialises to the familiar direct case (\(s(\ell).f\), \(s\langle
-\ell.f \mapsto v\rangle\)) exactly when the path involved is empty.</p>
+<p>This gives the reference reached by following \(\pi\)&rsquo;s parent
+names, one nested object at a time, from \(\ell\).</p>
+
+<p>\(\mathit{follow}(s,\ell,\varepsilon) = \ell\) is why an object with
+nothing to inherit, or a field it declares itself, needs no path at all:
+every rule below that reads or writes a field specialises to the familiar
+direct case (\(s(\ell).f\), \(s\langle \ell.f \mapsto v\rangle\)) exactly
+when the path involved is empty.</p>
 
 <p>The principal judgement of the chapter is</p>
 
@@ -139,29 +150,35 @@ store is threaded strictly left to right through every rule.</p>
 <h2><span class="secno">5.3</span>Evaluation of Expressions</h2>
 
 <h4>Constants, variables, and the current object</h4>
-<p>A constant denotes its value and leaves the store untouched; <code>this</code>
-yields the current object (rule 5.1 in Appendix&nbsp;D). <code>super</code>,
-and an explicit ancestor name, do not: each of an object&rsquo;s inherited
-parts is its own nested object (Section&nbsp;5.1), so standing alone,
-<code>super</code> yields the current object&rsquo;s own nested copy of its
-direct superclass &mdash; a genuinely different reference, one hop into
-\(\mathit{parents}\) &mdash; and a named ancestor \(P\) yields whichever
-nested copy \(\mathit{reach}\) (Section&nbsp;4.9) finds, possibly several
-hops in when \(P\) is not a direct parent (rules 5.3a, 5.3b in
-Appendix&nbsp;D). This is what makes <code>super.f</code>/<code>super.m(&hellip;)</code>
+<p>A constant denotes its value and leaves the store untouched. <code>this</code>
+yields the current object (rule 5.1 in Appendix&nbsp;D). <code>super</code>
+and an explicit ancestor name do not, because each of an object&rsquo;s
+inherited parts is its own nested object (Section&nbsp;5.1).</p>
+
+<p>Standing alone, <code>super</code> yields the current object&rsquo;s own
+nested copy of its direct superclass &mdash; a genuinely different
+reference, one hop into \(\mathit{parents}\). A named ancestor \(P\) yields
+whichever nested copy \(\mathit{reach}\) (Section&nbsp;4.9) finds, possibly
+several hops in when \(P\) is not a direct parent (rules 5.3a, 5.3b in
+Appendix&nbsp;D).</p>
+
+<p>This is what makes <code>super.f</code>/<code>super.m(&hellip;)</code>
 and <code>P.f</code>/<code>P.m(&hellip;)</code> need no rules of their own
 beyond this: once <code>super</code> or \(P\) has evaluated to that nested
 reference, the ordinary member-access and call rules of Section&nbsp;5.4
-apply to it exactly as they would to any other reference &mdash; they
-resolve against the direct superclass, or the named ancestor, precisely
-because that is now the object standing on the left of <code>.</code>, not
+apply to it exactly as they would to any other reference. They resolve
+against the direct superclass, or the named ancestor, simply because that
+is now the object standing on the left of <code>.</code> &mdash; not
 because <code>.f</code> or <code>.m(&hellip;)</code> behave any
-differently. All these nested objects belong to the one enclosing
-<code>create</code>, allocated and released together (Section&nbsp;5.5) and
-never independently reachable from outside it &mdash; which is the sense in
-which there is still only one object, even though <code>this</code> and
-<code>super</code> are not, at the reference level, the same value. A
-variable is looked up in the bindings:</p>
+differently.</p>
+
+<p>All these nested objects belong to the one enclosing <code>create</code>,
+allocated and released together (Section&nbsp;5.5), and never independently
+reachable from outside it. That is the sense in which there is still only
+one object, even though <code>this</code> and <code>super</code> are not,
+at the reference level, the same value.</p>
+
+<p>A variable is looked up in the bindings:</p>
 
 <div class="rule-block">
 \[ \frac{E(x) = v}{s, E \vdash x \Rightarrow v,\, s} \tag{5.2} \]
@@ -171,23 +188,26 @@ variable is looked up in the bindings:</p>
 nearest binding (Section&nbsp;5.8 on shadowing).</p>
 
 <h4>Operators</h4>
-<p>An arithmetic or comparison operator evaluates its operands left to right and
-then applies the operation of the operands&rsquo; class. Equality comes in two
-kinds. <em>Value</em> equality \(=\) compares contents: two collections are
-equal when their elements are equal; two objects, by the <code>equals</code>
-routine of their class, which user classes may override. <em>Identity</em>
-equality \(==\) compares references: two object values are identical exactly when
-they are the same reference \(\ell\). On scalars the two kinds agree. An operator
-evaluates both operands, threading the store, and applies the operation their
-classes associate with \(\odot\) (rule 5.4 in Appendix&nbsp;D).</p>
+<p>An arithmetic or comparison operator evaluates its operands left to right
+and then applies the operation of the operands&rsquo; class. An operator
+evaluates both operands, threading the store, and applies the operation
+their classes associate with \(\odot\) (rule 5.4 in Appendix&nbsp;D).</p>
 
-<p>When that association is one the programmer made&mdash;an arithmetic operator
-bound to a routine by an <code>alias</code> clause (Section&nbsp;3.4)&mdash;the
-operator <em>is</em> the call. Having evaluated the operands, the operation
-proceeds exactly as the call \(v_1.m(v_2)\) would: the receiver&rsquo;s dynamic
-class selects the implementation, the routine&rsquo;s precondition is checked on
-entry and its postcondition on exit, and its rescue clause governs a failure
-within it. Nothing about an operator makes it a cheaper way into a routine than
+<p>Equality comes in two kinds. <em>Value</em> equality \(=\) compares
+contents: two collections are equal when their elements are equal, and two
+objects are equal by the <code>equals</code> routine of their class, which
+user classes may override. <em>Identity</em> equality \(==\) compares
+references: two object values are identical exactly when they are the same
+reference \(\ell\). On scalars the two kinds agree.</p>
+
+<p>When the association with \(\odot\) is one the programmer made &mdash; an
+arithmetic operator bound to a routine by an <code>alias</code> clause
+(Section&nbsp;3.4) &mdash; the operator <em>is</em> the call. Having
+evaluated the operands, the operation proceeds exactly as the call
+\(v_1.m(v_2)\) would: the receiver&rsquo;s dynamic class selects the
+implementation, the routine&rsquo;s precondition is checked on entry and
+its postcondition on exit, and its rescue clause governs a failure within
+it. Nothing about an operator makes it a cheaper way into a routine than
 its own name. This is rule 5.4c of Appendix&nbsp;D.</p>
 
 <pre><code>let owed: Money := create Money.make(100, "USD")
@@ -205,16 +225,18 @@ one implicit numeric coercion of the language (Section&nbsp;4.3).</p>
 
 <p>On <code>Integer</code> operands the operation is <em>checked</em>. Write
 \(\odot_{\mathbb{Z}}\) for the exact operation in \(\mathbb{Z}\); rule&nbsp;(5.4)
-applies precisely when its result lies in range. An arithmetic operation whose
-exact result overflows the 64-bit range raises <code>Arithmetic_Overflow</code>,
-and integer division or remainder by a zero divisor raises
-<code>Division_by_Zero</code> (rules 5.4a, 5.4b in Appendix&nbsp;D; &sect;B.3).</p>
+applies precisely when its result lies in range. An arithmetic operation
+whose exact result overflows the 64-bit range raises
+<code>Arithmetic_Overflow</code>, and integer division or remainder by a
+zero divisor raises <code>Division_by_Zero</code> (rules 5.4a, 5.4b in
+Appendix&nbsp;D; &sect;B.3).</p>
 
-<p>On <code>Real</code> operands the operation is total: division by zero is
-<em>not</em> exceptional but yields the IEEE&nbsp;754 value \(\pm\infty\) or
-<code>NaN</code> through \(\widehat\odot\) in rule&nbsp;(5.4), as
-&sect;B.3 records. The asymmetry&mdash;integer division by zero raises, real
-division by zero does not&mdash;is deliberate and holds on every back end.</p>
+<p>On <code>Real</code> operands the operation is total: division by zero
+is <em>not</em> exceptional, but yields the IEEE&nbsp;754 value
+\(\pm\infty\) or <code>NaN</code> through \(\widehat\odot\) in
+rule&nbsp;(5.4), as &sect;B.3 records. This asymmetry &mdash; integer
+division by zero raises, real division by zero does not &mdash; is
+deliberate, and holds on every back end.</p>
 
 <h4>Short-circuit conjunction and disjunction</h4>
 <p>The operators <code>and</code> and <code>or</code> are <em>not</em> evaluated
@@ -230,14 +252,15 @@ such as <code>x /= nil and x.f</code> never evaluates <code>x.f</code> when
 <code>x</code> is <code>nil</code>, and is therefore safe.</p>
 
 <h4>Member access and the safe access</h4>
-<p>An ordinary access \(e.f\) reads the field \(f\) belonging to the object
-at the reference \(e\) denotes &mdash; its own, if \(e\)&rsquo;s static type
-declares \(f\) directly, or otherwise the one held in whichever of its
-nested objects does (Section&nbsp;5.1), found by following \(f\)&rsquo;s
-<em>home</em> (Section&nbsp;4.9) one composition level at a time. The safe
-access \(e\,?.f\) yields <code>nil</code> when \(e\) is <code>nil</code> and
-reads the field the same way otherwise (rules 5.7&ndash;5.9 in
-Appendix&nbsp;D).</p>
+<p>An ordinary access \(e.f\) reads the field \(f\) belonging to the object at
+the reference \(e\) denotes: its own, if \(e\)&rsquo;s static type declares
+\(f\) directly, or otherwise the one held in whichever of its nested
+objects does (Section&nbsp;5.1), found by following \(f\)&rsquo;s
+<em>home</em> (Section&nbsp;4.9) one composition level at a time.</p>
+
+<p>The safe access \(e\,?.f\) yields <code>nil</code> when \(e\) is
+<code>nil</code>, and reads the field the same way otherwise (rules
+5.7&ndash;5.9 in Appendix&nbsp;D).</p>
 
 <p>An ordinary access \(e.f\) on a <code>nil</code> receiver has no rule: it
 raises an exception (Section&nbsp;5.7). The safe access \(e\,?.f\) instead yields
@@ -245,17 +268,18 @@ raises an exception (Section&nbsp;5.7). The safe access \(e\,?.f\) instead yield
 
 <h2><span class="secno">5.4</span>Calls and Dynamic Dispatch</h2>
 
-<p>A method call evaluates the receiver and the arguments, selects the routine by
-the <em>runtime</em> class of the receiver and the number of arguments, and
-evaluates its body in fresh bindings for the parameters and
-<code>this</code>. <code>this</code>, there, is not always the receiver
-reference itself: when \(m\) is inherited rather than declared or
-overridden by the receiver&rsquo;s own class, its body is text that
-belongs to whichever ancestor does declare it, and (Section&nbsp;5.3) a
-routine&rsquo;s own <code>this</code> always names the class its text
-belongs to &mdash; so the body runs against that ancestor&rsquo;s own
-nested object, found the same way a field would be (\(\mathit{home}\),
-Section&nbsp;4.9).</p>
+<p>A method call evaluates the receiver and the arguments, selects the
+routine by the <em>runtime</em> class of the receiver and the number of
+arguments, and evaluates its body in fresh bindings for the parameters and
+<code>this</code>.</p>
+
+<p><code>this</code>, there, is not always the receiver reference itself.
+When \(m\) is inherited rather than declared or overridden by the
+receiver&rsquo;s own class, its body is text that belongs to whichever
+ancestor does declare it. A routine&rsquo;s own <code>this</code> always
+names the class its text belongs to (Section&nbsp;5.3), so the body runs
+against that ancestor&rsquo;s own nested object, found the same way a field
+would be (\(\mathit{home}\), Section&nbsp;4.9).</p>
 
 <div class="rule-block">
 \[ \frac{\begin{array}{c} s, E \vdash e \Rightarrow \ell, s_0 \quad s_0(\ell) = o \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(\mathit{class}(o), m, n) = (x_1,\dots,x_n; \mathit{body}) \quad \ell' = \mathit{follow}(s_n, \ell, \mathit{home}(\mathit{class}(o), m)) \\ E' = E_0[\texttt{this} \mapsto \ell',\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash e.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10} \]
@@ -288,14 +312,19 @@ it denotes is a <code>Square</code>; \(\mathit{lookup}\) in (5.10) selects on
 \(\mathit{class}(o)\), so <code>Square</code>&rsquo;s <code>area</code> runs and the
 result is <code>9.0</code>, not <code>0.0</code>. This is dynamic dispatch.</p>
 
-<p>Three features of this rule deserve note. The routine is chosen by
-\(\mathit{class}(o)\), the class of the actual object, not by the static type of
-\(e\): this is dynamic dispatch, and is how an overriding routine in a subclass
-takes effect. The selection also depends on \(n\), realising overloading by
-arity (Section&nbsp;4.4). And \(E_0\) is the bindings of the routine&rsquo;s
-<em>definition</em> extended with the parameter bindings&mdash;not the
-caller&rsquo;s bindings&mdash;so a routine sees the fields of its object and
-its own parameters, and nothing of the caller&rsquo;s locals.</p>
+<p>Three features of this rule deserve note.</p>
+
+<p>The routine is chosen by \(\mathit{class}(o)\), the class of the actual
+object, not by the static type of \(e\): this is dynamic dispatch, and is
+how an overriding routine in a subclass takes effect.</p>
+
+<p>The selection also depends on \(n\), realising overloading by arity
+(Section&nbsp;4.4).</p>
+
+<p>And \(E_0\) is the bindings of the routine&rsquo;s <em>definition</em>
+extended with the parameter bindings &mdash; not the caller&rsquo;s
+bindings &mdash; so a routine sees the fields of its object and its own
+parameters, and nothing of the caller&rsquo;s locals.</p>
 
 <p>The return value \(\mathit{ret}\) is the final contents of the
 <code>result</code> cell for a routine that declares a result, and the
@@ -314,28 +343,30 @@ its captured bindings in place of \(E_0\).</p>
 </div>
 
 <h4>Calling a named ancestor, and calling through <code>super</code></h4>
-<p>A call may name its target class outright&mdash;<code>Shape.describe</code>,
-say, from within a subclass&mdash;rather than reaching it through a receiver
-expression. Such a call selects <code>m</code> from the named class \(P\)
-directly, on the current object, whatever that object&rsquo;s own class &mdash;
-running with <code>this</code> rebound to \(P\)&rsquo;s own nested object
-(one hop into \(\mathit{parents}\), then \(\mathit{home}(P,m)\) further if
-\(P\) only inherits \(m\) in turn), so that a bare field read inside
-\(m\)&rsquo;s own body resolves against \(P\)&rsquo;s own copies, not the
-current object&rsquo;s outer ones:</p>
+<p>A call may name its target class outright &mdash; <code>Shape.describe</code>,
+say, from within a subclass &mdash; rather than reaching it through a
+receiver expression. Such a call selects <code>m</code> from the named
+class \(P\) directly, on the current object, whatever that object&rsquo;s
+own class is. It runs with <code>this</code> rebound to \(P\)&rsquo;s own
+nested object (one hop into \(\mathit{parents}\), then
+\(\mathit{home}(P,m)\) further if \(P\) only inherits \(m\) in turn). That
+way, a bare field read inside \(m\)&rsquo;s own body resolves against
+\(P\)&rsquo;s own copies, not the current object&rsquo;s outer ones:</p>
 
 <div class="rule-block">
 \[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(P, m, n) = (x_1,\dots,x_n; \mathit{body}) \quad \ell' = \mathit{follow}(s_n, \ell, P \cdot \mathit{home}(P, m)) \\ E' = E_0[\texttt{this} \mapsto \ell',\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash P.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10a} \]
 </div>
 
 <p><code>super.m(e_1,\dots,e_n)</code> is the same rule with \(P\) supplied
-implicitly rather than written: if the call occurs within the body of a routine
-declared in class \(A\), where&mdash;as rule 4.7a requires&mdash;\(A\) inherits
-exactly one class, \(P\) is that class. Either way, the routine is selected from
-\(P\), not from the class of the current object: the opposite of (5.10)&rsquo;s
-dynamic dispatch. \(\ell'\) is exactly what evaluating <code>super</code> or
-\(P\) alone would give (rules 5.3a, 5.3b) &mdash; this rule could equally be
-read as evaluating the target first and then dispatching by (5.10), it is
+implicitly rather than written: if the call occurs within the body of a
+routine declared in class \(A\), where &mdash; as rule 4.7a requires &mdash;
+\(A\) inherits exactly one class, \(P\) is that class.</p>
+
+<p>Either way, the routine is selected from \(P\), not from the class of
+the current object: the opposite of (5.10)&rsquo;s dynamic dispatch.
+\(\ell'\) is exactly what evaluating <code>super</code> or \(P\) alone
+would give (rules 5.3a, 5.3b). This rule could equally be read as
+evaluating the target first and then dispatching by (5.10) &mdash; it is
 just stated directly, the same way (4.16&prime;) restates a special case of
 (4.16) rather than deriving it.</p>
 
@@ -368,48 +399,57 @@ itself; then <code>describe</code> calls <code>super.describe</code>, which by
 appends to its result. The call prints <code>"blue, side 3.0"</code>.</p>
 
 <p>\(P\) is fixed once and for all by the class whose text contains the
-<code>super</code> occurrence, not by \(\mathit{class}(o)\) as in (5.10). This is
-what keeps it correct under inheritance: if a further subclass <code>Cube</code>
-inherited <code>Square</code> without overriding <code>describe</code>, calling
-<code>cube.describe()</code> would still run <code>Square</code>&rsquo;s version
-by ordinary dynamic dispatch (5.10)&mdash;and that version&rsquo;s own
-<code>super.describe</code> would still resolve to <code>Shape</code>, the
-ancestor its author meant, regardless of how far below <code>Square</code> the
-actual object sits. A class inheriting more than one parent, or none, makes
-<code>super</code> ill-formed by (4.7a) before evaluation is ever reached; the
-intended ancestor must then be named explicitly, as <code>Flyable.fly()</code>
-does by the same rule (5.10a), with \(P\) written rather than resolved.</p>
+<code>super</code> occurrence, not by \(\mathit{class}(o)\) as in (5.10).
+This is what keeps it correct under inheritance: if a further subclass
+<code>Cube</code> inherited <code>Square</code> without overriding
+<code>describe</code>, calling <code>cube.describe()</code> would still run
+<code>Square</code>&rsquo;s version by ordinary dynamic dispatch (5.10) —
+and that version&rsquo;s own <code>super.describe</code> would still
+resolve to <code>Shape</code>, the ancestor its author meant, regardless of
+how far below <code>Square</code> the actual object sits.</p>
 
-<p>When \(P\) is an imported host interface or class (Section&nbsp;3.6) rather
-than a Nex class&mdash;a class extending it, per the conditions of
-Section&nbsp;4.9, may call it this way&mdash;(5.10a) again applies, with
-\(\mathit{lookup}(P, m, n)\) selecting the host&rsquo;s own implementation of
-\(m\) rather than a Nex routine. The point of this, as with the ordinary case
-above, is that the selected routine is fixed by \(P\), not by
-\(\mathit{class}(o)\): if the current class overrides \(m\) itself&mdash;so
-that its own routine occupies the same name that dynamic dispatch (5.10)
-would otherwise select on \(o\)&mdash;a call through <code>super</code>
-still reaches the host&rsquo;s implementation, never recursing back into the
-override. A call to a member the current class does <em>not</em> itself
-define needs no such distinction and may be written on an ordinary receiver,
+<p>A class inheriting more than one parent, or none, makes <code>super</code>
+ill-formed by (4.7a) before evaluation is ever reached. The intended
+ancestor must then be named explicitly, as <code>Flyable.fly()</code> does
+by the same rule (5.10a), with \(P\) written rather than resolved.</p>
+
+<p>When \(P\) is an imported host interface or class (Section&nbsp;3.6)
+rather than a Nex class — a class extending it, per the conditions of
+Section&nbsp;4.9, may call it this way — (5.10a) again applies, with
+\(\mathit{lookup}(P, m, n)\) selecting the host&rsquo;s own implementation
+of \(m\) rather than a Nex routine.</p>
+
+<p>The point of this, as with the ordinary case above, is that the
+selected routine is fixed by \(P\), not by \(\mathit{class}(o)\). If the
+current class overrides \(m\) itself — so that its own routine occupies
+the same name that dynamic dispatch (5.10) would otherwise select on \(o\)
+— a call through <code>super</code> still reaches the host&rsquo;s
+implementation, never recursing back into the override.</p>
+
+<p>A call to a member the current class does <em>not</em> itself define
+needs no such distinction, and may be written on an ordinary receiver,
 <code>o.m(&hellip;)</code>, resolving under (5.10) to the host&rsquo;s
 implementation because no Nex override exists to compete with it.</p>
 
 <h2><span class="secno">5.5</span>Object Creation and Constructors</h2>
 
-<p>Creation allocates a fresh object, gives each field its initial value, runs the
-named constructor, checks the precondition of the constructor and the class
-invariant, and yields the new reference. Giving each field its initial value
-means building the whole nested shape at once (Section&nbsp;5.1), not just
-\(A\)&rsquo;s own fields: one further object, of its own shape, per parent
-named in \(A\)&rsquo;s <code>inherit</code> clause, recursing the same way
-into <em>their</em> parents, all the way down (\(\mathit{initial}\), in
-Appendix&nbsp;D, spells this out). Within each of these objects the initial
-value of a field is <code>nil</code> for an optional field, and the zero
-value for a field of scalar type. A non-optional <em>reference</em> field
-has no such default: by the attachment rule of Section&nbsp;4.9 some
-constructor along the way must itself assign it, so that the object is
-fully attached when creation completes.</p>
+<p>Creation allocates a fresh object, gives each field its initial value, runs
+the named constructor, checks the precondition of the constructor and the
+class invariant, and yields the new reference.</p>
+
+<p>Giving each field its initial value means building the whole nested
+shape at once (Section&nbsp;5.1), not just \(A\)&rsquo;s own fields: one
+further object, of its own shape, per parent named in \(A\)&rsquo;s
+<code>inherit</code> clause, recursing the same way into <em>their</em>
+parents, all the way down (\(\mathit{initial}\), in Appendix&nbsp;D, spells
+this out).</p>
+
+<p>Within each of these objects the initial value of a field is
+<code>nil</code> for an optional field, and the zero value for a field of
+scalar type. A non-optional <em>reference</em> field has no such default:
+by the attachment rule of Section&nbsp;4.9, some constructor along the way
+must itself assign it, so that the object is fully attached when creation
+completes.</p>
 
 <div class="rule-block">
 \[ \frac{\begin{array}{c} (\mathit{fields}_0, \mathit{parents}_0, s_0') = \mathit{initial}(s, A[\bar\tau]) \quad \ell \;\text{fresh} \quad s_0 = s_0' + \{\ell \mapsto \langle A, \mathit{fields}_0, \mathit{parents}_0\rangle\} \\ s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{constructors}(A) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell, x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \\ \mathit{check}(\mathit{post}) \quad \mathit{check}(\mathit{invariant}(A)\;\text{at}\;\ell) \end{array}}{s, E \vdash \texttt{create}\; A[\bar\tau].k(e_1,\dots,e_n) \Rightarrow \ell,\, s'} \tag{5.11} \]
@@ -440,56 +480,64 @@ with default field values is produced and only the invariant is checked.</p>
 
 <h4>Delegating to a named or superclass constructor</h4>
 <p>A constructor may call another constructor on the object already under
-construction, rather than allocating a new one&mdash;most often the
-superclass&rsquo;s, to initialise the fields it declares before the subclass&rsquo;s
-own constructor sets the rest. As with (5.10a), the target class \(P\) may be
-named outright, or supplied implicitly by <code>super.k(e_1,\dots,e_n)</code>,
-resolved from the enclosing class exactly as rule 4.7a requires; the static
-rule is (4.13a) in Section&nbsp;4.4, which additionally requires \(P\) to
-declare \(k\) itself, unlike (5.11)&rsquo;s own \(\mathit{constructors}(A)\).
-\(P\)&rsquo;s own object already exists &mdash; (5.11) allocated it, nested,
-when the outermost <code>create</code> began &mdash; so delegation just runs
-\(k\) with <code>this</code> switched to it:</p>
+construction, rather than allocating a new one &mdash; most often the
+superclass&rsquo;s, to initialise the fields it declares before the
+subclass&rsquo;s own constructor sets the rest.</p>
+
+<p>As with (5.10a), the target class \(P\) may be named outright, or
+supplied implicitly by <code>super.k(e_1,\dots,e_n)</code>, resolved from
+the enclosing class exactly as rule 4.7a requires. The static rule is
+(4.13a) in Section&nbsp;4.4, which additionally requires \(P\) to declare
+\(k\) itself, unlike (5.11)&rsquo;s own \(\mathit{constructors}(A)\).</p>
+
+<p>\(P\)&rsquo;s own object already exists &mdash; (5.11) allocated it,
+nested, when the outermost <code>create</code> began &mdash; so delegation
+just runs \(k\) with <code>this</code> switched to it:</p>
 
 <div class="rule-block">
 \[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad \ell' = s(\ell).\mathit{parents}(P) \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{ownConstructors}(P) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell', x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \quad \mathit{check}(\mathit{post}) \end{array}}{s, E \vdash P.k(e_1,\dots,e_n) \Rightarrow s'} \tag{5.11a} \]
 </div>
 
-<p>Unlike (5.11), this rule allocates nothing&mdash;\(\ell'\), \(P\)&rsquo;s
-own nested object, was already built by (5.11) when the outermost
-<code>create</code> began, one hop from \(\ell\) into
-\(\mathit{parents}\)&mdash;and checks no class invariant. Running \(k\)
-with <code>this</code> switched to \(\ell'\) is why a bare field \(k\)
-assigns is attached on \(P\)&rsquo;s own object, not the subclass&rsquo;s
-outer one: the field lives there (Section&nbsp;5.1), and by the time
-\(k\)&rsquo;s own text runs, <code>this</code> names exactly the class that
-text belongs to, as it always does (Section&nbsp;5.3). The invariant
-checked is the outermost <code>create</code>&rsquo;s own, by rule
-(5.11), once, when that constructor returns; by then every delegated
-constructor reached along the way, super-qualified or named outright, has
-already run, each against the specific nested object it was meant to
-attach. In the <code>Square</code> example above, this is exactly why
-<code>super.make(c)</code> is safe to run before <code>side</code> is set: no
-invariant is checked until <code>Square.make</code> itself returns, with both
-fields in place.</p>
+<p>Unlike (5.11), this rule allocates nothing: \(\ell'\), \(P\)&rsquo;s own
+nested object, was already built by (5.11) when the outermost
+<code>create</code> began, one hop from \(\ell\) into \(\mathit{parents}\).
+It also checks no class invariant.</p>
+
+<p>Running \(k\) with <code>this</code> switched to \(\ell'\) is why a bare
+field \(k\) assigns is attached on \(P\)&rsquo;s own object, not the
+subclass&rsquo;s outer one: the field lives there (Section&nbsp;5.1), and
+by the time \(k\)&rsquo;s own text runs, <code>this</code> names exactly
+the class that text belongs to, as it always does (Section&nbsp;5.3).</p>
+
+<p>The invariant checked is the outermost <code>create</code>&rsquo;s own,
+by rule (5.11), once, when that constructor returns. By then every
+delegated constructor reached along the way, super-qualified or named
+outright, has already run, each against the specific nested object it was
+meant to attach. In the <code>Square</code> example above, this is exactly
+why <code>super.make(c)</code> is safe to run before <code>side</code> is
+set: no invariant is checked until <code>Square.make</code> itself returns,
+with both fields in place.</p>
 
 <p>When a class extends a concrete host class rather than a Nex one
 (Section&nbsp;4.9), delegation reaches the host&rsquo;s own constructor
-instead of a named Nex one, and \(k\) is written <code>new</code>&mdash;a name
-reserved for exactly this purpose when \(P\) is such a host class, and an
-ordinary identifier everywhere else. Two differences from (5.11a) follow from
-\(P\) naming a host constructor rather than a Nex one. First, the call must be
-the delegating constructor&rsquo;s first statement: the host platform&rsquo;s
-own object model requires the superclass&rsquo;s construction to complete
-before anything else touches the object under construction, a requirement
-(5.11a) does not impose on delegation among Nex constructors, whose fields all
+instead of a named Nex one, and \(k\) is written <code>new</code> &mdash; a
+name reserved for exactly this purpose when \(P\) is such a host class, and
+an ordinary identifier everywhere else.</p>
+
+<p>Two differences from (5.11a) follow from \(P\) naming a host
+constructor rather than a Nex one. First, the call must be the delegating
+constructor&rsquo;s first statement: the host platform&rsquo;s own object
+model requires the superclass&rsquo;s construction to complete before
+anything else touches the object under construction, a requirement (5.11a)
+does not impose on delegation among Nex constructors, whose fields all
 begin at their default values regardless of ordering. Second, \(k\) is
 selected from the host constructors by argument count alone, since a host
-constructor&rsquo;s parameters are not elaborated as Nex types (4.9). When the
-delegating constructor contains no such call, one is supplied implicitly, with
-\(n = 0\)&mdash;which requires the host class to provide a constructor taking
-no arguments, precisely as (4.9)&rsquo;s host superclass construction
-condition states.</p>
+constructor&rsquo;s parameters are not elaborated as Nex types (4.9).</p>
+
+<p>When the delegating constructor contains no such call, one is supplied
+implicitly, with \(n = 0\) &mdash; which requires the host class to provide
+a constructor taking no arguments, precisely as (4.9)&rsquo;s host
+superclass construction condition states.</p>
 
 <h2><span class="secno">5.6</span>Contract Checking</h2>
 
@@ -576,19 +624,24 @@ failure but the clause it came from.</p>
 </div>
 
 <p>The predicate of a refinement type is checked by the same
-\(\mathit{check}\) mechanism. Wherever the static semantics marked a narrowing
-site (Section&nbsp;4.3)&mdash;a base value flowing into a binding, parameter,
-field, or return typed \(R\), or a <code>convert&nbsp;&hellip;&nbsp;to</code>&nbsp;\(R\)
-&mdash;the value under test is bound to the predicate&rsquo;s binder and the
-predicate is evaluated: if <code>true</code>, the value passes through unchanged
-(there is no wrapper, since \(R\) is represented as its base); if
-<code>false</code>, a contract-violation is raised, as for a failed
-<code>require</code>. The one exception is <code>convert</code>, whose whole
-purpose is to test rather than assert&mdash;a failed refinement predicate there
-makes the <code>convert</code> yield <code>false</code> rather than raise. Like
-every contract, these checks are elided under <code>skip-contracts</code>, after
-which a refinement value is indistinguishable from an ordinary value of its base
-type.</p>
+\(\mathit{check}\) mechanism. Wherever the static semantics marked a
+narrowing site (Section&nbsp;4.3) &mdash; a base value flowing into a
+binding, parameter, field, or return typed \(R\), or a
+<code>convert&nbsp;&hellip;&nbsp;to</code>&nbsp;\(R\) &mdash; the value
+under test is bound to the predicate&rsquo;s binder and the predicate is
+evaluated.</p>
+
+<p>If it yields <code>true</code>, the value passes through unchanged
+(there is no wrapper, since \(R\) is represented as its base). If it
+yields <code>false</code>, a contract-violation is raised, as for a failed
+<code>require</code>.</p>
+
+<p>The one exception is <code>convert</code>, whose whole purpose is to
+test rather than assert: a failed refinement predicate there makes the
+<code>convert</code> yield <code>false</code> rather than raise. Like every
+contract, these checks are elided under <code>skip-contracts</code>, after
+which a refinement value is indistinguishable from an ordinary value of its
+base type.</p>
 
 <h2><span class="secno">5.7</span>Exceptions: <code>raise</code>, <code>rescue</code>, <code>retry</code></h2>
 
@@ -686,58 +739,70 @@ print(sum)</code></pre>
 <code>i</code> reaches <code>6</code> the loop stops and <code>15</code> is
 printed.</p>
 
-<p>A loop may carry an <code>invariant</code>, checked before the body on each
-iteration, and a <code>variant</code>&mdash;an integer expression that must
-strictly decrease and stay non-negative across iterations, checked likewise.
-These are contracts on the loop: a violated loop invariant or a non-decreasing
-variant raises a contract-violation exception. The counted loop
-<code>repeat</code> \(n\) <code>do</code> \(b\) and the cursor loop
-<code>across</code> \(e\) <code>as</code> \(x\) <code>do</code> \(b\) are derived
-forms, expanded in Appendix&nbsp;C: the former into a general loop over a counter,
-the latter into iteration driven by the <code>start</code>/<code>item</code>/<code>next</code>/<code>at_end</code>
+<p>A loop may carry an <code>invariant</code>, checked before the body on
+each iteration, and a <code>variant</code> &mdash; an integer expression
+that must strictly decrease and stay non-negative across iterations,
+checked likewise. These are contracts on the loop: a violated loop
+invariant or a non-decreasing variant raises a contract-violation
+exception.</p>
+
+<p>The counted loop <code>repeat</code> \(n\) <code>do</code> \(b\) and the
+cursor loop <code>across</code> \(e\) <code>as</code> \(x\) <code>do</code>
+\(b\) are derived forms, expanded in Appendix&nbsp;C: the former into a
+general loop over a counter, the latter into iteration driven by the
+<code>start</code>/<code>item</code>/<code>next</code>/<code>at_end</code>
 protocol of the <code>Cursor</code> class (Appendix&nbsp;B).</p>
 
 <h4>Dispatch statements</h4>
-<p>The <code>case</code> statement compares the value of its scrutinee against the
-constants of each clause, by value equality, and runs the first matching clause,
-or the <code>else</code> clause if none matches. The <code>match</code> statement
-inspects the runtime class of its scrutinee and runs the clause whose class the
-object conforms to, binding the clause variable to the object; its
-exhaustiveness over a sealed class was guaranteed statically (4.19). The
-<code>convert</code> form attempts a cast and binds its variable to the converted
-value or to <code>nil</code>, yielding the boolean that the surrounding context
-(an <code>if</code>, say) may test.</p>
+<p>The <code>case</code> statement compares the value of its scrutinee
+against the constants of each clause, by value equality, and runs the
+first matching clause, or the <code>else</code> clause if none matches.</p>
+
+<p>The <code>match</code> statement inspects the runtime class of its
+scrutinee and runs the clause whose class the object conforms to, binding
+the clause variable to the object; its exhaustiveness over a sealed class
+was guaranteed statically (4.19).</p>
+
+<p>The <code>convert</code> form attempts a cast and binds its variable to
+the converted value or to <code>nil</code>, yielding the boolean that the
+surrounding context (an <code>if</code>, say) may test.</p>
 
 <h4>The host block</h4>
 <p>The statement <code>with</code> \(s\) <code>do</code> \(b\) <code>end</code>,
 where \(s\) is a string literal naming a <em>host facility</em>, is the one
 construct whose behaviour is conditioned on the platform beneath the
-implementation. When the implementation recognises \(s\), the statements of
-\(b\) are evaluated with name resolution extended to that facility: a class
-name or call within \(b\) that resolves to no Nex entity may resolve to an
-entity of the host. When the implementation does not recognise \(s\), the
-entire block is skipped&mdash;\(b\) is not evaluated and no error arises. A
-program may thus carry host-specific passages that execute only where their
-host is present. The JVM implementation recognises the facility
-<code>"java"</code>: within the block, imported Java classes may be
-instantiated and their methods called by the ordinary call syntax, while a call
-whose receiver is a Nex value dispatches by the rules of Section&nbsp;5.4 as it
-would outside. Unlike the scoped block <code>do</code>&hellip;<code>end</code>,
-the host block does not open a scope: a <code>let</code> within it binds in the
-enclosing scope and remains visible after the block.</p>
+implementation.</p>
+
+<p>When the implementation recognises \(s\), the statements of \(b\) are
+evaluated with name resolution extended to that facility: a class name or
+call within \(b\) that resolves to no Nex entity may resolve to an entity
+of the host. When the implementation does not recognise \(s\), the entire
+block is skipped &mdash; \(b\) is not evaluated and no error arises. A
+program may thus carry host-specific passages that execute only where
+their host is present.</p>
+
+<p>The JVM implementation recognises the facility <code>"java"</code>:
+within the block, imported Java classes may be instantiated and their
+methods called by the ordinary call syntax, while a call whose receiver is
+a Nex value dispatches by the rules of Section&nbsp;5.4 as it would
+outside. Unlike the scoped block <code>do</code>&hellip;<code>end</code>,
+the host block does not open a scope: a <code>let</code> within it binds
+in the enclosing scope and remains visible after the block.</p>
 
 <p>A class&rsquo;s <code>inherit</code> clause is a declaration, elaborated
-with the rest of the static world (Section&nbsp;3.1) rather than evaluated as
-a statement, so a class implementing a host interface or extending a host
-class (Sections&nbsp;4.9, 5.4, 5.5) is not itself written inside a host block;
-only the ordinary construction and manipulation of a bare host object needs
-one. The two facilities may also differ in which an implementation supports: a
-conforming implementation must recognise every host facility it claims to, but
-inheriting a host <em>interface</em> and inheriting a host <em>class</em> are
-independent capabilities, and an implementation may support one without the
-other&mdash;the JVM implementation&rsquo;s tree-walking interpreter, for
-instance, supports the former but not the latter, reporting a static error
-rather than approximating it.</p>
+with the rest of the static world (Section&nbsp;3.1) rather than evaluated
+as a statement. So a class implementing a host interface or extending a
+host class (Sections&nbsp;4.9, 5.4, 5.5) is not itself written inside a
+host block; only the ordinary construction and manipulation of a bare host
+object needs one.</p>
+
+<p>The two facilities may also differ in which an implementation supports.
+A conforming implementation must recognise every host facility it claims
+to, but inheriting a host <em>interface</em> and inheriting a host
+<em>class</em> are independent capabilities, and an implementation may
+support one without the other &mdash; the JVM implementation&rsquo;s
+tree-walking interpreter, for instance, supports the former but not the
+latter, reporting a static error rather than approximating it.</p>
 
 <h2><span class="secno">5.9</span>Termination</h2>
 

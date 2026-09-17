@@ -61,13 +61,16 @@ type declarations, and statements.</p>
 </div>
 
 <p>Although the items may be written in any order, they do not all take effect
-at once. The grammar&rsquo;s order is not the order of execution: the
-<em>declarations</em>&mdash;classes, functions, and type aliases&mdash;constitute
-the <em>static world</em> of the program and are elaborated first, as a whole,
-so that they may refer to one another regardless of textual position; the
-top-level <em>statements</em> constitute the <em>dynamic world</em> and are
-executed afterwards, in source order, against the static world so established.
-This separation is made precise in Chapter&nbsp;7.</p>
+at once. The grammar&rsquo;s order is not the order of execution.</p>
+
+<p>The <em>declarations</em> &mdash; classes, functions, and type aliases
+&mdash; constitute the <em>static world</em> of the program. They are
+elaborated first, as a whole, so that they may refer to one another
+regardless of textual position.</p>
+
+<p>The top-level <em>statements</em> constitute the <em>dynamic world</em>.
+They are executed afterwards, in source order, against the static world so
+established. This separation is made precise in Chapter&nbsp;7.</p>
 
 <h2><span class="secno">3.2</span>Class Declarations</h2>
 
@@ -97,13 +100,15 @@ A sealed class must also be deferred (Section&nbsp;4.9), which is why the two
 modifiers so often appear together.</p>
 
 <p>A <span class="nt">parent</span> named in <span class="nt">inherit</span> is
-ordinarily another class declared in the program, but it need not be: the
-grammar admits no distinction, and an identifier that names an imported class
-from the host platform (Section&nbsp;3.6) rather than a Nex class is a parent
-like any other, subject to the further conditions of Section&nbsp;4.9 and
-Section&nbsp;5.8. A parent may also be named by its qualified name
-(Section&nbsp;3.6.1), which matters only when the bare name would otherwise be
-ambiguous between two interned classes.</p>
+ordinarily another class declared in the program, but it need not be. The
+grammar admits no distinction, so an identifier naming an imported class from
+the host platform (Section&nbsp;3.6), rather than a Nex class, is a parent
+like any other &mdash; subject to the further conditions of
+Section&nbsp;4.9 and Section&nbsp;5.8.</p>
+
+<p>A parent may also be named by its qualified name (Section&nbsp;3.6.1).
+This matters only when the bare name would otherwise be ambiguous between two
+interned classes.</p>
 
 <h3><span class="secno">3.2.1</span>Generic Parameters</h3>
 
@@ -141,18 +146,20 @@ list of named fields.</p>
 <p>A union declaration is a <em>derived form</em>: it abbreviates declarations
 that could be written by hand. A declaration <code>union P&langle;gen&rangle;</code>
 with variants <span class="nt">V</span><sub>1</sub>&hellip;<span class="nt">V</span><sub>n</sub>
-elaborates to a <code>sealed deferred class P</code> together with one class
-<code>V</code><sub>i</sub> <code>inherit P</code> for each variant, whose fields are
-the variant&rsquo;s payload and whose sole constructor <code>make</code> takes one
-parameter per field, in declaration order, and assigns it. The exact translation
-is given in Appendix&nbsp;C. Because the elaboration produces ordinary sealed
-classes, construction (<code>create V.make(&hellip;)</code>), generic arguments,
-matching, and the exhaustiveness guarantee of Section&nbsp;4.4 all apply to a
-union with no further rules.</p>
+elaborates to a <code>sealed deferred class P</code>, together with one class
+<code>V</code><sub>i</sub> <code>inherit P</code> for each variant. Each such
+class's fields are the variant&rsquo;s payload, and its sole constructor
+<code>make</code> takes one parameter per field, in declaration order, and
+assigns it. The exact translation is given in Appendix&nbsp;C.</p>
+
+<p>Because the elaboration produces ordinary sealed classes, construction
+(<code>create V.make(&hellip;)</code>), generic arguments, matching, and the
+exhaustiveness guarantee of Section&nbsp;4.4 all apply to a union with no
+further rules.</p>
 
 <p>The <code>union</code> word is a <em>soft keyword</em>: it introduces a
-declaration only in top-level position, and remains usable as a member name (as
-in the <code>union</code> method of a set) elsewhere.</p>
+declaration only in top-level position, and remains usable as a built-in member name (as
+in the <code>union</code> method of a set).</p>
 
 <pre><code>union Order
   Draft
@@ -168,15 +175,18 @@ does not replace.</p>
 
 <p>When every variant is payload-free and <span class="nt">P</span> is non-generic,
 the declaration may be prefixed with the reserved word <code>enum</code>, making it
-an <strong>enumeration</strong>: a closed set of named, ordered, canonical values.
-The <code>enum</code> form still elaborates to the sealed hierarchy above, but the
-parent additionally becomes <code>Comparable</code> ordered by declaration order,
-each member is exposed as an interned class constant on the type
-(<code>P.V</code><sub>i</sub>, one canonical value per variant), and
-<code>P.values</code> is an array of all members in order; the full translation is
-in Appendix&nbsp;C. Because the enrichment occupies the names <code>ordinal</code>,
-<code>compare</code>, and <code>values</code>, no variant may re-declare them. A plain
-<code>union</code> is never so enriched; <code>enum</code> requests it.</p>
+an <strong>enumeration</strong>: a closed set of named, ordered, canonical values.</p>
+
+<p>The <code>enum</code> form still elaborates to the sealed hierarchy above,
+but with three additions: the parent becomes <code>Comparable</code>,
+ordered by declaration order; each member is exposed as an interned class
+constant on the type (<code>P.V</code><sub>i</sub>, one canonical value per
+variant); and <code>P.values</code> is an array of all members in order. The
+full translation is in Appendix&nbsp;C.</p>
+
+<p>Because the enrichment occupies the names <code>ordinal</code>,
+<code>compare</code>, and <code>values</code>, no variant may re-declare
+them. A plain <code>union</code> is not enriched like the <code>enum</code>.</p>
 
 <pre><code>enum union Color
   Red
@@ -201,29 +211,32 @@ only from within the class.</p>
 </div>
 
 <p>A field declares an attribute of every instance. A field carries no
-initialiser: in a freshly created object a scalar field holds its zero value
-and an optional field holds <code>nil</code>, and every constructor must assign
+initialiser: in a freshly created object, a scalar field holds its zero value
+and an optional field holds <code>nil</code>. Every constructor must assign
 each non-optional reference field before it returns (Sections&nbsp;4.9
 and&nbsp;5.5). A field marked <code>once</code> may be assigned within a
-constructor but never afterwards; an attempt to assign it elsewhere is rejected
-statically (Section&nbsp;4.4).</p>
+constructor but never afterwards; an attempt to assign it elsewhere is
+rejected statically (Section&nbsp;4.4).</p>
 
-<p>A <em>constant</em>, written with <code>=</code> rather than the assignment
-symbol <code>:=</code>, does not declare an attribute: it names a value
-belonging to the class itself, fixed when the class is elaborated and immutable
-thereafter&mdash;an assignment to it is rejected statically. Within the class
-text a constant is referred to by its bare name, like a field; outside, it is
-accessed on the class, <code>C.x</code>, never on an instance. When the type
-annotation is omitted, the type is inferred from the initialising
-expression.</p>
+<p>A <em>constant</em>, written with <code>=</code> rather than the
+assignment symbol <code>:=</code>, does not declare an attribute. It names a
+value belonging to the class itself, fixed when the class is elaborated and
+immutable thereafter &mdash; an assignment to it is rejected statically.
+Within the class text a constant is referred to by its bare name, like a
+field; outside, it is accessed on the class, <code>C.x</code>, never on an
+instance. When the type annotation is omitted, the type is inferred from the
+initialising expression.</p>
 
-<p>The initialising expression is unrestricted: as well as a scalar it may be an
-object (<code>create&nbsp;&hellip;</code>) or a collection literal. Since the
-constant is fixed once when the class is elaborated, such a value is evaluated a
-single time and shared by every use, so an object- or collection-valued constant
-is one canonical value&mdash;<code>C.x == C.x</code> holds. An initialiser may
-name an earlier constant of the same class, or one inherited from a parent; a
-forward or cyclic reference among constants is rejected statically.</p>
+<p>The initialising expression is unrestricted: besides a scalar, it may be
+an object (<code>create&nbsp;&hellip;</code>) or a collection literal. The
+constant is fixed once, when the class is elaborated, so such a value is
+evaluated a single time and shared by every use. An object- or
+collection-valued constant is therefore one canonical value:
+<code>C.x == C.x</code> holds.</p>
+
+<p>An initialiser may name an earlier constant of the same class, or one
+inherited from a parent. A forward or cyclic reference among constants is
+rejected statically.</p>
 
 <h2><span class="secno">3.4</span>Routines and Contracts</h2>
 
@@ -257,32 +270,36 @@ clause.</p>
 effect on meaning; it is the label by which a violation is reported. The same
 form was already introduced in Section&nbsp;2.8 as the operand of the
 <code>assert</code> statement, which checks a condition at an arbitrary point
-within a body (there, a bare, unnamed expression is allowed too). Here it
-appears in three further positions: a <code>require</code> clause states a
-<em>precondition</em>&mdash;an obligation on the caller, checked on entry; an
-<code>ensure</code> clause states a <em>postcondition</em>&mdash;a guarantee to
-the caller, checked on exit; and a class <code>invariant</code> states a
-condition every instance must satisfy whenever it is observable from outside
-(Section&nbsp;5.6). Together these three are Nex&rsquo;s realisation of Design
-by Contract.</p>
+within a body (there, a bare, unnamed expression is allowed too).</p>
+
+<p>Here it appears in three further positions. A <code>require</code> clause
+states a <em>precondition</em>: an obligation on the caller, checked on
+entry. An <code>ensure</code> clause states a <em>postcondition</em>: a
+guarantee to the caller, checked on exit. A class <code>invariant</code>
+states a condition every instance must satisfy whenever it is observable
+from outside (Section&nbsp;5.6). Together, these three are Nex&rsquo;s
+realisation of Design by Contract.</p>
 
 <p>Within a postcondition, the form <code>old e</code> denotes the value that
-<code>e</code> had when the routine was entered, allowing a guarantee to
-relate the final state to the initial one, as in
-<code>money = old money - amount</code>. The operand may be a bare field or an
-expression over the fields &mdash; <code>old items.length</code> is the length the
-collection had on entry &mdash; but nothing outside the object&rsquo;s fields is
-in scope beneath <code>old</code> (Section&nbsp;2.9). A routine that declares a
-return type delivers its result through the cell <code>result</code>, whose value
-when the body finishes is the value of the call.</p>
+<code>e</code> had when the routine was entered, letting a guarantee relate
+the final state to the initial one, as in
+<code>money = old money - amount</code>. The operand may be a bare field or
+an expression over the fields &mdash; <code>old items.length</code> is the
+length the collection had on entry &mdash; but nothing outside the
+object&rsquo;s fields is in scope beneath <code>old</code>
+(Section&nbsp;2.9).</p>
+
+<p>A routine that declares a return type delivers its result through the
+cell <code>result</code>, whose value when the body finishes is the value of
+the call.</p>
 
 <p>A one-argument routine may bind itself to an arithmetic operator with an
-<code>alias</code> clause. The operator is then <em>exactly</em> sugar for the
-call: <code>a - b</code> <em>is</em> <code>a.minus(b)</code>, and so the
-routine&rsquo;s precondition and postcondition hold at the operator the same way it does for
-an explicit call. This is what makes the example above, <code>money = old
-money - amount</code>, meaningful for a user-defined class, just like for
-the built-in numbers.</p>
+<code>alias</code> clause. The operator is then <em>exactly</em> sugar for
+the call: <code>a - b</code> <em>is</em> <code>a.minus(b)</code>, so the
+routine&rsquo;s precondition and postcondition hold at the operator the same
+way they do for an explicit call. This is what makes the example above,
+<code>money = old money - amount</code>, meaningful for a user-defined
+class, just like for the built-in numbers.</p>
 
 <pre><code>class Money
   feature
@@ -300,17 +317,23 @@ the built-in numbers.</p>
     make(a: Integer, c: String) do amount := a  currency := c end
 end</code></pre>
 
-<p>Three restrictions keep the notation closed. The set of aliasable operators is
-fixed&mdash;<code>+ - * / % ^</code> and no others&mdash;so no program can
-introduce a symbol a reader has never met. Only arithmetic may be aliased:
-ordering is obtained by inheriting <code>Comparable</code> and defining
-<code>compare</code>, and value equality by defining <code>equals</code>
-(Section&nbsp;5.3), not by aliasing. And an alias is consulted only where the
-operands are not already numeric (or, for <code>+</code>, a string), so no class
-can alter the meaning of <code>+</code> on <code>Integer</code> or
-<code>Real</code>. An alias is inherited: a routine aliased in a deferred class
-gives the operator to every heir, dispatching to the heir&rsquo;s
-implementation.</p>
+<p>Three restrictions keep the notation closed:</p>
+
+<ol>
+  <li>The set of aliasable operators is fixed &mdash; <code>+ - * / % ^</code>
+  and no others &mdash; so no program can introduce a symbol a reader has
+  never met.</li>
+  <li>Only arithmetic may be aliased. Ordering is obtained by inheriting
+  <code>Comparable</code> and defining <code>compare</code>, and value
+  equality by defining <code>equals</code> (Section&nbsp;5.3), not by
+  aliasing.</li>
+  <li>An alias is consulted only where the operands are not already numeric
+  (or, for <code>+</code>, a string), so no class can alter the meaning of
+  <code>+</code> on <code>Integer</code> or <code>Real</code>.</li>
+</ol>
+
+<p>An alias is inherited: a routine aliased in a deferred class gives the
+operator to every heir, dispatching to the heir&rsquo;s implementation.</p>
 
 <p>The word <code>alias</code> is contextual, not reserved (Section&nbsp;2.1): it
 has this meaning only in the position shown, and a program may still name a field,
@@ -318,16 +341,17 @@ parameter, or routine <code>alias</code>.</p>
 
 <div class="note">
   <span class="note-label">A deferred routine has no body</span>
-  The second form of <code>method</code> above&mdash;a signature followed by
-  <code>deferred</code> and no <code>do</code>&hellip;<code>end</code>&mdash;declares
-  a routine whose implementation is supplied by heirs. It may appear only in a
-  deferred class. The <code>declare function</code> form plays the analogous role
-  for free functions: it announces a signature whose definition follows later.
-  Mutual recursion among free functions needs no such announcement&mdash;every
-  function in a program is elaborated against every other&rsquo;s signature
-  regardless of textual order (Section&nbsp;4.8); <code>declare function</code>
-  pins a signature explicitly where a reader wants to see it early, and checks
-  the later definition against it exactly.
+  The second form of <code>method</code> above &mdash; a signature followed
+  by <code>deferred</code> and no <code>do</code>&hellip;<code>end</code>
+  &mdash; declares a routine whose implementation is supplied by heirs. It
+  may appear only in a deferred class. The <code>declare function</code> form
+  plays the analogous role for free functions: it announces a signature whose
+  definition follows later. Mutual recursion among free functions needs no
+  such announcement, since every function in a program is elaborated against
+  every other&rsquo;s signature regardless of textual order
+  (Section&nbsp;4.8); <code>declare function</code> instead pins a signature
+  explicitly where a reader wants to see it early, and checks the later
+  definition against it exactly.
 </div>
 
 <h2><span class="secno">3.5</span>Type Expressions</h2>
@@ -372,19 +396,22 @@ value of the refinement must satisfy.</p>
 declare type Percentage = Real where p: p &gt;= 0.0 and p &lt;= 100.0</code></pre>
 
 <p>A refinement is not a class: it carries no fields, no constructor, and no
-boxing. A value of the refinement <em>is</em> a value of the base type&mdash;the
-refinement is a checked brand erased to the base representation, so a
-<code>Quantity</code> may be used wherever an <code>Integer</code> is wanted, and
-arithmetic on it yields the base type. The predicate is a contract: it is checked
-where a base value is <em>narrowed</em> into the refinement, and elided under
+boxing. A value of the refinement <em>is</em> a value of the base type &mdash;
+the refinement is a checked brand erased to the base representation. So a
+<code>Quantity</code> may be used wherever an <code>Integer</code> is wanted,
+and arithmetic on it yields the base type.</p>
+
+<p>The predicate is a contract: it is checked where a base value is
+<em>narrowed</em> into the refinement, and elided under
 <code>skip-contracts</code> like any other contract. The subtyping rule
 (narrowing checked, widening free) is given in Section&nbsp;4.3, and the
-placement and evaluation of the check in Section&nbsp;5.6. <code>where</code> is
-contextual (Section&nbsp;2.1): it is recognised as the refinement clause only
-immediately after <code>declare type id = ty</code>, and remains available
-everywhere else as the name of a variable, field, parameter, or routine&mdash;
-unlike <code>union</code> (Section&nbsp;3.2.2), which is contextual only as a
-built-in member name.</p>
+placement and evaluation of the check in Section&nbsp;5.6.</p>
+
+<p><code>where</code> is contextual (Section&nbsp;2.1): it is recognised as
+the refinement clause only immediately after <code>declare type id =
+ty</code>, and remains available everywhere else as the name of a variable,
+field, parameter, or routine. This differs from <code>union</code>
+(Section&nbsp;3.2.2), which is contextual only as a built-in member name.</p>
 
 <h2><span class="secno">3.6</span>Modules</h2>
 
@@ -394,8 +421,11 @@ declarations connect a program to code outside it.</p>
 <p>An <strong>intern</strong> declaration loads another Nex source unit,
 identified by a slash-separated path, optionally renaming it with
 <code>as</code>. The named unit&rsquo;s declarations become available to the
-current program. An <strong>import</strong> declaration brings in a class from
-the host platform&mdash;as of now the Java virtual machine&mdash;named by a dotted path and an optional source string.</p>
+current program.</p>
+
+<p>An <strong>import</strong> declaration brings in a class from the host
+platform &mdash; as of now, only the Java virtual machine &mdash; named by a
+dotted path and an optional source string.</p>
 
 <div class="grammar">
 <table>
@@ -413,13 +443,15 @@ current environment&mdash;is given in Chapter&nbsp;7.</p>
 <h3><span class="secno">3.6.1</span>Qualified Names and Ambiguous References</h3>
 
 <p>The path segments preceding the class name in an <code>intern</code>
-declaration are not merely a means of locating a file: taken together with the
-class&rsquo;s own name, they form its <strong>qualified name</strong>, a second,
-always-unambiguous spelling by which the class may be named wherever a bare
-class name may&mdash;a <code>parent</code> (Section&nbsp;3.2), a class <code>ty</code>
-(Section&nbsp;3.5), a <code>createexp</code> (Appendix&nbsp;A.5), or a
-<code>pattern</code> (Section&nbsp;2.8). We write <span
-class="nt">qid</span> for a class name in either spelling:</p>
+declaration are not merely a means of locating a file. Taken together with
+the class&rsquo;s own name, they form its <strong>qualified name</strong>: a
+second, always-unambiguous spelling by which the class may be named wherever
+a bare class name may &mdash; a <code>parent</code> (Section&nbsp;3.2), a
+class <code>ty</code> (Section&nbsp;3.5), a <code>createexp</code>
+(Appendix&nbsp;A.5), or a <code>pattern</code> (Section&nbsp;2.8).</p>
+
+<p>We write <span class="nt">qid</span> for a class name in either
+spelling:</p>
 
 <div class="grammar">
 <table>
@@ -434,28 +466,32 @@ earlier sections in fact names a <code>qid</code>; those sections write
 is the ordinary case.</p>
 
 <p>Two source units, interned into the same program, may each declare a class
-under the same bare name&mdash;nothing in the grammar of either unit, read on
-its own, can detect this. Section&nbsp;4.2 gives the resulting static rule: a
-bare class name that denotes more than one class once both units are elaborated
-together is an <strong>ambiguous reference</strong>, rejected wherever it is
-written, unqualified, in the program that interned both. Writing the class in
-its qualified form resolves the reference unambiguously regardless of how many
-other units also declare a class of that bare name; so does giving one of the
-colliding interns a local name with <code>as</code>, provided the renamed
-<code>intern</code> is itself path-qualified&mdash;an <code>as</code> on a bare,
-unpathed <code>intern</code> has no qualified spelling to fall back on, and
-merely renames access to whichever single class that bare name already denotes.
-A class declared directly in the current unit is never part of such an
+under the same bare name &mdash; nothing in the grammar of either unit, read
+on its own, can detect this. Section&nbsp;4.2 gives the resulting static
+rule: a bare class name that denotes more than one class, once both units
+are elaborated together, is an <strong>ambiguous reference</strong>,
+rejected wherever it is written unqualified in the program that interned
+both.</p>
+
+<p>Writing the class in its qualified form resolves the reference
+unambiguously, regardless of how many other units also declare a class of
+that bare name. So does giving one of the colliding interns a local name
+with <code>as</code>, provided the renamed <code>intern</code> is itself
+path-qualified. (An <code>as</code> on a bare, unpathed <code>intern</code>
+has no qualified spelling to fall back on, and merely renames access to
+whichever single class that bare name already denotes.)</p>
+
+<p>A class declared directly in the current unit is never part of such an
 ambiguity: it shadows an interned class of the same bare name outright, the
 same way a local variable shadows a global (Section&nbsp;7.4).</p>
 
 <p>An imported class is not confined to the role of a value manufactured and
-called&mdash;it may also be named in a class declaration&rsquo;s
-<code>inherit</code> clause (Section&nbsp;3.2), so that a Nex class implements
-a host interface or extends a host class. The conditions this places on the
-inheriting class are given in Section&nbsp;4.9; the dispatch semantics that
-follow from it are given in Section&nbsp;5.4, and the constructor-forwarding
-semantics in Section&nbsp;5.5.</p>
+called. It may also be named in a class declaration&rsquo;s
+<code>inherit</code> clause (Section&nbsp;3.2), so that a Nex class
+implements a host interface or extends a host class. The conditions this
+places on the inheriting class are given in Section&nbsp;4.9; the dispatch
+semantics that follow from it are given in Section&nbsp;5.4, and the
+constructor-forwarding semantics in Section&nbsp;5.5.</p>
 
 <h3><span class="secno">3.6.2</span>Qualified Calls to Free Functions</h3>
 
@@ -466,37 +502,39 @@ function sharing a file with the interned class arrives alongside it under
 its own bare name.</p>
 
 <p>A free function has no <span class="nt">qid</span> spelling and no
-path-qualified <code>as</code>: <code>as</code> renames a class only, never a
-function (Section&nbsp;3.6). Two units interned into the same program may
-nonetheless each declare a function under the same bare name, and a bare
+path-qualified <code>as</code>: <code>as</code> renames a class only, never
+a function (Section&nbsp;3.6). Two units interned into the same program may
+nonetheless each declare a function under the same bare name. A bare
 application of that name is then an <strong>ambiguous reference</strong>,
-rejected wherever it is written&mdash;Section&nbsp;4.8.1 gives the static
-rule, which mirrors 3.6.1&rsquo;s class rule in substance but not in form:
-there is no <span class="nt">qid</span> to fall back on directly at the
-syntax level.</p>
+rejected wherever it is written. Section&nbsp;4.8.1 gives the static rule,
+which mirrors 3.6.1&rsquo;s class rule in substance but not in form: there is
+no <span class="nt">qid</span> to fall back on directly at the syntax
+level.</p>
 
 <p>The escape from such a collision is instead a <strong>qualified
-call</strong>: <code>path.m(e<sub>1</sub>,&hellip;,e<sub>n</sub>)</code>, written
-in the ordinary member-access/call form of the expression grammar
-(Section&nbsp;2.7)&mdash;syntactically indistinguishable from a real method
-call on a variable named <code>path</code>. It is elaborated as naming the
-free function whose unit path and own name, joined by <code>.</code>, spell
-<code>path.m</code> only when <code>path</code>&rsquo;s leading identifier has
-no ordinary binding at that point in the program; an existing local,
-parameter, field, or class of that name always takes precedence, and the
-qualified reading is tried only once ordinary elaboration of the leading name
-has already failed (Section&nbsp;4.8.1).</p>
+call</strong>: <code>path.m(e<sub>1</sub>,&hellip;,e<sub>n</sub>)</code>,
+written in the ordinary member-access/call form of the expression grammar
+(Section&nbsp;2.7) &mdash; syntactically indistinguishable from a real
+method call on a variable named <code>path</code>.</p>
+
+<p>It is elaborated as naming the free function whose unit path and own
+name, joined by <code>.</code>, spell <code>path.m</code>, but only when
+<code>path</code>&rsquo;s leading identifier has no ordinary binding at that
+point in the program. An existing local, parameter, field, or class of that
+name always takes precedence; the qualified reading is tried only once
+ordinary elaboration of the leading name has already failed
+(Section&nbsp;4.8.1).</p>
 
 <p>This differs from a class&rsquo;s <span class="nt">qid</span> in spelling
-because it must: <span class="nt">qid</span> separates path segments with
-<code>/</code>, which is available there only because a <code>ty</code>,
+because it must. <span class="nt">qid</span> separates path segments with
+<code>/</code>, which works there only because a <code>ty</code>,
 <code>parent</code>, <code>createexp</code>, and <code>pattern</code> are
-never <code>exp</code> positions, so <code>/</code> never has to be told apart
-from the division operator (Section&nbsp;2.6). A function call is an
-<code>exp</code>, and division is written there too, so a qualified call
-instead reuses <code>.</code>&mdash;already the member-access
-operator&mdash;resolved by this special case of elaboration rather than by a
-new grammar production.</p>
+never <code>exp</code> positions &mdash; so <code>/</code> never has to be
+told apart from the division operator (Section&nbsp;2.6). A function call is
+an <code>exp</code>, though, and division is written there too. So a
+qualified call instead reuses <code>.</code>, already the member-access
+operator, resolved by this special case of elaboration rather than by a new
+grammar production.</p>
 
 <h2><span class="secno">3.7</span>Syntactic Restrictions</h2>
 

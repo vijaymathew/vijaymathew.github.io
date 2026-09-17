@@ -372,6 +372,7 @@ nex&gt; across accounts as acc do
 <pre><code>deferred class Shape
   feature
     colour: String
+    set_colour(c: String) do colour := c end
     area(): Real deferred
     perimeter(): Real deferred
     describe(): String do
@@ -379,12 +380,13 @@ nex&gt; across accounts as acc do
     end
 end</code></pre>
 <p><code>area</code> and <code>perimeter</code> are declared with the <code>deferred</code> keyword in place of a body. These are <em>deferred features</em>: the class announces what every shape can do, but leaves the how to each subclass. <code>describe</code> has a body and is inherited as-is; it calls <code>area</code>, which will dispatch to the subclass implementation at runtime.</p>
+<p><code>set_colour</code> is here because <code>Shape</code> has no constructor of its own: <code>colour</code> can only ever be assigned by code belonging to <code>Shape</code>, the class that declares it — a subclass may read <code>colour</code> directly, exactly as <code>describe</code> above does, but not assign it, even from its own constructor. This is the same rule the account hierarchy in section 15.7 already followed with <code>Account.set_balance</code>: it exists to protect whatever <code>Shape</code> itself guarantees about <code>colour</code> from being bypassed by a subclass writing straight to the field.</p>
 <p>Any concrete subclass must implement all deferred features:</p>
 <pre><code>class Circle
   inherit Shape
   create
     make(c: String, r: Real) do
-      colour := c
+      set_colour(c)
       radius := r
     end
   feature
@@ -538,6 +540,7 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="summary" data-number="15.11"> Summary</h2>
 <ul>
 <li><code>class SubClass inherit SuperClass</code> declares the relationship; the subclass inherits all fields and methods</li>
+<li>An inherited field may be read directly from the subclass, but assigned only by code belonging to the class that declares it — a subclass writes it through a method the declaring class provides, such as <code>Account.set_balance</code> above, never by assigning the field itself</li>
 <li><code>SuperClass.constructor_name(   )</code> calls the superclass constructor from the subclass constructor; <code>super.constructor_name(   )</code> does the same when there is exactly one superclass</li>
 <li><code>this.constructor_name(   )</code> delegates to another constructor of the <em>same</em> class (Chapter 13) — the same idea, one level narrower</li>
 <li><code>SuperClass.method_name(   )</code> calls an overridden superclass method from within an override; <code>super.method_name(   )</code> is the equivalent shorthand with a single superclass</li>

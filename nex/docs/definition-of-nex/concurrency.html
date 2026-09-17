@@ -43,11 +43,13 @@ descends from Hoare&rsquo;s Communicating Sequential Processes by way of the
 goroutine-and-channel discipline of Go.</p>
 
 <p>This chapter extends the dynamic semantics of Chapter&nbsp;5 to several tasks
-evaluating at once. The single threaded judgement \(s, E \vdash e \Rightarrow v,
-s'\) is now one task&rsquo;s contribution to a <em>configuration</em>: a
-collection of tasks together with a shared store. The static typing of the
-concurrent forms is unremarkable and was admitted by the grammar of
-Chapter&nbsp;2; the interest is all in the dynamics.</p>
+evaluating at once. The single-threaded judgement \(s, E \vdash e \Rightarrow v,
+s'\) now describes one task&rsquo;s contribution to a <em>configuration</em>: a
+collection of tasks together with a shared store.</p>
+
+<p>The static typing of the concurrent forms is unremarkable, and was already
+admitted by the grammar of Chapter&nbsp;2. The interest here is all in the
+dynamics.</p>
 
 <h2><span class="secno">6.1</span>Tasks</h2>
 
@@ -62,18 +64,20 @@ result of type \(T\). The creator does not wait; the two proceed in parallel.</p
 </div>
 
 <p>A task captures the bindings of its <code>spawn</code>, so it may read the
-variables and reach the objects in scope where it was created. Because the store
-is shared, a task and its creator may observe one another&rsquo;s writes to
-objects; the language provides channels precisely so that such sharing need not
-be the means of communication.</p>
+variables and reach the objects in scope where it was created. Because the
+store is shared, a task and its creator may observe one another&rsquo;s writes
+to objects. The language provides channels precisely so that such sharing
+need not be the means of communication.</p>
 
 <p>A task handle supports the operations of the <code>Task</code> class
-(Appendix&nbsp;B). The chief one is <code>await</code>, which blocks the caller
-until the task has finished and then yields its result; <code>await(ms)</code>
-waits at most <code>ms</code> milliseconds and yields <code>nil</code> on
-timeout. The predicate <code>is_done</code> reports completion without blocking;
+(Appendix&nbsp;B). The chief one is <code>await</code>, which blocks the
+caller until the task has finished and then yields its result.
+<code>await(ms)</code> waits at most <code>ms</code> milliseconds and yields
+<code>nil</code> on timeout.</p>
+
+<p>The predicate <code>is_done</code> reports completion without blocking.
 <code>cancel</code> requests cancellation and reports whether it took effect
-before completion; and the class methods <code>await_any</code> and
+before completion. The class methods <code>await_any</code> and
 <code>await_all</code> wait on a collection of tasks.</p>
 
 <div class="rule-block">
@@ -82,19 +86,20 @@ before completion; and the class methods <code>await_any</code> and
 
 <p>Rule (6.2) has a premise that a <em>scheduler</em> must eventually make true:
 the awaiting task makes no progress until the awaited task completes. The
-Definition does not prescribe a scheduling policy&mdash;only that a task which
-can make progress is not forever denied it.</p>
+Definition does not prescribe a scheduling policy. It only requires that a
+task which can make progress is not forever denied it.</p>
 
 <h2><span class="secno">6.2</span>Channels</h2>
 
 <p>A <em>channel</em> is a typed conduit between tasks, an instance of
-<code>Channel[T]</code>. By default it is <em>unbuffered</em>
-(synchronous): a <code>send</code> blocks until a <code>receive</code> is ready
-to take the value, and the two <em>rendezvous</em>&mdash;the value passes from
-sender to receiver in a single step. A channel created
-<code>with_capacity(n)</code> is <em>buffered</em>: up to \(n\) values may be
-held, a <code>send</code> blocking only when the buffer is full and a
-<code>receive</code> only when it is empty.</p>
+<code>Channel[T]</code>. By default it is <em>unbuffered</em> (synchronous):
+a <code>send</code> blocks until a <code>receive</code> is ready to take the
+value, and the two <em>rendezvous</em> &mdash; the value passes from sender
+to receiver in a single step.</p>
+
+<p>A channel created <code>with_capacity(n)</code> is <em>buffered</em>: up
+to \(n\) values may be held. A <code>send</code> blocks only when the buffer
+is full, and a <code>receive</code> only when it is empty.</p>
 
 <div class="rule-block">
 \[ \frac{\ell \;\text{fresh}}{s, E \vdash \texttt{create}\;\texttt{Channel}[T] \Rightarrow \ell,\; s + \{\ell \mapsto \mathsf{chan}(T, 0, \langle\,\rangle)\}} \tag{6.3} \]
@@ -109,20 +114,22 @@ simultaneous progress of a blocked sender and a blocked receiver:</p>
 </div>
 
 <p>For a buffered channel, <code>send</code> appends to \(q\) when
-\(|q| &lt; c\) and otherwise blocks; <code>receive</code> removes the head of
-\(q\) when \(q\) is non-empty and otherwise blocks. The non-blocking variants
-<code>try_send</code> and <code>try_receive</code> never block: they perform the
-operation if it can proceed immediately, and otherwise report failure
-(<code>false</code>, or <code>nil</code> for a receive). The timed variants
-<code>send(v, ms)</code> and <code>receive(ms)</code> block for at most the given
-interval.</p>
+\(|q| &lt; c\), and otherwise blocks. <code>receive</code> removes the head
+of \(q\) when \(q\) is non-empty, and otherwise blocks.</p>
 
-<p>A channel may be <code>close</code>d. After closing, no further value may be
-sent; a <code>send</code> on a closed channel is an error. Values already
-buffered may still be received; once they are exhausted, <code>receive</code> on
-a closed channel completes rather than blocking. The predicates
-<code>is_closed</code>, <code>size</code>, and <code>capacity</code> report a
-channel&rsquo;s state.</p>
+<p>The non-blocking variants <code>try_send</code> and <code>try_receive</code>
+never block: they perform the operation if it can proceed immediately, and
+otherwise report failure (<code>false</code>, or <code>nil</code> for a
+receive). The timed variants <code>send(v, ms)</code> and
+<code>receive(ms)</code> block for at most the given interval.</p>
+
+<p>A channel may be <code>close</code>d. After closing, no further value may
+be sent, and a <code>send</code> on a closed channel is an error. Values
+already buffered may still be received; once they are exhausted,
+<code>receive</code> on a closed channel completes rather than blocking.</p>
+
+<p>The predicates <code>is_closed</code>, <code>size</code>, and
+<code>capacity</code> report a channel&rsquo;s state.</p>
 
 <h2><span class="secno">6.3</span>Selective Communication</h2>
 
@@ -140,10 +147,12 @@ after an interval; an optional <code>else</code> clause makes the
 end</code></pre>
 
 <p>Operationally, <code>select</code> probes its clauses. A channel-receive
-clause is ready when <code>try_receive</code> would succeed; a channel-send
-clause, when <code>try_send</code> would; a task clause <code>when</code>
-\(t\)<code>.await</code> is ready exactly when <code>is_done</code> holds of
-\(t\). The statement chooses a ready clause, binds its <code>as</code> variable
+clause is ready when <code>try_receive</code> would succeed, and a
+channel-send clause is ready when <code>try_send</code> would. A task clause
+<code>when</code> \(t\)<code>.await</code> is ready exactly when
+<code>is_done</code> holds of \(t\).</p>
+
+<p>The statement chooses a ready clause, binds its <code>as</code> variable
 to the value obtained, and runs that clause&rsquo;s block.</p>
 
 <ul>
@@ -171,29 +180,31 @@ to the value obtained, and runs that clause&rsquo;s block.</p>
 
 <h2><span class="secno">6.4</span>The Model and Its Realisations</h2>
 
-<p>The semantics above is given in the rendezvous style of CSP and is the
-authoritative meaning of the concurrent forms. Each back end realises it on a
-different substrate, and a programmer should know where the realisations
+<p>The semantics above is given in the rendezvous style of CSP, and is the
+authoritative meaning of the concurrent forms. Each back end realises it on
+a different substrate, and a programmer should know where the realisations
 differ.</p>
 
 <ul>
   <li>On the <strong>JVM</strong>, tasks are scheduled onto platform threads and
   channels are concurrent queues with the blocking discipline of
   Section&nbsp;6.2; evaluation is genuinely parallel.</li>
-  <li>On a backend like<strong>JavaScript</strong>, where the host is single-threaded, tasks
-  may be lowered to asynchronous computations and channels to promise-mediated
-  queues. The Nex <em>source</em> is unchanged: <code>spawn</code> becomes
-  asynchronous task code, and <code>await</code>, <code>send</code>, and
-  <code>receive</code> lower to <code>await</code> on a promise. The blocking of
-  Section&nbsp;6.2 becomes suspension of the awaiting computation, and apparent
-  parallelism is interleaving.</li>
+  <li>On a backend like <strong>JavaScript</strong>, where the host is
+  single-threaded, tasks may be lowered to asynchronous computations and
+  channels to promise-mediated queues. The Nex <em>source</em> is unchanged:
+  <code>spawn</code> becomes asynchronous task code, and <code>await</code>,
+  <code>send</code>, and <code>receive</code> lower to <code>await</code> on
+  a promise. The blocking of Section&nbsp;6.2 becomes suspension of the
+  awaiting computation, and apparent parallelism is interleaving.</li>
 </ul>
 
-<p>In both realisations the observable behaviour of a well-synchronised
-program&mdash;one that communicates through channels rather than through shared
-mutable objects&mdash;agrees with the rendezvous semantics. Programs that instead
-race on shared objects are outside the guarantees of this chapter, and the
-Definition assigns them no determinate meaning.</p>
+<p>In both realisations, the observable behaviour of a well-synchronised
+program agrees with the rendezvous semantics &mdash; "well-synchronised"
+meaning one that communicates through channels rather than through shared
+mutable objects.</p>
+
+<p>Programs that instead race on shared objects are outside the guarantees
+of this chapter, and the Definition assigns them no determinate meaning.</p>
 
 </article>
 <nav class="chapter-nav"><div class="prev"><a href="dynamic.html"><span class="label">&larr; Chapter 5</span><span class="ttl">Dynamic Semantics</span></a></div><div class="next"><a href="programs.html"><span class="label">Chapter 7 &rarr;</span><span class="ttl">Programs</span></a></div></nav>
