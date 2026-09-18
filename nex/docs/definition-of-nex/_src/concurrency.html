@@ -4,16 +4,16 @@ threads, locks, or shared mutable cells directly; it starts lightweight
 descends from Hoare&rsquo;s Communicating Sequential Processes by way of the
 goroutine-and-channel discipline of Go.</p>
 
-<p>This chapter extends the dynamic semantics of Chapter&nbsp;5 to several tasks
+<p>This chapter extends the dynamic semantics of Chapter&nbsp;<a href="dynamic.html">5</a> to several tasks
 evaluating at once. The single-threaded judgement \(s, E \vdash e \Rightarrow v,
 s'\) now describes one task&rsquo;s contribution to a <em>configuration</em>: a
 collection of tasks together with a shared store.</p>
 
 <p>The static typing of the concurrent forms is unremarkable, and was already
-admitted by the grammar of Chapter&nbsp;2. The interest here is all in the
+admitted by the grammar of Chapter&nbsp;<a href="syntax-core.html">2</a>. The interest here is all in the
 dynamics.</p>
 
-<h2><span class="secno">6.1</span>Tasks</h2>
+<h2 id="sec-6.1"><span class="secno">6.1</span>Tasks</h2>
 
 <p>The expression <code>spawn do</code> \(\mathit{block}\) <code>end</code>
 starts a new task that evaluates \(\mathit{block}\) concurrently with its
@@ -22,7 +22,7 @@ of class <code>Task</code>, or of <code>Task[T]</code> when the block assigns a
 result of type \(T\). The creator does not wait; the two proceed in parallel.</p>
 
 <div class="rule-block">
-\[ \frac{\ell \;\text{fresh} \quad t \;\text{a new task evaluating}\; \mathit{block}\;\text{in}\; E}{s, E \vdash \texttt{spawn}\;\texttt{do}\;\mathit{block}\;\texttt{end} \Rightarrow \ell,\; s + \{\ell \mapsto \mathsf{task}(t)\}} \tag{6.1} \]
+<a id="rule-6.1"></a>\[ \frac{\ell \;\text{fresh} \quad t \;\text{a new task evaluating}\; \mathit{block}\;\text{in}\; E}{s, E \vdash \texttt{spawn}\;\texttt{do}\;\mathit{block}\;\texttt{end} \Rightarrow \ell,\; s + \{\ell \mapsto \mathsf{task}(t)\}} \tag{6.1} \]
 </div>
 
 <p>A task captures the bindings of its <code>spawn</code>, so it may read the
@@ -32,7 +32,7 @@ to objects. The language provides channels precisely so that such sharing
 need not be the means of communication.</p>
 
 <p>A task handle supports the operations of the <code>Task</code> class
-(Appendix&nbsp;B). The chief one is <code>await</code>, which blocks the
+(Appendix&nbsp;<a href="appendix-basis.html">B</a>). The chief one is <code>await</code>, which blocks the
 caller until the task has finished and then yields its result.
 <code>await(ms)</code> waits at most <code>ms</code> milliseconds and yields
 <code>nil</code> on timeout.</p>
@@ -43,15 +43,15 @@ before completion. The class methods <code>await_any</code> and
 <code>await_all</code> wait on a collection of tasks.</p>
 
 <div class="rule-block">
-\[ \frac{s(\ell) = \mathsf{task}(t) \quad t \;\text{has completed with result}\; v\; \text{in}\; s}{s, E \vdash \ell.\texttt{await} \Rightarrow v,\, s} \tag{6.2} \]
+<a id="rule-6.2"></a>\[ \frac{s(\ell) = \mathsf{task}(t) \quad t \;\text{has completed with result}\; v\; \text{in}\; s}{s, E \vdash \ell.\texttt{await} \Rightarrow v,\, s} \tag{6.2} \]
 </div>
 
-<p>Rule (6.2) has a premise that a <em>scheduler</em> must eventually make true:
+<p>Rule (<a href="#rule-6.2">6.2</a>) has a premise that a <em>scheduler</em> must eventually make true:
 the awaiting task makes no progress until the awaited task completes. The
 Definition does not prescribe a scheduling policy. It only requires that a
 task which can make progress is not forever denied it.</p>
 
-<h2><span class="secno">6.2</span>Channels</h2>
+<h2 id="sec-6.2"><span class="secno">6.2</span>Channels</h2>
 
 <p>A <em>channel</em> is a typed conduit between tasks, an instance of
 <code>Channel[T]</code>. By default it is <em>unbuffered</em> (synchronous):
@@ -64,7 +64,7 @@ to \(n\) values may be held. A <code>send</code> blocks only when the buffer
 is full, and a <code>receive</code> only when it is empty.</p>
 
 <div class="rule-block">
-\[ \frac{\ell \;\text{fresh}}{s, E \vdash \texttt{create}\;\texttt{Channel}[T] \Rightarrow \ell,\; s + \{\ell \mapsto \mathsf{chan}(T, 0, \langle\,\rangle)\}} \tag{6.3} \]
+<a id="rule-6.3"></a>\[ \frac{\ell \;\text{fresh}}{s, E \vdash \texttt{create}\;\texttt{Channel}[T] \Rightarrow \ell,\; s + \{\ell \mapsto \mathsf{chan}(T, 0, \langle\,\rangle)\}} \tag{6.3} \]
 </div>
 
 <p>We write a channel object \(\mathsf{chan}(T, c, q)\) with element type \(T\),
@@ -72,7 +72,7 @@ capacity \(c\), and pending queue \(q\). The synchronous rendezvous is the
 simultaneous progress of a blocked sender and a blocked receiver:</p>
 
 <div class="rule-block">
-\[ \frac{s(\ell) = \mathsf{chan}(T, 0, \langle\,\rangle) \quad t_1\;\text{at}\;\ell.\texttt{send}(v) \quad t_2\;\text{at}\;\ell.\texttt{receive}}{t_1\;\text{proceeds};\quad t_2\;\text{yields}\;v;\quad s\;\text{unchanged}} \tag{6.4} \]
+<a id="rule-6.4"></a>\[ \frac{s(\ell) = \mathsf{chan}(T, 0, \langle\,\rangle) \quad t_1\;\text{at}\;\ell.\texttt{send}(v) \quad t_2\;\text{at}\;\ell.\texttt{receive}}{t_1\;\text{proceeds};\quad t_2\;\text{yields}\;v;\quad s\;\text{unchanged}} \tag{6.4} \]
 </div>
 
 <p>For a buffered channel, <code>send</code> appends to \(q\) when
@@ -93,7 +93,7 @@ already buffered may still be received; once they are exhausted,
 <p>The predicates <code>is_closed</code>, <code>size</code>, and
 <code>capacity</code> report a channel&rsquo;s state.</p>
 
-<h2><span class="secno">6.3</span>Selective Communication</h2>
+<h2 id="sec-6.3"><span class="secno">6.3</span>Selective Communication</h2>
 
 <p>The <code>select</code> statement waits on several communications at once and
 proceeds with whichever becomes ready first. Each clause names a channel
@@ -140,7 +140,7 @@ to the value obtained, and runs that clause&rsquo;s block.</p>
   clause is a non-blocking test of completion.
 </div>
 
-<h2><span class="secno">6.4</span>The Model and Its Realisations</h2>
+<h2 id="sec-6.4"><span class="secno">6.4</span>The Model and Its Realisations</h2>
 
 <p>The semantics above is given in the rendezvous style of CSP, and is the
 authoritative meaning of the concurrent forms. Each back end realises it on
@@ -150,13 +150,13 @@ differ.</p>
 <ul>
   <li>On the <strong>JVM</strong>, tasks are scheduled onto platform threads and
   channels are concurrent queues with the blocking discipline of
-  Section&nbsp;6.2; evaluation is genuinely parallel.</li>
+  Section&nbsp;<a href="#sec-6.2">6.2</a>; evaluation is genuinely parallel.</li>
   <li>On a backend like <strong>JavaScript</strong>, where the host is
   single-threaded, tasks may be lowered to asynchronous computations and
   channels to promise-mediated queues. The Nex <em>source</em> is unchanged:
   <code>spawn</code> becomes asynchronous task code, and <code>await</code>,
   <code>send</code>, and <code>receive</code> lower to <code>await</code> on
-  a promise. The blocking of Section&nbsp;6.2 becomes suspension of the
+  a promise. The blocking of Section&nbsp;<a href="#sec-6.2">6.2</a> becomes suspension of the
   awaiting computation, and apparent parallelism is interleaving.</li>
 </ul>
 

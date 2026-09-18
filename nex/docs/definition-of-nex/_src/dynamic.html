@@ -4,7 +4,7 @@ store, to the value it produces and the store it leaves behind. Where the static
 semantics abstracted away from values and kept only their types, here the types
 fall away and the values themselves take the stage.</p>
 
-<h2><span class="secno">5.1</span>Values and Objects</h2>
+<h2 id="sec-5.1"><span class="secno">5.1</span>Values and Objects</h2>
 
 <p>A <em>value</em> is what an expression evaluates to. The values of Nex are:</p>
 
@@ -32,26 +32,26 @@ the store.</p>
 <p>A field the class only inherits is never in this map. It lives in one of
 these nested objects, found by following the chain of parent references
 down to whichever one declares it (formalised as <em>home</em>,
-Section&nbsp;4.9).</p>
+Section&nbsp;<a href="static.html#sec-4.9">4.9</a>).</p>
 
 <p>Two of a class&rsquo;s parents can independently trace back to one
 further common ancestor, but they do not converge onto a single nested
 object for it. Composition follows the <code>inherit</code> graph outward
 from the object itself without ever rejoining, so each parent traces to its
-own separately allocated copy (Section&nbsp;4.9, <em>Repeated inheritance
+own separately allocated copy (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>, <em>Repeated inheritance
 and shared ancestors</em>). A write through one copy is never observed
 through the other.</p>
 
 <p>This is why the object is a <em>tree</em> of nested objects, one per
 composition level, rather than a single flat record: acyclic inheritance
-(Section&nbsp;4.9) guarantees the tree terminates, and the absence of
+(Section&nbsp;<a href="static.html#sec-4.9">4.9</a>) guarantees the tree terminates, and the absence of
 rejoining guarantees no level is shared.</p>
 
 <p>Scalars and <code>nil</code> are not objects and are not stored. Two
 scalar values are identical exactly when they are equal, which is why
-<code>==</code> and <code>=</code> coincide on them (Section&nbsp;5.4).</p>
+<code>==</code> and <code>=</code> coincide on them (Section&nbsp;<a href="#sec-5.4">5.4</a>).</p>
 
-<h2><span class="secno">5.2</span>The Dynamic Environment</h2>
+<h2 id="sec-5.2"><span class="secno">5.2</span>The Dynamic Environment</h2>
 
 <p>Evaluation takes place against a dynamic environment consisting of</p>
 
@@ -105,29 +105,29 @@ when the path involved is empty.</p>
 <p>Statements are evaluated by the analogous judgement \(s, E \vdash
 \mathit{stmt} \Rightarrow E', s'\), which may extend the bindings (with a new
 local) and alters the store. Evaluation may also <em>terminate
-exceptionally</em>; that mode is treated in Section&nbsp;5.7. Because Nex is
-deterministic and sequential apart from explicit tasks (Chapter&nbsp;6), the
+exceptionally</em>; that mode is treated in Section&nbsp;<a href="#sec-5.7">5.7</a>. Because Nex is
+deterministic and sequential apart from explicit tasks (Chapter&nbsp;<a href="concurrency.html">6</a>), the
 store is threaded strictly left to right through every rule.</p>
 
-<h2><span class="secno">5.3</span>Evaluation of Expressions</h2>
+<h2 id="sec-5.3"><span class="secno">5.3</span>Evaluation of Expressions</h2>
 
 <h4>Constants, variables, and the current object</h4>
 <p>A constant denotes its value and leaves the store untouched. <code>this</code>
-yields the current object (rule 5.1 in Appendix&nbsp;D). <code>super</code>
+yields the current object (rule <a href="appendix-rules.html#rule-5.1">5.1</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>). <code>super</code>
 and an explicit ancestor name do not, because each of an object&rsquo;s
-inherited parts is its own nested object (Section&nbsp;5.1).</p>
+inherited parts is its own nested object (Section&nbsp;<a href="#sec-5.1">5.1</a>).</p>
 
 <p>Standing alone, <code>super</code> yields the current object&rsquo;s own
 nested copy of its direct superclass &mdash; a genuinely different
 reference, one hop into \(\mathit{parents}\). A named ancestor \(P\) yields
-whichever nested copy \(\mathit{reach}\) (Section&nbsp;4.9) finds, possibly
-several hops in when \(P\) is not a direct parent (rules 5.3a, 5.3b in
-Appendix&nbsp;D).</p>
+whichever nested copy \(\mathit{reach}\) (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>) finds, possibly
+several hops in when \(P\) is not a direct parent (rules <a href="appendix-rules.html#rule-5.3a">5.3a</a>, <a href="appendix-rules.html#rule-5.3b">5.3b</a> in
+Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
 <p>This is what makes <code>super.f</code>/<code>super.m(&hellip;)</code>
 and <code>P.f</code>/<code>P.m(&hellip;)</code> need no rules of their own
 beyond this: once <code>super</code> or \(P\) has evaluated to that nested
-reference, the ordinary member-access and call rules of Section&nbsp;5.4
+reference, the ordinary member-access and call rules of Section&nbsp;<a href="#sec-5.4">5.4</a>
 apply to it exactly as they would to any other reference. They resolve
 against the direct superclass, or the named ancestor, simply because that
 is now the object standing on the left of <code>.</code> &mdash; not
@@ -135,7 +135,7 @@ because <code>.f</code> or <code>.m(&hellip;)</code> behave any
 differently.</p>
 
 <p>All these nested objects belong to the one enclosing <code>create</code>,
-allocated and released together (Section&nbsp;5.5), and never independently
+allocated and released together (Section&nbsp;<a href="#sec-5.5">5.5</a>), and never independently
 reachable from outside it. That is the sense in which there is still only
 one object, even though <code>this</code> and <code>super</code> are not,
 at the reference level, the same value.</p>
@@ -147,13 +147,13 @@ at the reference level, the same value.</p>
 </div>
 
 <p>The lookup walks the chain of enclosing scopes, so that a name resolves to its
-nearest binding (Section&nbsp;5.8 on shadowing).</p>
+nearest binding (Section&nbsp;<a href="#sec-5.8">5.8</a> on shadowing).</p>
 
 <h4>Operators</h4>
 <p>An arithmetic or comparison operator evaluates its operands left to right
 and then applies the operation of the operands&rsquo; class. An operator
 evaluates both operands, threading the store, and applies the operation
-their classes associate with \(\odot\) (rule 5.4 in Appendix&nbsp;D).</p>
+their classes associate with \(\odot\) (rule <a href="appendix-rules.html#rule-5.4">5.4</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
 <p>Equality comes in two kinds. <em>Value</em> equality \(=\) compares
 contents: two collections are equal when their elements are equal, and two
@@ -164,13 +164,13 @@ reference \(\ell\). On scalars the two kinds agree.</p>
 
 <p>When the association with \(\odot\) is one the programmer made &mdash; an
 arithmetic operator bound to a routine by an <code>alias</code> clause
-(Section&nbsp;3.4) &mdash; the operator <em>is</em> the call. Having
+(Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>) &mdash; the operator <em>is</em> the call. Having
 evaluated the operands, the operation proceeds exactly as the call
 \(v_1.m(v_2)\) would: the receiver&rsquo;s dynamic class selects the
 implementation, the routine&rsquo;s precondition is checked on entry and
 its postcondition on exit, and its rescue clause governs a failure within
 it. Nothing about an operator makes it a cheaper way into a routine than
-its own name. This is rule 5.4c of Appendix&nbsp;D.</p>
+its own name. This is rule <a href="appendix-rules.html#rule-5.4c">5.4c</a> of Appendix&nbsp;<a href="appendix-rules.html">D</a>.</p>
 
 <pre><code>let owed: Money := create Money.make(100, "USD")
 let paid: Money := create Money.make(30, "EUR")
@@ -183,30 +183,30 @@ print(a + b)</code></pre>
 <p>The operands have different numeric classes; the <code>Integer</code> is
 admitted where a <code>Real</code> is wanted, the sum is taken as a
 <code>Real</code>, and the value printed is <code>9.0</code>. This widening is the
-one implicit numeric coercion of the language (Section&nbsp;4.3).</p>
+one implicit numeric coercion of the language (Section&nbsp;<a href="static.html#sec-4.3">4.3</a>).</p>
 
 <p>On <code>Integer</code> operands the operation is <em>checked</em>. Write
-\(\odot_{\mathbb{Z}}\) for the exact operation in \(\mathbb{Z}\); rule&nbsp;(5.4)
+\(\odot_{\mathbb{Z}}\) for the exact operation in \(\mathbb{Z}\); rule&nbsp;(<a href="appendix-rules.html#rule-5.4">5.4</a>)
 applies precisely when its result lies in range. An arithmetic operation
 whose exact result overflows the 64-bit range raises
 <code>Arithmetic_Overflow</code>, and integer division or remainder by a
-zero divisor raises <code>Division_by_Zero</code> (rules 5.4a, 5.4b in
-Appendix&nbsp;D; &sect;B.3).</p>
+zero divisor raises <code>Division_by_Zero</code> (rules <a href="appendix-rules.html#rule-5.4a">5.4a</a>, <a href="appendix-rules.html#rule-5.4b">5.4b</a> in
+Appendix&nbsp;<a href="appendix-rules.html">D</a>; &sect;<a href="appendix-basis.html#sec-B.3">B.3</a>).</p>
 
 <p>On <code>Real</code> operands the operation is total: division by zero
 is <em>not</em> exceptional, but yields the IEEE&nbsp;754 value
 \(\pm\infty\) or <code>NaN</code> through \(\widehat\odot\) in
-rule&nbsp;(5.4), as &sect;B.3 records. This asymmetry &mdash; integer
+rule&nbsp;(<a href="appendix-rules.html#rule-5.4">5.4</a>), as &sect;<a href="appendix-basis.html#sec-B.3">B.3</a> records. This asymmetry &mdash; integer
 division by zero raises, real division by zero does not &mdash; is
 deliberate, and holds on every back end.</p>
 
 <h4>Short-circuit conjunction and disjunction</h4>
 <p>The operators <code>and</code> and <code>or</code> are <em>not</em> evaluated
-by (5.4): their second operand is evaluated only conditionally. This holds in
+by (<a href="appendix-rules.html#rule-5.4">5.4</a>): their second operand is evaluated only conditionally. This holds in
 every back end of Nex and is part of the language&rsquo;s definition, not an
 optimisation. When \(e_1\) is <code>false</code>, \(e_1\) <code>and</code> \(e_2\)
 is <code>false</code> and \(e_2\) is never evaluated; otherwise the result is
-\(e_2\) (rules 5.5, 5.6 in Appendix&nbsp;D).</p>
+\(e_2\) (rules <a href="appendix-rules.html#rule-5.5">5.5</a>, <a href="appendix-rules.html#rule-5.6">5.6</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
 <p>Disjunction is dual: in \(e_1\) <code>or</code> \(e_2\), the operand \(e_2\) is
 evaluated only when \(e_1\) is <code>false</code>. A consequence is that a guard
@@ -217,18 +217,18 @@ such as <code>x /= nil and x.f</code> never evaluates <code>x.f</code> when
 <p>An ordinary access \(e.f\) reads the field \(f\) belonging to the object at
 the reference \(e\) denotes: its own, if \(e\)&rsquo;s static type declares
 \(f\) directly, or otherwise the one held in whichever of its nested
-objects does (Section&nbsp;5.1), found by following \(f\)&rsquo;s
-<em>home</em> (Section&nbsp;4.9) one composition level at a time.</p>
+objects does (Section&nbsp;<a href="#sec-5.1">5.1</a>), found by following \(f\)&rsquo;s
+<em>home</em> (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>) one composition level at a time.</p>
 
 <p>The safe access \(e\,?.f\) yields <code>nil</code> when \(e\) is
 <code>nil</code>, and reads the field the same way otherwise (rules
-5.7&ndash;5.9 in Appendix&nbsp;D).</p>
+<a href="appendix-rules.html#rule-5.7">5.7</a>&ndash;<a href="appendix-rules.html#rule-5.9">5.9</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
 <p>An ordinary access \(e.f\) on a <code>nil</code> receiver has no rule: it
-raises an exception (Section&nbsp;5.7). The safe access \(e\,?.f\) instead yields
-<code>nil</code>, which is why its static type is optional (Section&nbsp;4.4).</p>
+raises an exception (Section&nbsp;<a href="#sec-5.7">5.7</a>). The safe access \(e\,?.f\) instead yields
+<code>nil</code>, which is why its static type is optional (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>).</p>
 
-<h2><span class="secno">5.4</span>Calls and Dynamic Dispatch</h2>
+<h2 id="sec-5.4"><span class="secno">5.4</span>Calls and Dynamic Dispatch</h2>
 
 <p>A method call evaluates the receiver and the arguments, selects the
 routine by the <em>runtime</em> class of the receiver and the number of
@@ -239,9 +239,9 @@ arguments, and evaluates its body in fresh bindings for the parameters and
 When \(m\) is inherited rather than declared or overridden by the
 receiver&rsquo;s own class, its body is text that belongs to whichever
 ancestor does declare it. A routine&rsquo;s own <code>this</code> always
-names the class its text belongs to (Section&nbsp;5.3), so the body runs
+names the class its text belongs to (Section&nbsp;<a href="#sec-5.3">5.3</a>), so the body runs
 against that ancestor&rsquo;s own nested object, found the same way a field
-would be (\(\mathit{home}\), Section&nbsp;4.9).</p>
+would be (\(\mathit{home}\), Section&nbsp;<a href="static.html#sec-4.9">4.9</a>).</p>
 
 <div class="rule-block">
 \[ \frac{\begin{array}{c} s, E \vdash e \Rightarrow \ell, s_0 \quad s_0(\ell) = o \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ \mathit{lookup}(\mathit{class}(o), m, n) = (x_1,\dots,x_n; \mathit{body}) \quad \ell' = \mathit{follow}(s_n, \ell, \mathit{home}(\mathit{class}(o), m)) \\ E' = E_0[\texttt{this} \mapsto \ell',\; x_i \mapsto v_i] \quad s_n, E' \vdash \mathit{body} \Rightarrow \mathit{ret},\, s' \end{array}}{s, E \vdash e.m(e_1,\dots,e_n) \Rightarrow \mathit{ret},\, s'} \tag{5.10} \]
@@ -270,7 +270,7 @@ let sh: Shape := create Square.make(3.0)
 print(sh.area())</code></pre>
 
 <p>Although <code>sh</code> has <em>static</em> type <code>Shape</code>, the object
-it denotes is a <code>Square</code>; \(\mathit{lookup}\) in (5.10) selects on
+it denotes is a <code>Square</code>; \(\mathit{lookup}\) in (<a href="appendix-rules.html#rule-5.10">5.10</a>) selects on
 \(\mathit{class}(o)\), so <code>Square</code>&rsquo;s <code>area</code> runs and the
 result is <code>9.0</code>, not <code>0.0</code>. This is dynamic dispatch.</p>
 
@@ -281,7 +281,7 @@ object, not by the static type of \(e\): this is dynamic dispatch, and is
 how an overriding routine in a subclass takes effect.</p>
 
 <p>The selection also depends on \(n\), realising overloading by arity
-(Section&nbsp;4.4).</p>
+(Section&nbsp;<a href="static.html#sec-4.4">4.4</a>).</p>
 
 <p>And \(E_0\) is the bindings of the routine&rsquo;s <em>definition</em>
 extended with the parameter bindings &mdash; not the caller&rsquo;s
@@ -297,9 +297,9 @@ its captured bindings in place of \(E_0\).</p>
 <div class="note">
   <span class="note-label">Arguments are guaranteed by the static rule</span>
   Because conformance for function types is contravariant in its parameters
-  (Section&nbsp;4.3), and overriding routines may only widen a parameter, a value
+  (Section&nbsp;<a href="static.html#sec-4.3">4.3</a>), and overriding routines may only widen a parameter, a value
   reaching the selected routine through a conforming type is always of an
-  acceptable class. Rule (5.10) therefore needs no residual argument check at the call:
+  acceptable class. Rule (<a href="appendix-rules.html#rule-5.10">5.10</a>) therefore needs no residual argument check at the call:
   Nex enforces contravariant parameters statically, rather than relying on the Eiffel-style
   covariant rule and a runtime test.
 </div>
@@ -321,16 +321,16 @@ way, a bare field read inside \(m\)&rsquo;s own body resolves against
 
 <p><code>super.m(e_1,\dots,e_n)</code> is the same rule with \(P\) supplied
 implicitly rather than written: if the call occurs within the body of a
-routine declared in class \(A\), where &mdash; as rule 4.7a requires &mdash;
+routine declared in class \(A\), where &mdash; as rule <a href="appendix-rules.html#rule-4.7a">4.7a</a> requires &mdash;
 \(A\) inherits exactly one class, \(P\) is that class.</p>
 
 <p>Either way, the routine is selected from \(P\), not from the class of
-the current object: the opposite of (5.10)&rsquo;s dynamic dispatch.
+the current object: the opposite of (<a href="appendix-rules.html#rule-5.10">5.10</a>)&rsquo;s dynamic dispatch.
 \(\ell'\) is exactly what evaluating <code>super</code> or \(P\) alone
-would give (rules 5.3a, 5.3b). This rule could equally be read as
-evaluating the target first and then dispatching by (5.10) &mdash; it is
-just stated directly, the same way (4.16&prime;) restates a special case of
-(4.16) rather than deriving it.</p>
+would give (rules <a href="appendix-rules.html#rule-5.3a">5.3a</a>, <a href="appendix-rules.html#rule-5.3b">5.3b</a>). This rule could equally be read as
+evaluating the target first and then dispatching by (<a href="appendix-rules.html#rule-5.10">5.10</a>) &mdash; it is
+just stated directly, the same way (<a href="appendix-rules.html#rule-4.16'">4.16&prime;</a>) restates a special case of
+(<a href="appendix-rules.html#rule-4.16">4.16</a>) rather than deriving it.</p>
 
 <pre><code>class Shape
   create make(c: String) do colour := c end
@@ -353,63 +353,63 @@ end
 let sq := create Square.make("blue", 3.0)
 print(sq.describe())</code></pre>
 
-<p><code>Square.make</code> delegates to <code>Shape.make</code> (rule 5.11a, next
+<p><code>Square.make</code> delegates to <code>Shape.make</code> (rule <a href="appendix-rules.html#rule-5.11a">5.11a</a>, next
 section) to initialise <code>colour</code> before setting <code>side</code>
 itself; then <code>describe</code> calls <code>super.describe</code>, which by
-(5.10a) selects <code>Shape</code>&rsquo;s <code>describe</code>&mdash;not
+(<a href="appendix-rules.html#rule-5.10a">5.10a</a>) selects <code>Shape</code>&rsquo;s <code>describe</code>&mdash;not
 <code>Square</code>&rsquo;s own, which would simply call itself again&mdash;and
 appends to its result. The call prints <code>"blue, side 3.0"</code>.</p>
 
 <p>\(P\) is fixed once and for all by the class whose text contains the
-<code>super</code> occurrence, not by \(\mathit{class}(o)\) as in (5.10).
+<code>super</code> occurrence, not by \(\mathit{class}(o)\) as in (<a href="appendix-rules.html#rule-5.10">5.10</a>).
 This is what keeps it correct under inheritance: if a further subclass
 <code>Cube</code> inherited <code>Square</code> without overriding
 <code>describe</code>, calling <code>cube.describe()</code> would still run
-<code>Square</code>&rsquo;s version by ordinary dynamic dispatch (5.10) —
+<code>Square</code>&rsquo;s version by ordinary dynamic dispatch (<a href="appendix-rules.html#rule-5.10">5.10</a>) —
 and that version&rsquo;s own <code>super.describe</code> would still
 resolve to <code>Shape</code>, the ancestor its author meant, regardless of
 how far below <code>Square</code> the actual object sits.</p>
 
 <p>A class inheriting more than one parent, or none, makes <code>super</code>
-ill-formed by (4.7a) before evaluation is ever reached. The intended
+ill-formed by (<a href="appendix-rules.html#rule-4.7a">4.7a</a>) before evaluation is ever reached. The intended
 ancestor must then be named explicitly, as <code>Flyable.fly()</code> does
-by the same rule (5.10a), with \(P\) written rather than resolved.</p>
+by the same rule (<a href="appendix-rules.html#rule-5.10a">5.10a</a>), with \(P\) written rather than resolved.</p>
 
-<p>When \(P\) is an imported host interface or class (Section&nbsp;3.6)
+<p>When \(P\) is an imported host interface or class (Section&nbsp;<a href="syntax-modules.html#sec-3.6">3.6</a>)
 rather than a Nex class — a class extending it, per the conditions of
-Section&nbsp;4.9, may call it this way — (5.10a) again applies, with
+Section&nbsp;<a href="static.html#sec-4.9">4.9</a>, may call it this way — (<a href="appendix-rules.html#rule-5.10a">5.10a</a>) again applies, with
 \(\mathit{lookup}(P, m, n)\) selecting the host&rsquo;s own implementation
 of \(m\) rather than a Nex routine.</p>
 
 <p>The point of this, as with the ordinary case above, is that the
 selected routine is fixed by \(P\), not by \(\mathit{class}(o)\). If the
 current class overrides \(m\) itself — so that its own routine occupies
-the same name that dynamic dispatch (5.10) would otherwise select on \(o\)
+the same name that dynamic dispatch (<a href="appendix-rules.html#rule-5.10">5.10</a>) would otherwise select on \(o\)
 — a call through <code>super</code> still reaches the host&rsquo;s
 implementation, never recursing back into the override.</p>
 
 <p>A call to a member the current class does <em>not</em> itself define
 needs no such distinction, and may be written on an ordinary receiver,
-<code>o.m(&hellip;)</code>, resolving under (5.10) to the host&rsquo;s
+<code>o.m(&hellip;)</code>, resolving under (<a href="appendix-rules.html#rule-5.10">5.10</a>) to the host&rsquo;s
 implementation because no Nex override exists to compete with it.</p>
 
-<h2><span class="secno">5.5</span>Object Creation and Constructors</h2>
+<h2 id="sec-5.5"><span class="secno">5.5</span>Object Creation and Constructors</h2>
 
 <p>Creation allocates a fresh object, gives each field its initial value, runs
 the named constructor, checks the precondition of the constructor and the
 class invariant, and yields the new reference.</p>
 
 <p>Giving each field its initial value means building the whole nested
-shape at once (Section&nbsp;5.1), not just \(A\)&rsquo;s own fields: one
+shape at once (Section&nbsp;<a href="#sec-5.1">5.1</a>), not just \(A\)&rsquo;s own fields: one
 further object, of its own shape, per parent named in \(A\)&rsquo;s
 <code>inherit</code> clause, recursing the same way into <em>their</em>
-parents, all the way down (\(\mathit{initial}\), in Appendix&nbsp;D, spells
+parents, all the way down (\(\mathit{initial}\), in Appendix&nbsp;<a href="appendix-rules.html">D</a>, spells
 this out).</p>
 
 <p>Within each of these objects the initial value of a field is
 <code>nil</code> for an optional field, and the zero value for a field of
 scalar type. A non-optional <em>reference</em> field has no such default:
-by the attachment rule of Section&nbsp;4.9, some constructor along the way
+by the attachment rule of Section&nbsp;<a href="static.html#sec-4.9">4.9</a>, some constructor along the way
 must itself assign it, so that the object is fully attached when creation
 completes.</p>
 
@@ -431,12 +431,12 @@ print(acct.balance)</code></pre>
 <p>Creation allocates a fresh object, runs <code>make</code> to set
 <code>balance</code>, then checks the invariant <code>non_negative</code> at the
 new reference before yielding it; the value printed is <code>100.0</code>. Had the
-constructor left <code>balance</code> negative, (5.11) would raise a
+constructor left <code>balance</code> negative, (<a href="appendix-rules.html#rule-5.11">5.11</a>) would raise a
 contract-violation at creation rather than return an inconsistent object.</p>
 
 <p>A constructor may assign the <code>once</code> fields of its class; once the
 constructor returns, those fields are fixed for the life of the object
-(Section&nbsp;4.5 enforces this statically, and the store offers no rule to
+(Section&nbsp;<a href="static.html#sec-4.5">4.5</a> enforces this statically, and the store offers no rule to
 reassign them). When the <code>create</code> form names no constructor, an object
 with default field values is produced and only the invariant is checked.</p>
 
@@ -446,13 +446,13 @@ construction, rather than allocating a new one &mdash; most often the
 superclass&rsquo;s, to initialise the fields it declares before the
 subclass&rsquo;s own constructor sets the rest.</p>
 
-<p>As with (5.10a), the target class \(P\) may be named outright, or
+<p>As with (<a href="appendix-rules.html#rule-5.10a">5.10a</a>), the target class \(P\) may be named outright, or
 supplied implicitly by <code>super.k(e_1,\dots,e_n)</code>, resolved from
-the enclosing class exactly as rule 4.7a requires. The static rule is
-(4.13a) in Section&nbsp;4.4, which additionally requires \(P\) to declare
-\(k\) itself, unlike (5.11)&rsquo;s own \(\mathit{constructors}(A)\).</p>
+the enclosing class exactly as rule <a href="appendix-rules.html#rule-4.7a">4.7a</a> requires. The static rule is
+(<a href="appendix-rules.html#rule-4.13a">4.13a</a>) in Section&nbsp;<a href="static.html#sec-4.4">4.4</a>, which additionally requires \(P\) to declare
+\(k\) itself, unlike (<a href="appendix-rules.html#rule-5.11">5.11</a>)&rsquo;s own \(\mathit{constructors}(A)\).</p>
 
-<p>\(P\)&rsquo;s own object already exists &mdash; (5.11) allocated it,
+<p>\(P\)&rsquo;s own object already exists &mdash; (<a href="appendix-rules.html#rule-5.11">5.11</a>) allocated it,
 nested, when the outermost <code>create</code> began &mdash; so delegation
 just runs \(k\) with <code>this</code> switched to it:</p>
 
@@ -460,19 +460,19 @@ just runs \(k\) with <code>this</code> switched to it:</p>
 \[ \frac{\begin{array}{c} E(\texttt{this}) = \ell \quad \ell' = s(\ell).\mathit{parents}(P) \quad s_{i-1}, E \vdash e_i \Rightarrow v_i, s_i \;\;(1 \le i \le n) \\ k = (x_1,\dots,x_n; \mathit{pre}; \mathit{body}; \mathit{post}) \in \mathit{ownConstructors}(P) \\ \mathit{check}(\mathit{pre}) \quad s_n, E[\texttt{this} \mapsto \ell', x_i \mapsto v_i] \vdash \mathit{body} \Rightarrow s' \quad \mathit{check}(\mathit{post}) \end{array}}{s, E \vdash P.k(e_1,\dots,e_n) \Rightarrow s'} \tag{5.11a} \]
 </div>
 
-<p>Unlike (5.11), this rule allocates nothing: \(\ell'\), \(P\)&rsquo;s own
-nested object, was already built by (5.11) when the outermost
+<p>Unlike (<a href="appendix-rules.html#rule-5.11">5.11</a>), this rule allocates nothing: \(\ell'\), \(P\)&rsquo;s own
+nested object, was already built by (<a href="appendix-rules.html#rule-5.11">5.11</a>) when the outermost
 <code>create</code> began, one hop from \(\ell\) into \(\mathit{parents}\).
 It also checks no class invariant.</p>
 
 <p>Running \(k\) with <code>this</code> switched to \(\ell'\) is why a bare
 field \(k\) assigns is attached on \(P\)&rsquo;s own object, not the
-subclass&rsquo;s outer one: the field lives there (Section&nbsp;5.1), and
+subclass&rsquo;s outer one: the field lives there (Section&nbsp;<a href="#sec-5.1">5.1</a>), and
 by the time \(k\)&rsquo;s own text runs, <code>this</code> names exactly
-the class that text belongs to, as it always does (Section&nbsp;5.3).</p>
+the class that text belongs to, as it always does (Section&nbsp;<a href="#sec-5.3">5.3</a>).</p>
 
 <p>The invariant checked is the outermost <code>create</code>&rsquo;s own,
-by rule (5.11), once, when that constructor returns. By then every
+by rule (<a href="appendix-rules.html#rule-5.11">5.11</a>), once, when that constructor returns. By then every
 delegated constructor reached along the way, super-qualified or named
 outright, has already run, each against the specific nested object it was
 meant to attach. In the <code>Square</code> example above, this is exactly
@@ -481,27 +481,27 @@ set: no invariant is checked until <code>Square.make</code> itself returns,
 with both fields in place.</p>
 
 <p>When a class extends a concrete host class rather than a Nex one
-(Section&nbsp;4.9), delegation reaches the host&rsquo;s own constructor
+(Section&nbsp;<a href="static.html#sec-4.9">4.9</a>), delegation reaches the host&rsquo;s own constructor
 instead of a named Nex one, and \(k\) is written <code>new</code> &mdash; a
 name reserved for exactly this purpose when \(P\) is such a host class, and
 an ordinary identifier everywhere else.</p>
 
-<p>Two differences from (5.11a) follow from \(P\) naming a host
+<p>Two differences from (<a href="appendix-rules.html#rule-5.11a">5.11a</a>) follow from \(P\) naming a host
 constructor rather than a Nex one. First, the call must be the delegating
 constructor&rsquo;s first statement: the host platform&rsquo;s own object
 model requires the superclass&rsquo;s construction to complete before
-anything else touches the object under construction, a requirement (5.11a)
+anything else touches the object under construction, a requirement (<a href="appendix-rules.html#rule-5.11a">5.11a</a>)
 does not impose on delegation among Nex constructors, whose fields all
 begin at their default values regardless of ordering. Second, \(k\) is
 selected from the host constructors by argument count alone, since a host
-constructor&rsquo;s parameters are not elaborated as Nex types (4.9).</p>
+constructor&rsquo;s parameters are not elaborated as Nex types (<a href="appendix-rules.html#rule-4.9">4.9</a>).</p>
 
 <p>When the delegating constructor contains no such call, one is supplied
 implicitly, with \(n = 0\) &mdash; which requires the host class to provide
-a constructor taking no arguments, precisely as (4.9)&rsquo;s host
+a constructor taking no arguments, precisely as (<a href="appendix-rules.html#rule-4.9">4.9</a>)&rsquo;s host
 superclass construction condition states.</p>
 
-<h2><span class="secno">5.6</span>Contract Checking</h2>
+<h2 id="sec-5.6"><span class="secno">5.6</span>Contract Checking</h2>
 
 <p>Contracts are checked as the program runs, and their violation is an
 exceptional event distinct from an ordinary error. The auxiliary
@@ -573,7 +573,7 @@ failure but the clause it came from.</p>
   <code>old</code> takes an expression, not only a bare field name: <code>old</code> \(e\)
   is admitted whenever \(e\) is built over the fields of the current object, so
   <code>old xs.length</code> is as legitimate as <code>old count</code>. On entry,
-  each field such an \(e\) reads is snapshotted (5.6), and <code>old</code> \(e\)
+  each field such an \(e\) reads is snapshotted (<a href="appendix-rules.html#rule-5.6">5.6</a>), and <code>old</code> \(e\)
   is \(e\) evaluated against those snapshots rather than the current store. For a
   field of scalar or reference type the snapshot is the <em>value</em> held on
   entry &mdash; for a reference, the object it then denoted. A mutable collection
@@ -587,7 +587,7 @@ failure but the clause it came from.</p>
 
 <p>The predicate of a refinement type is checked by the same
 \(\mathit{check}\) mechanism. Wherever the static semantics marked a
-narrowing site (Section&nbsp;4.3) &mdash; a base value flowing into a
+narrowing site (Section&nbsp;<a href="static.html#sec-4.3">4.3</a>) &mdash; a base value flowing into a
 binding, parameter, field, or return typed \(R\), or a
 <code>convert&nbsp;&hellip;&nbsp;to</code>&nbsp;\(R\) &mdash; the value
 under test is bound to the predicate&rsquo;s binder and the predicate is
@@ -605,7 +605,7 @@ contract, these checks are elided under <code>skip-contracts</code>, after
 which a refinement value is indistinguishable from an ordinary value of its
 base type.</p>
 
-<h2><span class="secno">5.7</span>Exceptions: <code>raise</code>, <code>rescue</code>, <code>retry</code></h2>
+<h2 id="sec-5.7"><span class="secno">5.7</span>Exceptions: <code>raise</code>, <code>rescue</code>, <code>retry</code></h2>
 
 <p>Evaluation of a phrase either completes normally, yielding a value and a
 store, or terminates <em>exceptionally</em>, carrying an exception value and a
@@ -617,11 +617,11 @@ the exceptional outcome \(s, E \vdash e \Rightarrow \mathbf{raise}\;w,\, s'\).</
 raises it. A <code>nil</code> dereference, a failed contract, a failed runtime
 argument check, and a failed <code>convert</code> in a context requiring success
 all raise built-in exception values by the same mechanism (the <code>raise</code>
-statement is rule 5.12 in Appendix&nbsp;D).</p>
+statement is rule <a href="appendix-rules.html#rule-5.12">5.12</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
 <p>A scoped block <code>do</code> \(\mathit{block}_1\) <code>rescue</code>
 \(\mathit{block}_2\) <code>end</code> runs \(\mathit{block}_1\); if it completes
-normally, the <code>rescue</code> is ignored (rule 5.13 in Appendix&nbsp;D); if it
+normally, the <code>rescue</code> is ignored (rule <a href="appendix-rules.html#rule-5.13">5.13</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>); if it
 raises \(w\), the handler \(\mathit{block}_2\) is run with <code>exception</code>
 bound to \(w\):</p>
 
@@ -652,22 +652,22 @@ end
 let w := create Worker.make()
 w.run()</code></pre>
 
-<p>The first two attempts raise; each time (5.14) runs the handler, which
+<p>The first two attempts raise; each time (<a href="appendix-rules.html#rule-5.14">5.14</a>) runs the handler, which
 <code>retry</code>s &mdash; abandoning the handler and re-running the block from the
-top against the current store (rule 5.15 in Appendix&nbsp;D). On the third attempt
+top against the current store (rule <a href="appendix-rules.html#rule-5.15">5.15</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>). On the third attempt
 no exception is raised and <code>3</code> is printed. <code>retry</code> has meaning
-only inside a <code>rescue</code> block (Section&nbsp;2.9); elsewhere it is a static
+only inside a <code>rescue</code> block (Section&nbsp;<a href="syntax-core.html#sec-2.9">2.9</a>); elsewhere it is a static
 error.</p>
 
 <p>If a handler completes without <code>retry</code>, the scoped block completes
 normally and execution continues after it; an exception raised by the handler
 itself propagates outward in the ordinary way.</p>
 
-<h2><span class="secno">5.8</span>Statements and Control Flow</h2>
+<h2 id="sec-5.8"><span class="secno">5.8</span>Statements and Control Flow</h2>
 
 <h4>Local declaration, assignment, and scope</h4>
 <p>A <code>let</code> adds a fresh binding and a field update writes through a
-reference into the store (rules 5.16, 5.18 in Appendix&nbsp;D); assignment rebinds
+reference into the store (rules <a href="appendix-rules.html#rule-5.16">5.16</a>, <a href="appendix-rules.html#rule-5.18">5.18</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>); assignment rebinds
 an existing variable to a new value:</p>
 
 <div class="rule-block">
@@ -686,7 +686,7 @@ inside a block do not escape it.</p>
 corresponding branch; the conditional expression <code>when</code>&hellip; is its
 value-producing analogue. The general loop runs its <code>from</code> block once,
 then repeatedly tests the <code>until</code> condition, running the body while the
-condition is false (rules 5.19, 5.20 in Appendix&nbsp;D).</p>
+condition is false (rules <a href="appendix-rules.html#rule-5.19">5.19</a>, <a href="appendix-rules.html#rule-5.20">5.20</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
 <pre><code>let sum: Integer := 0
 from let i := 1 until i > 5 do
@@ -697,7 +697,7 @@ print(sum)</code></pre>
 
 <p>The <code>from</code> block runs once, binding <code>i</code>; then while
 <code>i &gt; 5</code> is false the body runs, each iteration rebinding
-<code>sum</code> and <code>i</code> in the threaded store (5.17). After
+<code>sum</code> and <code>i</code> in the threaded store (<a href="appendix-rules.html#rule-5.17">5.17</a>). After
 <code>i</code> reaches <code>6</code> the loop stops and <code>15</code> is
 printed.</p>
 
@@ -710,10 +710,10 @@ exception.</p>
 
 <p>The counted loop <code>repeat</code> \(n\) <code>do</code> \(b\) and the
 cursor loop <code>across</code> \(e\) <code>as</code> \(x\) <code>do</code>
-\(b\) are derived forms, expanded in Appendix&nbsp;C: the former into a
+\(b\) are derived forms, expanded in Appendix&nbsp;<a href="appendix-derived.html">C</a>: the former into a
 general loop over a counter, the latter into iteration driven by the
 <code>start</code>/<code>item</code>/<code>next</code>/<code>at_end</code>
-protocol of the <code>Cursor</code> class (Appendix&nbsp;B).</p>
+protocol of the <code>Cursor</code> class (Appendix&nbsp;<a href="appendix-basis.html">B</a>).</p>
 
 <h4>Dispatch statements</h4>
 <p>The <code>case</code> statement compares the value of its scrutinee
@@ -723,7 +723,7 @@ first matching clause, or the <code>else</code> clause if none matches.</p>
 <p>The <code>match</code> statement inspects the runtime class of its
 scrutinee and runs the clause whose class the object conforms to, binding
 the clause variable to the object; its exhaustiveness over a sealed class
-was guaranteed statically (4.19).</p>
+was guaranteed statically (<a href="appendix-rules.html#rule-4.19">4.19</a>).</p>
 
 <p>The <code>convert</code> form attempts a cast and binds its variable to
 the converted value or to <code>nil</code>, yielding the boolean that the
@@ -746,15 +746,15 @@ their host is present.</p>
 <p>The JVM implementation recognises the facility <code>"java"</code>:
 within the block, imported Java classes may be instantiated and their
 methods called by the ordinary call syntax, while a call whose receiver is
-a Nex value dispatches by the rules of Section&nbsp;5.4 as it would
+a Nex value dispatches by the rules of Section&nbsp;<a href="#sec-5.4">5.4</a> as it would
 outside. Unlike the scoped block <code>do</code>&hellip;<code>end</code>,
 the host block does not open a scope: a <code>let</code> within it binds
 in the enclosing scope and remains visible after the block.</p>
 
 <p>A class&rsquo;s <code>inherit</code> clause is a declaration, elaborated
-with the rest of the static world (Section&nbsp;3.1) rather than evaluated
+with the rest of the static world (Section&nbsp;<a href="syntax-modules.html#sec-3.1">3.1</a>) rather than evaluated
 as a statement. So a class implementing a host interface or extending a
-host class (Sections&nbsp;4.9, 5.4, 5.5) is not itself written inside a
+host class (Sections&nbsp;<a href="static.html#sec-4.9">4.9</a>, <a href="#sec-5.4">5.4</a>, <a href="#sec-5.5">5.5</a>) is not itself written inside a
 host block; only the ordinary construction and manipulation of a bare host
 object needs one.</p>
 
@@ -766,7 +766,7 @@ support one without the other &mdash; the JVM implementation&rsquo;s
 tree-walking interpreter, for instance, supports the former but not the
 latter, reporting a static error rather than approximating it.</p>
 
-<h2><span class="secno">5.9</span>Termination</h2>
+<h2 id="sec-5.9"><span class="secno">5.9</span>Termination</h2>
 
 <p>A normal evaluation of a phrase yields a value and a store; an exceptional one
 yields a raised value and a store; a non-terminating one&mdash;a loop that never
@@ -774,4 +774,4 @@ satisfies its <code>until</code>, an unbounded recursion&mdash;yields nothing,
 and the judgement simply has no derivation. The Definition makes no claim that
 evaluation terminates; it says only what the result is when it does. The
 remaining construct of the statement grammar, <code>spawn</code>, begins a
-concurrent evaluation and is the subject of Chapter&nbsp;6.</p>
+concurrent evaluation and is the subject of Chapter&nbsp;<a href="concurrency.html">6</a>.</p>
