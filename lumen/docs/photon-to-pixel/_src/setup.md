@@ -10,7 +10,7 @@ This book is for the reader in between: someone who can code but isn't a compute
 
 Every algorithm in this book is implemented in plain, explicit code with no hidden operations. If something happens to a pixel, you can watch it happen, line by line. No library call stands in for a concept; no vectorized one-liner asks you to take the arithmetic on faith. To achieve that goal, we have to make the following two commitments:
 
-The first is that the book runs on a **simulated camera**. Chapter 1 builds a small synthetic forward model — scenes described as reflectance spectra, a fictional lens with known flaws, a sensor with known noise — and every worked example in the book photographs *that*. The payoff is something real photography can never give you: ground truth. When we demosaic, we can measure the error against the true full-color scene, because we rendered it. When we white-balance, we know the true illuminant, because we chose it. Every reader gets identical inputs and identical results, whatever camera they own or don't.
+The first is that we will run a **simulated camera**. Chapter 1 builds a small synthetic forward model — scenes described as reflectance spectra, a fictional lens with known flaws, a sensor with known noise — and every worked example in the book photographs *that*. The payoff is something real photography can never give you: ground truth. When we demosaic, we can measure the error against the true full-color scene, because we rendered it. When we white-balance, we know the true illuminant, because we chose it. Every reader gets identical inputs and identical results, whatever camera they own or don't.
 
 The second commitment is a rule about code, and is explained in the next section.
 
@@ -20,7 +20,7 @@ Everything in this book is written in ordinary Python. Not because Python is fas
 
 The main explanatory code uses **no libraries at all** beyond the standard library. There is no NumPy in the teaching tier of this book. That is a deliberate, slightly extreme choice, and it exists because array programming — for all its power — lets an author hide a concept inside a broadcast. `image * gain` is a fine line of production code and a terrible explanation; it works equally well whether or not you understand what it does. A `for` loop over rows and columns cannot pull that trick.
 
-What the code operates on is one small type, and here it is in full — the entire data model of the book:
+What the code operates on is one small type, and here it is in full — our entire data model:
 
 {{include pxp/image.py::Image}}
 
@@ -30,22 +30,22 @@ Which brings us to output. To look at our images we write PNG files, and — in 
 
 {{include pxp/image.py::write_png}}
 
-That function is the only place in the entire book where channel values are forced into range, and the only place they are quantized to 8 bits. (It is also a quiet preview of Chapter 9, where its bigger sibling — a from-scratch JPEG encoder — becomes the book's final act.) With these two pieces, the toolkit can produce its first image:
+That function is the only place in the entire book where channel values are forced into range, and the only place they are quantized to 8 bits. (It is also a quiet preview of Chapter 9, where its bigger sibling — a from-scratch JPEG encoder — becomes our final act.) With these two pieces, the toolkit can produce its first image:
 
 {{figure first-light | First light: a linear grayscale ramp over the eight corners of the RGB cube — drawn pixel by pixel with the `Image` class and written by our own `write_png`. This unglamorous test card, grown into full spectral color charts and detail targets, is the seed of the simulated camera in Chapter 1.}}
 
-If the ramp looks like it brightens unevenly — too dark for too long, then rushing to white — you have just observed, with your own eyes, the difference between linear light and your display's expectations. That observation is Chapter 7's opening point, and we made it with sixty lines of standard-library Python.
+If the ramp looks like it brightens unevenly — too dark for too long, then rushing to white — you have just observed the difference between linear light and your display's expectations. We will get back to the details of this observation in a later Chapter.
 
-One caveat: `matplotlib` is genuinely useful for *interactive* work — poking at pixel values, comparing crops side by side — and the text will occasionally mention it as an optional convenience. But nothing in the book depends on it. Every figure printed in these pages is a PNG produced by the book's own code, regenerated from scratch on every build. If a figure and its listing ever disagreed, the book would fail to build.
+One caveat: `matplotlib` is genuinely useful for *interactive* work — poking at pixel values, comparing crops side by side — and the text will occasionally mention it as an optional convenience. But nothing in the book depends on it. Every figure printed in these pages is a PNG produced by our own code, regenerated from scratch on every build. If a figure and its listing ever disagreed, the book would fail to build.
 
 ## 0.3 The two-tier contract
 
-Now for the tension. A 24-megapixel photograph has roughly seventy-two million channel values. Plain Python, sweeping that with nested loops, runs the simplest operations in seconds — and the serious algorithms of Chapters 4 and 8 in *days*. A book that only ever processed 256-pixel-wide crops would keep its promise of clarity and quietly abandon its other promise: that you finish with a pipeline you can run on your own raw files.
+Everything looks smooth at this point, but we have a real problem. A 24-megapixel photograph has roughly seventy-two million channel values. Plain Python, sweeping that with nested loops, runs the simplest operations in seconds — and the serious algorithms of Chapters 4 and 8 in *days*. Code that only ever process 256-pixel-wide crops would be clear and easy to understand but will fail to finish with a pipeline run on your actual raw files.
 
 So every pipeline stage in this book exists in two forms:
 
 1. **The reference implementation** — plain loops, explicit arithmetic, the form the chapter explains. It lives in the `pxp` package and runs on small crops, which is exactly the scale where you can also print pixel values and check the math by hand.
-2. **The pipeline implementation** — the same arithmetic restated for the machine, using NumPy (and, where it earns its keep, numba). It lives in `pxp.fast` and is what the full-resolution pipeline actually runs.
+2. **The pipeline implementation** — the same arithmetic restated for the machine, using NumPy (and, where appropriate, numba). It lives in `pxp.fast` and is what the full-resolution pipeline actually runs.
 
 Both tiers, the tests, and every figure script live under [`code/` in the book's source tree](https://github.com/vijaymathew/vijaymathew.github.io/tree/master/lumen/docs/photon-to-pixel/code), and Appendix A maps the package name by name.
 
@@ -57,7 +57,7 @@ And its pipeline twin:
 
 {{include pxp/fast/tone.py::exposure}}
 
-Three nested loops became one multiplication sign, and *nothing else changed* — not the numbers, not the order of operations on each value, nothing. But you do not have to trust that sentence, and this is the point of the section:
+Three nested loops became one multiplication sign, and *nothing else changed* — not the numbers, not the order of operations on each value, nothing.
 
 !!! note "The contract"
     For every stage, a test constructs an image, runs both tiers, and asserts the outputs are **identical** — not approximately equal, identical. The tests ship with the book's code and run on every build of the book. When a chapter says "the same eleven lines of arithmetic, sped up," that assertion has been checked mechanically, not editorially.
@@ -66,11 +66,11 @@ The test for exposure, in full:
 
 {{include tests/test_two_tier.py::TestTwoTierExposure}}
 
-And here is the reference implementation earning its first figure — the test scene from {{fig first-light}} pushed a stop down and a stop up:
+And here is the reference implementation producing its first figure — the test scene from {{fig first-light}} pushed a stop down and a stop up:
 
 {{figure exposure-stops | One stop down, as shot, one stop up: every channel value halved or doubled, nothing more. At +1, the upper ramp's brighter half has sailed past 1.0 and been clipped to white by `write_png` — our first clipped highlight, and a first look at why Chapter 7 spends a whole section on recovering them.}}
 
-Look closely at the −1 panel: the white patch has become the same middle gray as the clipped region's neighbors, and the saturated primaries have dimmed without changing hue. Exposure in linear light preserves color; it only scales energy. That one figure quietly carries three later chapters — and it cost us a multiplication.
+Look closely at the −1 panel: the white patch has become the same middle gray as the clipped region's neighbors, and the saturated primaries have dimmed without changing hue. Exposure in linear light preserves color; it only scales energy. That one figure quietly explains three later chapters — and it cost us a multiplication.
 
 ## 0.4 The simulated camera, previewed
 
@@ -78,8 +78,8 @@ The test card above was built by hand, patch by patch. Chapter 1 replaces it wit
 
 Its scenes are not grids of RGB values but **reflectance spectra** under a chosen illuminant — daylight, tungsten, or one deliberately awkward spiky fluorescent kept around to cause trouble in Chapter 5. Its lens is fictional but flawed in precisely known ways: a little distortion, a little vignetting, a touch of chromatic aberration, each set by coefficients we choose. Its sensor has per-channel spectral sensitivities, photon shot noise, read noise, a black level, and — crucially — a Bayer color filter array (the CFA of everything that follows), so that like every real camera it records only one color value per pixel and leaves the rest for us to reconstruct.
 
-None of it is pretty, and none of it is meant to be. The simulator is a measurement instrument, not a renderer: flat patches, ramps, and analytic targets, built so that at every stage of the pipeline there is a *right answer* to compare against. When the book asserts that an algorithm is better, the assertion will come with a number.
+None of it is pretty, and none of it is meant to be. The simulator is a measurement instrument, not a renderer: flat patches, ramps, and analytic targets, built so that at every stage of the pipeline there is a *right answer* to compare against. When we assert that an algorithm is better, the assertion will come with a number.
 
-From here the path is fixed, and it is the same path your camera walks a thousand times a day: photons to a noisy mosaic (Chapter 2), white balance *before* the mosaic is unwoven — an ordering that matters more than almost anyone tells you (Chapter 3) — demosaicing (Chapter 4), color (Chapter 5), the lens's sins undone (Chapter 6), tone (Chapter 7), detail and noise (Chapter 8), and finally the JPEG encoder (Chapter 9), at which point every byte in the output file is a byte you understand. Chapter 10 then loads a real raw file from a real camera and runs *your* pipeline on it.
+From here the path is fixed, and it is the same path your camera walks many times a day: photons to a noisy mosaic (Chapter 2), white balance *before* the mosaic is unwoven — an ordering that matters more than almost anyone tells you (Chapter 3) — demosaicing (Chapter 4), color (Chapter 5), the lens's sins undone (Chapter 6), tone (Chapter 7), detail and noise (Chapter 8), and finally the JPEG encoder (Chapter 9), at which point every byte in the output file is a byte you understand. Chapter 10 then loads a real raw file from a real camera and runs *your* pipeline on it.
 
 It is a long way from light to JPEG. Let's take the first step.
