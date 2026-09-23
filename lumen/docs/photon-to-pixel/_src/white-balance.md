@@ -1,6 +1,6 @@
-The mosaic that came out of Chapter 2 is linear, zero-based, every photosite truthful or repaired — but it is not yet a measurement of the *scene*. It is a measurement of the scene times the light, `lit_by`, exactly as Chapter 1 built it. A white shirt under tungsten produced orange numbers, and no later stage knows or cares that the shirt was white unless something undoes the light first.
+The mosaic that came out of Chapter 2 is linear, zero-based, every photosite close to truth or repaired — but it is not yet a measurement of the *scene*. It is a measurement of the scene times the light. A white shirt under tungsten produced orange numbers, and no later stage knows or cares that the shirt was white unless something undoes the light first.
 
-That something is white balance, and this chapter makes two points about it. The familiar one: it can be done with three multiplications, and the entire difficulty is choosing the three numbers. The unfamiliar one, which most explanations skip and this book was partly written to make: it belongs *before* demosaicing, and the order is worth real, measurable image quality. Section 3.4 runs that experiment against ground truth.
+That something is white balance, and this chapter makes two points about it. First the familiar one: it can be done with three multiplications, choosing those three numbers being the difficult part. Then the unfamiliar one, which most explanations skip: it belongs *before* demosaicing, and the order is worth real, measurable image quality. Section 3.4 will run an experiment to prove that point.
 
 ## 3.1 The color of the light
 
@@ -20,21 +20,21 @@ The simulator now does something no real camera can. We *know* the light — we 
 
 {{include pxp/whitebalance.py::reference_gains}}
 
-For the book's three lights, the truth comes out as follows. Daylight: gains of (1.23, 1.0, 1.19) — nearly balanced, because our filters were designed in daylight's world. Tungsten at 2856 K: (0.68, 1.0, 2.61) — red pulled down by a third, blue multiplied by two and a half. The spiky fluorescent: (0.97, 1.0, 1.49). That tungsten blue gain of 2.61 is worth staring at: every blue photosite's value, *and its noise*, gets multiplied by 2.61. The blotchy blue shadows in every high-ISO tungsten photograph are this line of arithmetic; the noise chapter's warning that "every stage either respects noise or amplifies it" has already come true, one chapter later.
+For our three lights, the gains comes out as follows. Daylight: gains of (1.23, 1.0, 1.19) — nearly balanced, because our filters were designed in daylight's world. Tungsten at 2856 K: (0.68, 1.0, 2.61) — red pulled down by a third, blue multiplied by two and a half. The spiky fluorescent: (0.97, 1.0, 1.49). That tungsten blue gain of 2.61 is worth a closer look: every blue photosite's value, *and its noise*, gets multiplied by 2.61. The blotchy blue shadows in every high-ISO tungsten photograph are this line of arithmetic. So the warning for you is  — "every stage either respects noise or amplifies it".
 
 {{figure wb-casts | Swatch views measured directly off the tungsten mosaic — patch-region channel means, no demosaicing needed because the patches are flat. Left: raw camera RGB, displayed as if it were sRGB (a deliberate mislabel, disclosed: correct display is Chapter 5's job). Right: after the known-true gains. The neutral column becomes truly neutral — and the colored patches, note well, are corrected but not <em>right</em>: the blue is still dusky, the magenta still muted. Three multipliers can promise neutrality for neutrals, nothing more.}}
 
-The right panel draws the chapter's boundary line. White balance makes gray things gray. It does not make color *correct* — the gap between these filters and human vision is untouched by any diagonal scaling, and closing it is Chapter 5's matrix. Keep the two jobs separate in your head; most "white balance looks right but skin looks wrong" complaints are the second job being blamed on the first.
+The right panel draws a boundary line. White balance makes gray things gray. It does not make color *correct* — the gap between these filters and human vision is untouched by any diagonal scaling, we will close this later. Keep the two jobs separate in your head; most "white balance looks right but skin looks wrong" complaints stems from a misunderstanding of what white balance really does to the image.
 
 ## 3.2 Guessing the light
 
-A real camera doesn't know the illuminant. It has exactly one clue — the mosaic itself — plus whatever the photographer deigns to tell it. Everything in automatic white balance (the AWB on your mode dial) descends from two old, beautifully simple assumptions about scenes.
+A real camera doesn't know the illuminant. It has exactly one clue — the mosaic itself — plus whatever the photographer decides to tell it. Everything in automatic white balance (the AWB on your mode dial) descends from two old, beautifully simple assumptions about scenes.
 
 **Assume the world averages to gray.** Sum each channel over the whole frame; if scene colors are diverse enough to cancel, the per-channel means are a reading of the illuminant:
 
 {{include pxp/whitebalance.py::gray_world}}
 
-**Assume the brightest thing is white.** A highlight or white surface reflects the illuminant nearly unfiltered; each channel's near-maximum is then the light's signature. The percentile guard exists because Chapter 2 taught us not to trust any single photosite:
+**Assume the brightest thing is white.** A highlight or white surface reflects the illuminant nearly unfiltered; each channel's near-maximum is then the light's signature. The percentile guard exists because it's not wise to trust any single photosite:
 
 {{include pxp/whitebalance.py::white_patch}}
 
@@ -42,9 +42,9 @@ Both assumptions are statements about *scenes*, not about optics — which means
 
 {{figure wb-estimators | A wall of red brick under tungsten, with one gray and one white square — corrected by gray-world (left) and by white-patch (right). Gray-world assumes the scene averages to gray; this scene averages to brick, so it "corrects" the world toward cyan and turns the white square blue. White-patch finds the genuinely white square and lands almost exactly on the true gains: brick stays brick. Swap in a scene with no white anywhere and the failure changes owners.}}
 
-The left panel is not a bug — it is the assumption doing exactly what it says on a scene that violates it, and it is why every camera's AWB occasionally turns a sunset gray. Production AWB stacks heuristics (restrict to plausible illuminant colors, weight near-neutral regions, learned priors), but under them all sit these two estimators; illuminant estimation from a single image remains genuinely unsolved in the general case, because the mosaic of a white wall under tungsten and an orange wall under daylight can be *identical*.
+The left panel isn't a bug — the assumption is working exactly as designed, on a scene where that assumption doesn't hold. This is also why cameras sometimes turn a sunset gray. Real AWB systems add heuristics on top (restricting to plausible illuminant colors, weighting near-neutral regions, learned priors), but these two estimators are still the foundation underneath. And illuminant estimation from a single image is still an unsolved problem in general, because a white wall under tungsten light and an orange wall under daylight can produce the exact same pixel values.
 
-The third estimator is the photographer. The Kelvin slider in every raw editor is Chapter 1's physics running backwards — assume the light is a glowing body at the stated temperature, compute what that does to a neutral, undo it:
+The third estimator is the photographer. The Kelvin slider in every raw editor runs the physics backwards: it assumes the light is a glowing body at the stated temperature, calculates what that does to a neutral color, and then undoes it.
 
 {{include pxp/whitebalance.py::gains_for_temperature}}
 
@@ -58,11 +58,11 @@ However the gains were chosen, applying them is almost embarrassingly small:
 
 Note what it runs on: the *mosaic*. Not an RGB image — the CFA data, each photosite scaled by its own channel's gain, before any demosaicing. The two-tier contract is satisfied with equal brevity — the `pxp.fast` twin phrases the same multiply as a tiled 2x2 gain map, and the equality test holds them bit-identical. (The estimators are deliberately *not* twinned: they emit three numbers, run once per image, and there is nothing about a mean or a percentile worth vectorizing on principle.)
 
-Why insist on the order? The case from the armchair goes like this. The next stage, demosaicing, must reconstruct two missing channels at every pixel, and every good algorithm for it is *edge-directed*: it reads local differences in the raw mosaic — differences that mix values from different filters — to decide which way to interpolate. Those cross-channel comparisons only mean what the algorithm thinks they mean if the channels are on a common scale. Hand it a mosaic where blue runs 2.6x hot and every red–blue seam in the image manufactures a gradient that isn't there — the algorithm sees *the light* as texture. Armchair reasoning, however, is exactly what this book promised not to rest on.
+Why insist on the order? The case from the armchair goes like this. The next stage, demosaicing, must reconstruct two missing channels at every pixel, and every good algorithm for it is *edge-directed*: it reads local differences in the raw mosaic — differences that mix values from different filters — to decide which way to interpolate. Those cross-channel comparisons only mean what the algorithm thinks they mean if the channels are on a common scale. Hand it a mosaic where blue runs 2.6x hot and every red–blue junction in the image manufactures a gradient that isn't there — the algorithm sees *the light* as texture. Armchair reasoning, however, is exactly what we should not rest on.
 
 ## 3.4 The experiment
 
-The instrument is a preview of Chapter 4: the smallest workable edge-directed demosaic, reconstructing green by choosing the smoother of the horizontal and vertical directions, with a correction term borrowed from the same-color neighbors two steps out (the classic Hamilton–Adams step — Chapter 4 rebuilds and measures it properly):
+Let's look at the smallest workable edge-directed demosaic, reconstructing green by choosing the smoother of the horizontal and vertical directions, with a correction term borrowed from the same-color neighbors two steps out (the classic Hamilton–Adams step — Chapter 4 rebuilds and measures it properly):
 
 {{include pxp/demosaic.py::interpolate_green}}
 
@@ -72,12 +72,10 @@ First, the mechanism, caught directly. The green interpolator's horizontal-or-ve
 
 {{figure wb-flips | Every photosite where channel imbalance flipped the interpolation direction, in violet, over the (dimmed) starburst. On this capture it is 10.2% of all decisions — one in ten — and they cluster exactly where reconstruction is hardest and most consequential: along the wedge edges. The light, left uncorrected, is voting on which way detail runs.}}
 
-Then the outcome, measured against ground truth — the same scene rendered full-color, no mosaic, no noise, by simulator privilege:
+Then the outcome, measured against raw data — the same scene rendered full-color, no mosaic, no noise, by simulator privilege:
 
-{{figure wb-order | The same crop three ways: ground truth (left), white balance before demosaicing (middle), after (right). Both reconstructions alias near the center — no algorithm can rebuild frequencies the mosaic never sampled — but the wb-after panel fringes visibly harder along the wedges. Measured over the frame, wb-after lands 4.7% farther from truth (root-mean-square error 0.0731 vs 0.0698), with the entire difference concentrated at edges. Same capture, same gains, same code; the only thing that changed is the order of two lines.}}
-
-Two side notes, because the book promised numbers rather than drama. The effect is real, one-directional, and free to obtain — it costs literally nothing to multiply before interpolating — but it is not catastrophic: on this torture target the total error is dominated by edges both orders struggle with, and 4.7% is the *measured* size of the win, not "night and day." And the experiment is baked into the test suite — `test_wb_before_demosaic_beats_wb_after` re-runs it on every build of this book, so the chapter's point is not an anecdote about one lucky seed. Real ISPs — the in-camera image signal processors — agree, for what it's worth, for additional unglamorous reasons: clipped-highlight bookkeeping and sensor calibration are all defined on CFA data, so the gains land there anyway.
+{{figure wb-order | The same crop three ways: raw data (left), white balance before demosaicing (middle), after (right). Both reconstructions alias near the center — no algorithm can rebuild frequencies the mosaic never sampled — but the wb-after panel fringes visibly harder along the wedges. Measured over the frame, wb-after lands 4.7% farther from truth (root-mean-square error 0.0731 vs 0.0698), with the entire difference concentrated at edges. Same capture, same gains, same code; the only thing that changed is the order of two lines.}}
 
 ---
 
-The mosaic is now balanced: gray things read gray, the light's thumb is off the scale, and every cross-channel comparison downstream means what it appears to mean. What the image still isn't is an *image* — two of every three values are missing, and guessing them well is the most storied problem in the whole pipeline. Chapter 4 is demosaicing, done properly: bilinear as the baseline, the gradient-directed step you just previewed, and AHD, the 2005 adaptive method that tops the chapter's ladder — each one measured, in the only currency this book accepts, against the scene as it truly was.
+The mosaic is now balanced: gray things read gray, the light's thumb is off the scale, and every cross-channel comparison downstream means what it appears to mean. What the image still isn't is an *image* — two of every three values are missing, and guessing them well is the biggest problem in the whole pipeline. Chapter 4 is demosaicing, done properly: bilinear as the baseline, the gradient-directed step you just previewed, and AHD.
