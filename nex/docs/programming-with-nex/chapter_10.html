@@ -216,11 +216,11 @@ nex&gt; across sorted_keys as k do
 </section>
 <section class="level2" data-number="11.6" id="iterating-with-across">
 <h2 class="anchored" data-anchor-id="iterating-with-across" data-number="11.6"> Iterating with <code>across</code></h2>
-<p><code>across</code> iterates over a map’s entries. Each element bound by the loop variable is a two-element array of type <code>Array[Any]</code>, where index 0 is the key and index 1 is the value. Because the element type is <code>Any</code>, you may need to be mindful of types when using the values in typed contexts:</p>
+<p><code>across</code> iterates over a map’s entries. Each element bound by the loop variable is a <code>Map_Entry[K, V]</code>, a read-only key/value pair with two members: <code>key</code> (of type <code>K</code>) and <code>value</code> (of type <code>V</code>). Because both are statically typed, no narrowing is needed when you use them in typed contexts:</p>
 <pre><code>nex&gt; let capitals := {"France": "Paris", "Japan": "Tokyo", "Brazil": "Brasília"}
 
 nex&gt; across capitals as entry do
-       print(entry.get(0) + " -&gt; " + entry.get(1))
+       print(entry.key + " -&gt; " + entry.value)
     end
 "France -&gt; Paris"
 "Japan -&gt; Tokyo"
@@ -255,11 +255,7 @@ nex&gt; word_lengths
      do
        result := {}
        across m as entry do
-         if convert entry.get(0) to key: String then
-           if convert entry.get(1) to value: String then
-             result.set(value, key)
-           end
-         end
+         result.set(entry.value, entry.key)
        end
      end
 
@@ -306,14 +302,12 @@ nex&gt; freq.get("question")
        result := ""
        let started := false
        across freq as entry do
-         if convert entry.get(0) to key: String then
-           if not started then
-             result := key
-             started := true
-           else
-             if freq.get(key) &gt; freq.get(result) then
-               result := key
-             end
+         if not started then
+           result := entry.key
+           started := true
+         else
+           if entry.value &gt; freq.get(result) then
+             result := entry.key
            end
          end
        end
@@ -331,7 +325,7 @@ nex&gt; most_frequent(freq)
 <li><code>set(key, value)</code> adds or replaces an entry; <code>put(key, value)</code> is also accepted as an alias; <code>get(key)</code> retrieves a value; <code>remove(key)</code> deletes an entry</li>
 <li><code>get</code> will raise an exception when the key is absent; use <code>contains_key</code> to check first, or <code>try_get(key, default)</code> to provide a fallback</li>
 <li>Maps use <code>size</code> (not <code>length</code>) for the element count</li>
-<li><code>across map as entry do</code> iterates over entries; each entry is a two-element array — <code>entry.get(0)</code> is the key, <code>entry.get(1)</code> is the value; or iterate over <code>map.keys</code> or <code>map.values</code> directly</li>
+<li><code>across map as entry do</code> iterates over entries; each entry is a <code>Map_Entry[K, V]</code> — <code>entry.key</code> is the key, <code>entry.value</code> is the value; or iterate over <code>map.keys</code> or <code>map.values</code> directly</li>
 <li>Build maps programmatically with an empty map and <code>set</code> inside a loop</li>
 <li>Use an array when access is positional; use a map when access is by key</li>
 <li>The try-get-then-set pattern — <code>try_get(key, default)</code> followed by <code>set(key, new_value)</code> — is the standard idiom for accumulating values in a map</li>
