@@ -47,7 +47,9 @@ but does so implicitly in any case.</p>
 
 <p>Of the type names the lexer recognises (Section&nbsp;<a href="syntax-core.html#sec-2.1">2.1</a>), five denote scalar
 classes of the standard environment: <code>Integer</code>, <code>Real</code>,
-<code>Char</code>, <code>Boolean</code>, and <code>String</code>. Each inherits
+<code>Char</code>, <code>Boolean</code>, and <code>String</code>. Three more scalar
+classes, <code>Byte</code>, <code>Integer16</code>, and <code>Integer32</code>, are named by
+ordinary identifiers. Each inherits
 <code>Comparable</code> and <code>Hashable</code>, and it is through those &mdash;
 together with the arithmetic of the numeric classes &mdash; that the operators of
 Section&nbsp;<a href="syntax-core.html#sec-2.6">2.6</a> are given meaning on scalar values.</p>
@@ -55,7 +57,10 @@ Section&nbsp;<a href="syntax-core.html#sec-2.6">2.6</a> are given meaning on sca
 <table>
 <thead><tr><th>Type</th><th>Values</th><th>Notes</th></tr></thead>
 <tbody>
-<tr><td><code>Integer</code></td><td>64-bit integers</td><td>literals of <span class="nt">int</span> form; default numeric type</td></tr>
+<tr><td><code>Integer</code></td><td>64-bit integers</td><td>literals of <span class="nt">int</span> form; default numeric type; also written <code>Integer64</code></td></tr>
+<tr><td><code>Byte</code></td><td>8-bit unsigned integers, \([0, 255]\)</td><td>literals of <span class="nt">byte</span> form (<code>200u8</code>); element type of <code>to_bytes</code></td></tr>
+<tr><td><code>Integer16</code></td><td>16-bit signed integers</td><td>literals of <span class="nt">int16</span> form (<code>8080i16</code>)</td></tr>
+<tr><td><code>Integer32</code></td><td>32-bit signed integers</td><td>literals of <span class="nt">int32</span> form (<code>70000i32</code>)</td></tr>
 <tr><td><code>Real</code></td><td>floating-point</td><td>literals of <span class="nt">real</span> form; <code>Real / Integer</code> yields <code>Real</code></td></tr>
 <tr><td><code>Char</code></td><td>characters</td><td>literals of <span class="nt">char</span> form</td></tr>
 <tr><td><code>Boolean</code></td><td><code>true</code>, <code>false</code></td><td>operand and result of the logical operators</td></tr>
@@ -63,10 +68,12 @@ Section&nbsp;<a href="syntax-core.html#sec-2.6">2.6</a> are given meaning on sca
 </tbody>
 </table>
 
-<p>The arithmetic operators apply to numeric operands, returning the wider
-type (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>). An integer operand is admitted where a real is
-required, so <code>total / count</code> with <code>total</code> of type
-<code>Real</code> yields a <code>Real</code>.</p>
+<p>The arithmetic operators apply to numeric operands, returning the join of
+their types (Section&nbsp;<a href="static.html#sec-4.3">4.3</a>): <code>Real</code> if either is, and <code>Integer</code> otherwise. An
+integer operand is admitted where a real is required, so <code>total / count</code> with
+<code>total</code> of type <code>Real</code> yields a <code>Real</code>; and an operand of type
+<code>Byte</code>, <code>Integer16</code>, or <code>Integer32</code> is taken as the
+<code>Integer</code> of the same value, so the result is an <code>Integer</code>.</p>
 
 <p>The comparison operators apply to <code>Comparable</code> operands
 through <code>compare</code>. Scalars are immutable and unstored, so
@@ -165,6 +172,37 @@ division by zero is the IEEE value. It is the split drawn by most languages
 that carry both an integral and a binary floating type, and it is fixed
 here on every platform rather than left to the host.</p>
 
+<h4>Byte, Integer16 and Integer32</h4>
+<p><code>Byte</code>, <code>Integer16</code>, and <code>Integer32</code> are integers of an
+<em>exact width</em>, for data whose layout the program does not choose, such as file
+contents and network messages. <code>Byte</code> is unsigned, with range \([0,\, 255]\);
+<code>Integer16</code> and <code>Integer32</code> are signed two&rsquo;s-complement, with ranges
+\([-2^{15},\, 2^{15}-1]\) and \([-2^{31},\, 2^{31}-1]\). Their value spaces are fixed on every platform.</p>
+
+<p>Each is a class in its own right. <strong>No conversion between any two of
+<code>Integer</code>, <code>Byte</code>, <code>Integer16</code>, and <code>Integer32</code> is
+implicit</strong>, in either direction (Section&nbsp;<a href="static.html#sec-4.3">4.3</a>). The routines
+<code>to_byte</code>, <code>to_integer16</code>, <code>to_integer32</code>, and
+<code>to_integer</code> convert explicitly: a conversion to a type whose range does not contain
+the value <strong>raises</strong>, and one to a wider type always succeeds. A value of a
+fixed-width type is equal only to a value of its own type with the same number.</p>
+
+<p>Arithmetic on these types is arithmetic on <code>Integer</code>: each operand is taken as the
+<code>Integer</code> of the same value and the result is an <code>Integer</code> (Section&nbsp;<a href="dynamic.html#sec-5.4">5.4</a>),
+so it is subject to the checked-arithmetic rules above and cannot overflow the narrow type.
+Their ordering and equality operators apply to two values of the same type.</p>
+
+<p>Their <em>bitwise</em> routines (<code>bitwise_and</code>, <code>bitwise_or</code>,
+<code>bitwise_xor</code>, <code>bitwise_not</code>, the shifts, the rotations, and
+<code>bitwise_is_set</code>, <code>bitwise_set</code>, <code>bitwise_unset</code>) operate on
+the whole width of the type &mdash; 8, 16, or 32 bits, with bit&nbsp;0 the least significant &mdash;
+and yield a value of the same type. Right shift of a signed type copies the sign bit, and the
+logical right shift shifts in zeros; results wrap to the width, so <code>32767i16.bitwise_left_shift(1)</code>
+is <code>-2i16</code>. A bit index must lie in \([0, w-1]\) for a type of width \(w\), and a shift count
+must be non-negative (a count of \(w\) or more shifts every original bit out, leaving zeros, or copies of the sign bit for an arithmetic right shift of a negative value); an argument outside these bounds
+<strong>raises</strong>. <code>abs</code> of the minimum value of a signed type, which has no positive
+counterpart, raises. (The bitwise routines of <code>Integer</code> keep their 32-bit behaviour, above.)</p>
+
 <h4>Boolean and the character model</h4>
 <p><code>Boolean</code> has exactly the two values <code>true</code> and
 <code>false</code>.</p>
@@ -182,7 +220,11 @@ address it by character position.</p>
 
 <p>The <em>encoding</em> of a string is exposed only through
 <code>to_bytes</code>, which yields the <strong>UTF-8</strong> bytes of the
-string as integers in the range \([0, 255]\), on every platform. The
+string as an array of <code>Byte</code> values, each in the range \([0, 255]\), on every
+platform. Its inverse is the constructor <code>from_bytes</code>: <code>create String.from_bytes(</code>\(a\)<code>)</code>
+decodes an <code>Array[Byte]</code> as UTF-8 and yields a <code>String</code>, and it
+<strong>raises</strong> if \(a\) is not well-formed UTF-8 rather than substituting a replacement
+character, so <code>String.from_bytes(s.to_bytes())</code> denotes \(s\) exactly. The
 internal representation by which a host stores a string, and the relation
 between a character index and any underlying code-unit index, are
 host-defined and not observable except through <code>to_bytes</code>.</p>
@@ -199,7 +241,10 @@ constant or obtained from the standard environment.</p>
 <tr><td><code>Integer</code></td><td>signed 64-bit two&rsquo;s-complement, range \([-2^{63}, 2^{63}-1]\), on every platform; checked&mdash;overflow and division by zero raise; bitwise on low 32 bits</td><td>&mdash;</td></tr>
 <tr><td><code>Real</code></td><td>IEEE&nbsp;754 double, in representation <em>and</em> arithmetic; division by zero yields \(\pm\infty\) / <code>NaN</code> per IEEE</td><td>&mdash;</td></tr>
 <tr><td><code>Char</code></td><td>a Unicode code point</td><td>internal representation</td></tr>
-<tr><td><code>String</code></td><td>sequence of characters; <code>length</code> in characters; <code>to_bytes</code> is UTF-8 in \([0,255]\)</td><td>internal encoding; character-to-code-unit mapping</td></tr>
+<tr><td><code>Byte</code></td><td>unsigned 8-bit, \([0, 255]\); <code>to_byte</code> raises outside the range; arithmetic yields <code>Integer</code>; bitwise on 8 bits</td><td>&mdash;</td></tr>
+<tr><td><code>Integer16</code></td><td>signed 16-bit two&rsquo;s-complement, \([-2^{15}, 2^{15}-1]\); <code>to_integer16</code> raises outside the range; arithmetic yields <code>Integer</code>; bitwise on 16 bits</td><td>&mdash;</td></tr>
+<tr><td><code>Integer32</code></td><td>signed 32-bit two&rsquo;s-complement, \([-2^{31}, 2^{31}-1]\); <code>to_integer32</code> raises outside the range; arithmetic yields <code>Integer</code>; bitwise on 32 bits</td><td>&mdash;</td></tr>
+<tr><td><code>String</code></td><td>sequence of characters; <code>length</code> in characters; <code>to_bytes</code> is UTF-8 as <code>Byte</code>s; <code>from_bytes</code> its strict inverse</td><td>internal encoding; character-to-code-unit mapping</td></tr>
 </tbody>
 </table>
 
@@ -230,6 +275,15 @@ it from the empty map.</p>
 discarding duplicates. The routines <code>union</code>,
 <code>intersection</code>, <code>difference</code>, <code>contains</code>,
 and <code>size</code> provide the usual set algebra.</p>
+
+<h4><code>Byte_Array</code> (a library class)</h4>
+<p><code>Byte_Array</code>, loaded with <code>intern data/Byte_Array</code>, is <em>not</em> a
+class of \(E_0\): it is a shipped library class, described in the reference rather than in this
+Definition. It is a fixed-size, mutable sequence of <code>Byte</code>s that a host may keep packed,
+one byte per element, and it is a <code>Cursor</code> source whose items are <code>Byte</code>s, so
+<code>across</code> may traverse it. Unlike <code>Array[Byte]</code> it has no <code>add</code>; its
+<code>slice</code>, <code>concat</code>, and <code>copy</code> yield new values that share no storage
+with the original.</p>
 
 <h2 id="sec-B.5"><span class="secno">B.5</span>Concurrency Classes</h2>
 

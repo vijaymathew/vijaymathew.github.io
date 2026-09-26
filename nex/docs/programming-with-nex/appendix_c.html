@@ -145,6 +145,7 @@
 <p>Together with the scalar and collection classes, they form the everyday standard environment of Nex programs.</p>
 <p>Other important shipped libraries include:</p>
 <ul>
+<li><code>data/Byte_Array</code></li>
 <li><code>time/Date_Time</code></li>
 <li><code>time/Duration</code></li>
 <li><code>text/Regex</code></li>
@@ -212,7 +213,7 @@ copy.move_to(moved)
 print(moved.exists())
 print(moved.size())
 print(moved.modified_time())</code></pre>
-<p>For sequential text and binary access, use <code>Text_File</code> and <code>Binary_File</code>.</p>
+<p>For sequential text and binary access, use <code>Text_File</code> and <code>Binary_File</code>. A <code>Binary_File</code> reads and writes bytes as an <code>Array[Byte]</code>, so <code>writer.write("ABC".to_bytes())</code> writes three bytes and <code>reader.read_all()</code> returns them as <code>Byte</code> values.</p>
 <p>If your code is directory-oriented, use <code>Directory</code> as a thin wrapper over <code>Path</code>.</p>
 <pre class="text"><code>intern io/Path
 intern io/Directory
@@ -356,6 +357,45 @@ print(sample.body())</code></pre>
 <li>set algebra such as union and intersection</li>
 </ul>
 <p>These classes are generic and work with user-defined classes just as naturally as with built-in scalar values.</p>
+<section class="level3" data-number="C.9.1" id="byte_array-packed-bytes">
+<h3 class="anchored" data-anchor-id="byte_array-packed-bytes" data-number="C.9.1"> <code>Byte_Array</code>: Packed Bytes</h3>
+<p>An <code>Array[Byte]</code> is a list of boxed values, several times larger than the data it holds. For large amounts of binary data, <code>data/Byte_Array</code> is a fixed-size buffer stored as a real Java <code>byte[]</code>, one byte per element. Load it with <code>intern data/Byte_Array</code>:</p>
+<pre class="nex"><code>intern data/Byte_Array
+
+let buf: Byte_Array := create Byte_Array.make(4)
+buf.set(0, 200u8)
+buf.set(3, 65u8)
+print(buf.get(0))              -- 200
+print(buf)                     -- Byte_Array([200, 0, 0, 65])
+print(buf.slice(2, 4))         -- Byte_Array([0, 65])
+print(buf.to_hex())            -- "c8000041"
+across buf as b do
+  print(b)                     -- each b is a Byte
+end</code></pre>
+<p>The main operations are:</p>
+<ul>
+<li><code>make</code>, <code>from_array</code>, <code>from_java</code> to create one (the last two copy their input)</li>
+<li><code>length</code>, <code>get</code>, <code>set</code>, <code>fill</code>, <code>index_of</code>, <code>contains</code></li>
+<li><code>slice</code>, <code>copy</code>, <code>concat</code>, <code>copy_into</code> — these copy, so two <code>Byte_Array</code>s never share storage by accident</li>
+<li><code>to_array</code>, <code>to_hex</code>, <code>to_utf8_string</code></li>
+<li><code>equals</code> and <code>compare</code> work on the contents, so <code>=</code>, <code>&lt;</code> and <code>sort</code> behave as you would expect</li>
+<li><code>to_java</code>, which hands the underlying <code>byte[]</code> to Java code inside a <code>with "java"</code> block</li>
+</ul>
+<p>The size is fixed: there is no <code>add</code>. Use an <code>Array[Byte]</code> when the length changes. The elements are always <code>Byte</code>s (0 to 255), even though Java stores them as signed bytes; Nex converts at the boundary.</p>
+<p>The <code>to_java</code> method removes the usual detour when calling Java APIs that want a <code>byte[]</code>:</p>
+<pre class="nex"><code>intern data/Byte_Array
+import java.security.MessageDigest
+
+let input: Byte_Array := create Byte_Array.from_array("abc".to_bytes())
+let digest: Any := nil
+with "java" do
+  let md := MessageDigest.getInstance("SHA-256")
+  digest := md.digest(input.to_java())
+end
+let out: Byte_Array := create Byte_Array.from_java(digest)
+print(out.length())                 -- 32
+print(out.slice(0, 4).to_array())   -- [186, 120, 22, 191]</code></pre>
+</section>
 </section>
 <section class="level2" data-number="C.10" id="cursors-and-across">
 <h2 class="anchored" data-anchor-id="cursors-and-across" data-number="C.10"> Cursors and <code>across</code></h2>
@@ -365,6 +405,7 @@ print(sample.body())</code></pre>
 <li><code>StringCursor</code></li>
 <li><code>MapCursor</code></li>
 <li><code>SetCursor</code></li>
+<li><code>Byte_Array_Cursor</code>, returned by <code>Byte_Array.cursor()</code>; its items are <code>Byte</code>s</li>
 </ul>
 <p>You will usually not construct these directly. Their practical value is that they make one iteration form work uniformly across strings, arrays, and maps.</p>
 </section>

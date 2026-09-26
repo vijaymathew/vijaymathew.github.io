@@ -58,6 +58,13 @@ recognised by the lexer. They are not, strictly, keywords usable in arbitrary
 positions; they denote particular constants and classes of the standard environment
 (Appendix&nbsp;<a href="appendix-basis.html">B</a>), and a program may not redefine them.</p>
 
+<p>The standard environment has further scalar classes that the lexer does
+<em>not</em> single out: <code>Byte</code>, <code>Integer16</code>, and
+<code>Integer32</code>, the fixed-width integers, and the name
+<code>Integer64</code>, which is another spelling of <code>Integer</code>. They
+are written as ordinary identifiers, and it is the standard environment, not the
+lexer, that gives them their meaning (Appendix&nbsp;<a href="appendix-basis.html#sec-B.2">B.2</a>).</p>
+
 <p>The identifier <code>result</code> is reserved within the body of a routine
 that declares a return type: it names the cell whose final contents become the
 routine&rsquo;s result (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>). The identifier <code>exception</code>
@@ -66,12 +73,13 @@ is bound, within a <code>rescue</code> block, to the value being handled
 
 <h2 id="sec-2.2"><span class="secno">2.2</span>Special Constants</h2>
 
-<p>A <em>special constant</em> is an integer, real, character, string, or
-boolean literal, or the constant <code>nil</code>.</p>
+<p>A <em>special constant</em> is an integer, fixed-width integer, real,
+character, string, or boolean literal, or the constant <code>nil</code>.</p>
 
 <div class="grammar">
 <table>
 <tr><td class="nt">scon</td><td class="op">::=</td><td><span class="nt">int</span></td><td class="cmt">&mdash; integer constant</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">byte</span> <span class="op">|</span> <span class="nt">int16</span> <span class="op">|</span> <span class="nt">int32</span></td><td class="cmt">&mdash; fixed-width integer constant</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">real</span></td><td class="cmt">&mdash; real constant</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">char</span></td><td class="cmt">&mdash; character constant</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">string</span></td><td class="cmt">&mdash; string constant</td></tr>
@@ -85,7 +93,8 @@ boolean literal, or the constant <code>nil</code>.</p>
 literal introduced by <code>0b</code> (binary), <code>0o</code> (octal), or
 <code>0x</code> (hexadecimal). An underscore may appear between two digits as a
 visual separator and has no other significance. There is no sign: a leading
-minus is the unary operator of Section&nbsp;<a href="#sec-2.6">2.6</a>, not part of the constant.</p>
+minus is the unary operator of Section&nbsp;<a href="#sec-2.6">2.6</a>, not part of the constant &mdash;
+with the one exception of the signed fixed-width constants below.</p>
 
 <div class="grammar">
 <table>
@@ -104,6 +113,40 @@ minus is the unary operator of Section&nbsp;<a href="#sec-2.6">2.6</a>, not part
 &sect;<a href="appendix-basis.html#sec-B.3">B.3</a>: the 64-bit, checked <code>Integer</code>, the IEEE&nbsp;754
 <code>Real</code>, and the Unicode character model of <code>Char</code> and
 <code>String</code>.</p>
+
+<h4>Fixed-width integer constants</h4>
+<p>An integer constant followed immediately by a suffix is a <em>fixed-width
+integer constant</em>. The suffix <code>u8</code> makes a <code>Byte</code>, <code>i16</code>
+an <code>Integer16</code>, and <code>i32</code> an <code>Integer32</code>. The digits, bases and
+separators are those of an integer constant. The suffix is <code>u8</code> rather than a
+single letter because <code>b</code> is itself a hexadecimal digit, and it forms one token with
+the constant by the longest-match rule of Section&nbsp;<a href="#sec-2.5">2.5</a>.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">byte</td><td class="op">::=</td><td><span class="nt">int</span> <span class="lit">u8</span></td><td class="cmt">&mdash; e.g. <code>200u8</code>, <code>0xFFu8</code></td></tr>
+<tr><td class="nt">int16</td><td class="op">::=</td><td><span class="nt">int</span> <span class="lit">i16</span></td><td class="cmt">&mdash; e.g. <code>8080i16</code></td></tr>
+<tr><td class="nt">int32</td><td class="op">::=</td><td><span class="nt">int</span> <span class="lit">i32</span></td><td class="cmt">&mdash; e.g. <code>70000i32</code></td></tr>
+</table>
+</div>
+
+<p>A <code>byte</code> constant has type <code>Byte</code> and must lie in
+\([0,\, 255]\); an <code>int16</code> constant has type <code>Integer16</code> and must lie
+in \([-2^{15},\, 2^{15}-1]\); an <code>int32</code> constant has type
+<code>Integer32</code> and must lie in \([-2^{31},\, 2^{31}-1]\). A constant outside its range is
+rejected.</p>
+
+<p>For the two signed types a leading minus <em>is</em> part of the constant:
+<code>-5i16</code> is one constant of type <code>Integer16</code>, not the negation of one, and
+<code>-32768i16</code> is a valid constant although <code>32768i16</code> is not. The
+unary minus of Section&nbsp;<a href="#sec-2.6">2.6</a>, applied to any other operand of a fixed-width type,
+yields an <code>Integer</code> (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>); so <code>-5u8</code> is the
+<code>Integer</code> \(-5\), a <code>Byte</code> never being negative.</p>
+
+<p>There is no implicit conversion from an integer constant to a fixed-width
+type. An unsuffixed constant is always an <code>Integer</code>, whatever type the context
+expects: <code>200</code> is not a <code>Byte</code>, and <code>200u8</code> must be written
+(Section&nbsp;<a href="static.html#sec-4.3">4.3</a>).</p>
 
 <h4>Real constants</h4>
 <p>A real constant has an optional integer part, a mandatory decimal point, a

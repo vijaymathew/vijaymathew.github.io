@@ -53,7 +53,7 @@ then the relations among them&mdash;conformance and lookup; then the
 
 <div class="grammar">
 <table>
-<tr><td>\(\tau\)</td><td class="op">::=</td><td>\(\texttt{Integer} \mid \texttt{Real}\)</td><td class="cmt">&mdash; numeric</td></tr>
+<tr><td>\(\tau\)</td><td class="op">::=</td><td>\(\texttt{Integer} \mid \texttt{Byte} \mid \texttt{Integer16} \mid \texttt{Integer32} \mid \texttt{Real}\)</td><td class="cmt">&mdash; numeric</td></tr>
 <tr><td></td><td class="op">|</td><td>\(\texttt{Char} \mid \texttt{Boolean} \mid \texttt{String}\)</td><td class="cmt">&mdash; other scalars</td></tr>
 <tr><td></td><td class="op">|</td><td>\(A[\tau_1,\dots,\tau_n]\)</td><td class="cmt">&mdash; class type (\(n \ge 0\))</td></tr>
 <tr><td></td><td class="op">|</td><td>\(\alpha\)</td><td class="cmt">&mdash; type variable</td></tr>
@@ -206,17 +206,42 @@ as <code>Dog</code> conforms to <code>Animal</code> above.</p>
 the host interface or class it inherits, whether or not the surrounding
 code lies within a <code>with "java"</code> block (Section&nbsp;<a href="dynamic.html#sec-5.8">5.8</a>).</p>
 
-<p>There are exactly two numeric types, \(\texttt{Integer}\) and
-\(\texttt{Real}\). A widening chain \(\texttt{Integer} \preceq
-\texttt{Real}\) is <em>not</em> assumed here as a conformance &mdash;
-numeric conversions in Nex are explicit, except where the standard
-environment provides a coercion.</p>
+<p>There are exactly five numeric types: \(\texttt{Integer}\),
+\(\texttt{Real}\), and the three <em>fixed-width integer types</em>
+\(\texttt{Byte}\), \(\texttt{Integer16}\), and \(\texttt{Integer32}\).
+(<code>Integer64</code> is another name for \(\texttt{Integer}\), not a further
+type.) None of them conforms to another. A widening chain such as
+\(\texttt{Integer} \preceq \texttt{Real}\) is <em>not</em> assumed here as a
+conformance &mdash; numeric conversions in Nex are explicit, except where the
+standard environment provides a coercion. The explicit conversions are routines of
+the classes (<code>to_byte</code>, <code>to_integer16</code>, <code>to_integer32</code>,
+<code>to_integer</code>, <code>to_real</code>; Appendix&nbsp;<a href="appendix-basis.html">B</a>), and each
+that narrows checks the range of its result.</p>
 
-<p>The one implicit numeric rule the language relies on is that integer
-operands are admitted where a real is required by the arithmetic of the
-standard environment, so that \(\texttt{Integer} \sqcup \texttt{Real} =
-\texttt{Real}\) in rule&nbsp;(<a href="appendix-rules.html#rule-4.8">4.8</a>). This is recorded with the arithmetic
-operators in Appendix&nbsp;<a href="appendix-basis.html">B</a>, rather than as a conformance.</p>
+<p>In particular a numeric constant is never converted to fit its context. The
+unsuffixed constant <code>200</code> has type \(\texttt{Integer}\), which does not
+conform to \(\texttt{Byte}\), so <code>let b: Byte := 200</code> is ill-typed; the
+constant <code>200u8</code> has type \(\texttt{Byte}\) (rule <a href="appendix-rules.html#rule-4.1a">4.1a</a>). Equally,
+a \(\texttt{Byte}\) is not admitted where an \(\texttt{Integer}\) parameter is
+declared, nor the reverse. Nor does <code>convert</code> change a number&rsquo;s type
+(Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Type conversion</em>): two distinct numeric types are related by
+conformance in neither direction, so a <code>convert</code> from one to another is ill-typed.</p>
+
+<p>The one implicit numeric rule the language relies on belongs to the arithmetic
+operators, not to conformance. The operands of an arithmetic operator may be of any two
+numeric types, and the result has the type \(\tau_1 \sqcup \tau_2\) of rule&nbsp;(<a href="appendix-rules.html#rule-4.8">4.8</a>),
+where the join of two numeric types is
+
+\[ \tau_1 \sqcup \tau_2 \;=\; \begin{cases}
+\texttt{Real} & \text{if } \tau_1 = \texttt{Real} \text{ or } \tau_2 = \texttt{Real},\\
+\texttt{Integer} & \text{otherwise.}
+\end{cases} \]
+
+So an integer operand is admitted where a real is required
+(\(\texttt{Integer} \sqcup \texttt{Real} = \texttt{Real}\)), and arithmetic on operands
+of the fixed-width types yields an \(\texttt{Integer}\), never a fixed-width value:
+\(\texttt{Byte} \sqcup \texttt{Byte} = \texttt{Integer}\). This is recorded with the
+arithmetic operators in Appendix&nbsp;<a href="appendix-basis.html">B</a>, rather than as a conformance.</p>
 
 <h4>Optional types</h4>
 <p>An optional type \(\tau\,?\) is inhabited by the values of \(\tau\) together
@@ -348,14 +373,18 @@ recorded in the standard environment; here we just summarise their
 effect.</p>
 
 <p>For an arithmetic operator \(\odot\) &mdash; one of <code>+ - * / % ^</code>
-&mdash; on numeric operands, the result is the wider of the two operand
-types. Comparison operators yield <code>Boolean</code>. The equality
+&mdash; on numeric operands, the result has the type \(\tau_1 \sqcup \tau_2\) of
+Section&nbsp;<a href="#sec-4.3">4.3</a>: <code>Real</code> if either operand is, and <code>Integer</code> otherwise.
+Unary minus on an operand of a fixed-width type likewise yields an <code>Integer</code>.
+Comparison operators yield <code>Boolean</code>; the ordering operators
+require operands of the same type, so a <code>Byte</code> is not ordered against an
+<code>Integer</code> until one of them is converted. The equality
 operators \(=\), \(/\!=\), \(==\), \(!\!=\) yield <code>Boolean</code> for
 any operands of conforming type. The logical operators require and yield
 <code>Boolean</code>.</p>
 
 <p>Formally these are rules <a href="appendix-rules.html#rule-4.8">4.8</a>&ndash;<a href="appendix-rules.html#rule-4.10">4.10</a> of Appendix&nbsp;<a href="appendix-rules.html">D</a>, where
-\(\tau_1 \sqcup \tau_2\) is the wider of two numeric types; disjunction and
+\(\tau_1 \sqcup \tau_2\) is the join of two numeric types defined in Section&nbsp;<a href="#sec-4.3">4.3</a>; disjunction and
 negation are analogous to the conjunction rule.</p>
 
 <p>The claim at the top of this section &mdash; that an infix operator
@@ -669,7 +698,9 @@ subtype. Otherwise it yields <code>false</code>, with \(x\) bound to
 <code>nil</code>.</p>
 
 <p>Statically, it requires the type of \(e\) and \(\sigma\) to be related by
-conformance in one direction or the other. The form itself has type
+conformance in one direction or the other. (Distinct numeric types are related in neither
+direction, Section&nbsp;<a href="#sec-4.3">4.3</a>, so <code>convert</code> never turns an <code>Integer</code> into a
+<code>Byte</code> or a <code>Real</code>; the conversion routines do.) The form itself has type
 <code>Boolean</code>, and binds \(x : \sigma\,?\) (rule <a href="appendix-rules.html#rule-4.20">4.20</a> in
 Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 

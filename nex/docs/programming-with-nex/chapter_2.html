@@ -185,6 +185,39 @@ true</code></pre>
 <pre><code>nex&gt; 6.pick
 4</code></pre>
 <p><code>pick</code> returns a random integer in the range from zero up to but not including the value it is called on. <code>6.pick</code> returns a random integer from 0 to 5. The result will differ each time you call it. This is useful for simulations and exercises, and we will use it in several places later on.</p>
+<section class="level3" data-number="3.2.1" id="bytes-and-fixed-width-integers">
+<h3 class="anchored" data-anchor-id="bytes-and-fixed-width-integers" data-number="3.2.1"> Bytes and Fixed-Width Integers</h3>
+<p>Most programs never need to care how many bits an integer occupies: <code>Integer</code> is a 64-bit value, which is plenty. (<code>Integer64</code> is another name for the same type.) Programs that read files, parse network messages, or talk to other systems sometimes do care, because the data they handle has an exact width. For those, Nex has three more integer types:</p>
+<ul>
+<li><code>Byte</code> — 8 bits, unsigned, from 0 to 255</li>
+<li><code>Integer16</code> — 16 bits, signed, from -32768 to 32767</li>
+<li><code>Integer32</code> — 32 bits, signed, from -2147483648 to 2147483647</li>
+</ul>
+<p>Each is a type of its own. You write a value of one by adding a suffix to an integer literal — <code>u8</code> for a <code>Byte</code>, <code>i16</code> for an <code>Integer16</code>, <code>i32</code> for an <code>Integer32</code>:</p>
+<pre class="nex"><code>let b: Byte := 200u8
+let port: Integer16 := 8080i16
+let offset: Integer32 := -70000i32
+print(b)        -- 200
+print(port)     -- 8080
+print(offset)   -- -70000</code></pre>
+<p>A literal without a suffix is always an <code>Integer</code>, so <code>let b: Byte := 200</code> is a type error. A leading minus sign belongs to a signed literal, which is why <code>-70000i32</code> is an <code>Integer32</code>. The suffix letters are <code>u8</code>, not <code>b</code>, because <code>b</code> is also a hexadecimal digit: <code>0xFFu8</code> is a <code>Byte</code>, and <code>0x1b</code> is just a number.</p>
+<p>These types never turn into one another — or into <code>Integer</code> — on their own. This is deliberate: silently mixing widths is a classic source of bugs. To move between them, call a conversion method. Converting to a narrower type checks that the value fits, and raises an error if it does not:</p>
+<pre class="nex"><code>let n: Integer := 300
+let small: Integer16 := n.to_integer16()   -- fine
+print(small)                               -- 300
+print(n.to_byte())                         -- error: 300 is not in 0..255</code></pre>
+<p>Arithmetic on these types gives an <code>Integer</code>, so the result cannot overflow the narrow type. If you want a narrow value back, convert it, and that conversion is where the range is checked:</p>
+<pre class="nex"><code>let a: Byte := 100u8
+let total: Integer := a + a          -- 200, an Integer
+let doubled: Byte := (a + a).to_byte()
+print(doubled)                       -- 200</code></pre>
+<p>Comparison works between two values of the same type; to compare a <code>Byte</code> with an <code>Integer</code>, convert one of them first (<code>b.to_integer()</code>).</p>
+<p>Bytes appear naturally when you work with text. <code>to_bytes()</code> gives the UTF-8 encoding of a string as an <code>Array[Byte]</code>, and <code>create String.from_bytes(...)</code> turns it back:</p>
+<pre class="nex"><code>let bytes: Array[Byte] := "café".to_bytes()
+print(bytes)                             -- [99, 97, 102, 195, 169]
+print(create String.from_bytes(bytes))   -- "café"</code></pre>
+<p>Appendix B lists the methods of each type, and Appendix C describes <code>Byte_Array</code>, a compact buffer for large amounts of binary data.</p>
+</section>
 </section>
 <section class="level2" data-number="3.3" id="real-numbers">
 <h2 class="anchored" data-anchor-id="real-numbers" data-number="3.3"> Real Numbers</h2>

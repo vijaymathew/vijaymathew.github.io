@@ -357,6 +357,8 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#string" id="toc-string" class="nav-link active" data-scroll-target="#string"><code>String</code></a></li>
   <li><a href="#integer" id="toc-integer" class="nav-link" data-scroll-target="#integer"><code>Integer</code></a></li>
+  <li><a href="#byte" id="toc-byte" class="nav-link" data-scroll-target="#byte"><code>Byte</code></a></li>
+  <li><a href="#integer16-and-integer32" id="toc-integer16-and-integer32" class="nav-link" data-scroll-target="#integer16-and-integer32"><code>Integer16</code> and <code>Integer32</code></a></li>
   <li><a href="#real" id="toc-real" class="nav-link" data-scroll-target="#real"><code>Real</code></a></li>
   <li><a href="#boolean" id="toc-boolean" class="nav-link" data-scroll-target="#boolean"><code>Boolean</code></a></li>
   <li><a href="#char" id="toc-char" class="nav-link" data-scroll-target="#char"><code>Char</code></a></li>
@@ -387,7 +389,7 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>Built-in scalar classes: <code>String</code>, <code>Integer</code>, <code>Real</code>, <code>Boolean</code>, <code>Char</code>.</p>
+<p>Built-in scalar classes: <code>String</code>, <code>Integer</code>, <code>Integer16</code>, <code>Integer32</code>, <code>Byte</code>, <code>Real</code>, <code>Boolean</code>, <code>Char</code>. <code>Integer64</code> is another spelling of <code>Integer</code>.</p>
 <p>All scalar classes are modeled as inheriting <code>Any</code> and implementing <code>Comparable</code> and <code>Hashable</code>.</p>
 <section id="string" class="level2">
 <h2 class="anchored" data-anchor-id="string"><code>String</code></h2>
@@ -513,7 +515,7 @@ ul.task-list li input[type="checkbox"] {
 <tr class="odd">
 <td><code>to_bytes</code></td>
 <td>none</td>
-<td><code>Array[Integer]</code></td>
+<td><code>Array[Byte]</code></td>
 <td>UTF-8 bytes of the string.</td>
 </tr>
 <tr class="even">
@@ -600,13 +602,18 @@ ul.task-list li input[type="checkbox"] {
 print(xs)        -- [#c, #a, #t]
 print(xs.length) -- 3
 print(xs.get(1)) -- #a</code></pre>
-<p><code>to_bytes()</code> uses UTF-8 encoding and returns an <code>Array[Integer]</code> with byte values in <code>0..255</code>.</p>
-<pre class="nex"><code>let bytes: Array[Integer] := "cat".to_bytes()
+<p><code>to_bytes()</code> uses UTF-8 encoding and returns an <code>Array[Byte]</code> with byte values in <code>0..255</code>.</p>
+<pre class="nex"><code>let bytes: Array[Byte] := "cat".to_bytes()
 print(bytes) -- [99, 97, 116]</code></pre>
+<p><code>create String.from_bytes(bytes)</code> is the inverse: it decodes an <code>Array[Byte]</code> as UTF-8 and returns the <code>String</code>. It raises if the bytes are not valid UTF-8, rather than substituting replacement characters, so <code>create String.from_bytes(s.to_bytes())</code> always gives back <code>s</code> exactly.</p>
+<pre class="nex"><code>let bytes: Array[Byte] := "héllo".to_bytes()
+let text: String := create String.from_bytes(bytes)
+print(text) -- "héllo"</code></pre>
 </section>
 <section id="integer" class="level2">
 <h2 class="anchored" data-anchor-id="integer"><code>Integer</code></h2>
 <p><code>Integer</code> is a signed 64-bit integer (range <code>-2^63 .. 2^63-1</code>) on every backend. Arithmetic is <em>checked</em>: <code>+</code>, <code>-</code>, <code>*</code>, unary <code>-</code>, and <code>^</code> raise on overflow, and <code>/</code> and <code>%</code> raise on a zero divisor.</p>
+<p><code>Integer64</code> is an alias: it names exactly the same type, so the two are interchangeable everywhere (<code>let n: Integer64 := 5</code> and <code>let m: Integer := n</code> both typecheck). The fixed-width siblings are <code>Integer16</code>, <code>Integer32</code> and <code>Byte</code>, below.</p>
 <p>Bitwise operations use 32-bit integer semantics. Bit index <code>0</code> is the least-significant bit. For method calls on integer literals, wrap the literal in parentheses: <code>(5).bitwise_left_shift(1)</code>.</p>
 <table class="caption-top table">
 <colgroup>
@@ -804,8 +811,411 @@ print(bytes) -- [99, 97, 116]</code></pre>
 <td><code>Char</code></td>
 <td>Return the character whose Unicode code point equals this integer. Valid for BMP code points (0–65535).</td>
 </tr>
+<tr class="odd">
+<td><code>to_byte</code></td>
+<td>none</td>
+<td><code>Byte</code></td>
+<td>Convert to a <code>Byte</code>; raises unless the value is in <code>0..255</code>.</td>
+</tr>
+<tr class="even">
+<td><code>to_integer16</code></td>
+<td>none</td>
+<td><code>Integer16</code></td>
+<td>Convert to an <code>Integer16</code>; raises unless the value is in <code>-32768..32767</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>to_integer32</code></td>
+<td>none</td>
+<td><code>Integer32</code></td>
+<td>Convert to an <code>Integer32</code>; raises unless the value is in <code>-2147483648..2147483647</code>.</td>
+</tr>
 </tbody>
 </table>
+</section>
+<section id="byte" class="level2">
+<h2 class="anchored" data-anchor-id="byte"><code>Byte</code></h2>
+<p><code>Byte</code> is an unsigned 8-bit integer (range <code>0..255</code>). It is the element type of <code>String.to_bytes()</code> and of binary file I/O (<code>Array[Byte]</code>).</p>
+<p><code>Byte</code> is a distinct type, related to <code>Integer</code> the way <code>Integer</code> is related to <code>Real</code>: there is no implicit conversion in either direction.</p>
+<ul>
+<li><strong>Byte literals:</strong> an integer literal with a <code>u8</code> suffix is a <code>Byte</code>: <code>12u8</code>, <code>0xFFu8</code>, <code>0b1010u8</code>, <code>0o17u8</code>, <code>1_0u8</code>. The value must be in <code>0..255</code>, and is checked when the program is parsed. (The suffix is <code>u8</code>, not <code>b</code>, because <code>b</code> is a hex digit.) An unsuffixed literal is always an <code>Integer</code>, so <code>let b: Byte := 65</code> is a type error; write <code>65u8</code>. There are no negative byte literals: <code>-5u8</code> is the <code>Integer</code> <code>-5</code>.</li>
+<li><strong>Making a <code>Byte</code> from a value:</strong> <code>n.to_byte()</code> on an <code>Integer</code> (raises unless <code>0 &lt;= n &lt;= 255</code>), or reading one out of an <code>Array[Byte]</code>.</li>
+<li><strong>Getting an <code>Integer</code>:</strong> <code>b.to_integer()</code>. Assigning a <code>Byte</code> to an <code>Integer</code> variable or passing it to an <code>Integer</code> parameter is a type error.</li>
+<li><strong>Arithmetic</strong> (<code>+ - * / % ^</code>, unary <code>-</code>) promotes to <code>Integer</code>, so the result of <code>b + b</code> is an <code>Integer</code> and cannot overflow a <code>Byte</code>; narrow it back with <code>(b + b).to_byte()</code>. Mixing with <code>Real</code> promotes to <code>Real</code>.</li>
+<li><strong>Comparison</strong> (<code>= /= &lt; &lt;= &gt; &gt;=</code>) is between two <code>Byte</code>s. Comparing a <code>Byte</code> with an <code>Integer</code> needs <code>b.to_integer()</code> first, just as comparing an <code>Integer</code> with a <code>Real</code> needs a conversion. <code>b.equals(x)</code> is true only when <code>x</code> is a <code>Byte</code> of the same value.</li>
+<li><strong><code>convert</code></strong> does not change representation, so <code>convert n to b: Byte</code> on an <code>Integer</code> is rejected; use <code>to_byte()</code>. A <code>Byte</code> held in an <code>Any</code> keeps its type: <code>type_of</code> reports <code>"Byte"</code> and <code>convert a to b: Byte</code> succeeds.</li>
+<li><strong>Bitwise methods</strong> work on 8 bits and return a <code>Byte</code>, unlike <code>Integer</code>'s 32-bit bitwise operations: <code>(195).to_byte().bitwise_not()</code> is <code>60</code>. Bit indexes for <code>bitwise_is_set</code>, <code>bitwise_set</code> and <code>bitwise_unset</code> must be in <code>0..7</code>; shift counts must be non-negative, and shifting by 8 or more clears every bit.</li>
+<li><strong>Java interop:</strong> a <code>Byte</code> passed to a Java <code>int</code> or <code>long</code> parameter is passed as an integer. Passed to a Java <code>byte</code> parameter, it is the same 8 bits read as signed, so <code>200</code> arrives as <code>-56</code>.</li>
+</ul>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>to_string</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>Base-10 text.</td>
+</tr>
+<tr class="even">
+<td><code>to_string</code></td>
+<td><code>base: Integer</code></td>
+<td><code>String</code></td>
+<td>Text in <code>base</code> (<code>2</code>, <code>8</code>, <code>10</code>, or <code>16</code>; any other value raises).</td>
+</tr>
+<tr class="odd">
+<td><code>to_integer</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>The value, <code>0..255</code>.</td>
+</tr>
+<tr class="even">
+<td><code>to_char</code></td>
+<td>none</td>
+<td><code>Char</code></td>
+<td>The character with this code point.</td>
+</tr>
+<tr class="odd">
+<td><code>to_hex</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>Two lowercase hex digits, e.g. <code>"0a"</code>.</td>
+</tr>
+<tr class="even">
+<td><code>to_integer16</code></td>
+<td>none</td>
+<td><code>Integer16</code></td>
+<td>Widen to an <code>Integer16</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>to_integer32</code></td>
+<td>none</td>
+<td><code>Integer32</code></td>
+<td>Widen to an <code>Integer32</code>.</td>
+</tr>
+<tr class="even">
+<td><code>min</code></td>
+<td><code>other: Byte</code></td>
+<td><code>Byte</code></td>
+<td>Smaller of two values.</td>
+</tr>
+<tr class="odd">
+<td><code>max</code></td>
+<td><code>other: Byte</code></td>
+<td><code>Byte</code></td>
+<td>Larger of two values.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_left_shift</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Byte</code></td>
+<td>Left-shift, dropping bits shifted out of the top.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_right_shift</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Byte</code></td>
+<td>Right-shift.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_logical_right_shift</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Byte</code></td>
+<td>Same as <code>bitwise_right_shift</code>; a <code>Byte</code> is never negative.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_rotate_left</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Byte</code></td>
+<td>Rotate bits left within 8 bits.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_rotate_right</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Byte</code></td>
+<td>Rotate bits right within 8 bits.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_is_set</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Boolean</code></td>
+<td>True if bit <code>n</code> (<code>0..7</code>) is set.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_set</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Byte</code></td>
+<td>Value with bit <code>n</code> set to <code>1</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_unset</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Byte</code></td>
+<td>Value with bit <code>n</code> cleared to <code>0</code>.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_and</code></td>
+<td><code>x: Byte</code></td>
+<td><code>Byte</code></td>
+<td>Bitwise AND.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_or</code></td>
+<td><code>x: Byte</code></td>
+<td><code>Byte</code></td>
+<td>Bitwise OR.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_xor</code></td>
+<td><code>x: Byte</code></td>
+<td><code>Byte</code></td>
+<td>Bitwise XOR.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_not</code></td>
+<td>none</td>
+<td><code>Byte</code></td>
+<td>Complement within 8 bits (<code>255 - self</code>).</td>
+</tr>
+<tr class="even">
+<td><code>equals</code></td>
+<td><code>other: Any</code></td>
+<td><code>Boolean</code></td>
+<td>True only for a <code>Byte</code> of the same value.</td>
+</tr>
+<tr class="odd">
+<td><code>not_equals</code></td>
+<td><code>other: Any</code></td>
+<td><code>Boolean</code></td>
+<td>Inequality check.</td>
+</tr>
+<tr class="even">
+<td><code>compare</code></td>
+<td><code>other: Any</code></td>
+<td><code>Integer</code></td>
+<td>Ordering as integer result.</td>
+</tr>
+<tr class="odd">
+<td><code>hash</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>Hash code.</td>
+</tr>
+</tbody>
+</table>
+<pre class="nex"><code>let bytes: Array[Byte] := &quot;é&quot;.to_bytes()
+let magic: Array[Byte] := [0x89u8, 0x50u8, 0x4Eu8, 0x47u8]
+print(bytes)                       -- [195, 169]
+let b: Byte := bytes.get(0)
+print(b.to_hex())                  -- &quot;c3&quot;
+print(b.bitwise_not())             -- 60
+let total: Integer := b + bytes.get(1)
+print(total)                       -- 364
+let narrowed: Byte := (total - 200).to_byte()
+print(narrowed)                    -- 164</code></pre>
+</section>
+<section id="integer16-and-integer32" class="level2">
+<h2 class="anchored" data-anchor-id="integer16-and-integer32"><code>Integer16</code> and <code>Integer32</code></h2>
+<p><code>Integer16</code> and <code>Integer32</code> are signed fixed-width integers: <code>-32768..32767</code> and <code>-2147483648..2147483647</code>. They are for binary formats, protocols and interop where a value has an exact width. Like <code>Byte</code>, each is a distinct type related to <code>Integer</code> the way <code>Integer</code> is related to <code>Real</code>.</p>
+<ul>
+<li><strong>No implicit conversion.</strong> None of <code>Integer</code>, <code>Integer16</code>, <code>Integer32</code> and <code>Byte</code> converts to another without a call, in either direction. <code>let b: Integer32 := a</code> where <code>a</code> is an <code>Integer16</code> is a type error; write <code>a.to_integer32()</code>.</li>
+<li><strong>Literals.</strong> An integer literal with an <code>i16</code> or <code>i32</code> suffix: <code>300i16</code>, <code>0xFFFFi32</code>, <code>1_000i32</code>. A negative one is written with a leading <code>-</code> and is a single literal of that type: <code>-5i16</code> is an <code>Integer16</code>, and <code>-32768i16</code> is valid. (Elsewhere <code>-x</code> on a sized variable promotes to <code>Integer</code>, like any arithmetic.) An unsuffixed literal is an <code>Integer</code>, so <code>let a: Integer16 := 5</code> is a type error; write <code>5i16</code>. A literal outside the type's range is rejected.</li>
+<li><strong>Conversions.</strong> Narrowing is checked: <code>n.to_integer16()</code>, <code>n.to_integer32()</code> and <code>n.to_byte()</code> raise unless the value fits. Widening (<code>Byte</code> to <code>Integer16</code>/<code>Integer32</code>, <code>Integer16</code> to <code>Integer32</code>) also uses these methods and always succeeds. <code>x.to_integer()</code> gives the <code>Integer</code>.</li>
+<li><strong>Arithmetic</strong> (<code>+ - * / % ^</code>, unary <code>-</code> on a variable) promotes to <code>Integer</code>, so the result of <code>a + a</code> is an <code>Integer</code> and cannot overflow the narrow type; narrow it back with <code>(a + a).to_integer16()</code>. Mixing with <code>Real</code> promotes to <code>Real</code>.</li>
+<li><strong>Comparison</strong> (<code>= /= &lt; &lt;= &gt; &gt;=</code>) is between two values of the same type. Comparing across types needs a conversion first. <code>a.equals(x)</code> is true only when <code>x</code> has the same type and value.</li>
+<li><strong><code>convert</code></strong> does not change representation, so <code>convert n to a: Integer16</code> on an <code>Integer</code> is rejected. A value keeps its type inside an <code>Any</code>: <code>type_of</code> reports <code>"Integer16"</code>, and <code>convert x to a: Integer16</code> succeeds only for one.</li>
+<li><strong>Bitwise methods</strong> work on, and wrap to, the type's own width, and return the same type: <code>0i16.bitwise_not()</code> is <code>-1i16</code>, and <code>32767i16.bitwise_left_shift(1)</code> is <code>-2i16</code>. Right shift copies the sign bit; <code>bitwise_logical_right_shift</code> shifts in zeros. Bit indexes must be <code>0..15</code> (<code>Integer16</code>) or <code>0..31</code> (<code>Integer32</code>); shift counts must be non-negative, and shifting by the width or more clears every bit (except an arithmetic right shift of a negative value, which gives <code>-1</code>). <code>abs</code> raises for the minimum value, which has no positive counterpart. (<code>Integer</code>'s own bitwise methods keep their 32-bit behaviour.)</li>
+<li><strong>Java interop:</strong> passed to a reflective Java call, an <code>Integer16</code> or <code>Integer32</code> goes as an integer, so it can be used wherever an <code>Integer</code> can.</li>
+</ul>
+<p>Both types have the same methods. <code>T</code> below is the type itself.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>to_string</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>Base-10 text.</td>
+</tr>
+<tr class="even">
+<td><code>to_string</code></td>
+<td><code>base: Integer</code></td>
+<td><code>String</code></td>
+<td>Text in <code>base</code> (<code>2</code>, <code>8</code>, <code>10</code>, or <code>16</code>; any other value raises). A negative value is rendered with a leading <code>-</code> and its magnitude.</td>
+</tr>
+<tr class="odd">
+<td><code>to_integer</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>The value as an <code>Integer</code>.</td>
+</tr>
+<tr class="even">
+<td><code>to_byte</code></td>
+<td>none</td>
+<td><code>Byte</code></td>
+<td>Raises unless the value is in <code>0..255</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>to_integer16</code></td>
+<td>none</td>
+<td><code>Integer16</code></td>
+<td>Raises unless the value fits.</td>
+</tr>
+<tr class="even">
+<td><code>to_integer32</code></td>
+<td>none</td>
+<td><code>Integer32</code></td>
+<td>Raises unless the value fits.</td>
+</tr>
+<tr class="odd">
+<td><code>abs</code></td>
+<td>none</td>
+<td><code>T</code></td>
+<td>Absolute value; raises for the minimum value.</td>
+</tr>
+<tr class="even">
+<td><code>min</code></td>
+<td><code>other: T</code></td>
+<td><code>T</code></td>
+<td>Smaller of two values.</td>
+</tr>
+<tr class="odd">
+<td><code>max</code></td>
+<td><code>other: T</code></td>
+<td><code>T</code></td>
+<td>Larger of two values.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_left_shift</code></td>
+<td><code>n: Integer</code></td>
+<td><code>T</code></td>
+<td>Left-shift, dropping bits shifted out.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_right_shift</code></td>
+<td><code>n: Integer</code></td>
+<td><code>T</code></td>
+<td>Arithmetic right-shift (the sign bit is copied).</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_logical_right_shift</code></td>
+<td><code>n: Integer</code></td>
+<td><code>T</code></td>
+<td>Right-shift, shifting in zeros.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_rotate_left</code></td>
+<td><code>n: Integer</code></td>
+<td><code>T</code></td>
+<td>Rotate bits left within the width.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_rotate_right</code></td>
+<td><code>n: Integer</code></td>
+<td><code>T</code></td>
+<td>Rotate bits right within the width.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_is_set</code></td>
+<td><code>n: Integer</code></td>
+<td><code>Boolean</code></td>
+<td>True if bit <code>n</code> is set.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_set</code></td>
+<td><code>n: Integer</code></td>
+<td><code>T</code></td>
+<td>Value with bit <code>n</code> set to <code>1</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_unset</code></td>
+<td><code>n: Integer</code></td>
+<td><code>T</code></td>
+<td>Value with bit <code>n</code> cleared to <code>0</code>.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_and</code></td>
+<td><code>x: T</code></td>
+<td><code>T</code></td>
+<td>Bitwise AND.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_or</code></td>
+<td><code>x: T</code></td>
+<td><code>T</code></td>
+<td>Bitwise OR.</td>
+</tr>
+<tr class="even">
+<td><code>bitwise_xor</code></td>
+<td><code>x: T</code></td>
+<td><code>T</code></td>
+<td>Bitwise XOR.</td>
+</tr>
+<tr class="odd">
+<td><code>bitwise_not</code></td>
+<td>none</td>
+<td><code>T</code></td>
+<td>Bitwise complement.</td>
+</tr>
+<tr class="even">
+<td><code>equals</code></td>
+<td><code>other: Any</code></td>
+<td><code>Boolean</code></td>
+<td>True only for the same type and value.</td>
+</tr>
+<tr class="odd">
+<td><code>not_equals</code></td>
+<td><code>other: Any</code></td>
+<td><code>Boolean</code></td>
+<td>Inequality check.</td>
+</tr>
+<tr class="even">
+<td><code>compare</code></td>
+<td><code>other: Any</code></td>
+<td><code>Integer</code></td>
+<td>Ordering as integer result.</td>
+</tr>
+<tr class="odd">
+<td><code>hash</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>Hash code.</td>
+</tr>
+</tbody>
+</table>
+<pre class="nex"><code>let port: Integer16 := 8080i16
+let offset: Integer32 := -70000i32
+print(port.to_string(16))            -- &quot;1f90&quot;
+print(offset.abs())                  -- 70000
+print(port.bitwise_left_shift(4))    -- -1792 (129280 wrapped to 16 bits)
+let wide: Integer := port + offset   -- arithmetic promotes to Integer
+print(wide)                          -- -61920
+let back: Integer16 := (wide + 61920 + 100).to_integer16()
+print(back)                          -- 100</code></pre>
 </section>
 <section id="real" class="level2">
 <h2 class="anchored" data-anchor-id="real"><code>Real</code></h2>

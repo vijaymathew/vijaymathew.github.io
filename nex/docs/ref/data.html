@@ -393,6 +393,14 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#sexpr-example" id="toc-sexpr-example" class="nav-link" data-scroll-target="#sexpr-example">Example</a></li>
   <li><a href="#sexpr-notes" id="toc-sexpr-notes" class="nav-link" data-scroll-target="#sexpr-notes">Notes</a></li>
   </ul></li>
+  <li><a href="#databyte_array" id="toc-databyte_array" class="nav-link" data-scroll-target="#databyte_array"><code>data/Byte_Array</code></a>
+  <ul class="collapse">
+  <li><a href="#bytearray-loading" id="toc-bytearray-loading" class="nav-link" data-scroll-target="#bytearray-loading">Loading</a></li>
+  <li><a href="#bytearray-support" id="toc-bytearray-support" class="nav-link" data-scroll-target="#bytearray-support">Support</a></li>
+  <li><a href="#bytearray-construction" id="toc-bytearray-construction" class="nav-link" data-scroll-target="#bytearray-construction">Construction</a></li>
+  <li><a href="#bytearray-methods" id="toc-bytearray-methods" class="nav-link" data-scroll-target="#bytearray-methods">Methods</a></li>
+  <li><a href="#bytearray-notes" id="toc-bytearray-notes" class="nav-link" data-scroll-target="#bytearray-notes">Notes</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -840,6 +848,240 @@ end</code></pre>
 <li><code>Sexpr_Parser</code> (constructed via <code>create Sexpr_Parser.make(text)</code>, driven with <code>.parse()</code>) is the class <code>parse_sexpr_text</code> wraps; use it directly for incremental/streaming parsing.</li>
 <li>Numeric tokens are classified by shape: a run of digits (optional leading <code>+</code>/<code>-</code>) is <code>Int</code>; the same with exactly one <code>.</code> and digits on both sides is <code>Float</code>; anything else is a <code>Symbol</code> &mdash; so operators like <code>+</code> and <code>-</code> parse as symbols, not numbers.</li>
 </ul>
+</section>
+</section>
+<section id="databyte_array" class="level2">
+<h2 class="anchored" data-anchor-id="databyte_array"><code>data/Byte_Array</code></h2>
+<p><code>Byte_Array</code> is a fixed-size, mutable sequence of <code>Byte</code>s stored in a real Java <code>byte[]</code>, one byte per element. Use it for binary data where <code>Array[Byte]</code> (a list of boxed values, several times larger) is too heavy, and to hand a real <code>byte[]</code> to Java code inside <code>with "java"</code>. It is shipped as a Nex library under <code>lib/data/byte_array.nex</code>, on top of <code>byte_array_*</code> runtime primitives.</p>
+<section id="bytearray-loading" class="level3">
+<h3 class="anchored" data-anchor-id="bytearray-loading">Loading</h3>
+<pre class="nex"><code>intern data/Byte_Array</code></pre>
+</section>
+<section id="bytearray-support" class="level3">
+<h3 class="anchored" data-anchor-id="bytearray-support">Support</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Target</th>
+<th>Supported</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>JVM REPL / interpreter</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td>Generated JVM code</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bytearray-construction" class="level3">
+<h3 class="anchored" data-anchor-id="bytearray-construction">Construction</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Arguments</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>make</code></td>
+<td><code>size: Integer</code></td>
+<td><code>size</code> zero-filled bytes; raises if <code>size</code> is negative.</td>
+</tr>
+<tr class="even">
+<td><code>from_array</code></td>
+<td><code>items: Array[Byte]</code></td>
+<td>A copy of an <code>Array[Byte]</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>from_slice</code></td>
+<td><code>source: Byte_Array, start: Integer, stop: Integer</code></td>
+<td>A copy of <code>source[start, stop)</code>; what <code>slice</code> uses.</td>
+</tr>
+<tr class="even">
+<td><code>from_concat</code></td>
+<td><code>first: Byte_Array, second: Byte_Array</code></td>
+<td>A new array: <code>first</code>'s bytes then <code>second</code>'s; what <code>concat</code> uses.</td>
+</tr>
+<tr class="odd">
+<td><code>from_java</code></td>
+<td><code>raw: Any</code></td>
+<td>A copy of a Java <code>byte[]</code>; raises for anything else.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bytearray-methods" class="level3">
+<h3 class="anchored" data-anchor-id="bytearray-methods">Methods</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>length</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>Number of elements.</td>
+</tr>
+<tr class="even">
+<td><code>get</code></td>
+<td><code>index: Integer</code></td>
+<td><code>Byte</code></td>
+<td>The element at <code>index</code>; raises if it is outside <code>0..length-1</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>set</code></td>
+<td><code>index: Integer, value: Byte</code></td>
+<td><code>Void</code></td>
+<td>Store <code>value</code> at <code>index</code>; raises if it is out of range.</td>
+</tr>
+<tr class="even">
+<td><code>fill</code></td>
+<td><code>value: Byte</code></td>
+<td><code>Void</code></td>
+<td>Set every element to <code>value</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>copy</code></td>
+<td>none</td>
+<td><code>Byte_Array</code></td>
+<td>A copy of the whole array.</td>
+</tr>
+<tr class="even">
+<td><code>concat</code></td>
+<td><code>other: Byte_Array</code></td>
+<td><code>Byte_Array</code></td>
+<td>A new array: these bytes followed by <code>other</code>'s.</td>
+</tr>
+<tr class="odd">
+<td><code>copy_into</code></td>
+<td><code>target: Byte_Array, target_offset: Integer</code></td>
+<td><code>Void</code></td>
+<td>Copy all of these bytes into <code>target</code> starting at <code>target_offset</code>, overwriting what is there; raises unless they fit.</td>
+</tr>
+<tr class="even">
+<td><code>slice</code></td>
+<td><code>start: Integer, stop: Integer</code></td>
+<td><code>Byte_Array</code></td>
+<td>A copy of the elements in <code>[start, stop)</code>; raises unless <code>0 &lt;= start &lt;= stop &lt;= length</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>index_of</code></td>
+<td><code>value: Byte</code></td>
+<td><code>Integer</code></td>
+<td>The first index holding <code>value</code>, or <code>-1</code>.</td>
+</tr>
+<tr class="even">
+<td><code>contains</code></td>
+<td><code>value: Byte</code></td>
+<td><code>Boolean</code></td>
+<td>True if <code>value</code> occurs.</td>
+</tr>
+<tr class="odd">
+<td><code>to_array</code></td>
+<td>none</td>
+<td><code>Array[Byte]</code></td>
+<td>A boxed copy of the elements.</td>
+</tr>
+<tr class="even">
+<td><code>to_java</code></td>
+<td>none</td>
+<td><code>Any</code></td>
+<td>The underlying Java <code>byte[]</code>, <strong>shared, not copied</strong>.</td>
+</tr>
+<tr class="odd">
+<td><code>equals</code></td>
+<td><code>other: Any</code></td>
+<td><code>Boolean</code></td>
+<td>True for a <code>Byte_Array</code> with the same bytes. <code>=</code> uses this.</td>
+</tr>
+<tr class="even">
+<td><code>hash</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>Hash of the contents.</td>
+</tr>
+<tr class="odd">
+<td><code>compare</code></td>
+<td><code>other: Any</code></td>
+<td><code>Integer</code></td>
+<td>Lexicographic order with each byte taken as unsigned; a proper prefix orders first. Raises unless <code>other</code> is a <code>Byte_Array</code>.</td>
+</tr>
+<tr class="even">
+<td><code>to_hex</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>Two lowercase hex digits per byte, e.g. <code>"c3a9"</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>to_utf8_string</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>Decode as UTF-8; raises if the bytes are not valid UTF-8.</td>
+</tr>
+<tr class="even">
+<td><code>cursor</code></td>
+<td>none</td>
+<td><code>Byte_Array_Cursor</code></td>
+<td>A cursor over the bytes; this is what <code>across</code> uses.</td>
+</tr>
+<tr class="odd">
+<td><code>to_string</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td><code>Byte_Array([1, 2, 3])</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bytearray-notes" class="level3">
+<h3 class="anchored" data-anchor-id="bytearray-notes">Notes</h3>
+<ul>
+<li>The storage holds Java's signed bytes, but the interface is unsigned: <code>get</code> returns a <code>Byte</code> in <code>0..255</code> and <code>set</code> keeps the low 8 bits of its <code>Byte</code>. So <code>set(0, 200u8)</code> then <code>get(0)</code> gives <code>200</code>, while a Java caller sees <code>-56</code>.</li>
+<li>The size is fixed; there is no <code>add</code>. Use <code>Array[Byte]</code> when the length changes.</li>
+<li><code>Byte_Array</code> is <code>Comparable</code>, so <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code> work between two of them and an <code>Array[Byte_Array]</code> can be sorted.</li>
+<li><code>across buf as b do ... end</code> iterates the bytes, and <code>b</code> is a <code>Byte</code> (not <code>Any</code>). <code>Byte_Array_Cursor</code> is the cursor class (<code>start</code>, <code>item</code>, <code>next</code>, <code>at_end</code>) that <code>cursor()</code> returns; use it directly for a manual <code>from c.start() until c.at_end() do ... end</code> loop.</li>
+<li>Everything copies except <code>to_java</code>, so two <code>Byte_Array</code>s never alias each other by accident. Writes through the array <code>to_java</code> returns are visible in the <code>Byte_Array</code>.</li>
+</ul>
+<pre class="nex"><code>intern data/Byte_Array
+import java.security.MessageDigest
+
+let input: Byte_Array := create Byte_Array.from_array(&quot;abc&quot;.to_bytes())
+let digest: Any := nil
+with &quot;java&quot; do
+  let md := MessageDigest.getInstance(&quot;SHA-256&quot;)
+  digest := md.digest(input.to_java())
+end
+let out: Byte_Array := create Byte_Array.from_java(digest)
+print(out.length())                     -- 32
+print(out.slice(0, 4).to_array())       -- [186, 120, 22, 191]</code></pre>
 </section>
 </section>
 
