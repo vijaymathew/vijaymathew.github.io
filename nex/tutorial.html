@@ -267,9 +267,8 @@ let y := x + 5</code></pre>
 <p>Built-in scalar types include:</p>
 <ul>
 <li><code>Integer</code></li>
-<li><code>Integer64</code></li>
+<li><code>Byte</code> (an unsigned 8-bit value, <code>0..255</code>; see the <a href="docs/ref/scalar-types.html">scalar types reference</a>)</li>
 <li><code>Real</code></li>
-<li><code>Decimal</code></li>
 <li><code>Char</code></li>
 <li><code>Boolean</code></li>
 <li><code>String</code></li>
@@ -303,7 +302,7 @@ end</code></pre>
 
 <h3 id="expression-level-choice">4.2 Expression-level choice</h3>
 <p><code>when</code> is an expression, so it can appear on the right-hand side:</p>
-<pre><code>let category := when age >= 18 "adult" else "minor" end   -- "minor"</code></pre>
+<pre><code>let category := when age >= 18 then "adult" else "minor" end   -- "minor"</code></pre>
 
 <h3 id="case-analysis">4.3 Case analysis</h3>
 <pre><code>case age of
@@ -417,7 +416,7 @@ print(ch.try_receive)</code></pre>
 <p>Timed channel operations:</p>
 <pre><code>print(ch.send(3, 50))
 print(ch.receive(50))</code></pre>
-<p>Use <code>select</code> when you want to react to whichever channel operation is ready first:</p>
+<p>Use <code>select</code> when you want to react to whichever channel operation is ready first, or to a task that has already finished:</p>
 <pre><code>select
   when inbox.receive as msg then
     print(msg)
@@ -430,6 +429,8 @@ print(ch.receive(50))</code></pre>
   else
     print("idle")
 end</code></pre>
+<p><code>select</code> uses channel readiness checks for channels and <code>is_done</code> checks for tasks. Task clauses use <code>Task.await</code>, but only become selectable after the task has already completed. If no clause is ready and there is no <code>else</code>, <code>select</code> waits until one becomes ready. If a <code>timeout</code> clause is present, that body runs once the timeout expires.</p>
+<p>For the precise concurrency semantics and runtime design, see the <a href="docs/definition-of-nex/concurrency.html">Concurrency Guide</a>.</p>
 
 <h2 id="classes-and-objects">8. Classes and Objects</h2>
 <p>A class groups fields and methods.</p>
@@ -529,13 +530,23 @@ d.speak -- "Ki says woof"</code></pre>
     never_negative: money >= 0.0
 end
 
-let w: Wallet := create Wallet.with_balance(-10)
+let w: Wallet := create Wallet.with_balance(-10.0)
 Error: Class invariant violation: never_negative</code></pre>
 <p>With a valid balance the methods run, and a broken precondition is reported the same way:</p>
 <pre><code>let w: Wallet := create Wallet.with_balance(10.2)
-w.spend(9)
+w.spend(9.0)
 w.money       -- 1.1999999999999993
-w.spend(2)    -- Error: Precondition violation: enough</code></pre>
+w.spend(2.0)  -- Error: Precondition violation: enough</code></pre>
+<p>Use contracts to state assumptions (<code>require</code>), guarantees (<code>ensure</code>), and global consistency rules (<code>invariant</code>).</p>
+<p>Those three speak about a routine's boundaries or a whole class. To state something that must hold <em>part way through</em> a body, use <code>assert</code>:</p>
+<pre><code>assert enough_left: money >= 0.0   -- named: the failure reports the name
+assert money >= 0.0                -- bare: the failure reports the line</code></pre>
+<p>A failed <code>assert</code> reports a contract violation exactly as <code>require</code> and <code>ensure</code> do, which makes it the natural way to write checks in a test routine:</p>
+<pre><code>function test_spend() do
+  let w: Wallet := create Wallet.with_balance(10.0)
+  w.spend(4.0)
+  assert spent: w.money = 6.0
+end</code></pre>
 
 <h2 id="errors-and-recovery">12. Errors and Recovery</h2>
 <pre><code>let attempts := 0
@@ -553,13 +564,13 @@ end</code></pre>
 <p><code>raise</code>, <code>rescue</code>, and <code>retry</code> provide structured recovery paths.</p>
 
 <h2 id="modules-and-interop">13. Modules and Interop</h2>
-<h3>14.1 Import external Java/JavaScript symbols</h3>
-<pre><code>import java.util.Scanner
-import Math from './math.js'</code></pre>
+<h3>13.1 Import external Java symbols</h3>
+<pre><code>import java.util.Scanner</code></pre>
 
-<h3>14.2 Load Nex classes from other files</h3>
+<h3>13.2 Load Nex classes from other files</h3>
 <pre><code>intern math/Calculator
 intern math/Calculator as Calc</code></pre>
+<p><code>intern</code> first searches relative to the loaded file, then the current working directory, then <code>~/.nex/deps</code>. For path-qualified classes it accepts <code>lib/&lt;path&gt;/&lt;Class&gt;.nex</code>, <code>lib/&lt;path&gt;/&lt;class&gt;.nex</code>, and the corresponding <code>src/</code> variants.</p>
 <p>Use <code>intern</code> for Nex-to-Nex modularity and <code>import</code> for target-platform interop.</p>
 
 <h2 id="a-complete-example">14. A Complete Example</h2>

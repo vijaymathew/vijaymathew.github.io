@@ -246,6 +246,20 @@ let power: Integer := 2 ^ 8     -- 256</code></pre>
 let perms: Integer := 0o755
 let color: Integer := 0xFF_AA_33</code></pre>
 <p>Use lowercase prefixes <code>0b</code>, <code>0o</code>, and <code>0x</code>. <code>_</code> may be used as a digit separator.</p>
+<p><code>Integer</code> is a 64-bit integer; <code>Integer64</code> is another spelling of the same type.</p>
+<p><strong>Bytes and fixed-width integers.</strong> <code>Byte</code>, <code>Integer16</code> and <code>Integer32</code> are integers of an exact width, for binary data and protocols. Each is its own type, written with a suffix on an integer literal:</p>
+<pre><code>let b: Byte := 200u8            -- unsigned, 0..255
+let port: Integer16 := 8080i16  -- signed, -32768..32767
+let id: Integer32 := -70000i32  -- signed, -2147483648..2147483647
+let mask: Byte := 0xFFu8        -- bases and `_` work as usual</code></pre>
+<p>An unsuffixed literal is always an <code>Integer</code>, so <code>let b: Byte := 200</code> is a type error. A leading <code>-</code> is part of a signed literal: <code>-5i16</code> is an <code>Integer16</code>.</p>
+<p>None of <code>Integer</code>, <code>Integer16</code>, <code>Integer32</code> and <code>Byte</code> converts to another on its own. Convert with a method; narrowing raises if the value does not fit:</p>
+<pre><code>let n: Integer := 300
+let s: Integer16 := n.to_integer16()   -- ok
+let bb: Byte := n.to_byte()            -- raises: 300 is not in 0..255
+let back: Integer := s.to_integer()</code></pre>
+<p>Arithmetic on any of them gives an <code>Integer</code>, so it cannot overflow the narrow type; narrow the result again if you need to: <code>(s + s).to_integer16()</code>. Comparison and <code>=</code> are between two values of the same type.</p>
+<p><code>Byte</code> is also the element type of <code>"text".to_bytes()</code>, and <code>create String.from_bytes(bytes)</code> turns an <code>Array[Byte]</code> back into a <code>String</code>. Their methods are in the <a href="docs/ref/scalar-types.html">scalar types reference</a>.</p>
     </div>
   </details>
 
@@ -261,19 +275,33 @@ x > y    x >= y                  -- greater than? greater or equal?
 x and y                          -- both true?
 x or y                           -- at least one true?
 not x                            -- flip true/false</code></pre>
+    </div>
+  </details>
+
+  <details class="syntax-item" id="comparison">
+    <summary>Comparison</summary>
+    <div class="syntax-body">
 <p>Nex has two kinds of equality:</p>
 <ul>
 <li><code>=</code> and <code>/=</code> compare by value</li>
 <li><code>==</code> and <code>!=</code> compare by identity</li>
 </ul>
+<p>Value equality checks whether two values have the same contents:</p>
 <pre><code>print([1, 2] = [1, 2])           -- true
-print("abc" = "abc")             -- true
-
-let a := [1, 2]
+print([1, 2] /= [1, 2])          -- false
+print("abc" = "abc")             -- true</code></pre>
+<p>For objects, <code>=</code>/<code>/=</code> use the class's <code>equals</code> method. By default that is a structural, field-by-field comparison, but a class may override <code>equals</code> (and the matching <code>hash</code>) to define its own value equality. <code>==</code>/<code>!=</code> ignore any override and always compare object identity.</p>
+<p>Identity equality checks whether two variables refer to the same runtime object:</p>
+<pre><code>let a := [1, 2]
 let b := a
 let c := [1, 2]
+
 print(a == b)                    -- true
-print(a == c)                    -- false</code></pre>
+print(a == c)                    -- false
+print(a != c)                    -- true</code></pre>
+<p>For scalar values like numbers, booleans, characters, strings, and <code>nil</code>, <code>==</code> and <code>!=</code> compare the values directly:</p>
+<pre><code>print(1 == 1)                    -- true
+print("x" != "y")                -- true</code></pre>
     </div>
   </details>
 
@@ -293,7 +321,7 @@ end</code></pre>
   <details class="syntax-item" id="inline-choice-when">
     <summary>Inline Choice: when</summary>
     <div class="syntax-body">
-<pre><code>let label: String := when age >= 18 "adult" else "minor" end</code></pre>
+<pre><code>let label: String := when age >= 18 then "adult" else "minor" end</code></pre>
     </div>
   </details>
 
@@ -331,10 +359,12 @@ end
   print(ch)
 end
 -- prints #a #b #c</code></pre>
-<p>Maps iterate as <code>[key, value]</code> pairs:</p>
-<pre><code>across {"name": "Alice", "age": "10"} as pair do
-  print(pair.get(0))
-end</code></pre>
+<p>Maps iterate as <code>Map_Entry[K, V]</code> values, read-only key/value pairs with typed <code>key</code> and <code>value</code> members:</p>
+<pre><code>across {"name": "Alice", "age": "10"} as entry do
+  print(entry.key + ": " + entry.value)
+end
+-- prints "name: Alice"  "age: 10"</code></pre>
+<p>An entry itself prints as <code>"name": "Alice"</code> (that is, <code>print(entry)</code>). For compatibility with earlier code, <code>entry.get(0)</code> and <code>entry.get(1)</code> still return the key and value, typed <code>Any</code>; prefer <code>key</code> and <code>value</code>.</p>
     </div>
   </details>
 
@@ -354,21 +384,55 @@ do
 end
 
 print(double(5))                 -- 10</code></pre>
-<p>For mutually recursive functions, declare the signatures first:</p>
-<pre><code>function is_even(n: Integer): Boolean
-function is_odd(n: Integer): Boolean
-
-function is_even(n: Integer): Boolean
-do
-  if n = 0 then result := true
-  else result := is_odd(n - 1) end
+<p>Every function in a program is checked against every other function's
+signature regardless of which is written first, so mutually recursive
+functions need no forward declaration at all:</p>
+<pre><code>function is_even(n: Integer): Boolean do
+  if n = 0 then
+    result := true
+  else
+    result := is_odd(n - 1)
+  end
 end
 
-function is_odd(n: Integer): Boolean
-do
-  if n = 0 then result := false
-  else result := is_even(n - 1) end
+function is_odd(n: Integer): Boolean do
+  if n = 0 then
+    result := false
+  else
+    result := is_even(n - 1)
+  end
 end</code></pre>
+<p><code>declare function</code> is available separately, to pin a function's signature
+explicitly at a point before its real definition &mdash; useful for documentation,
+or when the definition is far away &mdash; and the later definition is checked
+against it exactly:</p>
+<pre><code>declare function is_even(n: Integer): Boolean
+declare function is_odd(n: Integer): Boolean
+
+function is_even(n: Integer): Boolean do
+  if n = 0 then result := true else result := is_odd(n - 1) end
+end
+
+function is_odd(n: Integer): Boolean do
+  if n = 0 then result := false else result := is_even(n - 1) end
+end</code></pre>
+<p>Mutual recursion between <code>let</code>-bound closures works the same way: consecutive
+closure-literal <code>let</code>s in one block are elaborated together, so any of them
+may call any other, and one may call itself:</p>
+<pre><code>let is_even := fn(n: Integer): Boolean do
+  if n = 0 then result := true else result := is_odd(n - 1) end
+end
+let is_odd := fn(n: Integer): Boolean do
+  if n = 0 then result := false else result := is_even(n - 1) end
+end</code></pre>
+<p>This works for a whole file and for a single, multi-statement REPL input. It
+does <strong>not</strong> currently work across separate REPL inputs &mdash; defining both
+closures in one input and then calling one from a later, separate input fails
+(a limitation of the interactive session bridging interpreted and compiled
+state, not of the language). A single self-recursive closure is unaffected;
+the gap is specific to two or more closures calling each other across
+separate inputs. If you need that, use <code>function</code> (with <code>declare function</code> if
+needed) instead of <code>let</code> &mdash; named functions are not affected.</p>
 <p><strong>No default arguments.</strong> Nex has no default parameter values; a
 call must pass exactly as many arguments as the function declares. Free
 functions cannot be overloaded either &mdash; each function name must be
@@ -387,6 +451,14 @@ ergonomics.</p>
 print(colors.get(0))            -- "red"
 colors.add("yellow")            -- add to the end
 print(colors.length)            -- 4</code></pre>
+<p><strong>Bytes: <code>Byte_Array</code>.</strong> An <code>Array[Byte]</code> is a list of boxed values. For binary data, <code>intern data/Byte_Array</code> gives a fixed-size buffer stored as a real Java <code>byte[]</code>:</p>
+<pre><code>intern data/Byte_Array
+
+let buf: Byte_Array := create Byte_Array.make(4)
+buf.set(0, 200u8)
+print(buf.get(0))                 -- 200
+print(buf.slice(0, 2))            -- Byte_Array([200, 0])
+across buf as b do print(b) end   -- b is a Byte</code></pre>
     </div>
   </details>
 
@@ -429,7 +501,21 @@ print(a.difference(b))            -- #{1, 2}</code></pre>
 end
 
 print(t.await)                    -- 3
-print(t.is_done)                  -- true</code></pre>
+print(t.is_done)                  -- true (after completion)</code></pre>
+<p>If the spawn body does not assign <code>result</code>, the type is plain <code>Task</code>:</p>
+<pre><code>let t: Task := spawn do
+  print("background work")
+end</code></pre>
+<p>Task operations:</p>
+<ul>
+<li><code>await</code> waits until the task finishes</li>
+<li><code>await(ms)</code> waits up to <code>ms</code> milliseconds and returns <code>nil</code> on timeout</li>
+<li><code>cancel</code> requests task cancellation and returns <code>true</code> if the task was cancelled before finishing</li>
+<li><code>is_done</code> reports whether the task has finished</li>
+<li><code>is_cancelled</code> reports whether the task was cancelled</li>
+<li><code>await_any([t1, t2, ...])</code> waits for the first task to finish and returns its result</li>
+<li><code>await_all([t1, t2, ...])</code> waits for all tasks and returns an array of results</li>
+</ul>
 <p>Use <code>Channel[T]</code> to communicate between tasks:</p>
 <pre><code>let ch: Channel[Integer] := create Channel[Integer]
 
@@ -438,23 +524,40 @@ spawn do
 end
 
 print(ch.receive)                 -- 42
-ch.close</code></pre>
-<p>Buffered channels:</p>
+ch.close
+print(ch.is_closed)               -- true</code></pre>
+<p>Use <code>.with_capacity(n)</code> for buffered channels:</p>
 <pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
 ch.send(10)
 ch.send(20)
-print(ch.size)                    -- 2</code></pre>
-<p>Use <code>select</code> to wait on multiple operations:</p>
+print(ch.size)                    -- 2
+print(ch.capacity)                -- 2</code></pre>
+<p>Channel operations:</p>
+<ul>
+<li><code>send(value)</code> blocks until accepted</li>
+<li><code>send(value, ms)</code> waits up to <code>ms</code> milliseconds and returns <code>true</code> on success, <code>false</code> on timeout</li>
+<li><code>receive</code> blocks until a value is available</li>
+<li><code>receive(ms)</code> waits up to <code>ms</code> milliseconds and returns <code>nil</code> on timeout</li>
+<li><code>try_send(value)</code> returns <code>true</code> if the send succeeds immediately, otherwise <code>false</code></li>
+<li><code>try_receive</code> returns a value if one is immediately available, otherwise <code>nil</code></li>
+<li><code>close</code> prevents future sends; buffered values may still be received</li>
+<li><code>is_closed</code>, <code>size</code>, and <code>capacity</code> report channel state</li>
+</ul>
+<p>Use <code>select</code> to wait on multiple channel operations or completed tasks:</p>
 <pre><code>select
   when jobs.receive as job then
     print(job)
   when worker.await as value then
     print(value)
+  when control.receive as signal then
+    print(signal)
   timeout 1000 then
     print("timed out")
   else
     print("idle")
 end</code></pre>
+<p><code>select</code> probes its clauses using <code>try_send</code> / <code>try_receive</code> for channels and <code>is_done</code> for tasks. Task clauses must use <code>Task.await</code>; they fire only when the task has already completed. If no clause is ready and there is no <code>else</code>, <code>select</code> waits until one becomes ready.</p>
+<p>For full concurrency semantics and runtime details, see the <a href="docs/definition-of-nex/concurrency.html">Concurrency Guide</a>.</p>
     </div>
   </details>
 
@@ -579,10 +682,48 @@ end</code></pre>
     </div>
   </details>
 
+  <details class="syntax-item" id="operator-aliases">
+    <summary>Operator Aliases</summary>
+    <div class="syntax-body">
+<p>A feature can bind itself to an arithmetic operator with an <code>alias</code> clause. The operator is then exactly sugar for the call: <code>a - b</code> <em>is</em> <code>a.minus(b)</code>, so the feature's preconditions and postconditions apply at the operator too.</p>
+<pre><code>class Money
+  feature
+    once amount: Integer
+    once currency: String
+
+    minus(other: Money): Money
+      alias "-"
+      require
+        same_currency: currency = other.currency
+      do
+        result := create Money.make(amount - other.amount, currency)
+      end
+  create
+    make(a: Integer, c: String) do amount := a  currency := c end
+end
+
+let owed: Money := create Money.make(100, "USD")
+let paid: Money := create Money.make(30, "USD")
+let rest: Money := owed - paid          -- calls minus, checks same_currency</code></pre>
+<p>Three rules keep this from becoming the licence to invent notation that operator overloading usually is:</p>
+<ul>
+<li><strong>The operator set is closed.</strong> Only <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, and <code>^</code> can be aliased. No program can introduce a symbol a reader has never seen.</li>
+<li><strong>Only arithmetic.</strong> Ordering already dispatches through <code>Comparable</code>'s <code>compare</code>, and <code>=</code> through <code>equals</code>; a class gets <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, and <code>=</code> by inheriting <code>Comparable</code> and overriding those, not by aliasing.</li>
+<li><strong>Built-in arithmetic wins, always.</strong> An alias is consulted only where the operands are not numeric (or String, for <code>+</code>), so no class can change what <code>+</code> means on <code>Integer</code> or <code>Real</code>.</li>
+</ul>
+<p>An alias is inherited: if a deferred parent declares <code>plus … alias "+"</code>, then <code>+</code> works on any descendant, dispatching to its override.</p>
+<p><code>alias</code> is a <strong>soft keyword</strong>: it carries this meaning only in the position above, and stays available as an ordinary name anywhere else.</p>
+<pre><code>let alias := "vj"          -- still a perfectly good variable
+print(u.alias)              -- and a perfectly good field</code></pre>
+<p><code>union</code> is a keyword too, but narrower than <code>alias</code>: it still works as a member name (<code>Set.union</code>), but not as a general identifier &mdash; <code>let union := 5</code> does not parse. <code>where</code> is not restricted at all; it is recognized only inside a refinement type's <code>where n: &lt;expr&gt;</code> clause (see <a href="#refinement-types">Refinement Types</a>) and is an ordinary identifier everywhere else, including <code>let where := 5</code>.</p>
+<p>A class whose values are compared with <code>=</code> &mdash; including in a postcondition like <code>ensure reduced: balance = old balance - amount</code> &mdash; should also override <code>equals</code> (and <code>hash</code>), or <code>=</code> compares object identity rather than value.</p>
+    </div>
+  </details>
+
   <details class="syntax-item" id="once-fields">
     <summary>Once Fields</summary>
     <div class="syntax-body">
-<p>A field declared with <code>once</code> can be set in a constructor but never reassigned afterward. The typechecker enforces this at compile time.</p>
+<p>A field declared with <code>once</code> can be set in a constructor but never reassigned afterward. The typechecker enforces this at compile time; the interpreter enforces it at runtime.</p>
 <pre><code>class Point
   feature
     once x: Integer
@@ -592,8 +733,21 @@ end</code></pre>
       x := px
       y := py
     end
+end
+
+let p: Point := create Point.make(3, 7)
+-- p.x and p.y are now permanently 3 and 7</code></pre>
+<p>Attempting to assign a <code>once</code> field outside a constructor is a compile-time error:</p>
+<pre><code>class Box
+  feature
+    once value: Integer
+  create
+    make(v: Integer) do value := v end
+  feature
+    overwrite(v: Integer) do
+      value := v     -- error: 'value' is a once field
+    end
 end</code></pre>
-<p>Assigning a <code>once</code> field outside a constructor is a compile-time error.</p>
     </div>
   </details>
 
@@ -608,8 +762,17 @@ end</code></pre>
     AREA   = WIDTH * HEIGHT      -- may reference an earlier constant
 end
 
+print(Screen.WIDTH)              -- 1920
 print(Screen.AREA)               -- 2073600</code></pre>
-<p>Because an object- or collection-valued constant is one shared value, <code>C.x == C.x</code> holds for it. A forward or cyclic reference among constants is a compile-time error.</p>
+<p>Because an object- or collection-valued constant is one shared value, <code>C.x == C.x</code> holds for it:</p>
+<pre><code>class Origin
+  feature
+    POINT = create Point.make(0, 0)
+end
+
+print(Origin.POINT.x)                 -- 0
+print(Origin.POINT == Origin.POINT)   -- true: the one canonical value</code></pre>
+<p>The initializer may reference an earlier constant of the same class or an inherited one; a forward or cyclic reference is a compile-time error.</p>
     </div>
   </details>
 
@@ -633,6 +796,14 @@ print(Screen.AREA)               -- 2073600</code></pre>
   invariant                      -- must ALWAYS be true
     not_negative: money >= 0.0
 end</code></pre>
+<p><code>require</code>, <code>ensure</code>, and <code>invariant</code> speak about a routine's boundaries or a class. <code>assert</code> states what must be true at one point <em>inside</em> a body:</p>
+<pre><code>assert enough_left: money >= 0.0   -- named: the failure reports the name
+assert money >= 0.0                -- bare: the failure reports the line
+
+assert                             -- several at once, like require
+  not_negative: money >= 0.0
+  under_limit: money <= 10000.0</code></pre>
+<p>A failed <code>assert</code> raises the same contract violation as a failed <code>require</code> or <code>ensure</code>. Assertions always run; there is no mode that strips them.</p>
     </div>
   </details>
 
@@ -650,7 +821,7 @@ rescue
   print("failed, trying again...")
   retry                        -- jump back to do and try again
 end</code></pre>
-<p><code>raise</code> throws an error. <code>rescue</code> catches it. <code>retry</code> jumps back to the <code>do</code> block and runs it again from the top.</p>
+<p><code>raise</code> throws an error. <code>rescue</code> catches it (the value is in <code>exception</code>). <code>retry</code> jumps back to the <code>do</code> block and runs it again from the top.</p>
     </div>
   </details>
 
@@ -730,10 +901,55 @@ print(x)                        -- 10</code></pre>
 <li>Returns <code>true</code> if conversion succeeds, else <code>false</code>.</li>
 <li>On success, <code>&lt;name&gt;</code> is bound to the converted value.</li>
 <li>On failure, <code>&lt;name&gt;</code> is bound to <code>nil</code>.</li>
+<li>Conversion follows Java-style related-type rules: <code>&lt;Type&gt;</code> must be a supertype or subtype of the runtime type of <code>&lt;value&gt;</code>.</li>
+<li><code>convert</code> never changes a number's representation, so converting between <code>Integer</code>, <code>Byte</code>, <code>Integer16</code>, <code>Integer32</code> and <code>Real</code> is rejected. Use <code>to_byte()</code>, <code>to_integer16()</code>, <code>to_integer32()</code>, <code>to_integer()</code> or <code>to_real()</code>.</li>
 </ul>
+<pre><code>do
+  convert vehicle_1 to my_car:Car
+  -- my_car is visible in this block
+end</code></pre>
 <pre><code>if convert vehicle_1 to my_car:Car then
   my_car.sound_horn
 end</code></pre>
+    </div>
+  </details>
+
+  <details class="syntax-item" id="object-test">
+    <summary>Object Test: <code>?&lt;expr&gt; as &lt;name&gt;</code></summary>
+    <div class="syntax-body">
+<pre><code>?&lt;expr&gt; as &lt;name&gt;</code></pre>
+<ul>
+<li><code>&lt;expr&gt;</code> must have a detachable (<code>?T</code>) type. Returns <code>true</code> if <code>&lt;expr&gt;</code> is non-<code>nil</code>, else <code>false</code>.</li>
+<li>On success, <code>&lt;name&gt;</code> is bound to <code>&lt;expr&gt;</code>'s attached (non-detachable) value for the branch this guards.</li>
+<li>Unlike <code>x /= nil</code>, <code>&lt;expr&gt;</code> can be any expression, not just a bare identifier &mdash; a dotted chain (<code>?p.age as a</code>) or a safe-navigation read (<code>?p?.age as a</code>) narrows directly, no intermediate <code>let</code> needed.</li>
+<li>Chains of <code>and</code> are each narrowed in turn, so a later conjunct can use an earlier one's binding:</li>
+</ul>
+<pre><code>if ?p.age as a and ?q.age as b then
+  print(when a < b then "p is younger" else "p is not younger" end)
+end</code></pre>
+    </div>
+  </details>
+
+  <details class="syntax-item" id="standard-result-option">
+    <summary>Standard Result and Option</summary>
+    <div class="syntax-body">
+<p>The standard library provides two sealed sum types for error handling and optional values, imported with <code>intern</code>:</p>
+<pre><code>intern data/Result
+intern data/Option
+
+let r: Result[Integer, String] := create Ok[Integer, String].make(10)
+let doubled: Result[Integer, String] :=
+  result_map(r, fn (x: Integer): Integer do result := x * 2 end)
+print(doubled.unwrap_or(0))          -- 20
+
+let o: Option[Integer] := create Some[Integer].make(7)
+print(o.get_or(0))                   -- 7</code></pre>
+<ul>
+<li><code>Result[T, E]</code> is <code>Ok(value: T)</code> or <code>Err(error: E)</code>; <code>Option[T]</code> is <code>Some(value: T)</code> or <code>None</code>.</li>
+<li>Query/unwrap are methods: <code>is_ok()</code>, <code>is_err()</code>, <code>unwrap_or(fallback)</code> on <code>Result</code>; <code>is_some()</code>, <code>is_none()</code>, <code>get_or(fallback)</code> on <code>Option</code>.</li>
+<li>Transforming combinators are free functions (they introduce a fresh type parameter): <code>result_map</code>, <code>result_and_then</code>, <code>result_map_err</code>; <code>option_map</code>, <code>option_and_then</code>, <code>option_filter</code>. <code>and_then</code> is the bind that chains fallible steps and short-circuits on the first <code>Err</code>/<code>None</code>.</li>
+<li>Construction infers type arguments from the constructor's arguments, so <code>create Ok.make(10)</code> gives <code>Ok[Integer, Any]</code> &mdash; assignable to <code>Result[Integer, String]</code> (a parameter the constructor does not mention, like <code>Err</code>'s value type here, stays <code>Any</code> and acts as a wildcard). Write explicit arguments (<code>create Ok[Integer, String].make(…)</code>) when you need to pin them.</li>
+</ul>
     </div>
   </details>
 
@@ -782,7 +998,7 @@ end</code></pre>
 <p>A type pattern is a runtime <em>test</em>, not an annotation. Testing a field against the type it is already declared to have does nothing except forfeit the exhaustiveness check — narrow a wider type, do not restate a known one. For the same reason a <em>refinement</em> (<code>declare type Quantity = Integer where n: n &gt; 0</code>) cannot be used as a type pattern and is rejected: its predicate is erased at runtime, so the test could only check <code>Integer</code> and would match values <code>Quantity</code> excludes. Test the base type and put the predicate in a guard.</p>
 <p>A type pattern may go on to match the narrowed field's own payload, nesting arbitrarily deep. Give the nested type its arguments (<code>Some[Integer]</code>) for the bound sub-fields to keep their element type; without them they bind as <code>Any</code>.</p>
 <pre><code>match r of
-  Ok(inner: Some[Integer](value as x)) then use(x)   -- an Ok whose inner is a Some
+  Ok(value: Some[Integer](value as x)) then use(x)   -- an Ok whose value is a Some
   _                                    then fallback()
 end</code></pre>
 <p>Literals, types, nested patterns and guards are all <em>tests</em> — a clause constrained by one might not fire, so it does not count toward exhaustiveness. A variant handled only by such clauses still needs an unguarded clause, a <code>_</code>, or an <code>else</code>.</p>
@@ -808,6 +1024,43 @@ only &mdash; they can be dropped, leaving just the types:</p>
     </div>
   </details>
 
+  <details class="syntax-item" id="type-aliases">
+    <summary>Type Aliases</summary>
+    <div class="syntax-body">
+<p><code>declare type</code> binds a name to any type expression &mdash; most commonly used to name a function signature for reuse:</p>
+<pre><code>declare type Transformer = Function(n: Integer): Integer
+
+let double: Transformer := fn (n: Integer): Integer do result := n * 2 end
+let square: Transformer := fn (n: Integer): Integer do result := n * n end</code></pre>
+<p>Any type can be aliased, not just function types:</p>
+<pre><code>declare type Matrix = Array[Array[Real]]</code></pre>
+    </div>
+  </details>
+
+  <details class="syntax-item" id="refinement-types">
+    <summary>Refinement Types</summary>
+    <div class="syntax-body">
+<p>A <code>declare type</code> with a <code>where</code> clause is a <strong>refinement type</strong>: an existing type narrowed by a boolean predicate, without declaring a class.</p>
+<pre><code>declare type Quantity   = Integer where n: n > 0
+declare type Percentage = Real    where p: p >= 0.0 and p <= 100.0
+declare type NonEmpty   = String  where s: s.length() > 0</code></pre>
+<p><code>where n: &lt;expr&gt;</code> binds the value under test to <code>n</code> (any name) and gives a boolean predicate over it, mirroring the <code>label: condition</code> shape of contracts.</p>
+<p>A refinement is its base type with a checked constraint &mdash; <strong>not</strong> a class: no fields, no constructor, no wrapper. A <code>Quantity</code> <em>is</em> an <code>Integer</code> at runtime, so it interoperates freely with its base:</p>
+<pre><code>let q: Quantity := 5          -- checked: raises if the value is not > 0
+let total: Integer := q + 10  -- free: a Quantity is an Integer</code></pre>
+<p>The predicate is enforced wherever a value is <strong>narrowed</strong> into the refinement &mdash; a <code>let</code> of that type, a parameter of that type (checked at the call boundary), and a return of that type. Widening (<code>Quantity</code> → <code>Integer</code>) is always free.</p>
+<pre><code>function debit(amount: Quantity): Integer do   -- amount checked on entry
+  result := amount
+end</code></pre>
+<p>Notes and current limits:</p>
+<ul>
+<li>Operations do not propagate the refinement: <code>q + q</code> is an <code>Integer</code>. Flow the result back into a refinement-typed binding to re-check it.</li>
+<li>Fields, <code>convert</code> targets, <code>?R</code> detachable bindings, and <code>distinct</code> nominal newtypes are not yet checked/supported &mdash; use a class where you need those.</li>
+<li>The predicate should be side-effect free.</li>
+</ul>
+    </div>
+  </details>
+
   <details class="syntax-item" id="generics">
     <summary>Generics</summary>
     <div class="syntax-body">
@@ -820,14 +1073,37 @@ end
 
 let b: Box [Integer] := create Box[Integer].make(42)
 b.value                         -- 42</code></pre>
-<p>Generic functions:</p>
-<pre><code>function first[T](values: Array[T]): T
-do
+<p>Generic functions use the same bracket syntax after the function name:</p>
+<pre><code>function first[T](values: Array[T]): T do
   result := values.get(0)
 end
 
 print(first([10, 20, 30]))      -- 10
 print(first(["a", "b", "c"]))   -- "a"</code></pre>
+<p>Multiple generic parameters are allowed:</p>
+<pre><code>function pick_or_default[K, V](present: Boolean, value: V, fallback: V): V do
+  result := when present then value else fallback end
+end</code></pre>
+<p>Anonymous functions can also declare generic parameters explicitly:</p>
+<pre><code>let id: Function := fn[T](x: T): T do
+  result := x
+end
+
+print(id(42))                   -- 42</code></pre>
+<p><strong>Constrained Generics.</strong> <code>T -&gt; Bound</code> constrains a generic parameter to a type, and the body may then use the routines and fields of that bound on a value of type <code>T</code>. The bound may be a builtin such as <code>Comparable</code>, or any class you declare:</p>
+<pre><code>deferred class Shape
+  feature
+    area(): Integer deferred
+    name: String
+end
+
+function total_area[T -> Shape](xs: Array[T]): Integer do
+  result := 0
+  across xs as s do
+    result := result + s.area()     -- a routine of the bound
+  end
+end</code></pre>
+<p>Calls through a bound dispatch dynamically, so a deferred routine resolves to the runtime subclass's override. The bound itself must be a plain type name: a parameterized bound (<code>[T -&gt; Addable[T]]</code>) is not yet supported.</p>
     </div>
   </details>
 
@@ -837,6 +1113,13 @@ print(first(["a", "b", "c"]))   -- "a"</code></pre>
 <pre><code>x := 10                         -- set an existing variable
 let y: Integer := 20            -- create a new variable
 this.name := "Nex"              -- set a field inside a method</code></pre>
+    </div>
+  </details>
+
+  <details class="syntax-item" id="thats-it">
+    <summary>That's it!</summary>
+    <div class="syntax-body">
+<p>Nex reads like English: <code>if...then...end</code>, <code>from...until...do...end</code>, <code>repeat...do...end</code>, <code>across...as...do...end</code>, <code>class...feature...end</code>. Write what you mean, and Nex will check that you mean what you write.</p>
     </div>
   </details>
 
