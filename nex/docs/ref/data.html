@@ -401,6 +401,14 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#bytearray-methods" id="toc-bytearray-methods" class="nav-link" data-scroll-target="#bytearray-methods">Methods</a></li>
   <li><a href="#bytearray-notes" id="toc-bytearray-notes" class="nav-link" data-scroll-target="#bytearray-notes">Notes</a></li>
   </ul></li>
+  <li><a href="#datamutex" id="toc-datamutex" class="nav-link" data-scroll-target="#datamutex"><code>data/Mutex</code></a>
+  <ul class="collapse">
+  <li><a href="#mutex-loading" id="toc-mutex-loading" class="nav-link" data-scroll-target="#mutex-loading">Loading</a></li>
+  <li><a href="#mutex-support" id="toc-mutex-support" class="nav-link" data-scroll-target="#mutex-support">Support</a></li>
+  <li><a href="#mutex-construction" id="toc-mutex-construction" class="nav-link" data-scroll-target="#mutex-construction">Construction</a></li>
+  <li><a href="#mutex-methods" id="toc-mutex-methods" class="nav-link" data-scroll-target="#mutex-methods">Methods</a></li>
+  <li><a href="#mutex-notes" id="toc-mutex-notes" class="nav-link" data-scroll-target="#mutex-notes">Notes</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -1082,6 +1090,109 @@ end
 let out: Byte_Array := create Byte_Array.from_java(digest)
 print(out.length())                     -- 32
 print(out.slice(0, 4).to_array())       -- [186, 120, 22, 191]</code></pre>
+</section>
+</section>
+<section id="datamutex" class="level2">
+<h2 class="anchored" data-anchor-id="datamutex"><code>data/Mutex</code></h2>
+<p><code>Mutex[T]</code> gives one task at a time exclusive access to a wrapped value. Unlike the <code>Atomic_*</code> classes (a single lock-free value), a <code>Mutex</code> protects a whole critical section &mdash; several statements against, typically, a mutable <code>Array</code>/<code>Map</code>/<code>Set</code> or object that must be read and written as one unit. It is shipped as a Nex library under <code>lib/data/mutex.nex</code>, built entirely on <code>with &quot;java&quot;</code> around <code>java.util.concurrent.locks.ReentrantLock</code> plus <code>private feature</code> fields &mdash; no runtime, typechecker, or compiler support of its own.</p>
+<section id="mutex-loading" class="level3">
+<h3 class="anchored" data-anchor-id="mutex-loading">Loading</h3>
+<pre class="nex"><code>intern data/Mutex</code></pre>
+</section>
+<section id="mutex-support" class="level3">
+<h3 class="anchored" data-anchor-id="mutex-support">Support</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Target</th>
+<th>Supported</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>JVM REPL / interpreter</td>
+<td>Yes</td>
+</tr>
+<tr class="even">
+<td>Generated JVM code</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="mutex-construction" class="level3">
+<h3 class="anchored" data-anchor-id="mutex-construction">Construction</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Arguments</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>make</code></td>
+<td><code>initial: T</code></td>
+<td>Wrap <code>initial</code>. The <code>Mutex</code> owns it from here &mdash; the only way back to it is <code>use</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="mutex-methods" class="level3">
+<h3 class="anchored" data-anchor-id="mutex-methods">Methods</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>use</code></td>
+<td><code>body: Function(T): Void</code></td>
+<td><code>Void</code></td>
+<td>Acquire the lock, invoke <code>body</code> with the wrapped value, release when <code>body</code> returns <strong>or raises</strong>. Raises <code>&quot;Mutex.use: already held by this task&quot;</code> on self-reentrancy.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="mutex-notes" class="level3">
+<h3 class="anchored" data-anchor-id="mutex-notes">Notes</h3>
+<ul>
+<li>There is no <code>lock</code>/<code>unlock</code>/<code>get</code> &mdash; the wrapped value is reachable only inside a <code>use</code> callback, so it can neither be read without the lock nor leaked past the block. <code>body</code> mutates it in place (through its own methods); <code>use</code> itself always returns <code>Void</code>. If you need a result out, write it into an <code>Atomic_Reference</code> declared outside and set it inside <code>body</code>.</li>
+<li>Release is guaranteed even when <code>body</code> raises (<code>use</code>'s own <code>rescue</code> releases the lock and re-raises the same exception), so an exception mid-critical-section never leaves the <code>Mutex</code> held.</li>
+<li><strong>Not reentrant.</strong> A nested <code>use</code> on the <em>same</em> <code>Mutex</code> from the <em>same</em> task (an outer <code>use</code>'s <code>body</code> calling <code>use</code> again on it) raises rather than silently succeeding (Java's <code>synchronized</code>) or silently deadlocking (Rust's <code>std::sync::Mutex</code>, a plain POSIX mutex).</li>
+<li>Blocking or awaiting inside <code>body</code> &mdash; <code>spawn</code>, <code>Task.await</code>, a <code>Channel</code> send/receive, <code>select</code>, or <code>use</code> on a <em>different</em> <code>Mutex</code> &mdash; is not itself detected. Avoid it; a <code>Mutex</code> deadlocked this way looks like any other blocked acquire, not a raised error.</li>
+</ul>
+<pre class="nex"><code>intern data/Mutex
+
+let counters: Mutex[Map[String, Integer]] := create Mutex.make({})
+
+counters.use(fn(m: Map[String, Integer]) do
+  m.put(&quot;hits&quot;, m.try_get(&quot;hits&quot;, 0) + 1)
+end)
+counters.use(fn(m: Map[String, Integer]) do
+  print(m.get(&quot;hits&quot;))                  -- 1
+end)</code></pre>
 </section>
 </section>
 
