@@ -124,7 +124,7 @@
     <h1 class="opener-title">Thinking with Functions</h1>
   </div>
   <div class="prose">
-<p>Chapter 6 showed how to define and call functions. This chapter is about how to think with them. The difference is significant. Knowing the syntax for a function definition is a matter of minutes. Developing the habit of reasoning about functions — what they require, what they guarantee, how they interact — is a matter of months. This chapter plants that habit early, because it shapes every programming decision that follows.</p>
+<p>Chapter 6 showed how to define and call functions. This chapter is about how to think with them. The difference is significant. Knowing the syntax for a function definition is a matter of minutes. Developing the habit of reasoning about functions is a matter of months. Let's find out what's involved in that habit and how it will influence the programming decisions that we make.</p>
 <section class="level2" data-number="8.1" id="a-function-as-a-contract">
 <h2 class="anchored" data-anchor-id="a-function-as-a-contract" data-number="8.1"> A Function as a Contract</h2>
 <p>Every function makes two implicit commitments. It assumes certain things about its inputs — conditions that must be true for the function to behave as intended. And it promises certain things about its output — conditions that will be true when the function returns, given that the assumptions were met.</p>
@@ -147,7 +147,7 @@
 <li><em>What will be true of the output when this function returns?</em></li>
 </ol>
 <p>Answering these questions before writing the body is not wasted effort. It is often the fastest path to a correct body, because a clear statement of what the function must produce makes the code that produces it obvious.</p>
-<p>These two questions have names in software engineering. The conditions that must be true of the inputs are called <em>preconditions</em>; the conditions that will be true of the output are called <em>postconditions</em>. In Part V we will write these as executable Nex clauses — <code>require</code> for preconditions, <code>ensure</code> for postconditions — that the runtime checks automatically, firing an informative error the moment a violation occurs. For now, the discipline is to answer them in your head, or in a comment, before writing the body. The formal syntax changes nothing about the thinking. A programmer who has the habit of asking these questions before reaching for the keyboard is already doing design by contract; the Nex syntax simply makes that contract visible to the language itself.</p>
+<p>These two questions have names in software engineering. The conditions that must be true of the inputs are called <em>preconditions</em>; the conditions that will be true of the output are called <em>postconditions</em>. As noted above, in later chapters we will write these as executable Nex clauses — <code>require</code> for preconditions, <code>ensure</code> for postconditions — that the runtime checks automatically, firing an informative error the moment a violation occurs. For now, the discipline is to answer them in your head, or in a comment, before writing the body. The formal syntax changes nothing about the thinking. A programmer who has the habit of asking these questions before reaching for the keyboard is already doing design by contract; the Nex syntax simply makes that contract visible to the language itself.</p>
 </section>
 <section class="level2" data-number="8.2" id="pure-functions">
 <h2 class="anchored" data-anchor-id="pure-functions" data-number="8.2"> Pure Functions</h2>
@@ -290,19 +290,14 @@ nex&gt; function temperature_report(c: Real): String
 <pre><code>nex&gt; -- before: inner loop mixed with outer logic
 nex&gt; function count_divisors(n: Integer): Integer 
      do
-       result := 0
-       from
-         let i := 1
-       until
-         i &gt; n
-       do
+       let i := 1
+       repeat n do
          if n % i = 0 then
            result := result + 1
          end
-         i := i + 1
+       i := i + 1
        end
      end
-
 nex&gt; -- after: inner check extracted
 nex&gt; function is_divisor(n, i: Integer): Boolean 
      do
@@ -311,12 +306,8 @@ nex&gt; function is_divisor(n, i: Integer): Boolean
 
 nex&gt; function count_divisors(n: Integer): Integer 
      do
-       result := 0
-       from
-         let i := 1
-       until
-         i &gt; n
-       do
+       let i := 1
+       repeat n do
          if is_divisor(n, i) then
            result := result + 1
          end
@@ -325,8 +316,60 @@ nex&gt; function count_divisors(n: Integer): Integer
      end</code></pre>
 <p>Both versions produce the same results. The second names the concept of divisibility explicitly, making the loop body read as: <em>for each i from 1 to n, if i is a divisor of n, count it</em>. The extracted function <code>is_divisor</code> is also independently testable, which is a benefit in itself.</p>
 </section>
-<section class="level2" data-number="8.7" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="8.7"> Summary</h2>
+<section class="level2" data-number="8.7" id="functions-as-values">
+<h2 class="anchored" data-anchor-id="functions-as-values" data-number="8.7"> Functions as Values</h2>
+<p>In Chapter 6 we saw that functions can be used as values and passed as arguments to other functions. A function can also be <em>returned</em> from another function, and a returned function can remember values from the scope it was created in. These techniques will help us build powerful programming abstractions.</p>
+<p>Let's start with a function taking another function as a parameter. Consider a function that transforms every element of an array using whatever transformation the caller supplies:</p>
+<pre><code>nex&gt; function transform_all(items: Array[Integer], f: Function(n: Integer): Integer): Array[Integer]
+     do
+       result := []
+       across items as x do
+         result.add(f(x))
+       end
+     end
+
+nex&gt; transform_all([1, 2, 3, 4], fn (n: Integer): Integer do result := n * n end)
+[1, 4, 9, 16]</code></pre>
+<p><code>transform_all</code> does not know or care whether it is squaring numbers, doubling them, or something else entirely — that decision belongs to whatever function is passed as <code>f</code>. A function that accepts another function as a parameter, or that returns one, is called a <em>higher-order function</em>.</p>
+<p>Functions can flow in the other direction too: a function can build and return another function as its result.</p>
+<pre><code>nex&gt; function make_counter(): Function(): Integer
+     do
+       let count := 0
+       result := fn (): Integer do
+         count := count + 1
+         result := count
+       end
+     end
+
+nex&gt; let counter := make_counter()
+nex&gt; counter()
+1
+nex&gt; counter()
+2
+nex&gt; counter()
+3</code></pre>
+<p>Each call to <code>counter()</code> returns a different result, even though <code>counter()</code> takes no arguments and <code>make_counter</code> has long since finished running. Somewhere, the value of <code>count</code> is being kept alive between calls. That somewhere is the function value itself: when <code>make_counter</code> returns the <code>fn (): Integer do ... end</code> literal, that literal takes <code>count</code> with it. A function value that remembers a variable from the scope in which it was created, even after that scope's own function has returned, is called a <em>closure</em>. <code>counter</code> is a closure over <code>count</code> — it <em>captures</em> <code>count</code>, and every call to <code>counter</code> reads and writes that one captured variable, not a fresh copy.</p>
+<p>Notice what this means for purity, in the sense Section 7.2 defined it. <code>counter()</code> takes no inputs, yet it does not always return the same output — calling it twice in a row gives <code>1</code> then <code>2</code>. A closure that mutates something it captured is an effectful function by that definition, exactly as much as one that prints or writes a file; the effect is simply invisible at the call site, because the state it touches is hidden inside the closure rather than passed around openly. So keep this in mind: effects are sometimes exactly what you want, but a mutating closure should be recognised and used as the effectful thing it is, not treated as though it were as easy to reason about as a pure function.</p>
+<p>Here are two closures that act as two windows into a shared value:</p>
+<pre><code>nex&gt; function adder(init: Integer)
+     do
+       let total := init
+       let add := fn (x: Integer) do total := total + x end
+       let peek := fn (): Integer do result := total end
+       add(5)
+       print(peek())
+       add(10)
+       print(peek())
+       print(total)
+     end
+nex&gt; adder(2)
+7
+17
+17</code></pre>
+<p><code>add</code> and <code>peek</code> are two separate function values, but they share one captured <code>total</code>. A write through <code>add</code> is visible through <code>peek</code>, and even the enclosing scope's own later read of <code>total</code> sees it. <code>adder</code> is an <em>object</em> with one private state (<code>total</code>) and two methods — one that changes the field, one that reads it. This is Object Oriented Programming in its miniature form. (We will learn more about this style of programming in Chapter 12).</p>
+</section>
+<section class="level2" data-number="8.8" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="8.8"> Summary</h2>
 <ul>
 <li>Every function has implicit assumptions about its inputs and implicit guarantees about its outputs. Stating these — even informally — before writing the body is the fastest path to a correct implementation.</li>
 <li>A pure function’s output depends only on its inputs. Pure functions are easier to reason about and easier to test than functions with effects.</li>
@@ -334,10 +377,13 @@ nex&gt; function count_divisors(n: Integer): Integer
 <li>Functions are easy to test when they receive all their inputs as parameters, return results as values, and have one clear responsibility.</li>
 <li>Good function names are vocabulary. Programs built from well-named functions read like clear statements of what is happening, not like transcripts of how it is happening.</li>
 <li>A function that is hard to name, longer than necessary, or deeply nested is a signal to decompose. Extract inner logic into named functions; each extracted piece becomes independently testable.</li>
+<li>A function is a value like any other: it can be passed as an argument, returned as a result, and stored in a variable. A function that accepts or returns another function is a higher-order function.</li>
+<li>A function that returns another function can build that returned function around variables from its own scope. Such a returned function is a closure — it captures and remembers the enclosing scope's variables even after that scope has finished running.</li>
+<li>Two closures that capture the same mutable variable share it: a write through one is visible through the other. This makes closures a lightweight way to pair private, shared state with the small number of operations that touch it — useful for a single value and a couple of operations, but a class is the clearer tool once either grows.</li>
 </ul>
 </section>
-<section class="level2" data-number="8.8" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="8.8"> Exercises</h2>
+<section class="level2" data-number="8.9" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="8.9"> Exercises</h2>
 <p><strong>1.</strong> The function <code>percentage(part, total: Real): Real</code> from Section 7.1 has an assumption: <code>total</code> must not be zero. Write a version called <code>safe_percentage</code> that returns <code>0.0</code> when <code>total</code> is zero and the normal percentage otherwise. Test it with <code>part = 50.0, total = 200.0</code> (expected: 25.0), <code>part = 0.0, total = 100.0</code> (expected: 0.0), and <code>part = 10.0, total = 0.0</code> (expected: 0.0).</p>
 <p><strong>2.</strong> Separate the following function into a pure computation and a thin effectful wrapper. The pure function should return a <code>String</code>; the effectful wrapper should print it.</p>
 <pre><code>function greet_by_time(hour: Integer) do
@@ -353,6 +399,7 @@ end</code></pre>
 <p><strong>3.</strong> Define a function <code>is_prime(n: Integer): Boolean</code> that returns <code>true</code> if <code>n</code> is a prime number (divisible only by 1 and itself). Test it with <code>n = 2</code> (true), <code>n = 9</code> (false), <code>n = 17</code> (true), and <code>n = 1</code> (false, by convention). Write the function using <code>is_divisor</code> from Section 7.6 as a helper.</p>
 <p><strong>4.</strong> A function <code>count_vowels(s: String): Integer</code> should return the number of vowels (a, e, i, o, u, both upper and lowercase) in a string. Write it using <code>across</code> to iterate over the characters and a helper function <code>is_vowel(ch: Char): Boolean</code>. Test it with <code>"Hello"</code> (expected: 2), <code>"rhythm"</code> (expected: 0), and <code>"aeiou"</code> (expected: 5).</p>
 <p><strong>5.*</strong> The collatz sequence starting from a positive integer <code>n</code> is defined as follows: if <code>n</code> is even, the next term is <code>n / 2</code>; if <code>n</code> is odd, the next term is <code>3 * n + 1</code>. The sequence continues until it reaches 1. For example, starting from 6: 6, 3, 10, 5, 16, 8, 4, 2, 1. Define a pure function <code>collatz_length(n: Integer): Integer</code> that returns the number of steps to reach 1 from <code>n</code>. Verify that <code>collatz_length(6)</code> is 8, <code>collatz_length(27)</code> is 111, and <code>collatz_length(1)</code> is 0.</p>
+<p><strong>6.*</strong> Write a function <code>make_accumulator(): Function(n: Integer): Integer</code> that returns a closure. Each call to the closure adds its argument to a running total the closure remembers, and returns the new total. Verify that calling the same accumulator with <code>10</code>, then <code>5</code>, then <code>20</code> returns <code>10</code>, then <code>15</code>, then <code>35</code>. Then create a second, independent accumulator from a second call to <code>make_accumulator()</code>, and verify that using it does not disturb the running total of the first.</p>
 </section>
 
   </div>
