@@ -219,7 +219,7 @@
 let age: Integer := 10           -- a whole number (Integer)
 let height: Real := 4.5          -- a decimal number (Real)
 let likes_cats: Boolean := true  -- true or false (Boolean)</code></pre>
-<p>Real literals must include at least one digit after the decimal point. Valid examples: <code>4.5</code>, <code>10.0</code>, <code>.5</code>, <code>12.0e-3</code>. Invalid: <code>10.</code>, <code>12.e-3</code>.</p>
+<p>Real literals must include at least one digit after the decimal point. Valid examples: <code>4.5</code>, <code>10.0</code>, <code>.5</code>, <code>12.0e-3</code>. Invalid examples: <code>10.</code>, <code>12.e-3</code>.</p>
     </div>
   </details>
 
@@ -425,22 +425,31 @@ end
 let is_odd := fn(n: Integer): Boolean do
   if n = 0 then result := false else result := is_even(n - 1) end
 end</code></pre>
-<p>This works for a whole file and for a single, multi-statement REPL input. It
-does <strong>not</strong> currently work across separate REPL inputs &mdash; defining both
-closures in one input and then calling one from a later, separate input fails
-(a limitation of the interactive session bridging interpreted and compiled
-state, not of the language). A single self-recursive closure is unaffected;
-the gap is specific to two or more closures calling each other across
-separate inputs. If you need that, use <code>function</code> (with <code>declare function</code> if
-needed) instead of <code>let</code> &mdash; named functions are not affected.</p>
-<p><strong>No default arguments.</strong> Nex has no default parameter values; a
-call must pass exactly as many arguments as the function declares. Free
-functions cannot be overloaded either &mdash; each function name must be
-unique, so you cannot define two <code>greet</code> functions that differ only
-in the number of parameters. Class methods, however, <em>can</em> be overloaded
-by arity (see <a href="#optional-arguments">Optional arguments via method
-overloading</a>), which is the idiomatic way to get optional-argument
-ergonomics.</p>
+<p>This works for a whole file (as bare top-level statements) and for a single,
+multi-statement REPL input (wrap the statements in <code>do ... end</code> to submit
+them to the REPL as one input, since the REPL otherwise treats each complete
+statement as its own separate input) &mdash; including two or more closures that
+merely <em>share</em> a captured, mutated variable without calling each other at
+all (<code>let total := 0 / let add := fn(x) do total := total + x end / let peek
+:= fn(): Integer do result := total end</code>). It does <strong>not</strong> currently work
+across separate REPL inputs &mdash; defining both closures
+in one input and then calling one from a later, separate input fails (a
+limitation of the interactive session bridging interpreted and compiled
+state, not of the language). A single self-recursive or self-mutating
+closure (e.g. a counter) is unaffected either way; the gap is specific to
+two or more closures that reference each other or share mutated state,
+split across separate inputs. If you need that, use <code>function</code> (with
+<code>declare function</code> if needed) instead of <code>let</code> &mdash; named functions are not
+affected.</p>
+<p><strong>No default arguments.</strong> Nex has no default parameter values. A call
+must pass exactly as many arguments as the function (or method) declares.</p>
+<p>Free functions cannot be overloaded either: each function name must be
+unique, so you cannot define two <code>greet</code> functions that differ only in the
+number of parameters. If you need variants, give them distinct names.</p>
+<p>Class <strong>methods</strong>, however, <em>can</em> be overloaded by arity (see
+<a href="#optional-arguments">Optional arguments via method overloading</a>
+under Classes), which is the idiomatic way to get optional-argument
+ergonomics in Nex.</p>
     </div>
   </details>
 
@@ -479,10 +488,10 @@ pet.put("kind", "cat")            -- update a value</code></pre>
 print(evens.contains(2))          -- true</code></pre>
 <p>An empty set uses the explicit set literal syntax:</p>
 <pre><code>let empty: Set[Integer] := #{}</code></pre>
-<p>Build a set from an array (duplicates are removed):</p>
+<p>You can also build a set from an array. Duplicate elements are removed:</p>
 <pre><code>let numbers: Set[Integer] := create Set[Integer].from_array([1, 2, 2, 3])
 print(numbers.size)               -- 3</code></pre>
-<p>Set operations:</p>
+<p>Sets support the usual set operations:</p>
 <pre><code>let a: Set[Integer] := #{1, 2, 3}
 let b: Set[Integer] := #{3, 4}
 
@@ -564,6 +573,7 @@ end</code></pre>
   <details class="syntax-item" id="classes">
     <summary>Classes</summary>
     <div class="syntax-body">
+<p>A class bundles data and actions together:</p>
 <pre><code>class Pet
   feature
     name: String
@@ -594,6 +604,7 @@ cat.speak                        -- "Mimi says meow"</code></pre>
   <details class="syntax-item" id="constructors">
     <summary>Constructors</summary>
     <div class="syntax-body">
+<p>A constructor sets up an object when it is created:</p>
 <pre><code>class Circle
   create
     make(r: Real) do
@@ -662,6 +673,7 @@ differ only in parameter type. (Free functions cannot be overloaded at all
   <details class="syntax-item" id="inheritance">
     <summary>Inheritance</summary>
     <div class="syntax-body">
+<p>A class can build on another class:</p>
 <pre><code>class Animal
   feature
     name: String
@@ -679,6 +691,55 @@ class Dog
   create
     with_name(n: String) do Animal.with_name(n) end
 end</code></pre>
+<p><strong>Redeclaring queries as attributes.</strong> A heir may answer an inherited
+<strong>query</strong> (a routine with no arguments) with a stored <strong>attribute</strong> of the same
+name. Its type must conform to the query's return type. This is also how a
+deferred query is most often implemented:</p>
+<pre><code>deferred class Shape
+  feature
+    area(): Real deferred
+    describe: String do result := "area=" + area.to_string end
+end
+
+class Square
+  inherit Shape
+  feature
+    area: Real                     -- answers Shape's area
+  create
+    make(a: Real) do area := a end
+end
+
+let sh: Shape := create Square.make(4.0)
+print(sh.describe)                 -- "area=4.0"</code></pre>
+<p>Clients and the parent's own code (<code>describe</code> above) read the attribute through
+the query, and the query's inherited postconditions still apply to it. Inside
+<code>Square</code>, <code>area</code> is the attribute, which only <code>Square</code> can assign. <code>super.area</code>
+still reaches the parent's query.</p>
+<p>The reverse is <strong>not</strong> allowed. An attribute cannot be redeclared as a routine:
+the class that declares the attribute, and its contracts, would keep using the
+stored value while every client saw the routine. So the parent's promises would
+describe something clients can no longer observe. To keep a value open to
+redefinition, store it under another name and publish it as a query:</p>
+<pre><code>class Account
+  feature
+    stored_balance: Integer
+    balance: Integer do result := stored_balance end
+    deposit(amount: Integer) do stored_balance := stored_balance + amount end
+  create
+    make(b: Integer) do stored_balance := b end
+end
+
+class Checking_Account
+  inherit Account
+  feature
+    required: Integer
+    balance: Integer do                -- overrides the query
+      if super.balance &gt; required then result := super.balance end
+    end
+  create
+    make(b, r: Integer) do super.make(b) required := r end
+end</code></pre>
+<p>Clients write <code>a.balance</code> either way, whether the value is stored or computed.</p>
     </div>
   </details>
 
@@ -839,7 +900,8 @@ end</code></pre>
   <details class="syntax-item" id="sealed-classes">
     <summary>Sealed Classes</summary>
     <div class="syntax-body">
-<p>A <code>sealed deferred</code> class closes its hierarchy — only its declared subclasses may extend it.</p>
+<p>A <code>sealed</code> modifier closes a class hierarchy. Only classes defined together with the sealed class can extend it. The typechecker knows the complete set of subclasses and can verify that every variant is handled.</p>
+<p>A sealed class must be declared <code>deferred</code> &mdash; it cannot be instantiated directly, and the typechecker rejects a <code>sealed</code> class that is not also <code>deferred</code>. (Otherwise a bare instance of the parent would be a runtime value that an exhaustive <code>match</code> over its subclasses does not cover.)</p>
 <pre><code>sealed deferred class Result
 end
 
@@ -860,24 +922,43 @@ end</code></pre>
   <details class="syntax-item" id="sum-types">
     <summary>Sum Types (<code>union</code>)</summary>
     <div class="syntax-body">
-<p>A <code>union</code> is concise sugar for a sealed hierarchy of data variants: it expands to a <code>sealed deferred class</code> parent and one class per variant, with the payload as fields and an auto-generated <code>make</code>.</p>
+<p>Writing a sealed hierarchy by hand is verbose: a <code>sealed deferred class</code> parent plus a full <code>class … inherit … feature … create make</code> for every variant. The <code>union</code> form is concise sugar for exactly that shape.</p>
 <pre><code>union Order
   Draft
   Placed(id: String, total: Real)
   Shipped(tracking: String, at: Date)
 end</code></pre>
-<p>Construction and <code>match</code> (with exhaustiveness) are the same as for the hand-written form. A payload-free variant still gets a nullary <code>make</code>, and generic parameters carry through (<code>union Result[T]</code>).</p>
-<p><strong>Enumerations.</strong> When every variant is payload-free, prefix the declaration with <code>enum</code> to get a closed set of named, ordered, canonical values:</p>
+<p>This desugars to a <code>sealed deferred class Order</code> parent and one ordinary class per variant. Each variant's payload becomes <code>feature</code> fields plus an auto-generated <code>make</code> constructor, so construction and matching are the same as for hand-written sealed classes:</p>
+<pre><code>let o: Order := create Placed.make("A-100", 42.0)
+
+match o of
+  Draft   as d then print("draft")
+  Placed  as p then print(p.id)       -- payloads are ordinary fields
+  Shipped as s then print(s.tracking)
+end</code></pre>
+<ul>
+<li>A variant with no payload (<code>Draft</code>) still gets a nullary <code>make</code>, so <code>create Draft.make()</code> works.</li>
+<li>Generic parameters carry through to every variant: <code>union Result[T]</code> gives <code>Ok</code>/<code>Err</code> that inherit <code>Result[T]</code>.</li>
+<li>Because a <code>union</code> <em>is</em> a sealed hierarchy after desugaring, <code>match</code> exhaustiveness is checked exactly as in the previous section &mdash; a missing variant is a compile-time error.</li>
+</ul>
+<p>The <code>union</code> form is deliberately data-only. When a variant needs its own contracts, invariants, or methods, write the explicit <code>sealed deferred class</code> form above; both compile to the same thing.</p>
+<p><strong>Enumerations (<code>enum union</code>).</strong> When every variant is payload-free, prefix the declaration with <code>enum</code> to get an enumeration &mdash; a closed set of named, ordered, canonical values:</p>
 <pre><code>enum union Color
   Red
   Green
   Blue
-end
-
-print(Color.Red == Color.Red)    -- true: interned, one canonical value
-print(Color.Red &lt; Color.Green)   -- true: ordered by declaration order
-print(Color.values.length())     -- 3: an Array[Color] of every member</code></pre>
-<p><code>enum</code> is allowed only when every variant is payload-free and the union is non-generic; a variant may not be named <code>values</code>, <code>ordinal</code>, or <code>compare</code>. Plain <code>union</code> never gains these — the enrichment is opt-in.</p>
+end</code></pre>
+<p>On top of the plain <code>union</code> desugaring (a sealed hierarchy plus <code>match</code> exhaustiveness), <code>enum</code> adds three things:</p>
+<pre><code>print(Color.Red == Color.Red)        -- true: interned, one canonical value
+print(Color.Red &lt; Color.Green)       -- true: ordered by declaration order
+print(Color.values.length())         -- 3: an Array[Color] of every member
+across Color.values as c do print(c.ordinal) end   -- 0  1  2</code></pre>
+<ul>
+<li><strong>Members</strong> are interned constants on the type: <code>Color.Red</code> is <em>the</em> one <code>Red</code>, so <code>==</code> (reference identity) holds &mdash; no allocation per use.</li>
+<li><strong>Ordering</strong> comes from <code>Comparable</code>: members compare by the order they are written.</li>
+<li><strong><code>values</code></strong> is an <code>Array[Color]</code> of all members, in declaration order.</li>
+</ul>
+<p><code>enum</code> is allowed only when every variant is payload-free and the union is non-generic &mdash; its members are canonical constants, which need a concrete type. A variant may not be named <code>values</code>, <code>ordinal</code>, or <code>compare</code> (those back the generated members). Plain <code>union</code> never gains any of this; the enrichment is opt-in.</p>
     </div>
   </details>
 
@@ -956,60 +1037,102 @@ print(o.get_or(0))                   -- 7</code></pre>
   <details class="syntax-item" id="match-statement">
     <summary>Match Statement</summary>
     <div class="syntax-body">
-<p>Dispatches on the runtime type of an expression. Against a <code>sealed</code> type, the typechecker verifies every variant is covered — a missing branch is a compile-time error.</p>
+<p><code>match</code> dispatches on the runtime type of an expression. Used with a sealed parent class it becomes an exhaustive type switch &mdash; every variant must be handled or the typechecker rejects the program:</p>
 <pre><code>match r of
   Ok as ok then
     print(ok.value)
   Err as err then
     print(err.msg)
 end</code></pre>
-<p>An <code>else</code> branch covers remaining cases and suppresses the exhaustiveness check. <code>_</code> is a catch-all and does the same.</p>
+<ul>
+<li>Each <code>ClassName as var then</code> clause binds <code>var</code> to the matched object, typed as <code>ClassName</code>. A clause's body is a single statement &mdash; use <code>do ... end</code> for more than one.</li>
+<li>The typechecker verifies all sealed subclasses are covered. A missing variant is a compile-time error.</li>
+<li>An <code>else</code> branch covers remaining cases and suppresses the exhaustiveness check:</li>
+</ul>
 <pre><code>match r of
   Ok as ok then
     print(ok.value)
   else
     print("not ok")
 end</code></pre>
-<p>Instead of binding the whole value with <code>as</code> and reading <code>.field</code>, a clause can destructure the variant's payload by field name. Order does not matter, and a field you do not name is ignored.</p>
-<pre><code>match r of
-  Ok(value) then print(value)
-  Err(msg)  then print(msg)
+<p><strong>Destructuring and wildcards.</strong> A clause may destructure the matched variant's payload fields by name, instead of
+binding the whole object and reading <code>.field</code>:</p>
+<pre><code>match order of
+  Draft                   then print("draft")
+  Placed(id, total)       then print(id)        -- bind fields id, total
+  Shipped(tracking as t)  then print(t)         -- rename tracking→t, ignore at
 end</code></pre>
-<p>Inside a pattern the name to the left of a colon is always a <em>field</em> of the variant. <code>:</code> always <strong>constrains</strong> that field, and <code>as</code> always <strong>renames</strong> it. So <code>Ok(value as v)</code> binds the field <code>value</code> to a local <code>v</code> — while <code>Ok(value: v)</code> would mean "field <code>value</code> must be a <code>v</code>", and is an error unless <code>v</code> names a type.</p>
-<pre><code>match r of
-  Ok(value as v) then print(v)
-  Err(msg as m)  then print(m)
+<ul>
+<li><code>Variant(a, b)</code> binds the payload fields named <code>a</code> and <code>b</code> to locals of the same name; <code>Variant(a as x)</code> binds field <code>a</code> to a local <code>x</code>. Order does not matter &mdash; fields are matched by name, and a field you do not name is ignored.</li>
+<li>In a field pattern the name <strong>before</strong> the colon is always a field of the variant, and <code>:</code> means exactly one thing: <em>this field has this type</em> (<code>total: Integer</code>). Renaming is <code>as</code>. So <code>Variant(a: x)</code> does not bind <code>x</code>; it requires field <code>a</code> to be an <code>x</code>, and is an error unless <code>x</code> names a type. To compare a field to a value, use a guard.</li>
+<li><code>as</code> still binds the whole value and composes with destructuring (<code>Placed(id, total) as p then …</code>). A clause may bind neither (<code>Draft</code>).</li>
+<li><code>_</code> is a catch-all, equivalent to <code>else</code>, and likewise suppresses the exhaustiveness check.</li>
+</ul>
+<p>Destructuring and <code>_</code> are pure sugar over the type-dispatch form above, so
+exhaustiveness and type checking behave identically (a destructured field the
+variant does not have is a compile-time error).</p>
+<p><strong>Guards.</strong> A clause may add an <code>if &lt;boolean&gt;</code> guard, evaluated after the type match and
+destructuring. A false guard falls through to the next clause:</p>
+<pre><code>match order of
+  Placed(id, total) if total &gt; 1000 then flag(id)
+  Placed(id, total)                 then charge(id, total)
+  Draft                             then note_draft()
 end</code></pre>
-<p>A field can be constrained to a type. A type pattern narrows the field and binds it under its own name, so the branch can use it at that type:</p>
-<pre><code>match c of
-  Boxed(content: Integer) then print(content + 1)     -- content is an Integer here
-  Boxed(content: String)  then print(content.length)
-  Boxed(content)          then print("something else")
-  Empty                   then print("empty")
+<ul>
+<li>The guard may reference the destructured fields and the <code>as</code> binding.</li>
+<li>A guard must be <code>Boolean</code>.</li>
+<li>A guarded clause does <strong>not</strong> count toward exhaustiveness (it might not fire), so a variant handled only by guarded clauses still needs an unguarded clause, a <code>_</code>, or <code>else</code>.</li>
+</ul>
+<p>Guards run on the JVM (compiled) and interpreter backends.</p>
+<p><strong>Comparing a field to a value.</strong> Use a guard. There is no literal field pattern: <code>Move(dx: 0)</code> was once sugar for
+<code>Move(dx) if dx == 0</code>, and it is now rejected, with an error naming the guard to
+write.</p>
+<pre><code>match cmd of
+  Move(dx, dy) if dx = 0 and dy = 0 then stay()
+  Move(dx, dy)                      then move(dx, dy)
+  Say(text) if text = "quit"        then bye()
+  Say(text)                         then say(text)
 end</code></pre>
-<p>To compare a field to a <em>value</em>, add an <code>if</code> guard — evaluated after the type match and destructuring, with the destructured names in scope. A false guard falls through to the next clause:</p>
-<pre><code>match r of
-  Ok(value) if value = 10  then print("exactly ten")
-  Ok(value) if value > 100 then print("big")
-  Ok(value)                then print(value)
-  _                        then print("other")
+<p>The guard is not merely the surviving spelling &mdash; it is the better one. It binds
+the field it constrains (the literal form did not, so a body naming that field
+silently saw <code>nil</code>), and it leaves <code>:</code> with exactly one meaning in a field
+pattern: <em>this field has this type</em>.</p>
+<p><strong>Type patterns.</strong> A field pattern may pin a field to a <em>type</em> with <code>field: Type</code>; the clause
+matches only when the field is one at runtime, and binds the narrowed field
+under its own name:</p>
+<pre><code>match shape of
+  Box(content: Circle) then print(content.radius)   -- content is a Circle here
+  Box(content)         then print("not a circle")
 end</code></pre>
-<p>There is no literal field pattern: <code>Ok(value: 10)</code> is rejected, and the error names the guard to write instead.</p>
-<p>A type pattern is a runtime <em>test</em>, not an annotation. Testing a field against the type it is already declared to have does nothing except forfeit the exhaustiveness check — narrow a wider type, do not restate a known one. For the same reason a <em>refinement</em> (<code>declare type Quantity = Integer where n: n &gt; 0</code>) cannot be used as a type pattern and is rejected: its predicate is erased at runtime, so the test could only check <code>Integer</code> and would match values <code>Quantity</code> excludes. Test the base type and put the predicate in a guard.</p>
-<p>A type pattern may go on to match the narrowed field's own payload, nesting arbitrarily deep. Give the nested type its arguments (<code>Some[Integer]</code>) for the bound sub-fields to keep their element type; without them they bind as <code>Any</code>.</p>
-<pre><code>match r of
-  Ok(value: Some[Integer](value as x)) then use(x)   -- an Ok whose value is a Some
+<ul>
+<li>Like a guard, a type pattern is a test, so a clause constrained by one does not count toward exhaustiveness. A test against the field's <em>declared</em> type is therefore a no-op that only costs you the exhaustiveness check &mdash; narrow a wider type (<code>content: Any</code> down to <code>Circle</code>); do not restate a known one.</li>
+<li>The type may be a builtin (<code>total: Integer</code>), a user class, a parameterized type (<code>items: Array[String]</code>), or a <code>declare type</code> alias, which is tested as the type it names.</li>
+<li>A <strong>refinement</strong> (<code>declare type Quantity = Integer where n: n &gt; 0</code>) may <em>not</em> be used here, and is rejected. A type pattern is a runtime test, and a refinement's predicate is erased at runtime &mdash; the test could only check <code>Integer</code> and would match values <code>Quantity</code> excludes. Test the base type and put the predicate in a guard, or narrow with a typed <code>let</code>, which does run it.</li>
+</ul>
+<p><strong>Nested patterns.</strong> A type pattern may go on to match the narrowed field's payload &mdash;
+<code>field: Type(sub-patterns)</code>:</p>
+<pre><code>match result of
+  Ok(value: Some[Integer](value as x)) then use(x)   -- Ok whose value is a Some
   _                                    then fallback()
 end</code></pre>
-<p>Literals, types, nested patterns and guards are all <em>tests</em> — a clause constrained by one might not fire, so it does not count toward exhaustiveness. A variant handled only by such clauses still needs an unguarded clause, a <code>_</code>, or an <code>else</code>.</p>
+<ul>
+<li>The field is narrowed with a runtime type test; if it is not that variant, the clause falls through (so, like a guard, a nested pattern does not count toward exhaustiveness).</li>
+<li>With sub-patterns you reach the value through them, so the field itself is not bound; without them (<code>inner: Some[Integer]</code>) the narrowed field binds as <code>inner</code>.</li>
+<li>Sub-patterns are matched <strong>by field name</strong> and nest arbitrarily deep. Give the nested type its arguments (<code>Some[Integer]</code>) for the bound sub-fields to keep their element type; without them the sub-fields bind as <code>Any</code>.</li>
+<li>Match binding now carries the subject's generic arguments onto the clause variable, so a matched field such as <code>o.inner</code> has its real type (<code>Option[Integer]</code>, not <code>Option[Any]</code>) &mdash; which is what lets the nested test type-check.</li>
+</ul>
+<p>Nested patterns run on the JVM (compiled) and interpreter backends.</p>
     </div>
   </details>
 
   <details class="syntax-item" id="anonymous-functions">
     <summary>Anonymous Functions</summary>
     <div class="syntax-body">
-<pre><code>let add: Function := fn (a, b: Integer): Integer do result := a + b end
+<pre><code>let add: Function(a: Integer, b: Integer): Integer :=
+  fn (a, b: Integer): Integer do result := a + b end
 print(add(3, 4))                -- 7</code></pre>
+<p>Bare <code>Function</code> is still valid and compatible with any typed function value:</p>
+<pre><code>let f: Function := fn (n: Integer): Integer do result := n * 2 end</code></pre>
 <p>When the target already carries a concrete <code>Function(...)</code> type,
 <code>fn</code>'s own parameter and return types can be left out &mdash;
 they're inferred from that target:</p>
