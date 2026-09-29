@@ -125,10 +125,10 @@
   </div>
   <div class="prose">
 <p>Every value encountered so far — integers, strings, arrays, maps — has a type, and that type determines what operations are available on the value. <code>"hello".length</code> works because strings have a <code>length</code> method. <code>[1, 2, 3].sort</code> works because arrays have a <code>sort</code> method. The type is not just a label; it is a bundle of data and behaviour.</p>
-<p>Classes let you define your own types with the same structure: a bundle of data (fields) and behaviour (methods). Once a class is defined, you can create as many instances of it as you need, each carrying its own data, all sharing the same methods.</p>
+<p>Classes let you define your own types with the same structure: a bundle of data (fields or attributes) and behaviour (methods). Once a class is defined, you can create as many instances of it as you need, each carrying its own data, all sharing the same methods.</p>
 <section class="level2" data-number="13.1" id="defining-a-class">
 <h2 class="anchored" data-anchor-id="defining-a-class" data-number="13.1"> Defining a Class</h2>
-<p>A class definition in Nex has two blocks: a <code>create</code> block containing constructors, and a <code>feature</code> block containing fields and methods:</p>
+<p>A class definition in Nex has two blocks: a <code>create</code> block containing constructors, and a <code>feature</code> block containing attributes and methods:</p>
 <pre><code>nex&gt; class Point
        create
          make(px, py: Real) do
@@ -142,8 +142,8 @@
            result := ((x * x) + (y * y)) ^ 0.5
          end
      end</code></pre>
-<p>This defines a class <code>Point</code> with a constructor named <code>make</code>, two fields <code>x</code> and <code>y</code>, and one method <code>distance_from_origin</code>.</p>
-<p>Fields are declared inside <code>feature</code> as <code>name: Type</code> — no keyword needed. Methods are declared as <code>name(params): ReturnType do ... end</code>, also inside <code>feature</code>. The distinction between fields and methods is structural: fields have no parameter list or body; methods do.</p>
+<p>This defines a class <code>Point</code> with a constructor named <code>make</code>, two attributes <code>x</code> and <code>y</code>, and one method <code>distance_from_origin</code>.</p>
+<p>Attributes are declared inside <code>feature</code> as <code>name: Type</code> — no keyword needed. Methods are declared as <code>name(params): ReturnType do ... end</code>, also inside <code>feature</code>. The distinction between attributes and methods is structural: attributes have no parameter list or body; methods do.</p>
 <p>A plain <code>feature</code> section introduces public features. Nex also supports <code>private feature</code> for members that should only be used inside the class itself.</p>
 </section>
 <section class="level2" data-number="13.2" id="creating-objects">
@@ -158,12 +158,12 @@ nex&gt; p.y
 
 nex&gt; p.distance_from_origin
 5.0</code></pre>
-<p><code>create Point.make(3.0, 4.0)</code> runs the <code>make</code> constructor with the given arguments, initialising both fields. The resulting object is assigned to <code>p</code>.</p>
+<p><code>create Point.make(3.0, 4.0)</code> runs the <code>make</code> constructor with the given arguments, initialising both attributes. The resulting object is assigned to <code>p</code>.</p>
 <p>The <code>create</code> keyword appeared in Chapter 2 as <code>let con := create Console</code>. Now the mechanism is fully visible: <code>create</code> allocates a new instance and runs the named constructor.</p>
 </section>
 <section class="level2" data-number="13.3" id="constructors">
 <h2 class="anchored" data-anchor-id="constructors" data-number="13.3"> Constructors</h2>
-<p>A constructor is a named entry in the <code>create</code> block. Its body initialises the object’s fields. A class may have more than one constructor with different names:</p>
+<p>A constructor is a named entry in the <code>create</code> block. Its body initialises the object’s attributes. A class may have more than one constructor with different names:</p>
 <pre><code>nex&gt; class Point
        create
          origin() do
@@ -208,11 +208,10 @@ nex&gt; p2.distance_from_origin
 nex&gt; let p1 := create Point.origin
 nex&gt; p1.x
 0.0</code></pre>
-<p>This only reaches a constructor declared directly on the same class — it is not a way to reach into a parent class. For that, see <code>super</code> in Chapter 14.</p>
 </section>
 <section class="level2" data-number="13.4" id="fields">
-<h2 class="anchored" data-anchor-id="fields" data-number="13.4"> Fields</h2>
-<p>Fields are the data a class carries. Each instance gets its own independent copy of every field:</p>
+<h2 class="anchored" data-anchor-id="fields" data-number="13.4"> Attributes</h2>
+<p>Attributes are the data a class carries. Each instance gets its own independent copy of every field:</p>
 <pre><code>nex&gt; let p1 := create Point.make(1.0, 2.0)
 nex&gt; let p2 := create Point.make(4.0, 6.0)
 
@@ -221,7 +220,7 @@ nex&gt; p1.x
 
 nex&gt; p2.x
 4.0</code></pre>
-<p>Fields in a public <code>feature</code> section are read using dot notation: <code>obj.field_name</code>. Assigning to a field from outside the class is not permitted. If a field needs to change, the class provides a method:</p>
+<p>Attributes in a public <code>feature</code> section are read using dot notation: <code>obj.attr_name</code>. Assigning to an attribute from outside the class is not permitted. If an attribute needs to change, the class provides a method:</p>
 <pre><code>nex&gt; class Point
        create
          make(px, py: Real) do
@@ -244,7 +243,7 @@ nex&gt; let p := create Point.make(1.0, 2.0)
 nex&gt; p.move(2.0, 2.0)
 nex&gt; p.x
 3.0</code></pre>
-<p>If a field or helper method is an implementation detail, put it in a <code>private feature</code> section instead:</p>
+<p>If an attribute or helper method is an implementation detail, put it in a <code>private feature</code> section instead:</p>
 <pre><code>nex&gt; class Counter
        create
          make(start: Integer) do
@@ -262,14 +261,13 @@ nex&gt; p.x
      end
 
 nex&gt; let c := create Counter.make(10)
-nex&gt; c.increment()
+nex&gt; c.increment
 nex&gt; c.current
 11</code></pre>
 <p>Here <code>increment</code> and <code>current</code> are public operations, but <code>count</code> is hidden from code outside <code>Counter</code>. Private helper methods are declared the same way: place them under <code>private feature</code>.</p>
 <p>Classes can also define class-level constants directly in the <code>feature</code> block:</p>
 <pre><code>nex&gt; class Layout
        feature
-         HELLO: String = "hello"
          MAX_WIDTH = 450
          widened(): Integer do
            result := MAX_WIDTH + 10
@@ -281,7 +279,7 @@ nex&gt; Layout.MAX_WIDTH
 450
 nex&gt; layout.widened
 460</code></pre>
-<p><code>HELLO</code> and <code>MAX_WIDTH</code> are not per-object fields. They belong to the class itself. Their meaning is: these features are always equal to those values.</p>
+<p><code>HELLO</code> and <code>MAX_WIDTH</code> are not per-object attributes. They belong to the class itself. Their meaning is: these features are always equal to those values.</p>
 <p>This is the Nex equivalent of a Java <code>static final</code> member.</p>
 <p>The form is:</p>
 <pre class="text"><code>NAME: Type = expression
@@ -296,9 +294,9 @@ end</code></pre>
 <p>Because constants are not object state, they are not initialised by constructors and cannot be assigned to later.</p>
 </section>
 <section class="level2" data-number="13.5" id="detachable-fields">
-<h2 class="anchored" data-anchor-id="detachable-fields" data-number="13.5"> Detachable Fields</h2>
-<p>In strict type-checking mode, Nex requires that every field holding a non-basic type — any class, array, map, or other composite — must be initialised in the constructor. The basic types (<code>Integer</code>, <code>Real</code>, <code>Boolean</code>, <code>String</code>, <code>Char</code>) have well-defined defaults and can be left uninitialised. Everything else must be explicitly set.</p>
-<p>Sometimes a field genuinely might not have a value at construction time. For these cases, use a <em>detachable</em> type, written with a leading <code>?</code>:</p>
+<h2 class="anchored" data-anchor-id="detachable-fields" data-number="13.5"> Detachable Attributes</h2>
+<p>Nex requires that every attribute holding a non-basic type — any class, array, map, or other composite — must be initialised in the constructor. The basic types (<code>Integer</code>, <code>Real</code>, <code>Boolean</code>, <code>String</code>, <code>Char</code>) have well-defined defaults and can be left uninitialised. Everything else must be explicitly set.</p>
+<p>Sometimes an attribute genuinely might not have a value at construction time. For these cases, use a <em>detachable</em> type, written with a leading <code>?</code>:</p>
 <pre><code>nex&gt; class Person
        create
          make(n: String) do
@@ -328,7 +326,7 @@ nex&gt; p.set_email("ada@example.com")
 nex&gt; p.describe
 "Ada &lt;ada@example.com&gt;"</code></pre>
 <p><code>email</code> is declared as <code>?String</code> — a detachable string that may hold a value or <code>nil</code>. The constructor initialises it to <code>nil</code> explicitly. The <code>describe</code> method checks for <code>nil</code> before using it.</p>
-<p>The rule: use a plain type when the field must always have a value; use <code>?Type</code> when absence is a meaningful state for this field.</p>
+<p>The rule to remember is: use a plain type when the field must always have a value; use <code>?Type</code> when absence is a meaningful state for this field.</p>
 </section>
 <section class="level2" data-number="13.6" id="methods">
 <h2 class="anchored" data-anchor-id="methods" data-number="13.6"> Methods</h2>
@@ -340,7 +338,7 @@ end</code></pre>
 <pre><code>name(params) do
      
 end</code></pre>
-<p>Methods access the object’s own fields directly by name. Here is a <code>Bank_Account</code> class:</p>
+<p>Methods access the object’s own attributes directly by name. Here is a <code>Bank_Account</code> class:</p>
 <pre><code>nex&gt; class Bank_Account
        create
          make(name: String, initial: Real) do
@@ -355,9 +353,6 @@ end</code></pre>
          end
          withdraw(amount: Real) do
            balance := balance - amount
-         end
-         get_balance(): Real do
-           result := balance
          end
          describe(): String do
            result := owner + ": " + balance.to_string
@@ -395,7 +390,7 @@ nex&gt; g.greet("Bob", ".")
 </section>
 <section class="level2" data-number="13.8" id="the-this-reference">
 <h2 class="anchored" data-anchor-id="the-this-reference" data-number="13.8"> The <code>this</code> Reference</h2>
-<p>Inside a method, <code>this</code> refers to the object on which the method was called. Most of the time you do not need it — fields and other methods are accessible directly by name. <code>this</code> is needed when a parameter name shadows a field name:</p>
+<p>Inside a method, <code>this</code> refers to the object on which the method was called. Most of the time you do not need it — attributes and methods are accessible directly by name. <code>this</code> is needed when a parameter name shadows a field name:</p>
 <pre><code>nex&gt; class Point
        create
          make(x, y: Real) do
@@ -428,7 +423,7 @@ nex&gt; let p1 := create Point_2.make(0.0, 0.0)
 nex&gt; let p2 := create Point_2.make(3.0, 4.0)
 nex&gt; p1.distance_to(p2)
 5.0</code></pre>
-<p>In <code>distance_to</code>, <code>this.x</code> and <code>this.y</code> refer to the fields of the object the method was called on (<code>p1</code>), while <code>other.x</code> and <code>other.y</code> refer to the argument (<code>p2</code>).</p>
+<p>In <code>distance_to</code>, <code>this.x</code> and <code>this.y</code> refer to the attributes of the object the method was called on (<code>p1</code>), while <code>other.x</code> and <code>other.y</code> refer to the argument (<code>p2</code>).</p>
 </section>
 <section class="level2" data-number="13.9" id="uniform-access">
 <h2 class="anchored" data-anchor-id="uniform-access" data-number="13.9"> Uniform Access</h2>
@@ -465,6 +460,7 @@ nex&gt; c.diameter
 </section>
 <section class="level2" data-number="13.10" id="a-worked-example-a-simple-stack">
 <h2 class="anchored" data-anchor-id="a-worked-example-a-simple-stack" data-number="13.10"> A Worked Example: A Simple Stack</h2>
+<p>A <em>pushdown stack</em> (or simply, a <em>stack</em>) is a structure that imitates a pile of objects. You can think of a stack of documents, where a new document is placed on the top. When you want to read, you pick the top one. In other words, we can say that a stack is based on the <em>last-in-first-out</em> (LIFO) policy. The following class implements a stack using an integer array as the internal representation.</p>
 <pre><code>nex&gt; class Stack
        create
          make() do
@@ -504,28 +500,28 @@ nex&gt; s.pop
 
 nex&gt; s.size
 1</code></pre>
-<p><code>Stack</code> wraps an <code>Array[Integer]</code> and exposes only push, pop, peek, and size. The array is an implementation detail; the four methods are the interface. This is the essential move that classes make: bundle data with its governing operations and present a clean surface to the outside world.</p>
+<p>Users of the <code>Stack</code> class need not know about the <code>Array[Integer]</code> which stores the items. Instead they deal only with the methods <code>push</code>, <code>pop</code>, <code>peek</code>, and <code>size</code>. The array is an <em>implementation detail</em>; the four methods are the <em>interface</em>. This is the essential move that classes make: bundle data with its governing operations and present a clean surface to the outside world.</p>
 </section>
 <section class="level2" data-number="13.11" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="13.11"> Summary</h2>
 <ul>
-<li>A class has a <code>create</code> block (constructors) and a <code>feature</code> block (fields and methods)</li>
+<li>A class has a <code>create</code> block (constructors) and a <code>feature</code> block (attributes and methods)</li>
 <li>Constructors are named; <code>create ClassName.constructor_name(args)</code> creates an instance</li>
 <li>A constructor may delegate to another constructor of the same class with <code>this.constructor_name(args)</code>, to share setup logic</li>
-<li>Fields are <code>name: Type</code> inside <code>feature</code>; class constants use <code>NAME: Type = value</code> or <code>NAME = value</code>; methods are <code>name(params): ReturnType do ... end</code></li>
-<li><code>feature</code> is public by default; use <code>private feature</code> for fields and helper methods that should stay inside the class</li>
-<li>Public fields may be read with <code>obj.field</code>, but external code cannot assign to them; changes go through methods</li>
-<li>In strict mode, non-basic fields must be initialised in the constructor; use <code>?Type</code> for fields that may legitimately be <code>nil</code></li>
-<li><code>this</code> refers to the current object; needed when a parameter name shadows a field, or to pass the object as an argument</li>
-<li>Uniform access: field reads and method calls use identical <code>obj.name</code> syntax</li>
+<li>Attributes are <code>name: Type</code> inside <code>feature</code>; class constants use <code>NAME: Type = value</code> or <code>NAME = value</code>; methods are <code>name(params): ReturnType do ... end</code></li>
+<li><code>feature</code> is public by default; use <code>private feature</code> for attributes and helper methods that should stay inside the class</li>
+<li>Public attributes may be read with <code>obj.attr</code>, but external code cannot assign to them; changes go through methods</li>
+<li>Non-basic attributes must be initialised in the constructor; use <code>?Type</code> for attributes that may legitimately be <code>nil</code></li>
+<li><code>this</code> refers to the current object; needed when a parameter name shadows an attribute, or to pass the object as an argument</li>
+<li>Uniform access: attribute reads and method calls use identical <code>obj.name</code> syntax</li>
 </ul>
 </section>
 <section class="level2" data-number="13.12" id="exercises">
 <h2 class="anchored" data-anchor-id="exercises" data-number="13.12"> Exercises</h2>
-<p><strong>1.</strong> Define a class <code>Rectangle</code> with fields <code>width</code> and <code>height</code> (both <code>Real</code>) and a constructor <code>make</code>. Add methods <code>area(): Real</code>, <code>perimeter(): Real</code>, and <code>is_square(): Boolean</code>. Test with a 4.0 x 6.0 rectangle and a 5.0 x 5.0 square.</p>
-<p><strong>2.</strong> Define a class <code>Temperature</code> with a single field <code>celsius: Real</code>. Add methods <code>fahrenheit(): Real</code> and <code>kelvin(): Real</code>. Add <code>describe(): String</code> returning <code>"freezing"</code>, <code>"cold"</code>, <code>"mild"</code>, or <code>"warm"</code>. All derived values should be computed methods, not stored fields.</p>
+<p><strong>1.</strong> Define a class <code>Rectangle</code> with attributes <code>width</code> and <code>height</code> (both <code>Real</code>) and a constructor <code>make</code>. Add methods <code>area(): Real</code>, <code>perimeter(): Real</code>, and <code>is_square(): Boolean</code>. Test with a 4.0 x 6.0 rectangle and a 5.0 x 5.0 square.</p>
+<p><strong>2.</strong> Define a class <code>Temperature</code> with a single field <code>celsius: Real</code>. Add methods <code>fahrenheit(): Real</code> and <code>kelvin(): Real</code>. Add <code>describe(): String</code> returning <code>"freezing"</code>, <code>"cold"</code>, <code>"mild"</code>, or <code>"warm"</code>. All derived values should be computed methods, not stored attributes.</p>
 <p><strong>3.</strong> Define a class <code>String_Stack</code> that behaves like <code>Stack</code> but holds <code>String</code> values. Use it to reverse a string by pushing each character and popping them all off.</p>
-<p><strong>4.</strong> Define a class <code>Accumulator</code> with fields <code>total: Real</code> and <code>count: Integer</code> (both initialised to <code>0</code>). Add <code>add(value: Real)</code>, <code>reset()</code>, and <code>average(): Real</code>. State the precondition for <code>average</code> as a comment.</p>
+<p><strong>4.</strong> Define a class <code>Accumulator</code> with attributes <code>total: Real</code> and <code>count: Integer</code> (both initialised to <code>0</code>). Add <code>add(value: Real)</code>, <code>reset()</code>, and <code>average(): Real</code>. State the precondition for <code>average</code> as a comment.</p>
 <p><strong>5.*</strong> Define a class <code>Queue</code> supporting <code>enqueue(value: Integer)</code>, <code>dequeue(): Integer</code>, <code>front(): Integer</code>, <code>is_empty(): Boolean</code>, and <code>size(): Integer</code>, backed by an <code>Array[Integer]</code>. Enqueue 1 through 5, dequeue and print each, and verify first-in-first-out order.</p>
 </section>
 
