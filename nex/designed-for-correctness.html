@@ -1,208 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Designed for Correctness — Nex</title>
-  <meta name="description" content="Why Nex makes Design by Contract a language primitive, how it gets Liskov substitution right automatically, and why a contract-first language is a strong foundation for teaching and for verifying machine-generated code.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <style>
-
-    :root {
-      --paper:     #fbfbfc;
-      --ink:       #0a0a0b;
-      --ink-mid:   #3d3d40;
-      --ink-faint: #6b6b6f;
-      --rule:      #e6e6ea;
-      --accent:    #3b6fd4;
-      --code-bg:   #e9ebf2;
-      --code-border: #c8cdd8;
-      --font-body: 'EB Garamond', Georgia, serif;
-      --font-ui:   'Outfit', system-ui, sans-serif;
-      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-      --text-xs:   0.72rem;
-      --text-sm:   0.85rem;
-      --text-base: 1.175rem;
-      --text-md:   1.32rem;
-      --text-lg:   1.65rem;
-      --text-xl:   2rem;
-      --text-2xl:  2.8rem;
-      --lh-body:   1.76;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { font-size: 16px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-
-    body {
-      background: var(--paper);
-      color: var(--ink);
-      font-family: var(--font-body);
-      font-size: var(--text-base);
-      line-height: var(--lh-body);
-      font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
-    }
-
-    /* ── header ── */
-
-    .site-header { border-bottom: 1px solid var(--rule); padding: 1.1rem 2rem; }
-    .site-header-inner { max-width: 52rem; margin: 0 auto; display: flex; align-items: baseline; gap: 2rem; flex-wrap: wrap; }
-    a.site-name { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; letter-spacing: 0.01em; color: var(--ink-mid); text-decoration: none; transition: color 0.15s; }
-    a.site-name:hover { color: var(--ink); }
-    .header-nav { display: flex; gap: 1.5rem; margin-left: auto; }
-    .header-nav a { font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); text-decoration: none; transition: color 0.15s; }
-    .header-nav a:hover { color: var(--ink); }
-
-    /* ── page ── */
-
-    .page { max-width: 44rem; margin: 0 auto; padding: 5rem 2rem 8rem; }
-
-    .page-header { margin-bottom: 3rem; padding-bottom: 2.5rem; border-bottom: 1px solid var(--rule); }
-    .page-eyebrow { display: block; font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.75rem; }
-    h1.page-title { font-family: var(--font-body); font-size: var(--text-2xl); font-weight: 400; line-height: 1.08; letter-spacing: -0.01em; color: var(--ink); }
-    .page-subtitle { margin-top: 0.9rem; font-size: var(--text-md); font-style: italic; color: var(--ink-mid); line-height: 1.45; }
-
-    /* ── article ── */
-
-    .lead { font-size: var(--text-md); color: var(--ink-mid); line-height: 1.55; margin-bottom: 2.5rem; }
-
-    article h2 {
-      font-family: var(--font-body);
-      font-size: var(--text-xl);
-      font-weight: 500;
-      line-height: 1.18;
-      letter-spacing: -0.01em;
-      color: var(--ink);
-      margin: 3.25rem 0 0.4rem;
-    }
-
-    article h2 .h2-num {
-      font-family: var(--font-ui);
-      font-size: var(--text-sm);
-      font-weight: 500;
-      color: var(--accent);
-      letter-spacing: 0.04em;
-      margin-right: 0.6rem;
-    }
-
-    article h3 {
-      font-family: var(--font-ui);
-      font-size: var(--text-sm);
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--ink-faint);
-      margin: 2rem 0 0.6rem;
-    }
-
-    article p { margin-bottom: 1.15rem; color: var(--ink-mid); }
-    article p.tight { margin-bottom: 0.5rem; }
-
-    article strong { color: var(--ink); font-weight: 500; }
-    article em { font-style: italic; }
-
-    article ul { margin: 0 0 1.15rem 1.4rem; color: var(--ink-mid); }
-    article li { margin-bottom: 0.45rem; }
-
-    article a {
-      color: var(--ink);
-      text-decoration: underline;
-      text-decoration-color: var(--rule);
-      text-underline-offset: 3px;
-      transition: text-decoration-color 0.15s;
-    }
-    article a:hover { text-decoration-color: var(--accent); }
-
-    .principle {
-      border-left: 2px solid var(--accent);
-      padding: 0.25rem 0 0.25rem 1.25rem;
-      margin: 1.5rem 0 1.75rem;
-      font-style: italic;
-      color: var(--ink);
-      font-size: var(--text-md);
-      line-height: 1.5;
-    }
-
-    p code, li code {
-      font-family: var(--font-mono);
-      font-size: 0.8em;
-      background: var(--code-bg);
-      border: 1px solid var(--code-border);
-      border-radius: 3px;
-      padding: 0.1em 0.35em;
-    }
-
-    pre {
-      background: var(--code-bg);
-      border: 1px solid var(--code-border);
-      border-radius: 6px;
-      padding: 1rem 1.1rem;
-      overflow-x: auto;
-      margin: 0.75rem 0 1.75rem;
-      font-size: 0.78rem;
-      line-height: 1.5;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-    }
-    pre code {
-      font-family: var(--font-mono);
-      font-size: 0.78rem;
-      line-height: 1.5;
-      background: none;
-      border: none;
-      padding: 0;
-      border-radius: 0;
-      color: var(--ink);
-    }
-
-    .pre-caption { font-size: var(--text-sm); color: var(--ink-faint); margin: -1.25rem 0 1.9rem; font-style: italic; }
-
-    .article-footer {
-      margin-top: 4rem;
-      padding-top: 2rem;
-      border-top: 1px solid var(--rule);
-      font-family: var(--font-ui);
-      font-size: var(--text-sm);
-      color: var(--ink-faint);
-      display: flex;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-    }
-    .article-footer a { color: var(--ink-mid); text-decoration: none; }
-    .article-footer a:hover { color: var(--accent); }
-
-    @media (max-width: 640px) {
-      .page { padding: 3rem 1.25rem 5rem; }
-      .site-header { padding: 1rem 1.25rem; }
-      .header-nav { display: none; }
-      h1.page-title { font-size: var(--text-xl); }
-      article h2 { font-size: var(--text-lg); }
-    }
-
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./site.css">
+  <script src="./site.js"></script>
 </head>
 <body>
 
-<header class="site-header">
-  <div class="site-header-inner">
-    <a class="site-name" href="../nex.html">Nex</a>
-    <nav class="header-nav">
-      <a href="tutorial.html">15 Minutes</a>
-      <a href="syntax.html">Syntax</a>
-      <a href="docs/programming-with-nex/cover.html">Book</a>
-      <a href="../index.html">Vijay Mathew</a>
-    </nav>
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="../nex.html"><img src="./assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-light="./assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-dark="./assets/logo/nex-logo-concept-7-orbit-n-dark.svg" alt="">nex</a>
+    <div class="nav-links">
+      <a href="./tutorial.html">Tutorial</a>
+      <a href="./syntax.html">Syntax</a>
+      <a href="../nex.html#books">Books</a>
+      <a href="../nex.html#install">Install</a>
+      <a class="gh" href="https://github.com/vijaymathew/nex" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <button class="toggle" id="theme" aria-label="Toggle dark mode" title="Toggle theme">🌙</button>
   </div>
-</header>
+</nav>
 
-<div class="page">
+<div class="wrap narrow">
+  <header class="page-head">
+    <span class="eyebrow">// essay</span>
+    <h1>Designed for Correctness</h1>
+    <p class="lead">This short article explains why Nex makes contracts a language primitive — and why that turns out to be the right foundation for teaching, for sound inheritance, and for the age of machine-written code.</p>
+  </header>
 
-  <div class="page-header">
-    <h1 class="page-title">Designed for Correctness</h1>
-    <p class="page-subtitle">This short article explains why Nex makes contracts a language primitive — and why that turns out to be the right foundation for teaching, for sound inheritance, and for the age of machine-written code.</p>
-  </div>
-
-  <article>
+  <article class="article prose">
 
     <p class="lead">Most modern languages are very good at telling you that a program is <em>well-formed</em>. They are far less interested in whether it is <em>correct</em>. A type checker confirms that you passed an <code>Integer</code> where an <code>Integer</code> was expected; it has nothing to say about whether the integer should have been positive, whether the account had sufficient balance, or whether the list was supposed to stay sorted. That gap between “it compiles” and “it does what it promised” is where most real defects live. Nex is built around closing it.</p>
 
@@ -360,15 +191,27 @@ end</code></pre>
 
     <p>Nex is not trying to out-compete Rust on memory safety or Haskell on purity or TypeScript on ecosystem. Those are battles fought on other languages’ terms. Its objective is narrower and, I think, more durable: that the foundation of good software, whether for a student learning to think rigorously, an engineer designing an interface meant to outlive its first implementation, or a system supervising code that a machine produced, is the ability to <em>state what a program must do and have that statement checked</em>. Nex makes that the first thing you learn and the last thing you can forget.</p>
 
-    <div class="article-footer">
-      <a href="tutorial.html">→ Nex in 15 Minutes</a>
-      <a href="syntax.html">→ Syntax Postcards</a>
-      <a href="docs/programming-with-nex/cover.html">→ Programming with Nex (book)</a>
+    
+
+    <div class="next-cards">
+      <h2>Keep going</h2>
+      <a class="next-card" href="./tutorial.html"><small>tutorial</small><b>A Tour of Nex</b><span>A fast, linear walk through the language.</span></a>
+      <a class="next-card" href="./syntax.html"><small>reference</small><b>Syntax Postcards</b><span>Every construct, one card at a time.</span></a>
+      <a class="next-card" href="./docs/programming-with-nex/cover.html"><small>book</small><b>Programming with Nex</b><span>The in-depth introduction.</span></a>
     </div>
 
   </article>
+</div>
 
-</div><!-- .page -->
+<footer>
+  <div class="wrap">
+    <span class="mono">nex</span>
+    <a href="https://github.com/vijaymathew/nex">GitHub</a>
+    <a href="./tutorial.html">Tutorial</a>
+    <a href="./syntax.html">Syntax</a>
+    <span class="r">by <a href="../index.html">Vijay Mathew</a></span>
+  </div>
+</footer>
 
 </body>
 </html>
