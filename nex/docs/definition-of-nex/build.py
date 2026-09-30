@@ -97,6 +97,9 @@ HEAD = """<!doctype html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../../assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../assets/icons/nex-180.png">
 <link rel="stylesheet" href="../book.css">
 <script src="../book.js"></script>
 {mathjax}
