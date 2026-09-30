@@ -32,27 +32,27 @@
 <h2 class="anchored" data-anchor-id="a-simple-example" data-number="19.1"> A Simple Example</h2>
 <p>Consider a bank account:</p>
 <pre><code>nex&gt; class Bank_Account
-       create
-         make(initial: Real) do
-           balance := initial
-         end
-       feature
-         balance: Real
-         deposit(amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-           do
-             balance := balance + amount
-           end
-         withdraw(amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-             enough: amount &lt;= balance
-           do
-             balance := balance - amount
-           end
-       invariant
-         never_negative: balance &gt;= 0.0
+     create
+       make(initial: Real) do
+         balance := initial
+       end
+     feature
+       balance: Real
+       deposit(amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+       do
+         balance := balance + amount
+       end
+       withdraw(amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+         enough: amount &lt;= balance
+       do
+         balance := balance - amount
+       end
+     invariant
+       never_negative: balance &gt;= 0.0
      end</code></pre>
 <p>The invariant says that every valid account has a non-negative balance. This is not just a rule for <code>deposit</code> or <code>withdraw</code>. It is a rule for the class itself.</p>
 <p>When you write an invariant, you are answering the question: <em>what must always be true of an object of this class when no routine is in the middle of changing it?</em></p>
@@ -110,25 +110,25 @@ Error: Class invariant violation: never_negative</code></pre>
 <p>Inside a routine body, a class may temporarily violate its own invariant while it is rearranging state. What matters is that the invariant is restored by the time the routine finishes.</p>
 <p>For example, imagine a class that splits a fixed number of units between an <code>on_hand</code> amount and a <code>reserved</code> amount:</p>
 <pre><code>nex&gt; class Inventory_Split
-       create
-         make(units: Integer) do
-           total := units
-           on_hand := units
-           reserved := 0
-         end
-       feature
-         total: Integer
-         on_hand: Integer
-         reserved: Integer
-         reserve(n: Integer)
-           require
-             available: n &lt;= on_hand
-           do
-             on_hand := on_hand - n
-             reserved := reserved + n
-           end
-       invariant
-         conserved: on_hand + reserved = total
+     create
+       make(units: Integer) do
+         total := units
+         on_hand := units
+         reserved := 0
+       end
+     feature
+       total: Integer
+       on_hand: Integer
+       reserved: Integer
+       reserve(n: Integer)
+       require
+         available: n &lt;= on_hand
+       do
+         on_hand := on_hand - n
+         reserved := reserved + n
+       end
+     invariant
+       conserved: on_hand + reserved = total
      end</code></pre>
 <p>The invariant <code>conserved</code> says that <code>on_hand</code> and <code>reserved</code> must always add up to <code>total</code>. Inside <code>reserve</code>, the first assignment decreases <code>on_hand</code> but has not yet increased <code>reserved</code>, so for a brief moment the two no longer sum to <code>total</code> and the invariant genuinely does not hold. The second assignment restores it. That is acceptable: the invariant constrains the stable states at routine boundaries, not every intermediate machine step. Nex checks invariants on entry to and exit from a routine, so this temporary imbalance is never observed from outside.</p>
 </section>
@@ -136,23 +136,23 @@ Error: Class invariant violation: never_negative</code></pre>
 <h2 class="anchored" data-anchor-id="invariants-and-collaboration" data-number="19.6"> Invariants and Collaboration</h2>
 <p>One class often holds references to other objects, and there invariants become more interesting. Consider a library loan:</p>
 <pre><code>nex&gt; class Loan
-       create
-         make(book_title, borrower_name: String) do
-           title := book_title
-           borrower := borrower_name
-           returned := false
-         end
-       feature
-         title: String
-         borrower: String
-         returned: Boolean
-         mark_returned()
-           do
-             returned := true
-           end
-       invariant
-         title_not_empty: title.length &gt; 0
-         borrower_not_empty: borrower.length &gt; 0
+     create
+       make(book_title, borrower_name: String) do
+         title := book_title
+         borrower := borrower_name
+         returned := false
+       end
+     feature
+       title: String
+       borrower: String
+       returned: Boolean
+       mark_returned()
+       do
+         returned := true
+       end
+     invariant
+       title_not_empty: title.length &gt; 0
+       borrower_not_empty: borrower.length &gt; 0
      end</code></pre>
 <p>The invariant does not try to state every fact about the world. It states only what must always hold inside a valid <code>Loan</code> object.</p>
 <p>That boundary matters. An invariant should usually avoid depending on remote external state that can change for reasons the class does not control. The more local the invariant, the stronger and more maintainable it is.</p>
@@ -179,32 +179,32 @@ Error: Class invariant violation: never_negative</code></pre>
 <h2 class="anchored" data-anchor-id="a-worked-example-a-bounded-counter" data-number="19.8"> A Worked Example: A Bounded Counter</h2>
 <p>Here is a class whose central meaning is captured by its invariant:</p>
 <pre><code>nex&gt; class Bounded_Counter
-       create
-         make(max: Integer) do
-           limit := max
-           count := 0
-         end
-       feature
-         limit: Integer
-         count: Integer
-         increment()
-           require
-             below_limit: count &lt; limit
-           do
-             count := count + 1
-           ensure
-             advanced: count = old count + 1
-           end
-         reset()
-           do
-             count := 0
-           ensure
-             cleared: count = 0
-           end
-       invariant
-         limit_non_negative: limit &gt;= 0
-         count_non_negative: count &gt;= 0
-         count_within_limit: count &lt;= limit
+     create
+       make(max: Integer) do
+         limit := max
+         count := 0
+       end
+     feature
+       limit: Integer
+       count: Integer
+       increment()
+       require
+         below_limit: count &lt; limit
+       do
+         count := count + 1
+       ensure
+         advanced: count = old count + 1
+       end
+       reset()
+       do
+         count := 0
+       ensure
+         cleared: count = 0
+       end
+     invariant
+       limit_non_negative: limit &gt;= 0
+       count_non_negative: count &gt;= 0
+       count_within_limit: count &lt;= limit
      end</code></pre>
 <p>The invariant tells us what the class <em>is</em>: a counter that never goes below zero and never exceeds its limit.</p>
 <p>The routines then become easy to understand:</p>

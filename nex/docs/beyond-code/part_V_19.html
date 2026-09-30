@@ -83,33 +83,33 @@ feature
   st4: String
 
   linear_find(task_id: String): Search_Result
-    require
-      id_present: task_id /= ""
-    do
-      let final_status: String := "NOT_FOUND"
-      let steps: Integer := 1
-      if task_id = id1 then
-        final_status := st1
-      elseif task_id = id2 then
-        steps := 2
-        final_status := st2
-      elseif task_id = id3 then
-        steps := 3
-        final_status := st3
-      elseif task_id = id4 then
-        steps := 4
-        final_status := st4
-      else
-        steps := 4
-      end
-      result := create Search_Result.make(
-        final_status,
-        steps
-      )
-    ensure
-      bounded_steps: result.steps &gt;= 1 
-                     and result.steps &lt;= 4
+  require
+    id_present: task_id /= ""
+  do
+    let final_status: String := "NOT_FOUND"
+    let steps: Integer := 1
+    if task_id = id1 then
+      final_status := st1
+    elseif task_id = id2 then
+      steps := 2
+      final_status := st2
+    elseif task_id = id3 then
+      steps := 3
+      final_status := st3
+    elseif task_id = id4 then
+      steps := 4
+      final_status := st4
+    else
+      steps := 4
     end
+    result := create Search_Result.make(
+      final_status,
+      steps
+    )
+  ensure
+    bounded_steps: result.steps &gt;= 1 
+                   and result.steps &lt;= 4
+  end
 end</code></pre>
 <p><code>Search_Result</code> carries two fields and two invariants. The <code>status</code> field holds either the found task’s status or <code>NOT_FOUND</code>. The <code>steps</code> field counts how many comparisons the search required. The invariants enforce that both fields are always in a valid state: <code>status</code> is never empty, and <code>steps</code> is never negative.</p>
 <p><code>linear_find</code> initializes the result to <code>NOT_FOUND</code> before beginning the search. This initialization is not an optimization — it is the guarantee that the miss case is handled correctly regardless of which branch the control flow takes. If none of the four comparisons produce a match, the result is already correct without any additional code in the else branch. The postcondition confirms that the number of steps is bounded between one and four — a measurable statement about the algorithm’s behavior on this particular collection size that a test can verify directly.</p>

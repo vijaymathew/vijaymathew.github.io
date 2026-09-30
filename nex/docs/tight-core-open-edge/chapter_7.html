@@ -51,56 +51,56 @@
 
 <pre><code>-- The open interface: any condition on a T is a Spec[T].
 deferred class Spec[T]
-  feature
-    holds(item: T): Boolean deferred      -- each concrete spec provides this
+feature
+  holds(item: T): Boolean deferred      -- each concrete spec provides this
 end</code></pre>
 
 <p>The combining forms are themselves specifications, each holding sub-specifications and delegating to them. This is where closure lives: <code>Both[T]</code> takes two <code>Spec[T]</code> and <em>is</em> a <code>Spec[T]</code>.</p>
 
 <pre><code>class Both[T] inherit Spec[T]
   create make(a: Spec[T], b: Spec[T]) do left := a  right := b end
-  feature
-    left: Spec[T]
-    right: Spec[T]
-    holds(item: T): Boolean
-      do
-        result := left.holds(item) and right.holds(item)
-      end
+feature
+  left: Spec[T]
+  right: Spec[T]
+  holds(item: T): Boolean
+  do
+    result := left.holds(item) and right.holds(item)
+  end
 end
 
 class Either[T] inherit Spec[T]
   create make(a: Spec[T], b: Spec[T]) do left := a  right := b end
-  feature
-    left: Spec[T]
-    right: Spec[T]
-    holds(item: T): Boolean
-      do
-        result := left.holds(item) or right.holds(item)
-      end
+feature
+  left: Spec[T]
+  right: Spec[T]
+  holds(item: T): Boolean
+  do
+    result := left.holds(item) or right.holds(item)
+  end
 end
 
 class Negate[T] inherit Spec[T]
   create make(s: Spec[T]) do inner := s end
-  feature
-    inner: Spec[T]
-    holds(item: T): Boolean
-      do
-        result := not inner.holds(item)
-      end
+feature
+  inner: Spec[T]
+  holds(item: T): Boolean
+  do
+    result := not inner.holds(item)
+  end
 end</code></pre>
 
 <p>Then the primitives — the atoms specific to the domain, each a plain condition on a <code>Placed</code> order:</p>
 
 <pre><code>class Over_Amount inherit Spec[Placed]
   create make(m: Money) do threshold := m end
-  feature
-    threshold: Money
-    holds(item: Placed): Boolean do result := item.total >= threshold end
+feature
+  threshold: Money
+  holds(item: Placed): Boolean do result := item.total >= threshold end
 end
 
 class Domestic inherit Spec[Placed]
-  feature
-    holds(item: Placed): Boolean do result := item.ships_domestically end
+feature
+  holds(item: Placed): Boolean do result := item.ships_domestically end
 end</code></pre>
 
 <p>Now the combinations. "Domestic orders over the free-shipping floor" is not a new function to write — it is an expression in the algebra, assembled from parts that already exist:</p>
@@ -125,15 +125,15 @@ end</code></pre>
 
 <pre><code>-- Edit-to-extend: every new rule reopens this function and its tests.
 function qualifies_for_free_shipping(o: Placed): Boolean
-  do
-    result := false
-    if o.total >= free_ship_floor and o.ships_domestically then
-      result := true
-    elseif o.is_loyalty_member and o.total >= loyalty_floor then
-      result := true
-    -- ...and on, and on, edited in place forever
-    end
-  end</code></pre>
+do
+  result := false
+  if o.total >= free_ship_floor and o.ships_domestically then
+    result := true
+  elseif o.is_loyalty_member and o.total >= loyalty_floor then
+    result := true
+  -- ...and on, and on, edited in place forever
+  end
+end</code></pre>
 
 <p>Every new condition here means editing a function that already works — the exact rigidity Chapter 1 called the second hardness. The combinator version never edits: a new condition is a new <em>expression</em>, composed from existing parts, and the parts are untouched. Complexity moves out of the code and into the <em>data</em> — the tree of combined specs — where it can be built, inspected, even assembled at runtime from configuration, without reopening a single function.</p>
 

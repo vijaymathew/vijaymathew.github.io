@@ -32,32 +32,32 @@
 <h2 class="anchored" data-anchor-id="the-idea" data-number="17.1"> The Idea</h2>
 <p>Consider a small <code>Wallet</code> class:</p>
 <pre><code>nex&gt; class Wallet
-       create
-         make(initial: Real) do
-           money := initial
-         end
-       feature
-         money: Real
-         spend(amount: Real) do
-           money := money - amount
-         end
+     create
+       make(initial: Real) do
+         money := initial
+       end
+     feature
+       money: Real
+       spend(amount: Real) do
+         money := money - amount
+       end
      end</code></pre>
 <p>This class works mechanically, but the routine <code>spend</code> is underspecified. What if <code>amount</code> is negative? What if <code>amount</code> is larger than <code>money</code>? The body says what the routine does, but not when it is valid to call it.</p>
 <p>A precondition makes that explicit:</p>
 <pre><code>nex&gt; class Wallet
-       create
-         make(initial: Real) do
-           money := initial
-         end
-       feature
-         money: Real
-         spend(amount: Real)
-           require
-             non_negative_amount: amount &gt;= 0.0
-             enough: amount &lt;= money
-           do
-             money := money - amount
-           end
+     create
+       make(initial: Real) do
+         money := initial
+       end
+     feature
+       money: Real
+       spend(amount: Real)
+       require
+         non_negative_amount: amount &gt;= 0.0
+         enough: amount &lt;= money
+       do
+         money := money - amount
+       end
      end</code></pre>
 <p>Now the routine says two things:</p>
 <ul>
@@ -70,12 +70,12 @@
 <h2 class="anchored" data-anchor-id="reading-a-precondition" data-number="17.2"> Reading a Precondition</h2>
 <p>Read <code>require</code> as “this routine may be called only if…”:</p>
 <pre><code>spend(amount: Real)
-  require
-    non_negative_amount: amount &gt;= 0.0
-    enough: amount &lt;= money
-  do
-    money := money - amount
-  end</code></pre>
+require
+  non_negative_amount: amount &gt;= 0.0
+  enough: amount &lt;= money
+do
+  money := money - amount
+end</code></pre>
 <p>The labels <code>non_negative_amount</code> and <code>enough</code> are names for the individual assertions. They matter. When a contract fails, Nex reports the assertion by name. A good assertion name tells the reader what rule was intended.</p>
 <p>Bad names:</p>
 <ul>
@@ -96,25 +96,25 @@
 <h2 class="anchored" data-anchor-id="caller-responsibility" data-number="17.3"> Caller Responsibility</h2>
 <p>When a routine has a precondition, satisfying it is the caller’s job — a point that is easy to state and easy to forget. Many beginners write routines that both require something and then, inside the body, also try to defend themselves against the caller violating that same requirement:</p>
 <pre><code>withdraw(amount: Real): Boolean
-  require
-    enough: amount &lt;= balance
-  do
-    if amount &lt;= balance then
-      balance := balance - amount
-        result := true
-      else
-        result := false
-    end
-   end</code></pre>
+require
+  enough: amount &lt;= balance
+do
+  if amount &lt;= balance then
+    balance := balance - amount
+      result := true
+    else
+      result := false
+  end
+end</code></pre>
 <p>The <code>if</code> duplicates the contract. If <code>amount &gt; balance</code>, the call is already invalid. The body does not need to ask again. Duplicating the check weakens the design because it blurs the boundary between correct use and incorrect use.</p>
 <p>The cleaner version:</p>
 <pre><code>withdraw(amount: Real)
-  require
-    non_negative_amount: amount &gt;= 0.0
-    enough: amount &lt;= balance
-   do
-     balance := balance - amount
-   end</code></pre>
+require
+  non_negative_amount: amount &gt;= 0.0
+  enough: amount &lt;= balance
+do
+  balance := balance - amount
+end</code></pre>
 <p>Now the routine is simpler and its interface is sharper. Either the caller meets the contract, or the call is rejected.</p>
 </section>
 <section class="level2" data-number="17.4" id="a-first-useful-example">
@@ -160,30 +160,30 @@ Error: Precondition violation: not_empty</code></pre>
 <h2 class="anchored" data-anchor-id="strengthening-a-design-with-preconditions" data-number="17.6"> Strengthening a Design with Preconditions</h2>
 <p>Consider a bounded stack:</p>
 <pre><code>nex&gt; class Bounded_Stack [G]
-       create
-         make(limit: Integer) do
-           max_size := limit
-           items := []
-         end
-       feature
-         max_size: Integer
-         items: Array[G]
-         push(value: G)
-           require
-             not_full: items.length &lt; max_size
-           do
-             items.add(value)
-           end
-         pop(): G
-           require
-             not_empty: items.length &gt; 0
-           do
-             result := items.get(items.length - 1)
-             items.remove(items.length - 1)
-           end
-         size(): Integer do
-           result := items.length
-         end
+     create
+       make(limit: Integer) do
+         max_size := limit
+         items := []
+       end
+     feature
+       max_size: Integer
+       items: Array[G]
+       push(value: G)
+       require
+         not_full: items.length &lt; max_size
+       do
+         items.add(value)
+       end
+       pop(): G
+       require
+         not_empty: items.length &gt; 0
+       do
+         result := items.get(items.length - 1)
+         items.remove(items.length - 1)
+       end
+       size(): Integer do
+         result := items.length
+       end
      end</code></pre>
 <p>Earlier, Chapter 15 showed a version of <code>push</code> that silently ignored extra insertions. That design is convenient but weak. It hides mistakes. A caller can believe the item was pushed even when it was not.</p>
 <p>The version above is stricter and better. If the stack is full, the caller learns immediately that the call was invalid. A routine should not quietly proceed when its fundamental assumptions have been broken.</p>
@@ -204,36 +204,36 @@ Error: Precondition violation: not_empty</code></pre>
 <h2 class="anchored" data-anchor-id="a-worked-example-transfer-between-accounts" data-number="17.8"> A Worked Example: Transfer Between Accounts</h2>
 <p>Here is a simple account class:</p>
 <pre><code>nex&gt; class Account
-       create
-         make(name: String, initial: Real) do
-           owner := name
-           balance := initial
-         end
-       feature
-         owner: String
-         balance: Real
-         deposit(amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-           do
-             balance := balance + amount
-           end
-         withdraw(amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-             enough: amount &lt;= balance
-           do
-             balance := balance - amount
-           end
-         transfer_to(other: Account, amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-             enough: amount &lt;= balance
-             different_account: other /= this
-           do
-             withdraw(amount)
-             other.deposit(amount)
-           end
+     create
+       make(name: String, initial: Real) do
+         owner := name
+         balance := initial
+       end
+     feature
+       owner: String
+       balance: Real
+       deposit(amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+       do
+         balance := balance + amount
+       end
+       withdraw(amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+         enough: amount &lt;= balance
+       do
+         balance := balance - amount
+       end
+       transfer_to(other: Account, amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+         enough: amount &lt;= balance
+         different_account: other /= this
+       do
+         withdraw(amount)
+         other.deposit(amount)
+       end
      end</code></pre>
 <p><code>transfer_to</code> expresses its rules cleanly:</p>
 <ul>

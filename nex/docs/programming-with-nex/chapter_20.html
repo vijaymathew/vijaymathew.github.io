@@ -32,13 +32,13 @@
 <h2 class="anchored" data-anchor-id="starting-with-the-interface" data-number="21.1"> Starting with the Interface</h2>
 <p>Suppose we want a routine that transfers money between accounts. Before writing any code, we can write the contract:</p>
 <pre><code>transfer_to(other: Account, amount: Real)
-  require
-    positive_amount: amount &gt; 0.0
-    enough: amount &lt;= balance
-    different_account: other /= this
+require
+  positive_amount: amount &gt; 0.0
+  enough: amount &lt;= balance
+  different_account: other /= this
   ensure
-    sender_lost_amount: balance = old balance - amount
-end</code></pre>
+  sender_lost_amount: balance = old balance - amount
+  end</code></pre>
 <p>Even without a body, this is already useful. It answers the main design questions immediately:</p>
 <ul>
 <li>what counts as a valid call</li>
@@ -76,14 +76,14 @@ withdraw(amount: Real) do
 end</code></pre>
 <p>Contract-based documentation:</p>
 <pre><code>withdraw(amount: Real)
-  require
-    positive_amount: amount &gt; 0.0
-    enough: amount &lt;= balance
-  do
-    balance := balance - amount
-  ensure
-    decreased: balance = old balance - amount
-  end</code></pre>
+require
+  positive_amount: amount &gt; 0.0
+  enough: amount &lt;= balance
+do
+  balance := balance - amount
+ensure
+  decreased: balance = old balance - amount
+end</code></pre>
 <p>The second version is better in three ways:</p>
 <ul>
 <li>it is precise</li>
@@ -116,22 +116,22 @@ end</code></pre>
 <p>Let us design a routine that removes the last character from a string:</p>
 <p>Step 1: write the contract.</p>
 <pre><code>function without_last(s: String): String
-  require
-    not_empty: s.length &gt; 0
+require
+  not_empty: s.length &gt; 0
   ensure
-    one_shorter: result.length = s.length - 1
-end</code></pre>
+  one_shorter: result.length = s.length - 1
+  end</code></pre>
 <p>Step 2: ask whether the contract is strong enough.</p>
 <p>It is not. A routine returning <code>"xxxxx"</code> for any input string of length six would satisfy <code>one_shorter</code>.</p>
 <p>Step 3: strengthen the contract and then write the body that satisfies it.</p>
 <pre><code>function without_last(s: String): String
-  require
-    not_empty: s.length &gt; 0
-  do
-    result := s.substring(0, s.length - 1)
-  ensure
-    one_shorter: result.length = s.length - 1
-    keeps_prefix: result = s.substring(0, s.length - 1)
+require
+  not_empty: s.length &gt; 0
+do
+  result := s.substring(0, s.length - 1)
+ensure
+  one_shorter: result.length = s.length - 1
+  keeps_prefix: result = s.substring(0, s.length - 1)
 end</code></pre>
 <p>Now the routine is implementable, and the stronger postcondition rules out the fake implementation that merely returns any string of the right length. The body is also almost forced by the contract: if the result must be exactly the original string without its last character, <code>substring(0, s.length - 1)</code> is the natural implementation.</p>
 <p>That is a realistic engineering judgment: the contract did not merely check the routine afterward, it guided the routine into existence.</p>
@@ -151,30 +151,30 @@ end</code></pre>
 </ul>
 <p>One possible design:</p>
 <pre><code>nex&gt; class Word_Set
-       create
-         make() do
-           items := []
+     create
+       make() do
+         items := []
+       end
+     feature
+       items: Array[String]
+       has(word: String): Boolean do
+         result := items.contains(word)
+       end
+       add(word: String)
+       require
+         not_empty: word.length &gt; 0
+       do
+         if not has(word) then
+           items.add(word)
          end
-       feature
-         items: Array[String]
-         has(word: String): Boolean do
-           result := items.contains(word)
-         end
-         add(word: String)
-           require
-             not_empty: word.length &gt; 0
-           do
-             if not has(word) then
-               items.add(word)
-             end
-           ensure
-             word_present: has(word)
-           end
-         size(): Integer do
-           result := items.length
-         end
-       invariant
-         storage_exists: items /= nil
+       ensure
+         word_present: has(word)
+       end
+       size(): Integer do
+         result := items.length
+       end
+     invariant
+       storage_exists: items /= nil
      end</code></pre>
 <p>The postcondition on <code>add</code> is the important part. It says what the routine must achieve, not how. The body then chooses one reasonable implementation.</p>
 <p>If later we replace <code>Array[String]</code> with a map or a tree, the contract can remain the same. That is contract-first design doing its proper job.</p>
@@ -196,31 +196,31 @@ feature
     balance := new_balance
   end
   withdraw(amount: Real)
-    require
-      enough: amount &lt;= balance
-    do
-      set_balance(balance - amount)
-    end
-  create
-    make(balance: Real) do this.balance := balance end
+  require
+    enough: amount &lt;= balance
+  do
+    set_balance(balance - amount)
+  end
+create
+  make(balance: Real) do this.balance := balance end
 end
 
 class Overdraft_Account
-inherit Account
+  inherit Account
 feature
   withdraw(amount: Real)
-    require
-      within_limit: amount &lt;= balance + overdraft_limit
-    do
-      Account.set_balance(balance - amount)
-    end
+  require
+    within_limit: amount &lt;= balance + overdraft_limit
+  do
+    Account.set_balance(balance - amount)
+  end
   overdraft_limit: Real
-  create
-    make(balance, overdraft_limit: Real)
-      do
-        Account.make(balance)
-        this.overdraft_limit := overdraft_limit
-      end
+create
+  make(balance, overdraft_limit: Real)
+  do
+    Account.make(balance)
+    this.overdraft_limit := overdraft_limit
+  end
 end</code></pre>
 <p>The effective precondition of <code>Overdraft_Account.withdraw</code> is:</p>
 <p><code>(amount &lt;= balance) or (amount &lt;= balance + overdraft_limit)</code></p>
@@ -240,28 +240,28 @@ feature
     balance := new_balance
   end
   deposit(amount: Real)
-    require
-      positive: amount &gt; 0.0
-    do
-      set_balance(balance + amount)
-    ensure
-      increased: balance &gt; old balance
-    end
-  create
-    make(balance: Real) do this.balance := balance end
+  require
+    positive: amount &gt; 0.0
+  do
+    set_balance(balance + amount)
+  ensure
+    increased: balance &gt; old balance
+  end
+create
+  make(balance: Real) do this.balance := balance end
 end
 
 class Bonus_Account
-inherit Account
+  inherit Account
 feature
   deposit(amount: Real)
-    do
-      Account.deposit(amount)
-    ensure
-      exact_credit: balance = old balance + amount
-    end
-  create
-    make(balance: Real) do Account.make(balance) end
+  do
+    Account.deposit(amount)
+  ensure
+    exact_credit: balance = old balance + amount
+  end
+create
+  make(balance: Real) do Account.make(balance) end
 end</code></pre>
 <p>The effective postcondition of <code>Bonus_Account.deposit</code> is:</p>
 <p><code>(balance &gt; old balance) and (balance = old balance + amount)</code></p>
@@ -279,7 +279,7 @@ invariant
 end
 
 class Savings_Account
-inherit Account
+  inherit Account
 invariant
   non_negative_rate: interest_rate &gt;= 0.0
 end</code></pre>

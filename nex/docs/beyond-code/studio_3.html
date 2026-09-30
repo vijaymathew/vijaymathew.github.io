@@ -186,34 +186,34 @@ feature
   t5: Delivery_Task
 
   find_status(task_id: String): Measure_Result
-    require
-      id_present: task_id /= ""
-    do
-      let steps: Integer := 1
-      let value: String := "NOT_FOUND"
-      if t1.task_id = task_id then
-        value := t1.status
-      elseif t2.task_id = task_id then
-        steps := steps + 1
-        value := t2.status
-      elseif t3.task_id = task_id then
-        steps := steps + 1
-        value := t3.status
-      elseif t4.task_id = task_id then
-        steps := steps + 1
-        value := t4.status
-      elseif t5.task_id = task_id then
-        steps := steps + 1
-        value := t5.status
-      else
-        steps := steps + 1
-      end
-
-      result := create Measure_Result.make(value, steps)
-    ensure
-      bounded_steps: result.steps &gt;= 1 
-                     and result.steps &lt;= 5
+  require
+    id_present: task_id /= ""
+  do
+    let steps: Integer := 1
+    let value: String := "NOT_FOUND"
+    if t1.task_id = task_id then
+      value := t1.status
+    elseif t2.task_id = task_id then
+      steps := steps + 1
+      value := t2.status
+    elseif t3.task_id = task_id then
+      steps := steps + 1
+      value := t3.status
+    elseif t4.task_id = task_id then
+      steps := steps + 1
+      value := t4.status
+    elseif t5.task_id = task_id then
+      steps := steps + 1
+      value := t5.status
+    else
+      steps := steps + 1
     end
+
+    result := create Measure_Result.make(value, steps)
+  ensure
+    bounded_steps: result.steps &gt;= 1 
+                   and result.steps &lt;= 5
+  end
 end
 
 class Delivery_Task_Store_V3
@@ -251,26 +251,26 @@ feature
   v5: Delivery_Task
 
   find_status(task_id: String): Measure_Result
-    require
-      id_present: task_id /= ""
-    do
-      let value: String := "NOT_FOUND"
-      if task_id = k1 then
-        value := v1.status
-      elseif task_id = k2 then
-        value := v2.status
-      elseif task_id = k3 then
-        value := v3.status
-      elseif task_id = k4 then
-        value := v4.status
-      elseif task_id = k5 then
-        value := v5.status
-      end
-
-      result := create Measure_Result.make(value, 1)
-    ensure
-      constant_step: result.steps = 1
+  require
+    id_present: task_id /= ""
+  do
+    let value: String := "NOT_FOUND"
+    if task_id = k1 then
+      value := v1.status
+    elseif task_id = k2 then
+      value := v2.status
+    elseif task_id = k3 then
+      value := v3.status
+    elseif task_id = k4 then
+      value := v4.status
+    elseif task_id = k5 then
+      value := v5.status
     end
+
+    result := create Measure_Result.make(value, 1)
+  ensure
+    constant_step: result.steps = 1
+  end
 end</code></pre>
 </section>
 <section class="level3" id="knowledge-refactor-link-validation-document-lookup">
@@ -300,30 +300,30 @@ feature
   l2: Doc_Link
 
   validate_link(link: Doc_Link): Measure_Result
-    do
-      let value: String := "VALID"
-      if (d1.doc_id = link.from_doc_id 
-          or d2.doc_id = link.from_doc_id 
-          or d3.doc_id = link.from_doc_id) and
-         (d1.doc_id = link.to_doc_id 
-          or d2.doc_id = link.to_doc_id 
-          or d3.doc_id = link.to_doc_id) then
-        value := "VALID"
-      elseif not (d1.doc_id = link.from_doc_id 
-                  or d2.doc_id = link.from_doc_id 
-                  or d3.doc_id = link.from_doc_id) then
-        value := "MISSING_FROM"
-      else
-        value := "MISSING_TO"
-      end
-
-      result := create Measure_Result.make(value, 2)
-    ensure
-      status_known:
-        result.value = "VALID" or
-        result.value = "MISSING_FROM" or
-        result.value = "MISSING_TO"
+  do
+    let value: String := "VALID"
+    if (d1.doc_id = link.from_doc_id 
+        or d2.doc_id = link.from_doc_id 
+        or d3.doc_id = link.from_doc_id) and
+       (d1.doc_id = link.to_doc_id 
+        or d2.doc_id = link.to_doc_id 
+        or d3.doc_id = link.to_doc_id) then
+      value := "VALID"
+    elseif not (d1.doc_id = link.from_doc_id 
+                or d2.doc_id = link.from_doc_id 
+                or d3.doc_id = link.from_doc_id) then
+      value := "MISSING_FROM"
+    else
+      value := "MISSING_TO"
     end
+
+    result := create Measure_Result.make(value, 2)
+  ensure
+    status_known:
+      result.value = "VALID" or
+      result.value = "MISSING_FROM" or
+      result.value = "MISSING_TO"
+  end
 end
 
 class Knowledge_Model_V3
@@ -349,31 +349,31 @@ feature
   dv3: Document
 
   has_doc(doc_id: String): Boolean
-    do
-      result := doc_id = dk1 
-                or doc_id = dk2 
-                or doc_id = dk3
-    ensure
-      bool_result: result = true 
-                   or result = false
-    end
+  do
+    result := doc_id = dk1 
+              or doc_id = dk2 
+              or doc_id = dk3
+  ensure
+    bool_result: result = true 
+                 or result = false
+  end
 
   validate_link(link: Doc_Link): Measure_Result
-    do
-      let value: String := "VALID"
-      if not has_doc(link.from_doc_id) then
-        value := "MISSING_FROM"
-      elseif not has_doc(link.to_doc_id) then
-        value := "MISSING_TO"
-      end
-
-      result := create Measure_Result.make(value, 2)
-    ensure
-      status_known:
-        result.value = "VALID" or
-        result.value = "MISSING_FROM" or
-        result.value = "MISSING_TO"
+  do
+    let value: String := "VALID"
+    if not has_doc(link.from_doc_id) then
+      value := "MISSING_FROM"
+    elseif not has_doc(link.to_doc_id) then
+      value := "MISSING_TO"
     end
+
+    result := create Measure_Result.make(value, 2)
+  ensure
+    status_known:
+      result.value = "VALID" or
+      result.value = "MISSING_FROM" or
+      result.value = "MISSING_TO"
+  end
 end</code></pre>
 </section>
 <section class="level3" id="virtual-world-refactor-targeted-update">
@@ -401,35 +401,35 @@ feature
 
   move_by_id(object_id: String,
              delta: Integer): Measure_Result
-    require
-      id_present: object_id /= ""
-    do
-      let value: String := "NOT_FOUND"
-      let steps: Integer := 1
-      if w1.object_id = object_id then
-        w1.shift(delta)
-        value := "UPDATED"
-      elseif w2.object_id = object_id then
-        steps := steps + 1
-        w2.shift(delta)
-        value := "UPDATED"
-      elseif w3.object_id = object_id then
-        steps := steps + 1
-        w3.shift(delta)
-        value := "UPDATED"
-      elseif w4.object_id = object_id then
-        steps := steps + 1
-        w4.shift(delta)
-        value := "UPDATED"
-      else
-        steps := steps + 1
-      end
-
-      result := create Measure_Result.make(value, steps)
-    ensure
-      bounded_steps: result.steps &gt;= 1 
-                     and result.steps &lt;= 4
+  require
+    id_present: object_id /= ""
+  do
+    let value: String := "NOT_FOUND"
+    let steps: Integer := 1
+    if w1.object_id = object_id then
+      w1.shift(delta)
+      value := "UPDATED"
+    elseif w2.object_id = object_id then
+      steps := steps + 1
+      w2.shift(delta)
+      value := "UPDATED"
+    elseif w3.object_id = object_id then
+      steps := steps + 1
+      w3.shift(delta)
+      value := "UPDATED"
+    elseif w4.object_id = object_id then
+      steps := steps + 1
+      w4.shift(delta)
+      value := "UPDATED"
+    else
+      steps := steps + 1
     end
+
+    result := create Measure_Result.make(value, steps)
+  ensure
+    bounded_steps: result.steps &gt;= 1 
+                   and result.steps &lt;= 4
+  end
 end
 
 class World_Model_V3
@@ -444,19 +444,19 @@ feature
 
   move_by_id(object_id: String,
              delta: Integer): Measure_Result
-    require
-      id_present: object_id /= ""
-    do
-      let value: String := "NOT_FOUND"
-      if object_id = wk1 then
-        wv1.shift(delta)
-        value := "UPDATED"
-      end
-
-      result := create Measure_Result.make(value, 1)
-    ensure
-      constant_step: result.steps = 1
+  require
+    id_present: object_id /= ""
+  do
+    let value: String := "NOT_FOUND"
+    if object_id = wk1 then
+      wv1.shift(delta)
+      value := "UPDATED"
     end
+
+    result := create Measure_Result.make(value, 1)
+  ensure
+    constant_step: result.steps = 1
+  end
 end</code></pre>
 </section>
 <section class="level3" id="studio-driver-beforeafter-on-studio-2-models">

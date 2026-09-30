@@ -35,11 +35,11 @@
 
 <pre><code>-- Every illegal combination is representable. The type says almost nothing.
 class Order
-  feature
-    status: String              -- "draft"? "placed"? "shipped"? who enforces this?
-    items: Array[Line_Item]     -- empty is fine for a draft, nonsense once placed
-    total: Money                -- meaningless until placed; some number anyway
-    tracking: Tracking_Id       -- meaningless until shipped; nil the rest of the time
+feature
+  status: String              -- "draft"? "placed"? "shipped"? who enforces this?
+  items: Array[Line_Item]     -- empty is fine for a draft, nonsense once placed
+  total: Money                -- meaningless until placed; some number anyway
+  tracking: Tracking_Id       -- meaningless until shipped; nil the rest of the time
 end</code></pre>
 
 <p>Count the illegal states this permits. An order with <code>status = "shipped"</code> and no items. An order with <code>status = "draft"</code> and a tracking id. An order marked <code>"placed"</code> whose <code>total</code> does not equal the sum of its items. A <code>status</code> of <code>"shpiped"</code> — a typo the type welcomes. Each of these is a sentence the domain forbids and the type cheerfully allows, so each one must be guarded against by hand, in every function that touches an order, forever. The model has pushed its entire correctness burden onto the code that uses it.</p>
@@ -74,10 +74,10 @@ end</code></pre>
 <p>But shape is only part of what a placed order must satisfy. A <code>Placed</code> should have at least one line, and its <code>total</code> should equal the sum of those lines — and those are not facts about <em>shape</em>, they are <em>relationships among values</em>. The <code>union</code> form states shape and nothing more; it synthesises no contracts. When a variant must also hold a relationship, write that hierarchy in the longhand, and hang the contract on the variant that needs it:</p>
 
 <pre><code>sealed deferred class Order
-  feature
-    items: Array[Line_Item]      -- shared by every state
-  create
-    init(xs: Array[Line_Item]) do items := xs end
+feature
+  items: Array[Line_Item]      -- shared by every state
+create
+  init(xs: Array[Line_Item]) do items := xs end
 end
 
 class Draft
@@ -87,25 +87,25 @@ end
 
 class Placed
   inherit Order
-  feature
-    total: Money
+feature
+  total: Money
   create make(xs: Array[Line_Item], t: Money)
-    require
-      not_empty: xs.length > 0
-      total_matches: t = sum_of(xs)
-    do
-      Order.init(xs)
-      total := t
-    end
-  invariant
-    not_empty: items.length > 0
-    total_consistent: total = sum_of(items)
+  require
+    not_empty: xs.length > 0
+    total_matches: t = sum_of(xs)
+  do
+    Order.init(xs)
+    total := t
+  end
+invariant
+  not_empty: items.length > 0
+  total_consistent: total = sum_of(items)
 end
 
 class Shipped
   inherit Order
-  feature
-    tracking: Tracking_Id
+feature
+  tracking: Tracking_Id
   create make(xs: Array[Line_Item], t: Tracking_Id) do
     Order.init(xs)
     tracking := t
@@ -142,16 +142,16 @@ let doubled: Integer := q * 2 -- free: a Quantity is already an Integer</code></
 <p>Closing the set of shapes buys something beyond forbidding bad values: it lets the compiler <em>guarantee you handled all the good ones</em>. Because <code>Order</code> is sealed, a <code>match</code> over it must cover every case, or the program does not compile.</p>
 
 <pre><code>function describe(o: Order): String
-  do
-    match o of
-      Draft as d then
-        result := "draft with " + d.items.length.to_string + " item(s)"
-      Placed as p then
-        result := "placed, total " + p.total.to_string
-      Shipped as s then
-        result := "shipped via " + s.tracking.to_string
-    end
-  end</code></pre>
+do
+  match o of
+    Draft as d then
+      result := "draft with " + d.items.length.to_string + " item(s)"
+    Placed as p then
+      result := "placed, total " + p.total.to_string
+    Shipped as s then
+      result := "shipped via " + s.tracking.to_string
+  end
+end</code></pre>
 
 <p>Each <code>when</code> binds the matched value at its specific type — inside the <code>Placed</code> branch, <code>p</code> has a <code>total</code>; inside <code>Shipped</code>, <code>s</code> has a <code>tracking</code> — so the fields you may touch are only the fields that make sense for the case. There is no null to guard, because there is no field that does not belong.</p>
 

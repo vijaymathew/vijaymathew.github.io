@@ -34,58 +34,58 @@
 <p>Consider the difference between these two designs for a student record:</p>
 <pre><code>nex&gt; -- one class doing too much
 nex&gt; class Student
-       create
-         make(n, e: String) do
-           name := n
-           email := e
-           scores := []
+     create
+       make(n, e: String) do
+         name := n
+         email := e
+         scores := []
+       end
+     private feature
+       name: String
+       email: String
+       scores: Array[Integer]
+     feature
+       add_score(s: Integer) do
+         scores.add(s)
+       end
+       average(): Real do
+         result := 0.0
+         across scores as s do
+           result := result + s
          end
-       private feature
-         name: String
-         email: String
-         scores: Array[Integer]
-       feature
-         add_score(s: Integer) do
-           scores.add(s)
-         end
-         average(): Real do
-           result := 0.0
-           across scores as s do
-             result := result + s
-           end
-           result := result / scores.length
-         end
-         send_report() do
-           -- connects to email server, formats HTML, sends message
-         end
-         export_to_csv(): String do
-           -- formats a CSV row
-         end
+         result := result / scores.length
+       end
+       send_report() do
+         -- connects to email server, formats HTML, sends message
+       end
+       export_to_csv(): String do
+         -- formats a CSV row
+       end
      end</code></pre>
 <p>This class manages student data, computes statistics, sends email, and exports to CSV. These are four different responsibilities. A change to the email sending logic or an updation to the CSV format requires touching the student class. Every part of the system that needs to change has found its way into one place.</p>
 <p>The better design:</p>
 <pre><code>nex&gt; class Student
-       create
-         make(n, e: String) do
-           name := n
-           email := e
-           scores := []
+     create
+       make(n, e: String) do
+         name := n
+         email := e
+         scores := []
+       end
+     private feature
+       name: String
+       email: String
+       scores: Array[Integer]
+     feature
+       add_score(s: Integer) do
+         scores.add(s)
+       end
+       average(): Real do
+         result := 0.0
+         across scores as s do
+           result := result + s
          end
-       private feature
-         name: String
-         email: String
-         scores: Array[Integer]
-       feature
-         add_score(s: Integer) do
-           scores.add(s)
-         end
-         average(): Real do
-           result := 0.0
-           across scores as s do
-             result := result + s
-           end
-           result := result / scores.length
-         end
+         result := result / scores.length
+       end
      end</code></pre>
 <p><code>Student</code> manages student data and computes statistics intrinsic to a student. Sending email belongs to an email service. Exporting to CSV belongs to a report generator. Each class has one reason to exist.</p>
 </section>
@@ -106,30 +106,30 @@ nex&gt; class Student
 <p>The insight that motivates object-oriented design is that data and the behaviour that naturally acts on it should live together. A <code>Bank_Account</code> does not just hold a balance — it holds the balance and the rules for modifying it. Those rules are encoded in the methods. The data and its constraints are inseparable.</p>
 <p>This distinguishes a well-designed class from a raw map. A map <code>{"owner": "Alice", "balance": 1000.0}</code> holds the same data as a <code>Bank_Account</code>, but nothing prevents external code from setting the balance to a negative number. The class enforces its rules by controlling what operations are possible:</p>
 <pre><code>nex&gt; class Bank_Account
-       create
-         make(name: String, initial: Real) do
-           owner := name
-           balance := initial
-           overdraft_limit := 0.0
+     create
+       make(name: String, initial: Real) do
+         owner := name
+         balance := initial
+         overdraft_limit := 0.0
+       end
+     feature
+       owner: String
+       balance: Real
+       overdraft_limit: Real
+       deposit(amount: Real) do
+         balance := balance + amount
+       end
+       withdraw(amount: Real): Boolean do
+         if balance - amount &gt;= -overdraft_limit then
+           balance := balance - amount
+           result := true
+         else
+           result := false
          end
-       feature
-         owner: String
-         balance: Real
-         overdraft_limit: Real
-         deposit(amount: Real) do
-           balance := balance + amount
-         end
-         withdraw(amount: Real): Boolean do
-           if balance - amount &gt;= -overdraft_limit then
-             balance := balance - amount
-             result := true
-           else
-             result := false
-           end
-         end
-         is_overdrawn(): Boolean do
-           result := balance <= -overdraft_limit
-         end
+       end
+       is_overdrawn(): Boolean do
+         result := balance <= -overdraft_limit
+       end
      end</code></pre>
 <p><code>withdraw</code> returns <code>false</code> when the withdrawal would exceed the limit rather than silently allowing an invalid state. The rule lives once, inside the class, and applies everywhere. No external code can bypass it.</p>
 </section>
@@ -143,26 +143,26 @@ nex&gt; class Student
 </ul>
 <p>Trouble begins when one routine tries to mix the two roles:</p>
 <pre><code>nex&gt; class Counter
-       private feature
-         value: Integer
-       feature
-         next_value(): Integer do
-           value := value + 1
-           result := value
-         end
+     private feature
+       value: Integer
+     feature
+       next_value(): Integer do
+         value := value + 1
+         result := value
+       end
      end</code></pre>
 <p>The name <code>next_value</code> sounds like a question, but calling it changes the object. A reader cannot tell from the name alone whether this is safe to call repeatedly, whether it is merely observing the counter, or whether it is advancing it.</p>
 <p>The clearer design separates the two responsibilities:</p>
 <pre><code>nex&gt; class Counter
-       private feature
-         value: Integer
-       feature
-         increment() do
-           value := value + 1
-         end
-         current(): Integer do
-           result := value
-         end
+     private feature
+       value: Integer
+     feature
+       increment() do
+         value := value + 1
+       end
+       current(): Integer do
+         result := value
+       end
      end</code></pre>
 <p>Now the interface says exactly what happens. <code>increment</code> is a command and <code>current</code> is a query. A caller can ask for the current value without changing the object, and can change the object without pretending to ask a question.</p>
 <p>This principle matters because mixed routines are harder to reason about:</p>
@@ -184,21 +184,21 @@ nex&gt; class Student
 <p>A well-designed class is a model of a real-world entity, a domain concept, or an abstraction. The attributes and methods of the class represent the properties and operations that matter for the domain, everything else is left out.</p>
 <p>Consider modelling a playing card:</p>
 <pre><code>nex&gt; class Card
-       create
-         make(r: Integer, s: String) do
-           rank := r
-           suit := s
-         end
-       feature
-         rank: Integer
-         suit: String
-         name(): String do
-           let rank_names := ["2","3","4","5","6","7","8","9","10","J","Q","K","Ace"]
-           result := rank_names.get(rank - 2) + " of " + suit
-         end
-         beats(other: Card): Boolean do
-           result := rank &gt; other.rank
-         end
+     create
+       make(r: Integer, s: String) do
+         rank := r
+         suit := s
+       end
+     feature
+       rank: Integer
+       suit: String
+       name(): String do
+         let rank_names := ["2","3","4","5","6","7","8","9","10","J","Q","K","Ace"]
+         result := rank_names.get(rank - 2) + " of " + suit
+       end
+       beats(other: Card): Boolean do
+         result := rank &gt; other.rank
+       end
      end
 
 nex&gt; let ace   := create Card.make(14, "Spades")
@@ -229,54 +229,54 @@ true</code></pre>
 <h2 class="anchored" data-anchor-id="a-worked-example-redesigning-a-class" data-number="14.8"> A Worked Example: Redesigning a Class</h2>
 <p>Consider an initial draft of a <code>Product</code> class for an online store:</p>
 <pre><code>nex&gt; class Product
-       feature
-         id: Integer
-         name: String
-         price: Real
-         stock: Integer
-         description: String
-         discount_percent: Real
-         category: String
-         supplier_email: String
-         last_ordered_date: String
-         reorder_threshold: Integer
+     feature
+       id: Integer
+       name: String
+       price: Real
+       stock: Integer
+       description: String
+       discount_percent: Real
+       category: String
+       supplier_email: String
+       last_ordered_date: String
+       reorder_threshold: Integer
      end</code></pre>
 <p>Apply the single responsibility question: what is a <code>Product</code>? A product has an identity (id, name, category), a price, and a description. Stock management belongs to an <code>Inventory</code> concept. Supplier information belongs to a <code>Supplier</code>. Last ordered date is an event record, not a product attribute.</p>
 <p>The redesigned model:</p>
 <pre><code>nex&gt; class Product
-       create
-         make(i: Integer, n, cat, desc: String, price: Real) do
-           id := i
-           name := n
-           category := cat
-           description := desc
-           base_price := price
-         end
-       feature
-         id: Integer
-         name: String
-         category: String
-         description: String
-         base_price: Real
-         discounted_price(percent: Real): Real do
-           result := base_price * (1.0 - percent / 100.0)
-         end
+     create
+       make(i: Integer, n, cat, desc: String, price: Real) do
+         id := i
+         name := n
+         category := cat
+         description := desc
+         base_price := price
+       end
+     feature
+       id: Integer
+       name: String
+       category: String
+       description: String
+       base_price: Real
+       discounted_price(percent: Real): Real do
+         result := base_price * (1.0 - percent / 100.0)
+       end
      end
 
 nex&gt; class Stock_Record
-       create
-         make(pid, qty, threshold: Integer) do
-           product_id := pid
-           quantity := qty
-           reorder_threshold := threshold
-         end
-       feature
-         product_id: Integer
-         quantity: Integer
-         reorder_threshold: Integer
-         needs_reorder(): Boolean do
-           result := quantity &lt;= reorder_threshold
-         end
+     create
+       make(pid, qty, threshold: Integer) do
+         product_id := pid
+         quantity := qty
+         reorder_threshold := threshold
+       end
+     feature
+       product_id: Integer
+       quantity: Integer
+       reorder_threshold: Integer
+       needs_reorder(): Boolean do
+         result := quantity &lt;= reorder_threshold
+       end
      end</code></pre>
 <p>Each class now has one responsibility. <code>Product</code> knows what a product is. <code>Stock_Record</code> knows how much stock exists and when to reorder. The ten-field class was not wrong because it had ten fields — it was wrong because those fields belonged to different concepts.</p>
 </section>
@@ -297,15 +297,15 @@ nex&gt; class Stock_Record
 <h2 class="anchored" data-anchor-id="exercises" data-number="14.10"> Exercises</h2>
 <p><strong>1.</strong> The following class has more than one responsibility. Identify them and sketch a redesign that splits them into two or more classes:</p>
 <pre><code>class Library_Book
-  feature
-    isbn: String
-    title: String
-    author: String
-    is_checked_out: Boolean
-    borrower_name: ?String
-    borrower_email: ?String
-    due_date: ?String
-    late_fee_per_day: Real
+feature
+  isbn: String
+  title: String
+  author: String
+  is_checked_out: Boolean
+  borrower_name: ?String
+  borrower_email: ?String
+  due_date: ?String
+  late_fee_per_day: Real
 end</code></pre>
 <p><strong>2.</strong> Define a <code>Money</code> class with attributes <code>amount: Real</code> and <code>currency: String</code>. Add methods <code>add(other: Money): Money</code> and <code>exchange(rate: Real, target_currency: String): Money</code>. What preconditions do these methods have? State them as comments.</p>
 <p><strong>3.</strong> A <code>Deck</code> class represents a standard 52-card deck. Using <code>Card</code> from Section 13.5, define <code>Deck</code> with a <code>cards: Array[Card]</code> field and methods <code>make</code> (constructor building all 52 cards), <code>size(): Integer</code>, <code>draw(): Card</code>, and <code>is_empty(): Boolean</code>. State the precondition for <code>draw</code> as a comment.</p>

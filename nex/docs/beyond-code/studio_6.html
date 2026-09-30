@@ -108,39 +108,39 @@ end</code></pre>
 <pre class="nex"><code>class Delivery_Policy_V1
 feature
   decide_priority(tier: String): String
-    require
-      tier_present: tier /= ""
-    do
-      if tier = "PREMIUM" then
-        result := "FAST_TRACK"
-      else
-        result := "STANDARD_TRACK"
-      end
-    ensure
-      known_result: result = "FAST_TRACK" or result = "STANDARD_TRACK"
+  require
+    tier_present: tier /= ""
+  do
+    if tier = "PREMIUM" then
+      result := "FAST_TRACK"
+    else
+      result := "STANDARD_TRACK"
     end
+  ensure
+    known_result: result = "FAST_TRACK" or result = "STANDARD_TRACK"
+  end
 end
 
 class Delivery_Policy_V2
 feature
   decide_priority(tier: String, risk_score: Integer): String
-    require
-      tier_present: tier /= ""
-      risk_non_negative: risk_score &gt;= 0
-    do
-      if tier = "PREMIUM" and risk_score &lt; 50 then
-        result := "FAST_TRACK"
-      elseif tier = "PREMIUM" then
-        result := "SAFE_TRACK"
-      else
-        result := "STANDARD_TRACK"
-      end
-    ensure
-      known_result:
-        result = "FAST_TRACK" or
-        result = "SAFE_TRACK" or
-        result = "STANDARD_TRACK"
+  require
+    tier_present: tier /= ""
+    risk_non_negative: risk_score &gt;= 0
+  do
+    if tier = "PREMIUM" and risk_score &lt; 50 then
+      result := "FAST_TRACK"
+    elseif tier = "PREMIUM" then
+      result := "SAFE_TRACK"
+    else
+      result := "STANDARD_TRACK"
     end
+  ensure
+    known_result:
+      result = "FAST_TRACK" or
+      result = "SAFE_TRACK" or
+      result = "STANDARD_TRACK"
+  end
 end
 
 class Delivery_Evolution_Service
@@ -160,26 +160,26 @@ feature
   config: Rollout_Config
 
   route_mode(tier: String, risk_score: Integer): Evolution_Result
-    require
-      tier_present: tier /= ""
-      risk_non_negative: risk_score &gt;= 0
-    do
-      if config.use_v2 then
-        result := create Evolution_Result.make(
-          "OK",
-          v2.decide_priority(tier, risk_score),
-          "V2"
-        )
-      else
-        result := create Evolution_Result.make(
-          "OK",
-          v1.decide_priority(tier),
-          "V1"
-        )
-      end
-    ensure
-      ok_status: result.status = "OK"
+  require
+    tier_present: tier /= ""
+    risk_non_negative: risk_score &gt;= 0
+  do
+    if config.use_v2 then
+      result := create Evolution_Result.make(
+        "OK",
+        v2.decide_priority(tier, risk_score),
+        "V2"
+      )
+    else
+      result := create Evolution_Result.make(
+        "OK",
+        v1.decide_priority(tier),
+        "V1"
+      )
     end
+  ensure
+    ok_status: result.status = "OK"
+  end
 end</code></pre>
 </section>
 <section class="level3" id="knowledge-evolution-compatibility-adapter">
@@ -188,30 +188,30 @@ end</code></pre>
 <pre class="nex"><code>class Knowledge_Query_V1
 feature
   run(query: String): String
-    require
-      query_present: query /= ""
-    do
-      result := "DOC:K-LEGACY"
-    ensure
-      non_empty: result /= ""
-    end
+  require
+    query_present: query /= ""
+  do
+    result := "DOC:K-LEGACY"
+  ensure
+    non_empty: result /= ""
+  end
 end
 
 class Knowledge_Query_V2
 feature
   run(query: String, intent: String): String
-    require
-      query_present: query /= ""
-      intent_present: intent /= ""
-    do
-      if intent = "deep" then
-        result := "DOC:K-DEEP"
-      else
-        result := "DOC:K-FAST"
-      end
-    ensure
-      non_empty: result /= ""
+  require
+    query_present: query /= ""
+    intent_present: intent /= ""
+  do
+    if intent = "deep" then
+      result := "DOC:K-DEEP"
+    else
+      result := "DOC:K-FAST"
     end
+  ensure
+    non_empty: result /= ""
+  end
 end
 
 class Knowledge_Compatibility_Adapter
@@ -223,13 +223,13 @@ feature
   v2: Knowledge_Query_V2
 
   run_v1_shape(query: String): String
-    require
-      query_present: query /= ""
-    do
-      result := v2.run(query, "fast")
-    ensure
-      non_empty: result /= ""
-    end
+  require
+    query_present: query /= ""
+  do
+    result := v2.run(query, "fast")
+  ensure
+    non_empty: result /= ""
+  end
 end
 
 class Knowledge_Evolution_Service
@@ -249,31 +249,31 @@ feature
   config: Rollout_Config
 
   query(query: String): Evolution_Result
-    require
-      query_present: query /= ""
-    do
-      if config.use_v2 and not config.compatibility_mode then
-        result := create Evolution_Result.make(
-          "OK",
-          "DOC:K-DEEP",
-          "V2_NATIVE"
-        )
-      elseif config.use_v2 then
-        result := create Evolution_Result.make(
-          "OK",
-          v1_on_v2.run_v1_shape(query),
-          "V2_COMPAT"
-        )
-      else
-        result := create Evolution_Result.make(
-          "OK",
-          v1.run(query),
-          "V1"
-        )
-      end
-    ensure
-      ok_status: result.status = "OK"
+  require
+    query_present: query /= ""
+  do
+    if config.use_v2 and not config.compatibility_mode then
+      result := create Evolution_Result.make(
+        "OK",
+        "DOC:K-DEEP",
+        "V2_NATIVE"
+      )
+    elseif config.use_v2 then
+      result := create Evolution_Result.make(
+        "OK",
+        v1_on_v2.run_v1_shape(query),
+        "V2_COMPAT"
+      )
+    else
+      result := create Evolution_Result.make(
+        "OK",
+        v1.run(query),
+        "V1"
+      )
     end
+  ensure
+    ok_status: result.status = "OK"
+  end
 end</code></pre>
 </section>
 <section class="level3" id="world-evolution-feature-flagged-rule-extension">
@@ -282,47 +282,47 @@ end</code></pre>
 <pre class="nex"><code>class World_Rules_V1
 feature
   apply(x: Integer, delta: Integer, max_x: Integer): Integer
-    require
-      max_valid: max_x &gt;= 0
-    do
-      let next: Integer := x + delta
-      if next &lt; 0 then
-        result := 0
-      elseif next &gt; max_x then
-        result := max_x
-      else
-        result := next
-      end
-    ensure
-      bounded: result &gt;= 0 and result &lt;= max_x
+  require
+    max_valid: max_x &gt;= 0
+  do
+    let next: Integer := x + delta
+    if next &lt; 0 then
+      result := 0
+    elseif next &gt; max_x then
+      result := max_x
+    else
+      result := next
     end
+  ensure
+    bounded: result &gt;= 0 and result &lt;= max_x
+  end
 end
 
 class World_Rules_V2
 feature
   apply(x: Integer, delta: Integer, max_x: Integer): Integer
-    require
-      max_valid: max_x &gt;= 0
-    do
-      -- New damping rule for safer high-velocity transitions.
-      let effective_delta: Integer := delta
-      if delta &gt; 3 then
-        effective_delta := 3
-      elseif delta &lt; -3 then
-        effective_delta := -3
-      end
-
-      let next: Integer := x + effective_delta
-      if next &lt; 0 then
-        result := 0
-      elseif next &gt; max_x then
-        result := max_x
-      else
-        result := next
-      end
-    ensure
-      bounded: result &gt;= 0 and result &lt;= max_x
+  require
+    max_valid: max_x &gt;= 0
+  do
+    -- New damping rule for safer high-velocity transitions.
+    let effective_delta: Integer := delta
+    if delta &gt; 3 then
+      effective_delta := 3
+    elseif delta &lt; -3 then
+      effective_delta := -3
     end
+
+    let next: Integer := x + effective_delta
+    if next &lt; 0 then
+      result := 0
+    elseif next &gt; max_x then
+      result := max_x
+    else
+      result := next
+    end
+  ensure
+    bounded: result &gt;= 0 and result &lt;= max_x
+  end
 end
 
 class World_Evolution_Service
@@ -342,25 +342,25 @@ feature
   config: Rollout_Config
 
   step(x: Integer, delta: Integer, max_x: Integer): Evolution_Result
-    require
-      max_valid: max_x &gt;= 0
-    do
-      if config.use_v2 then
-        result := create Evolution_Result.make(
-          "OK",
-          "X=" + v2.apply(x, delta, max_x),
-          "V2"
-        )
-      else
-        result := create Evolution_Result.make(
-          "OK",
-          "X=" + v1.apply(x, delta, max_x),
-          "V1"
-        )
-      end
-    ensure
-      ok_status: result.status = "OK"
+  require
+    max_valid: max_x &gt;= 0
+  do
+    if config.use_v2 then
+      result := create Evolution_Result.make(
+        "OK",
+        "X=" + v2.apply(x, delta, max_x),
+        "V2"
+      )
+    else
+      result := create Evolution_Result.make(
+        "OK",
+        "X=" + v1.apply(x, delta, max_x),
+        "V1"
+      )
     end
+  ensure
+    ok_status: result.status = "OK"
+  end
 end</code></pre>
 </section>
 <section class="level3" id="migration-runner-rollback-trigger">
@@ -374,16 +374,16 @@ feature
   migrated_count: Integer
 
   run(canary_passed: Boolean): String
-    do
-      if canary_passed then
-        migrated_count := migrated_count + 100
-        result := "MIGRATION_CONTINUE"
-      else
-        result := "ROLLBACK"
-      end
-    ensure
-      known_result: result = "MIGRATION_CONTINUE" or result = "ROLLBACK"
+  do
+    if canary_passed then
+      migrated_count := migrated_count + 100
+      result := "MIGRATION_CONTINUE"
+    else
+      result := "ROLLBACK"
     end
+  ensure
+    known_result: result = "MIGRATION_CONTINUE" or result = "ROLLBACK"
+  end
 end
 
 class App

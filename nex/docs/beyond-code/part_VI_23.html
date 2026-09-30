@@ -61,31 +61,31 @@
 <pre class="nex"><code>class Route_Component
 feature
   compute(start_loc, end_loc: String): String
-    require
-      inputs_present: start_loc /= "" and end_loc /= ""
-    do
-      if start_loc = end_loc then
-        result := start_loc
-      elseif start_loc = "A" and end_loc = "C" then
-        result := "A-&gt;B-&gt;C"
-      else
-        result := "UNREACHABLE"
-      end
-    ensure
-      result_present: result /= ""
+  require
+    inputs_present: start_loc /= "" and end_loc /= ""
+  do
+    if start_loc = end_loc then
+      result := start_loc
+    elseif start_loc = "A" and end_loc = "C" then
+      result := "A-&gt;B-&gt;C"
+    else
+      result := "UNREACHABLE"
     end
+  ensure
+    result_present: result /= ""
+  end
 end
 
 class Notify_Component
 feature
   send(task_id, message: String): String
-    require
-      inputs_present: task_id /= "" and message /= ""
-    do
-      result := "SENT"
-    ensure
-      status_known: result = "SENT" or result = "FAILED"
-    end
+  require
+    inputs_present: task_id /= "" and message /= ""
+  do
+    result := "SENT"
+  ensure
+    status_known: result = "SENT" or result = "FAILED"
+  end
 end
 
 class Delivery_Coordinator
@@ -99,24 +99,24 @@ feature
   notify: Notify_Component
 
   reroute_and_notify(task_id, start_loc, end_loc: String): String
-    require
-      inputs_present:
-        task_id /= "" and
-        start_loc /= "" and
-        end_loc /= ""
-    do
-      let p: String := route.compute(start_loc, end_loc)
-      if p = "UNREACHABLE" then
-        result := "NO_ROUTE"
-      else
-        result := notify.send(task_id, "route=" + p)
-      end
-    ensure
-      known_result:
-        result = "NO_ROUTE" or
-        result = "SENT" or
-        result = "FAILED"
+  require
+    inputs_present:
+      task_id /= "" and
+      start_loc /= "" and
+      end_loc /= ""
+  do
+    let p: String := route.compute(start_loc, end_loc)
+    if p = "UNREACHABLE" then
+      result := "NO_ROUTE"
+    else
+      result := notify.send(task_id, "route=" + p)
     end
+  ensure
+    known_result:
+      result = "NO_ROUTE" or
+      result = "SENT" or
+      result = "FAILED"
+  end
 end</code></pre>
 <p>Read this sketch against the component design above. <code>Route_Component</code> and <code>Notify_Component</code> have no knowledge of each other — neither references the other’s types or operations. <code>Delivery_Coordinator</code> holds references to both and calls them in sequence, but contains no route logic and no notification logic. The coordinator’s contract — <code>reroute_and_notify</code> returns one of three declared values — is derivable from the contracts of its components: <code>NO_ROUTE</code> comes from <code>Route_Component</code>, <code>SENT</code> and <code>FAILED</code> come from <code>Notify_Component</code>.</p>
 <p>This derivability is the signature of a well-designed coordinator. Its output contract is not an independent specification — it is a composition of the contracts of the components it calls. When <code>Route_Component</code>‘s contract is understood and <code>Notify_Component</code>’s contract is understood, <code>Delivery_Coordinator</code>’s contract follows without additional information. A coordinator whose contract cannot be derived from its components’ contracts is a coordinator that has absorbed logic it should have delegated.</p>

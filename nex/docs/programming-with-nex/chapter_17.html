@@ -31,20 +31,20 @@
 <h2 class="anchored" data-anchor-id="the-idea" data-number="18.1"> The Idea</h2>
 <p>Here is a deposit routine without a postcondition:</p>
 <pre><code>deposit(amount: Real)
-  require
-    positive_amount: amount &gt; 0.0
-  do
-    balance := balance + amount
-  end</code></pre>
+require
+  positive_amount: amount &gt; 0.0
+do
+  balance := balance + amount
+end</code></pre>
 <p>The body suggests the intended effect, but the routine does not state its guarantee explicitly. A postcondition adds that missing half:</p>
 <pre><code>deposit(amount: Real)
-  require
-    positive_amount: amount &gt; 0.0
-  do
-    balance := balance + amount
-  ensure
-    increased: balance = old balance + amount
-  end</code></pre>
+require
+  positive_amount: amount &gt; 0.0
+do
+  balance := balance + amount
+ensure
+  increased: balance = old balance + amount
+end</code></pre>
 <p>Read <code>ensure</code> as “after this routine finishes successfully, the following must be true.” The label <code>increased</code> names the guarantee, and the expression that follows compares the new value of <code>balance</code> with the value it held before the routine began.</p>
 </section>
 <section class="level2" data-number="18.2" id="the-old-keyword">
@@ -64,18 +64,18 @@
 <p>So the safest rule is this: use <code>old</code> mainly for current-object fields and value-like expressions whose earlier state is not being mutated in place through the same reference.</p>
 <p>For example:</p>
 <pre><code>nex&gt; class Counter
-       create
-         make() do
-           count := 0
-         end
-       feature
-         count: Integer
-         increment()
-           do
-             count := count + 1
-           ensure
-             advanced: count = old count + 1
-           end
+     create
+       make() do
+         count := 0
+       end
+     feature
+       count: Integer
+       increment()
+       do
+         count := count + 1
+       ensure
+         advanced: count = old count + 1
+       end
      end</code></pre>
 <p>The postcondition does not describe the code line by line. It describes the observable result: after <code>increment</code>, the count is exactly one larger than before.</p>
 </section>
@@ -84,18 +84,18 @@
 <p>A precondition is the caller’s responsibility; a postcondition is the routine’s. That distinction matters in practice: if a call satisfies its precondition but the postcondition is then violated, the bug lies inside the routine or in the code it calls, and the fault is not with the caller.</p>
 <p>Suppose we write:</p>
 <pre><code>nex&gt; class Counter
-       create
-         make() do
-           count := 0
-         end
-       feature
-         count: Integer
-         increment()
-           do
-             count := count + 2
-           ensure
-             advanced: count = old count + 1
-           end
+     create
+       make() do
+         count := 0
+       end
+     feature
+       count: Integer
+       increment()
+       do
+         count := count + 2
+       ensure
+         advanced: count = old count + 1
+       end
      end</code></pre>
 <p>Then:</p>
 <pre><code>nex&gt; let c := create Counter.make
@@ -140,40 +140,40 @@ Error: Postcondition violation: advanced</code></pre>
 <h2 class="anchored" data-anchor-id="postconditions-and-helper-routines" data-number="18.6"> Postconditions and Helper Routines</h2>
 <p>Good postconditions also make routines easier to compose. Return to the <code>Account</code> class:</p>
 <pre><code>nex&gt; class Account
-       create
-         make(initial: Real) do
-           balance := initial
-         end
-       feature
-         balance: Real
-         deposit(amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-           do
-             balance := balance + amount
-           ensure
-             increased: balance = old balance + amount
-           end
-         withdraw(amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-             enough: amount &lt;= balance
-           do
-             balance := balance - amount
-           ensure
-             decreased: balance = old balance - amount
-           end
-         transfer_to(other: Account, amount: Real)
-           require
-             positive_amount: amount &gt; 0.0
-             enough: amount &lt;= balance
-             different_account: other /= this
-           do
-             withdraw(amount)
-             other.deposit(amount)
-           ensure
-             sender_lost_amount: balance = old balance - amount
-           end
+     create
+       make(initial: Real) do
+         balance := initial
+       end
+     feature
+       balance: Real
+       deposit(amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+       do
+         balance := balance + amount
+       ensure
+         increased: balance = old balance + amount
+       end
+       withdraw(amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+         enough: amount &lt;= balance
+       do
+         balance := balance - amount
+       ensure
+         decreased: balance = old balance - amount
+       end
+       transfer_to(other: Account, amount: Real)
+       require
+         positive_amount: amount &gt; 0.0
+         enough: amount &lt;= balance
+         different_account: other /= this
+       do
+         withdraw(amount)
+         other.deposit(amount)
+       ensure
+         sender_lost_amount: balance = old balance - amount
+       end
      end</code></pre>
 <p>The postconditions on <code>withdraw</code> and <code>deposit</code> explain why <code>transfer_to</code> is trustworthy. The postcondition on <code>transfer_to</code> then states the exact effect on the source account, while the corresponding effect on the destination account is guaranteed indirectly through the contract of <code>deposit</code>. Contracts accumulate in this way, and a system of small, precise routines is far easier to reason about than a system of large, vague ones.</p>
 </section>
@@ -198,27 +198,27 @@ Error: Postcondition violation: advanced</code></pre>
 <h2 class="anchored" data-anchor-id="a-worked-example-removing-the-last-stack-element" data-number="18.8"> A Worked Example: Removing the Last Stack Element</h2>
 <p>Here is a stack with both preconditions and postconditions:</p>
 <pre><code>nex&gt; class Stack [G]
-       create
-         make() do
-           items := []
-         end
-       feature
-         items: Array[G]
-         push(value: G)
-           do
-             items.add(value)
-           ensure
-             last_is_value: items.get(items.length - 1) = value
-           end
-         pop(): G
-           require
-             not_empty: items.length &gt; 0
-           do
-             result := items.get(items.length - 1)
-             items.remove(items.length - 1)
-           ensure
-             length_decreased_by_one: items.length = old items.length - 1
-           end
+     create
+       make() do
+         items := []
+       end
+     feature
+       items: Array[G]
+       push(value: G)
+       do
+         items.add(value)
+       ensure
+         last_is_value: items.get(items.length - 1) = value
+       end
+       pop(): G
+       require
+         not_empty: items.length &gt; 0
+       do
+         result := items.get(items.length - 1)
+         items.remove(items.length - 1)
+       ensure
+         length_decreased_by_one: items.length = old items.length - 1
+       end
      end</code></pre>
 <p>The postcondition on <code>pop</code> is particularly good because it specifies both effects:</p>
 <ul>

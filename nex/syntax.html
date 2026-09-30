@@ -416,20 +416,20 @@ end</code></pre>
     <div class="syntax-body prose">
 <p>A class bundles data and actions together:</p>
 <pre><code>class Pet
-  feature
-    name: String
-    sound: String
+feature
+  name: String
+  sound: String
 
-  create
-    make(name: String, sound: String) do
-      this.name := name
-      this.sound := sound
-    end
+create
+  make(name: String, sound: String) do
+    this.name := name
+    this.sound := sound
+  end
 
-  feature
-    speak do
-      print(name + " says " + sound)
-    end
+feature
+  speak do
+    print(name + " says " + sound)
+  end
 end</code></pre>
     </div>
   </details>
@@ -447,17 +447,17 @@ cat.speak                        -- "Mimi says meow"</code></pre>
     <div class="syntax-body prose">
 <p>A constructor sets up an object when it is created:</p>
 <pre><code>class Circle
-  create
-    make(r: Real) do
-      radius := r
-    end
+create
+  make(r: Real) do
+    radius := r
+  end
 
-  feature
-    radius: Real
+feature
+  radius: Real
 
-    area(): Real do
-      result := 3.14159 * (radius ^ 2)
-    end
+  area(): Real do
+    result := 3.14159 * (radius ^ 2)
+  end
 end
 
 let c: Circle := create Circle.make(5.0)
@@ -470,15 +470,15 @@ this.name := name end</code>.</p>
 <p>A constructor can delegate to another constructor of the same class with
 <code>this.&lt;ctor-name&gt;(...)</code>, so shared setup lives in one place:</p>
 <pre><code>class Box
-  feature
-    value: Integer
-  create
-    make(v: Integer) do
-      value := v
-    end
-    default do
-      this.make(0)              -- delegates to make
-    end
+feature
+  value: Integer
+create
+  make(v: Integer) do
+    value := v
+  end
+  default do
+    this.make(0)              -- delegates to make
+  end
 end
 
 let b: Box := create Box.default
@@ -496,14 +496,14 @@ with the <strong>same name and different numbers of parameters</strong>. The
 right one is chosen by the number of arguments at the call site. Have the
 shorter version forward to the longer one to supply a default:</p>
 <pre><code>class Greeter
-  feature
-    greet(name: String): String do
-      result := greet(name, "!")        -- forward with a chosen default
-    end
+feature
+  greet(name: String): String do
+    result := greet(name, "!")        -- forward with a chosen default
+  end
 
-    greet(name: String, punct: String): String do
-      result := "Hello, " + name + punct
-    end
+  greet(name: String, punct: String): String do
+    result := "Hello, " + name + punct
+  end
 end
 
 let g: Greeter := create Greeter
@@ -521,38 +521,38 @@ differ only in parameter type. (Free functions cannot be overloaded at all
     <div class="syntax-body prose">
 <p>A class can build on another class:</p>
 <pre><code>class Animal
-  feature
-    name: String
-    speak do print(name) end
-  create
-    with_name(n: String) do name := n end
+feature
+  name: String
+  speak do print(name) end
+create
+  with_name(n: String) do name := n end
 end
 
 class Dog
   inherit Animal
-  feature
-    speak do
-      print(name + " says Woof!")
-    end
-  create
-    with_name(n: String) do Animal.with_name(n) end
+feature
+  speak do
+    print(name + " says Woof!")
+  end
+create
+  with_name(n: String) do Animal.with_name(n) end
 end</code></pre>
 <p><strong>Redeclaring queries as attributes.</strong> A heir may answer an inherited
 <strong>query</strong> (a routine with no arguments) with a stored <strong>attribute</strong> of the same
 name. Its type must conform to the query's return type. This is also how a
 deferred query is most often implemented:</p>
 <pre><code>deferred class Shape
-  feature
-    area(): Real deferred
-    describe: String do result := "area=" + area.to_string end
+feature
+  area(): Real deferred
+  describe: String do result := "area=" + area.to_string end
 end
 
 class Square
   inherit Shape
-  feature
-    area: Real                     -- answers Shape's area
-  create
-    make(a: Real) do area := a end
+feature
+  area: Real                     -- answers Shape's area
+create
+  make(a: Real) do area := a end
 end
 
 let sh: Shape := create Square.make(4.0)
@@ -567,23 +567,23 @@ stored value while every client saw the routine. So the parent's promises would
 describe something clients can no longer observe. To keep a value open to
 redefinition, store it under another name and publish it as a query:</p>
 <pre><code>class Account
-  feature
-    stored_balance: Integer
-    balance: Integer do result := stored_balance end
-    deposit(amount: Integer) do stored_balance := stored_balance + amount end
-  create
-    make(b: Integer) do stored_balance := b end
+feature
+  stored_balance: Integer
+  balance: Integer do result := stored_balance end
+  deposit(amount: Integer) do stored_balance := stored_balance + amount end
+create
+  make(b: Integer) do stored_balance := b end
 end
 
 class Checking_Account
   inherit Account
-  feature
-    required: Integer
-    balance: Integer do                -- overrides the query
-      if super.balance &gt; required then result := super.balance end
-    end
-  create
-    make(b, r: Integer) do super.make(b) required := r end
+feature
+  required: Integer
+  balance: Integer do                -- overrides the query
+    if super.balance &gt; required then result := super.balance end
+  end
+create
+  make(b, r: Integer) do super.make(b) required := r end
 end</code></pre>
 <p>Clients write <code>a.balance</code> either way, whether the value is stored or computed.</p>
     </div>
@@ -594,19 +594,19 @@ end</code></pre>
     <div class="syntax-body prose">
 <p>A feature can bind itself to an arithmetic operator with an <code>alias</code> clause. The operator is then exactly sugar for the call: <code>a - b</code> <em>is</em> <code>a.minus(b)</code>, so the feature's preconditions and postconditions apply at the operator too.</p>
 <pre><code>class Money
-  feature
-    once amount: Integer
-    once currency: String
+feature
+  once amount: Integer
+  once currency: String
 
-    minus(other: Money): Money
-      alias "-"
-      require
-        same_currency: currency = other.currency
-      do
-        result := create Money.make(amount - other.amount, currency)
-      end
-  create
-    make(a: Integer, c: String) do amount := a  currency := c end
+  minus(other: Money): Money
+    alias "-"
+  require
+    same_currency: currency = other.currency
+  do
+    result := create Money.make(amount - other.amount, currency)
+  end
+create
+  make(a: Integer, c: String) do amount := a  currency := c end
 end
 
 let owed: Money := create Money.make(100, "USD")
@@ -632,28 +632,28 @@ print(u.alias)              -- and a perfectly good field</code></pre>
     <div class="syntax-body prose">
 <p>A field declared with <code>once</code> can be set in a constructor but never reassigned afterward. The typechecker enforces this at compile time; the interpreter enforces it at runtime.</p>
 <pre><code>class Point
-  feature
-    once x: Integer
-    once y: Integer
-  create
-    make(px: Integer, py: Integer) do
-      x := px
-      y := py
-    end
+feature
+  once x: Integer
+  once y: Integer
+create
+  make(px: Integer, py: Integer) do
+    x := px
+    y := py
+  end
 end
 
 let p: Point := create Point.make(3, 7)
 -- p.x and p.y are now permanently 3 and 7</code></pre>
 <p>Attempting to assign a <code>once</code> field outside a constructor is a compile-time error:</p>
 <pre><code>class Box
-  feature
-    once value: Integer
-  create
-    make(v: Integer) do value := v end
-  feature
-    overwrite(v: Integer) do
-      value := v     -- error: 'value' is a once field
-    end
+feature
+  once value: Integer
+create
+  make(v: Integer) do value := v end
+feature
+  overwrite(v: Integer) do
+    value := v     -- error: 'value' is a once field
+  end
 end</code></pre>
     </div>
   </details>
@@ -663,18 +663,18 @@ end</code></pre>
     <div class="syntax-body prose">
 <p>A feature written <code>NAME = expression</code> (an initializer, no constructor) is a class-level constant, shared by every instance and read through the class name. The initializer is any expression — scalar, object, or collection — and is <em>interned</em>: evaluated once for the whole run, so every read returns the same value.</p>
 <pre><code>class Screen
-  feature
-    WIDTH  = 1920
-    HEIGHT = 1080
-    AREA   = WIDTH * HEIGHT      -- may reference an earlier constant
+feature
+  WIDTH  = 1920
+  HEIGHT = 1080
+  AREA   = WIDTH * HEIGHT      -- may reference an earlier constant
 end
 
 print(Screen.WIDTH)              -- 1920
 print(Screen.AREA)               -- 2073600</code></pre>
 <p>Because an object- or collection-valued constant is one shared value, <code>C.x == C.x</code> holds for it:</p>
 <pre><code>class Origin
-  feature
-    POINT = create Point.make(0, 0)
+feature
+  POINT = create Point.make(0, 0)
 end
 
 print(Origin.POINT.x)                 -- 0
@@ -688,20 +688,20 @@ print(Origin.POINT == Origin.POINT)   -- true: the one canonical value</code></p
     <div class="syntax-body prose">
 <p>Tell Nex what must be true before, after, and always:</p>
 <pre><code>class Wallet
-  feature
-    money: Real
+feature
+  money: Real
 
-    spend(amount: Real)
-      require                    -- must be true BEFORE
-        enough: amount <= money
-      do
-        money := money - amount
-      ensure                     -- must be true AFTER
-        less: money = old money - amount
-      end
+  spend(amount: Real)
+  require                    -- must be true BEFORE
+    enough: amount <= money
+  do
+    money := money - amount
+  ensure                     -- must be true AFTER
+    less: money = old money - amount
+  end
 
-  invariant                      -- must ALWAYS be true
-    not_negative: money >= 0.0
+invariant                      -- must ALWAYS be true
+  not_negative: money >= 0.0
 end</code></pre>
 <p><code>require</code>, <code>ensure</code>, and <code>invariant</code> speak about a routine's boundaries or a class. <code>assert</code> states what must be true at one point <em>inside</em> a body:</p>
 <pre><code>assert enough_left: money >= 0.0   -- named: the failure reports the name
@@ -1034,10 +1034,10 @@ end</code></pre>
     <summary>Generics</summary>
     <div class="syntax-body prose">
 <pre><code>class Box [T]
-  feature
-    value: T
-  create
-    make(v: T) do value := v end
+feature
+  value: T
+create
+  make(v: T) do value := v end
 end
 
 let b: Box [Integer] := create Box[Integer].make(42)
@@ -1061,9 +1061,9 @@ end
 print(id(42))                   -- 42</code></pre>
 <p><strong>Constrained Generics.</strong> <code>T -&gt; Bound</code> constrains a generic parameter to a type, and the body may then use the routines and fields of that bound on a value of type <code>T</code>. The bound may be a builtin such as <code>Comparable</code>, or any class you declare:</p>
 <pre><code>deferred class Shape
-  feature
-    area(): Integer deferred
-    name: String
+feature
+  area(): Integer deferred
+  name: String
 end
 
 function total_area[T -> Shape](xs: Array[T]): Integer do

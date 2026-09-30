@@ -97,31 +97,31 @@ feature
   v3: Doc_Record
 
   contains(doc_id: String): Boolean
-    require
-      id_present: doc_id /= ""
-    do
-      result := doc_id = k1 or doc_id = k2 
-                or doc_id = k3
-    ensure
-      bool_result: result = true or result = false
-    end
+  require
+    id_present: doc_id /= ""
+  do
+    result := doc_id = k1 or doc_id = k2 
+              or doc_id = k3
+  ensure
+    bool_result: result = true or result = false
+  end
 
   fetch_title(doc_id: String): String
-    require
-      id_present: doc_id /= ""
-    do
-      if doc_id = k1 then
-        result := v1.title
-      elseif doc_id = k2 then
-        result := v2.title
-      elseif doc_id = k3 then
-        result := v3.title
-      else
-        result := "NOT_FOUND"
-      end
-    ensure
-      non_empty: result /= ""
+  require
+    id_present: doc_id /= ""
+  do
+    if doc_id = k1 then
+      result := v1.title
+    elseif doc_id = k2 then
+      result := v2.title
+    elseif doc_id = k3 then
+      result := v3.title
+    else
+      result := "NOT_FOUND"
     end
+  ensure
+    non_empty: result /= ""
+  end
 end</code></pre>
 <p><code>Doc_Index</code> is a fixed-size map with three entries — minimal, but transparent about the structure’s properties. <code>contains</code> answers a membership question: is this identifier present among the known keys? It returns a boolean, not the associated value. <code>fetch_title</code> answers a retrieval question: given this identifier, what title is associated with it? It returns the title if the key is present and <code>"NOT_FOUND"</code> if it is not.</p>
 <p>The explicit <code>"NOT_FOUND"</code> return is not defensive programming — it is part of the contract. A caller of <code>fetch_title</code> must handle the case where the key is absent. If the operation returned an empty string for both “this document has an empty title” and “this document does not exist,” the caller would have no way to distinguish the two. Declaring a distinct miss behavior as part of the output contract is what makes the operation composable without forcing the caller to inspect the implementation.</p>

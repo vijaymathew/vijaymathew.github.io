@@ -61,70 +61,70 @@ declare type Quantity = Integer where n: n &gt; 0
 
 class Line_Item
   create make(s: Sku, q: Quantity, unit: Money) do sku := s  quantity := q  unit_price := unit end
-  feature
-    sku: Sku
-    quantity: Quantity
-    unit_price: Money
-    subtotal(): Money do result := unit_price.times(quantity) end
+feature
+  sku: Sku
+  quantity: Quantity
+  unit_price: Money
+  subtotal(): Money do result := unit_price.times(quantity) end
 end
 
 function sum_of(items: Array[Line_Item]): Money
-  require
-    not_empty: items.length &gt; 0
-  do
-    result := create Money.zero(items.get(0).unit_price.currency)
-    across items as it do
-      result := result + it.subtotal
-    end
+require
+  not_empty: items.length &gt; 0
+do
+  result := create Money.zero(items.get(0).unit_price.currency)
+  across items as it do
+    result := result + it.subtotal
   end
+end
 
 sealed deferred class Order
   create init(xs: Array[Line_Item]) do items := xs end
-  feature
-    items: Array[Line_Item]     -- the one field every state shares
+feature
+  items: Array[Line_Item]     -- the one field every state shares
 end
 
 class Draft
   inherit Order
   create make(xs: Array[Line_Item], ccy: String, floor: Money,
-              email: Email_Address, dest: String)
-    do Order.init(xs)  currency := ccy  floor_price := floor
-       customer_email := email  zone := dest end
-  feature
-    currency: String
-    floor_price: Money
-    customer_email: Email_Address
-    zone: String
+  email: Email_Address, dest: String)
+  do Order.init(xs)  currency := ccy  floor_price := floor
+  customer_email := email  zone := dest end
+feature
+  currency: String
+  floor_price: Money
+  customer_email: Email_Address
+  zone: String
 end
 
 class Placed
   inherit Order
   create make(xs: Array[Line_Item], t: Money, email: Email_Address, dest: String)
-    require not_empty: xs.length &gt; 0
-    do Order.init(xs)  total := t  customer_email := email  zone := dest end
-  feature
-    total: Money
-    customer_email: Email_Address
-    zone: String
-  invariant
-    not_empty:     items.length &gt; 0
-    non_negative:  not total.is_negative()
+  require not_empty: xs.length &gt; 0
+  do Order.init(xs)  total := t  customer_email := email  zone := dest end
+feature
+  total: Money
+  customer_email: Email_Address
+  zone: String
+invariant
+  not_empty:     items.length &gt; 0
+  non_negative:  not total.is_negative()
 end
 
 class Shipped
   inherit Order
   create make(xs: Array[Line_Item], t: Tracking_Id) do Order.init(xs)  tracking := t end
-  feature
-    tracking: Tracking_Id
+feature
+  tracking: Tracking_Id
 end
 
 -- The one total transition into shipment: you cannot ship what was never placed.
 function ship(p: Placed, t: Tracking_Id): Shipped
-  do
-    result := create Shipped.make(p.items, t)
-  ensure
-    items_preserved: result.items = p.items
-  end</code></pre>
+do
+  result := create Shipped.make(p.items, t)
+ensure
+  items_preserved: result.items = p.items
+end</code></pre>
 </section>
 
 <section id="result" class="level2" data-number="B.3">
@@ -150,9 +150,9 @@ end
 
 class Over_Amount inherit Spec[Draft]
   create make(m: Money) do threshold := m end
-  feature
-    threshold: Money
-    holds(d: Draft): Boolean do result := sum_of(d.items) &gt;= threshold end
+feature
+  threshold: Money
+  holds(d: Draft): Boolean do result := sum_of(d.items) &gt;= threshold end
 end
 
 -- Pricing expressions: an open language, evaluated to a Money (Chapter 10).
@@ -166,40 +166,40 @@ end
 
 class Percent_Off inherit Price_Expr
   create make(pct: Integer, inner: Price_Expr) do percent := pct  base := inner end
-  feature
-    percent: Integer
-    base: Price_Expr
-    eval(d: Draft): Money
-      require valid_percent: percent &gt;= 0 and percent &lt;= 100
-      do result := base.eval(d).less_percent(percent)
-      ensure no_increase: result &lt;= base.eval(d)
-      end
+feature
+  percent: Integer
+  base: Price_Expr
+  eval(d: Draft): Money
+  require valid_percent: percent &gt;= 0 and percent &lt;= 100
+  do result := base.eval(d).less_percent(percent)
+  ensure no_increase: result &lt;= base.eval(d)
+  end
   end
 
-class When inherit Price_Expr
+  class When inherit Price_Expr
   create make(s: Spec[Draft], t: Price_Expr, e: Price_Expr)
-    do condition := s  yes := t  no := e end
-  feature
-    condition: Spec[Draft]
-    yes: Price_Expr
-    no: Price_Expr
-    eval(d: Draft): Money
-      do
-        if condition.holds(d) then result := yes.eval(d)
-        else result := no.eval(d) end
-      end
+  do condition := s  yes := t  no := e end
+feature
+  condition: Spec[Draft]
+  yes: Price_Expr
+  no: Price_Expr
+  eval(d: Draft): Money
+  do
+    if condition.holds(d) then result := yes.eval(d)
+    else result := no.eval(d) end
+  end
 end
 
 class Floored inherit Price_Expr
   create make(inner: Price_Expr) do base := inner end
-  feature
-    base: Price_Expr
-    eval(d: Draft): Money
-      do
-        let p: Money := base.eval(d)
-        if p &lt; d.floor_price then result := d.floor_price else result := p end
-      ensure respects_floor: result &gt;= d.floor_price
-      end
+feature
+  base: Price_Expr
+  eval(d: Draft): Money
+  do
+    let p: Money := base.eval(d)
+    if p &lt; d.floor_price then result := d.floor_price else result := p end
+    ensure respects_floor: result &gt;= d.floor_price
+  end
 end</code></pre>
 </section>
 
@@ -209,19 +209,19 @@ end</code></pre>
 <p>The one gate through which every price, from any rule that will ever exist, must pass to become part of an order. Written from the core's side; it states the terms and admits only what meets them.</p>
 
 <pre><code>function admit_quote(draft: Draft, quote: Money): Result[Placed, String]
-  require
-    same_currency: quote.currency = draft.currency
-  do
-    if quote.is_negative() then
-      result := create Err[Placed, String].make("quote is negative")
-    elseif quote &lt; draft.floor_price then
-      result := create Err[Placed, String].make("quote below floor")
-    else
-      -- on success, Placed's own invariant guarantees a consistent order
-      result := create Ok[Placed, String].make(
-        create Placed.make(draft.items, quote, draft.customer_email, draft.zone))
-    end
-  end</code></pre>
+require
+  same_currency: quote.currency = draft.currency
+do
+  if quote.is_negative() then
+    result := create Err[Placed, String].make("quote is negative")
+  elseif quote &lt; draft.floor_price then
+    result := create Err[Placed, String].make("quote below floor")
+  else
+    -- on success, Placed's own invariant guarantees a consistent order
+    result := create Ok[Placed, String].make(
+      create Placed.make(draft.items, quote, draft.customer_email, draft.zone))
+  end
+end</code></pre>
 </section>
 
 <section id="effects" class="level2" data-number="B.6">
@@ -235,9 +235,9 @@ end</code></pre>
 end
 
 class Placement
-  feature
-    order: Placed
-    effects: Array[Effect]
+feature
+  order: Placed
+  effects: Array[Effect]
   create make(o: Placed, fx: Array[Effect]) do order := o  effects := fx end
 end</code></pre>
 </section>
@@ -255,120 +255,120 @@ end
 
 class Substitution
   create make() do bindings := {} end
-  feature
-    bindings: Map[String, Term]
+feature
+  bindings: Map[String, Term]
 
-    bind(vname: String, t: Term): Substitution
-      do bindings.put(vname, t)  result := this end
+  bind(vname: String, t: Term): Substitution
+  do bindings.put(vname, t)  result := this end
 
-    resolve(t: Term): Term
-      do
-        match t of
-          Var(name) then
-            if bindings.contains_key(name) then result := resolve(bindings.get(name))
-            else result := t end
-          else
-            result := t
-        end
-      end
+  resolve(t: Term): Term
+  do
+    match t of
+      Var(name) then
+        if bindings.contains_key(name) then result := resolve(bindings.get(name))
+        else result := t end
+      else
+        result := t
+    end
+  end
 end
 
 function unify(a: Term, b: Term, s: Substitution): Result[Substitution, String]
-  do
-    let x: Term := s.resolve(a)
-    let y: Term := s.resolve(b)
-    match x of
-      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, y))
-      Atom as ax then result := unify_atom(ax, y, s)
-      Compound as cx then result := unify_compound(cx, y, s)
-    end
+do
+  let x: Term := s.resolve(a)
+  let y: Term := s.resolve(b)
+  match x of
+    Var(name) then result := create Ok[Substitution, String].make(s.bind(name, y))
+    Atom as ax then result := unify_atom(ax, y, s)
+    Compound as cx then result := unify_compound(cx, y, s)
   end
+end
 
 function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution, String]
-  do
-    match y of
-      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, ax))
-      Atom(value as v) if v = ax.value then result := create Ok[Substitution, String].make(s)
-      Atom(value as v) then result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
-      Compound then result := create Err[Substitution, String].make("atom vs structure")
-    end
+do
+  match y of
+    Var(name) then result := create Ok[Substitution, String].make(s.bind(name, ax))
+    Atom(value as v) if v = ax.value then result := create Ok[Substitution, String].make(s)
+    Atom(value as v) then result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
+    Compound then result := create Err[Substitution, String].make("atom vs structure")
   end
+end
 
 function unify_compound(cx: Compound, y: Term, s: Substitution): Result[Substitution, String]
-  do
-    match y of
-      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
-      Atom then result := create Err[Substitution, String].make("structure vs atom")
-      Compound as cy then
-        if cx.functor = cy.functor and cx.args.length = cy.args.length then
-          result := unify_args(cx.args, cy.args, s, 0)
-        else
-          result := create Err[Substitution, String].make("functor / arity mismatch")
-        end
-    end
+do
+  match y of
+    Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
+    Atom then result := create Err[Substitution, String].make("structure vs atom")
+    Compound as cy then
+      if cx.functor = cy.functor and cx.args.length = cy.args.length then
+        result := unify_args(cx.args, cy.args, s, 0)
+      else
+        result := create Err[Substitution, String].make("functor / arity mismatch")
+      end
   end
+end
 
 function unify_args(xs: Array[Term], ys: Array[Term], s: Substitution, i: Integer): Result[Substitution, String]
-  do
-    if i &gt;= xs.length then
-      result := create Ok[Substitution, String].make(s)
-    else
-      match unify(xs.get(i), ys.get(i), s) of
-        Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)
-        Err as e then result := create Err[Substitution, String].make(e.error)
-      end
+do
+  if i &gt;= xs.length then
+    result := create Ok[Substitution, String].make(s)
+  else
+    match unify(xs.get(i), ys.get(i), s) of
+      Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)
+      Err as e then result := create Err[Substitution, String].make(e.error)
     end
   end
+end
 
 -- The order's routing query: known zone, unknown warehouse/carrier/cost.
 function routing_query(o: Placed): Term
-  do
-    let args: Array[Term] := []
-    args.add(create Atom.make(o.zone))
-    args.add(create Var.make("Warehouse"))
-    args.add(create Var.make("Carrier"))
-    args.add(create Var.make("Cost"))
-    result := create Compound.make("route", args)
-  end
+do
+  let args: Array[Term] := []
+  args.add(create Atom.make(o.zone))
+  args.add(create Var.make("Warehouse"))
+  args.add(create Var.make("Carrier"))
+  args.add(create Var.make("Cost"))
+  result := create Compound.make("route", args)
+end
 
 -- A domain guardrail on a committed solution (a real one checks stock and deadline).
 function satisfies_constraints(s: Substitution): Boolean
   do result := s.bindings.contains_key("Warehouse") end
 
 function warehouse_of(s: Substitution): String
-  do
-    match s.resolve(create Var.make("Warehouse")) of
-      Atom as a then result := a.value
-      else result := "unknown"
-    end
+do
+  match s.resolve(create Var.make("Warehouse")) of
+    Atom as a then result := a.value
+    else result := "unknown"
   end
+end
 
 -- Try each route fact; the first whose bindings satisfy every constraint wins.
 function route(query: Term, routes: Array[Term]): Result[Substitution, String]
+do
+  from
+    let i: Integer := 0
+    let found: Boolean := false
+    result := create Err[Substitution, String].make("no eligible route")
+  invariant
+    in_range: 0 &lt;= i and i &lt;= routes.length
+  variant
+    routes.length - i
+  until
+    i &gt;= routes.length or found
   do
-    from
-      let i: Integer := 0
-      let found: Boolean := false
-      result := create Err[Substitution, String].make("no eligible route")
-    invariant
-      in_range: 0 &lt;= i and i &lt;= routes.length
-    variant
-      routes.length - i
-    until
-      i &gt;= routes.length or found
-    do
-      match unify(query, routes.get(i), create Substitution.make()) of
-        Ok as s then
-          if satisfies_constraints(s.value) then
-            result := create Ok[Substitution, String].make(s.value)
-            found := true
-          end
-        Err then
-          do end -- structural mismatch: backtrack, try the next route
-      end
-      i := i + 1
+    match unify(query, routes.get(i), create Substitution.make()) of
+      Ok as s then
+        if satisfies_constraints(s.value) then
+          result := create Ok[Substitution, String].make(s.value)
+          found := true
+        end
+      Err then
+        do end -- structural mismatch: backtrack, try the next route
     end
-  end</code></pre>
+    i := i + 1
+  end
+end</code></pre>
 </section>
 
 <section id="orchestration" class="level2" data-number="B.8">
@@ -378,41 +378,41 @@ function route(query: Term, routes: Array[Term]): Result[Substitution, String]
 
 <pre><code>function place_order(request: Order_Request, rule: Price_Expr,
                      routes: Array[Term], now: Instant): Result[Placement, String]
-  do
-    match parse_order(request) of                        -- 1. boundary (Ch 4)
-      Err as bad then
-        result := create Err[Placement, String].make(bad.error)
-      Ok as parsed then
-        do
-          let draft: Draft := parsed.value
-          let quote: Money := rule.eval(draft)              -- 2. open edge (Ch 10)
-          match admit_quote(draft, quote) of                -- 3. membrane (Ch 2, 9)
-            Err as rejected then
-              result := create Err[Placement, String].make(rejected.error)
-            Ok as ok then
-              result := plan_fulfillment(ok.value, routes, now)   -- 4. core decides
-          end
+do
+  match parse_order(request) of                        -- 1. boundary (Ch 4)
+    Err as bad then
+      result := create Err[Placement, String].make(bad.error)
+    Ok as parsed then
+      do
+        let draft: Draft := parsed.value
+        let quote: Money := rule.eval(draft)              -- 2. open edge (Ch 10)
+        match admit_quote(draft, quote) of                -- 3. membrane (Ch 2, 9)
+          Err as rejected then
+            result := create Err[Placement, String].make(rejected.error)
+          Ok as ok then
+            result := plan_fulfillment(ok.value, routes, now)   -- 4. core decides
         end
-    end
+      end
   end
+end
 
 function plan_fulfillment(placed: Placed, routes: Array[Term],
                           now: Instant): Result[Placement, String]
-  do
-    match route(routing_query(placed), routes) of         -- 4a. routing (Ch 13)
-      Err as e then
-        result := create Err[Placement, String].make("unfulfillable: " + e.error)
-      Ok as sol then
-        do
-          let fx: Array[Effect] := []                        -- 4b. effects as data (Ch 6)
-          fx.add(create Charge_Payment.make(placed.total))
-          fx.add(create Reserve_Stock.make(warehouse_of(sol.value), placed.items))
-          fx.add(create Send_Confirmation.make(placed.customer_email))
-          fx.add(create Record_Order.make(placed))
-          result := create Ok[Placement, String].make(create Placement.make(placed, fx))
-        end
-    end
-  end</code></pre>
+do
+  match route(routing_query(placed), routes) of         -- 4a. routing (Ch 13)
+    Err as e then
+      result := create Err[Placement, String].make("unfulfillable: " + e.error)
+    Ok as sol then
+      do
+        let fx: Array[Effect] := []                        -- 4b. effects as data (Ch 6)
+        fx.add(create Charge_Payment.make(placed.total))
+        fx.add(create Reserve_Stock.make(warehouse_of(sol.value), placed.items))
+        fx.add(create Send_Confirmation.make(placed.customer_email))
+        fx.add(create Record_Order.make(placed))
+        result := create Ok[Placement, String].make(create Placement.make(placed, fx))
+      end
+  end
+end</code></pre>
 </section>
 
 <section id="shell" class="level2" data-number="B.9">
@@ -422,32 +422,32 @@ function plan_fulfillment(placed: Placed, routes: Array[Term],
 
 <pre><code>function perform(e: Effect, gateway: Payment_Gateway, mailer: Mailer,
         store: Order_Store, warehouse: Warehouse_Api)
-  do
-    match e of
-      Charge_Payment as c then gateway.charge(c.amount)
-      Reserve_Stock as r then warehouse.reserve(r.warehouse, r.items)
-      Send_Confirmation as s then mailer.send(s.recipient)
-      Record_Order as rec then store.save(rec.order)
-    end
+do
+  match e of
+    Charge_Payment as c then gateway.charge(c.amount)
+    Reserve_Stock as r then warehouse.reserve(r.warehouse, r.items)
+    Send_Confirmation as s then mailer.send(s.recipient)
+    Record_Order as rec then store.save(rec.order)
   end
+end
 
 -- Drive one request: decide purely, then perform.
 function handle_request(request: Order_Request, rule: Price_Expr, routes: Array[Term],
                         now: Instant, gateway: Payment_Gateway, mailer: Mailer,
                         store: Order_Store, warehouse: Warehouse_Api): Result[Placed, String]
-  do
-    match place_order(request, rule, routes, now) of
-      Err as e then
-        result := create Err[Placed, String].make(e.error)
-      Ok as placement then
-        do
-          across placement.value.effects as fx do
-            perform(fx, gateway, mailer, store, warehouse)
-          end
-          result := create Ok[Placed, String].make(placement.value.order)
+do
+  match place_order(request, rule, routes, now) of
+    Err as e then
+      result := create Err[Placed, String].make(e.error)
+    Ok as placement then
+      do
+        across placement.value.effects as fx do
+          perform(fx, gateway, mailer, store, warehouse)
         end
-    end
-  end</code></pre>
+        result := create Ok[Placed, String].make(placement.value.order)
+      end
+  end
+end</code></pre>
 </section>
 
 <section id="together" class="level2" data-number="B.10">
@@ -465,14 +465,14 @@ let rule: Price_Expr :=
 
 -- Route facts, as data: (zone, warehouse, carrier, cost).
 function route_fact(zone: String, wh: String, carrier: String, cost: String): Term
-  do
-    let args: Array[Term] := []
-    args.add(create Atom.make(zone))
-    args.add(create Atom.make(wh))
-    args.add(create Atom.make(carrier))
-    args.add(create Atom.make(cost))
-    result := create Compound.make("route", args)
-  end
+do
+  let args: Array[Term] := []
+  args.add(create Atom.make(zone))
+  args.add(create Atom.make(wh))
+  args.add(create Atom.make(carrier))
+  args.add(create Atom.make(cost))
+  result := create Compound.make("route", args)
+end
 
 let routes: Array[Term] := []
 -- routes.add(route_fact("zone-a", "wh-1", "ups", "500"))

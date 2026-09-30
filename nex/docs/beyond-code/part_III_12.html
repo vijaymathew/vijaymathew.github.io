@@ -66,45 +66,45 @@
 <pre class="nex"><code>class Search_Algorithm
 feature
   tokenize(query: String): String
-    require
-      query_present: query /= ""
-    do
-      result := query
-    ensure
-      non_empty_tokens: result /= ""
-    end
+  require
+    query_present: query /= ""
+  do
+    result := query
+  ensure
+    non_empty_tokens: result /= ""
+  end
 
   score(doc_text, tokens: String): Integer
-    require
-      inputs_present: doc_text /= "" 
-                      and tokens /= ""
-    do
-      if doc_text = tokens then
-        result := 100
-      else
-        result := 10
-      end
-    ensure
-      non_negative: result &gt;= 0
+  require
+    inputs_present: doc_text /= "" 
+                    and tokens /= ""
+  do
+    if doc_text = tokens then
+      result := 100
+    else
+      result := 10
     end
+  ensure
+    non_negative: result &gt;= 0
+  end
 
   choose_top(doc1, doc2, query: String): String
-    require
-      docs_present: doc1 /= "" and doc2 /= "" 
-                    and query /= ""
-    do
-      let t: String := tokenize(query)
-      let s1: Integer := score(doc1, t)
-      let s2: Integer := score(doc2, t)
+  require
+    docs_present: doc1 /= "" and doc2 /= "" 
+                  and query /= ""
+  do
+    let t: String := tokenize(query)
+    let s1: Integer := score(doc1, t)
+    let s2: Integer := score(doc2, t)
 
-      if s1 &gt;= s2 then
-        result := doc1
-      else
-        result := doc2
-      end
-    ensure
-      from_inputs: result = doc1 or result = doc2
+    if s1 &gt;= s2 then
+      result := doc1
+    else
+      result := doc2
     end
+  ensure
+    from_inputs: result = doc1 or result = doc2
+  end
 end</code></pre>
 <p><code>tokenize</code> and <code>score</code> are independent operations, each with its own contract. <code>choose_top</code> composes them: it calls <code>tokenize</code> to normalize the query, calls <code>score</code> twice to evaluate each candidate, and selects based on the scores. The postcondition on <code>choose_top</code> — <code>result = doc1 or result = doc2</code> — guarantees that the result comes from the inputs and not from some other source, which is a meaningful guarantee even in this simplified sketch.</p>
 <p>Notice that <code>choose_top</code> does not know how tokenization works or how scoring is computed. It knows only what each operation guarantees. This is what makes composition safe: each piece can be reasoned about through its contract, and a piece that satisfies its contract can be replaced by any other piece that satisfies the same contract.</p>

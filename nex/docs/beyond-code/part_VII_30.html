@@ -74,22 +74,22 @@ feature
   status: String
 
   start()
-    require
-      can_start: status = "PENDING" or status = "FAILED"
-    do
-      status := "IN_TRANSIT"
-    ensure
-      now_in_transit: status = "IN_TRANSIT"
-    end
+  require
+    can_start: status = "PENDING" or status = "FAILED"
+  do
+    status := "IN_TRANSIT"
+  ensure
+    now_in_transit: status = "IN_TRANSIT"
+  end
 
   complete()
-    require
-      in_transit: status = "IN_TRANSIT"
-    do
-      status := "DELIVERED"
-    ensure
-      delivered: status = "DELIVERED"
-    end
+  require
+    in_transit: status = "IN_TRANSIT"
+  do
+    status := "DELIVERED"
+  ensure
+    delivered: status = "DELIVERED"
+  end
 invariant
   valid_status:
     status = "PENDING" or
@@ -101,20 +101,20 @@ end
 class Debug_Smoke_Test
 feature
   run(): String
-    do
-      let t: Delivery_Task := 
-       create Delivery_Task.make_pending
-      t.start
-      t.complete
+  do
+    let t: Delivery_Task := 
+     create Delivery_Task.make_pending
+    t.start
+    t.complete
 
-      if t.status = "DELIVERED" then
-        result := "PASS"
-      else
-        result := "FAIL"
-      end
-    ensure
-      known_result: result = "PASS" or result = "FAIL"
+    if t.status = "DELIVERED" then
+      result := "PASS"
+    else
+      result := "FAIL"
     end
+  ensure
+    known_result: result = "PASS" or result = "FAIL"
+  end
 end</code></pre>
 <p>The <code>complete</code> operation now carries the precondition <code>in_transit: status = "IN_TRANSIT"</code>. This precondition is the fix — not a conditional inside the body that handles the error case gracefully, but a boundary condition that rejects the call before any state changes occur. A caller that attempts to complete a <code>PENDING</code> task violates the precondition and receives a contract failure immediately, at the point of the illegal call, rather than producing corrupted state that will be discovered later.</p>
 <p><code>Debug_Smoke_Test.run</code> exercises the legal transition sequence: <code>PENDING → IN_TRANSIT → DELIVERED</code> via <code>start</code> followed by <code>complete</code>. The test confirms that the corrected <code>complete</code> still works correctly on valid inputs. It is not the regression test for the bug — that test would attempt to call <code>complete</code> from <code>PENDING</code> and confirm it is rejected — but it is evidence that the fix did not break the operation for the inputs it was designed to handle.</p>

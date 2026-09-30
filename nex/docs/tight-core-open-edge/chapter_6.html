@@ -35,17 +35,17 @@
 
 <pre><code>-- Impure: the core reaches into the world. Every guarantee of Part II is now void.
 function place(d: Draft): Result[Placed, String]
-  do
-    if d.items.length > 0 then
-      let placed: Placed := create Placed.make(d.items, sum_of(d.items))
-      gateway.charge(placed.total)                 -- network, money, can fail
-      mailer.send_confirmation(d.customer_email)    -- and if this throws mid-way?
-      database.save(placed)                         -- ordering, partial failure
-      result := create Ok[Placed, String].make(placed)
-    else
-      result := create Err[Placed, String].make("cannot place an empty order")
-    end
-  end</code></pre>
+do
+  if d.items.length > 0 then
+    let placed: Placed := create Placed.make(d.items, sum_of(d.items))
+    gateway.charge(placed.total)                 -- network, money, can fail
+    mailer.send_confirmation(d.customer_email)    -- and if this throws mid-way?
+    database.save(placed)                         -- ordering, partial failure
+    result := create Ok[Placed, String].make(placed)
+  else
+    result := create Err[Placed, String].make("cannot place an empty order")
+  end
+end</code></pre>
 
 <p>Three things went wrong the instant those effect calls appeared. The function is no longer <em>testable</em> in isolation — to check that an empty draft is rejected, you must now stand up a gateway, a mailer, and a database, or mock all three. It is no longer <em>deterministic</em> — the same draft can succeed today and fail tonight when the network is down, so its behaviour is a function of the world, not of its arguments. And it is no longer <em>composable</em> — half the effects may fire before the fourth one throws, leaving the system in a state no type describes: charged but not saved, or saved but not confirmed.</p>
 
@@ -67,26 +67,26 @@ end</code></pre>
 <p>Now <code>place</code> returns the placed order paired with the effects it decided on — and performs none of them:</p>
 
 <pre><code>class Placement
-  feature
-    order: Placed
-    effects: Array[Effect]
+feature
+  order: Placed
+  effects: Array[Effect]
   create make(o: Placed, fx: Array[Effect]) do order := o effects := fx end
 end
 
 -- Pure: computes a decision and a to-do list. Touches nothing.
 function place(d: Draft): Result[Placement, String]
-  do
-    if d.items.length > 0 then
-      let placed: Placed := create Placed.make(d.items, sum_of(d.items))
-      let fx: Array[Effect] := []
-      fx.add(create Charge_Payment.make(placed.total))
-      fx.add(create Send_Confirmation.make(d.customer_email))
-      fx.add(create Record_Order.make(placed))
-      result := create Ok[Placement, String].make(create Placement.make(placed, fx))
-    else
-      result := create Err[Placement, String].make("cannot place an empty order")
-    end
-  end</code></pre>
+do
+  if d.items.length > 0 then
+    let placed: Placed := create Placed.make(d.items, sum_of(d.items))
+    let fx: Array[Effect] := []
+    fx.add(create Charge_Payment.make(placed.total))
+    fx.add(create Send_Confirmation.make(d.customer_email))
+    fx.add(create Record_Order.make(placed))
+    result := create Ok[Placement, String].make(create Placement.make(placed, fx))
+  else
+    result := create Err[Placement, String].make("cannot place an empty order")
+  end
+end</code></pre>
 
 <p>This <code>place</code> is pure again. Give it a draft and it returns the same placement every time; it can be tested by inspecting the returned effect list — <em>did it decide to charge the right amount? to email the right person?</em> — with no gateway, no mailer, no clock. The decision has been fully recovered from the doing, and the decision is where all the domain logic lived.</p>
 </section>
@@ -98,16 +98,16 @@ function place(d: Draft): Result[Placement, String]
 
 <pre><code>-- The imperative shell: the one place allowed to touch the world.
 function perform(e: Effect, gateway: Payment_Gateway, mailer: Mailer, store: Order_Store)
-  do
-    match e of
-      Charge_Payment as c then
-        gateway.charge(c.amount)
-      Send_Confirmation as s then
-        mailer.send(s.recipient)
-      Record_Order as r then
-        store.save(r.order)
-    end
-  end</code></pre>
+do
+  match e of
+    Charge_Payment as c then
+      gateway.charge(c.amount)
+    Send_Confirmation as s then
+      mailer.send(s.recipient)
+    Record_Order as r then
+      store.save(r.order)
+  end
+end</code></pre>
 
 <p>The <code>match</code> is exhaustive over <code>Effect</code>, so the day someone adds a new kind of effect to the core, the compiler marks this shell as incomplete (§3.4) — you cannot decide to do something the shell has forgotten how to perform. The domain and the infrastructure meet at exactly one boundary, and the boundary is a sum type: the vocabulary of things the core may ask for, and the shell knows how to grant.</p>
 

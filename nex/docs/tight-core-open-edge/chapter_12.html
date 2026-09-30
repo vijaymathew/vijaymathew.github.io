@@ -44,28 +44,28 @@
 <pre><code>-- Partial knowledge about a price: it lies somewhere in [low, high].
 class Price_Range
   create make(l: Money, h: Money)
-    require
-      ordered: l &lt;= h              -- an empty range is a contradiction; see below
-    do
-      low := l  high := h
-    end
-  feature
-    low: Money
-    high: Money
+  require
+  ordered: l &lt;= h              -- an empty range is a contradiction; see below
+  do
+  low := l  high := h
+  end
+feature
+  low: Money
+  high: Money
 
-    -- Merge two pieces of knowledge into a sharper one: intersect the ranges.
-    merged_with(other: Price_Range): Price_Range
-      do
-        let l: Money := low
-        if other.low > l then l := other.low end
-        let h: Money := high
-        if other.high &lt; h then h := other.high end
-        result := create Price_Range.make(l, h)
-      end
+  -- Merge two pieces of knowledge into a sharper one: intersect the ranges.
+  merged_with(other: Price_Range): Price_Range
+  do
+    let l: Money := low
+    if other.low > l then l := other.low end
+    let h: Money := high
+    if other.high &lt; h then h := other.high end
+    result := create Price_Range.make(l, h)
+  end
 
-    is_known(): Boolean do result := low = high end
-  invariant
-    ordered: low &lt;= high
+  is_known(): Boolean do result := low = high end
+invariant
+  ordered: low &lt;= high
 end</code></pre>
 
 <p>The one operation that matters is <code>merged_with</code>, and it has a property that makes the whole model work: merging only ever produces knowledge at least as sharp as what went in. Intersecting ranges can narrow the bounds or leave them, but never widen them. Information in this world is <em>monotone</em> — it accumulates and never retreats. That single discipline is what frees the network from caring about order: because merging is commutative and associative and only ever sharpens, the cell reaches the same final content no matter which fact arrives first, or how many times. Order-independence is not engineered; it falls out of a well-chosen merge.</p>
@@ -78,31 +78,31 @@ end</code></pre>
 
 <pre><code>-- A propagator is woken by a neighbor cell and spreads what the change implies.
 deferred class Propagator
-  feature
-    wake() deferred   -- recompute from the wired cells; add any sharper content
+feature
+  wake() deferred   -- recompute from the wired cells; add any sharper content
 end</code></pre>
 
 <p>A cell, then, holds its content and the propagators wired to it, and on every accepted fact it wakes them:</p>
 
 <pre><code>class Cell
   create make(initial: Price_Range) do content := initial  neighbors := [] end
-  feature
-    content: Price_Range
-    neighbors: Array[Propagator]
+feature
+  content: Price_Range
+  neighbors: Array[Propagator]
 
-    -- Add a fact from any source; keep only if it sharpens; then wake the network.
-    add_content(info: Price_Range)
-      do
-        let sharper: Price_Range := content.merged_with(info)
-        if not (sharper.low = content.low and sharper.high = content.high) then
-          content := sharper
-          across neighbors as p do
-            p.wake
-          end
-        end
-      ensure
-        never_widens: content.low &gt;= old content.low and content.high &lt;= old content.high
+  -- Add a fact from any source; keep only if it sharpens; then wake the network.
+  add_content(info: Price_Range)
+  do
+    let sharper: Price_Range := content.merged_with(info)
+    if not (sharper.low = content.low and sharper.high = content.high) then
+      content := sharper
+      across neighbors as p do
+        p.wake
       end
+    end
+  ensure
+    never_widens: content.low &gt;= old content.low and content.high &lt;= old content.high
+  end
 end</code></pre>
 
 <p>The postcondition <code>never_widens</code> states the monotonicity in the type of a contract: a cell's knowledge can only get sharper. That guarantee is what makes a propagator network something you can reason about at all — without it, a cell could oscillate and the network might never settle. Because propagators are stateless and only add information, they are also <em>multi-directional</em>: a propagator relating a subtotal, a discount, and a total can fire in whichever direction it has the inputs for — deriving the total from the first two, or bounding the discount once the total is known. There is no privileged input and output, only cells that know more or less.</p>
