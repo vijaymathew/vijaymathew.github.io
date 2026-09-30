@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="tcoe">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -42,39 +43,39 @@
 <p>Here is an account that uses the first three. Read the contracts first and the body second — that is the order in which they were designed.</p>
 
 <pre><code>class Account
-  create
-    open(initial: Money)
-      require
-        non_negative_open: not initial.is_negative()
-      do
-        balance := initial
-      end
+create
+  open(initial: Money)
+  require
+    non_negative_open: not initial.is_negative()
+  do
+    balance := initial
+  end
 
-  feature
-    balance: Money
+feature
+  balance: Money
 
-    withdraw(amount: Money)
-      require
-        positive: amount.is_positive()
-        sufficient_funds: amount &lt;= balance
-      do
-        balance := balance - amount
-      ensure
-        balance_reduced: balance = old balance - amount
-        never_negative: not balance.is_negative()
-      end
+  withdraw(amount: Money)
+  require
+    positive: amount.is_positive()
+    sufficient_funds: amount &lt;= balance
+  do
+    balance := balance - amount
+  ensure
+    balance_reduced: balance = old balance - amount
+    never_negative: not balance.is_negative()
+  end
 
-    deposit(amount: Money)
-      require
-        positive: amount.is_positive()
-      do
-        balance := balance + amount
-      ensure
-        balance_grew: balance = old balance + amount
-      end
+  deposit(amount: Money)
+  require
+    positive: amount.is_positive()
+  do
+    balance := balance + amount
+  ensure
+    balance_grew: balance = old balance + amount
+  end
 
-  invariant
-    solvent: not balance.is_negative()
+invariant
+  solvent: not balance.is_negative()
 end</code></pre>
 
 <p>Every clause has a name — <code>sufficient_funds</code>, <code>never_negative</code>, <code>solvent</code> — and the names are not decoration. They are the vocabulary of the design. When a contract is violated at runtime, the failure reports <em>which named requirement</em> broke, so a bug announces itself in domain language rather than as an anonymous stack trace. Writing the name forces you to say, in words, what you believe — and half the value of a contract is extracted at the moment you are forced to name it, long before it ever runs.</p>
@@ -122,23 +123,23 @@ end</code></pre>
 
 <pre><code>-- Sum a list of line totals. The variant proves the loop terminates.
 function sum_totals(items: Array[Money]): Money
-  require
-    not_empty: items.length &gt; 0
+require
+  not_empty: items.length &gt; 0
+do
+  from
+    let i: Integer := 0
+    result := create Money.zero(items.get(0).currency)
+  invariant
+    in_range: 0 &lt;= i and i &lt;= items.length
+  variant
+    items.length - i
+  until
+    i &gt;= items.length
   do
-    from
-      let i: Integer := 0
-      result := create Money.zero(items.get(0).currency)
-    invariant
-      in_range: 0 &lt;= i and i &lt;= items.length
-    variant
-      items.length - i
-    until
-      i &gt;= items.length
-    do
-      result := result + items.get(i)
-      i := i + 1
-    end
-  end</code></pre>
+    result := result + items.get(i)
+    i := i + 1
+  end
+end</code></pre>
 
 <p>The variant here is <code>items.length - i</code>. It starts at the list's length, drops by one each turn as <code>i</code> rises, and cannot fall below zero because the loop stops when <code>i</code> reaches the length. Stating it forces you to write down <em>why</em> the loop ends — and, as with preconditions, most of the value arrives at the moment of writing. A loop whose variant you cannot write is a loop whose termination you do not actually understand.</p>
 </section>
@@ -154,16 +155,16 @@ function sum_totals(items: Array[Money]): Money
 
 <pre><code>-- The core accepts a quote from the open pricing edge — but only on its terms.
 function apply_quote(order: Placed, quote: Money)
-  require
-    priced_in_order_currency: quote.currency = order.total.currency
-    non_negative: not quote.is_negative()
-    not_below_floor: quote >= order.floor_price
-  do
-    order.set_total(quote)
-  ensure
-    total_is_quote: order.total = quote
-    still_valid: order.is_consistent
-  end</code></pre>
+require
+  priced_in_order_currency: quote.currency = order.total.currency
+  non_negative: not quote.is_negative()
+  not_below_floor: quote >= order.floor_price
+do
+  order.set_total(quote)
+ensure
+  total_is_quote: order.total = quote
+  still_valid: order.is_consistent
+end</code></pre>
 
 <p>Any pricing rule at all may compute <code>quote</code> — a promotion, a loyalty tier, something invented next year. The core does not know and does not care. What it insists on is the contract at the doorway: the quote is in the right currency, not negative, not below the order's floor. The rule's author, on the other side of the membrane, reads the same precondition and knows exactly what they must deliver for their price to be accepted. Neither side has to see inside the other. The precondition <em>is</em> the interface between a discipline of openness and a discipline of constraint.</p>
 

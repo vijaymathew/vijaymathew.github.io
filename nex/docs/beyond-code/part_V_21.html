@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -84,25 +84,25 @@ feature
   c_to_d: Boolean
 
   bfs_from_a_depth2(): Explore_Result
-    do
-      if not a_to_b and not a_to_c then
-        result := create Explore_Result.make("ISOLATED", "A")
-      elseif a_to_b and b_to_d then
-        result := create Explore_Result.make("OK", "A,B,D")
-      elseif a_to_c and c_to_d then
-        result := create Explore_Result.make("OK", "A,C,D")
-      elseif a_to_b then
-        result := create Explore_Result.make("OK", "A,B")
-      elseif a_to_c then
-        result := create Explore_Result.make("OK", "A,C")
-      else
-        result := create Explore_Result.make("ISOLATED", "A")
-      end
-    ensure
-      declared_status:
-        result.status = "OK" or
-        result.status = "ISOLATED"
+  do
+    if not a_to_b and not a_to_c then
+      result := create Explore_Result.make("ISOLATED", "A")
+    elseif a_to_b and b_to_d then
+      result := create Explore_Result.make("OK", "A,B,D")
+    elseif a_to_c and c_to_d then
+      result := create Explore_Result.make("OK", "A,C,D")
+    elseif a_to_b then
+      result := create Explore_Result.make("OK", "A,B")
+    elseif a_to_c then
+      result := create Explore_Result.make("OK", "A,C")
+    else
+      result := create Explore_Result.make("ISOLATED", "A")
     end
+  ensure
+    declared_status:
+      result.status = "OK" or
+      result.status = "ISOLATED"
+  end
 end</code></pre>
 <p>The structure of <code>bfs_from_a_depth2</code> encodes the five design decisions from the worked path. The cases are organized by what edges exist, reflecting the depth-layer structure of BFS: direct neighbors of A first, then their neighbors. The <code>ISOLATED</code> case handles the failure mode of a start node with no outgoing edges. The postcondition guarantees that the result status is always one of the two declared values — the traversal never returns an undeclared state.</p>
 <p>The adjacency fields — <code>a_to_b</code>, <code>a_to_c</code>, <code>b_to_d</code>, <code>c_to_d</code> — are the explicit representation of the graph’s structure. The traversal consults them directly rather than inferring connectivity from the traversal’s own control flow. This is the same separation established in <a class="xref" href="part_IV_18.html">Graphs — Networks of Everything</a>: the graph structure and the traversal algorithm are distinct, and the traversal’s correctness depends only on what the adjacency structure reports, not on how it is implemented.</p>

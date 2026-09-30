@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="tcoe">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -56,23 +57,23 @@ end
 
 class Pricing_Engine
   create make() do handlers := {} end       -- an empty registry
-  feature
-    handlers: Map[String, Pricing_Handler]
+feature
+  handlers: Map[String, Pricing_Handler]
 
-    register(kind: String, h: Pricing_Handler)
-      do
-        handlers.put(kind, h)
-      end
+  register(kind: String, h: Pricing_Handler)
+  do
+    handlers.put(kind, h)
+  end
 
-    price(rule: Rule, order: Placed): Money
-      require
-        known_rule: handlers.contains_key(rule.kind)   -- the type system can't promise this
-      do
-        result := handlers.get(rule.kind).price(rule, order)
-      ensure
-        non_negative:  not result.is_negative()   -- so a contract does
-        same_currency: result.currency = order.total.currency
-      end
+  price(rule: Rule, order: Placed): Money
+  require
+    known_rule: handlers.contains_key(rule.kind)   -- the type system can't promise this
+  do
+    result := handlers.get(rule.kind).price(rule, order)
+  ensure
+    non_negative:  not result.is_negative()   -- so a contract does
+    same_currency: result.currency = order.total.currency
+  end
 end</code></pre>
 
 <p>The engine is now <em>closed to modification and open to extension</em> in the strongest sense we have seen. It has no branch per rule, no <code>match</code> to keep exhaustive, no knowledge of any specific rule at all. To teach it a new rule kind, you never touch this class.</p>
@@ -85,23 +86,23 @@ end</code></pre>
 
 <pre><code>class Percent_Off inherit Rule
   create make(p: Integer) do percent := p end
-  feature
-    percent: Integer
-    kind(): String do result := "percent_off" end
+feature
+  percent: Integer
+  kind(): String do result := "percent_off" end
 end
 
 class Percent_Off_Handler inherit Pricing_Handler
-  feature
-    price(rule: Rule, order: Placed): Money
-      require
-        matches: rule.kind = "percent_off"
-      do
-        if convert rule to r: Percent_Off then -- recover the concrete type at runtime
-          result := order.total.less_percent(r.percent)
-        else
-          raise "handler registered under 'percent_off' received a different rule"
-        end
-      end
+feature
+  price(rule: Rule, order: Placed): Money
+  require
+    matches: rule.kind = "percent_off"
+  do
+    if convert rule to r: Percent_Off then -- recover the concrete type at runtime
+      result := order.total.less_percent(r.percent)
+    else
+      raise "handler registered under 'percent_off' received a different rule"
+    end
+  end
 end</code></pre>
 
 <p>Registering it wires the kind to its handler — and a second, entirely new rule slots in the same way, with zero edits to <code>Pricing_Engine</code>, to <code>Placed</code>, or to any existing rule:</p>

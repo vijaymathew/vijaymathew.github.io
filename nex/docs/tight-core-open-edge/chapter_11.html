@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="tcoe">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -51,33 +52,33 @@ end</code></pre>
 
 <pre><code>class Evaluator
   create make() do primitives := {} end
-  feature
-    primitives: Map[String, Primitive]
+feature
+  primitives: Map[String, Primitive]
 
-    -- Extend the evaluator at runtime: teach it a new fundamental operation.
-    install(name: String, p: Primitive)
-      do
-        primitives.put(name, p)
-      end
+  -- Extend the evaluator at runtime: teach it a new fundamental operation.
+  install(name: String, p: Primitive)
+  do
+    primitives.put(name, p)
+  end
 
-    eval(expr: Expr, env: Environment, order: Placed): Money
-      do
-        match expr of
-          Lit as l then
-            result := l.value
-          Ref as r then
-            result := eval(env.lookup(r.name), env, order)     -- resolve a named rule
-          Apply as a then
-            result := apply_op(a, env, order)
-        end
-      end
+  eval(expr: Expr, env: Environment, order: Placed): Money
+  do
+    match expr of
+      Lit as l then
+        result := l.value
+      Ref as r then
+        result := eval(env.lookup(r.name), env, order)     -- resolve a named rule
+      Apply as a then
+        result := apply_op(a, env, order)
+    end
+  end
 
-    apply_op(a: Apply, env: Environment, order: Placed): Money
-      require
-        known_op: primitives.contains_key(a.operator)     -- the table may not have it
-      do
-        result := primitives.get(a.operator).call(a.args, env, order, this)
-      end
+  apply_op(a: Apply, env: Environment, order: Placed): Money
+  require
+    known_op: primitives.contains_key(a.operator)     -- the table may not have it
+  do
+    result := primitives.get(a.operator).call(a.args, env, order, this)
+  end
 end</code></pre>
 
 <p>The <code>match</code> over <code>Expr</code> is exhaustive and compiler-checked, because the syntax is sealed. Everything <em>uncertain</em> has been pushed into the one line where an operator is looked up by name — and that line is guarded by the precondition <code>known_op</code>. The structure is proven; the openness is fenced.</p>
@@ -89,22 +90,22 @@ end</code></pre>
 <p>A primitive is an operation that takes unevaluated argument expressions, evaluates the ones it needs through the same evaluator, and returns a price. Passing the evaluator in (<code>ev</code>) is what lets a primitive recurse into its arguments — so operators compose to any depth without knowing about one another.</p>
 
 <pre><code>deferred class Primitive
-  feature
-    call(args: Array[Expr], env: Environment, order: Placed, ev: Evaluator): Money
-      deferred
+feature
+  call(args: Array[Expr], env: Environment, order: Placed, ev: Evaluator): Money
+  deferred
 end
 
 -- "the smaller of two prices" — a flooring/capping building block.
 class Lesser inherit Primitive
-  feature
-    call(args: Array[Expr], env: Environment, order: Placed, ev: Evaluator): Money
-      require
-        arity: args.length = 2
-      do
-        let a: Money := ev.eval(args.get(0), env, order)
-        let b: Money := ev.eval(args.get(1), env, order)
-        if a &lt; b then result := a else result := b end
-      end
+feature
+  call(args: Array[Expr], env: Environment, order: Placed, ev: Evaluator): Money
+  require
+    arity: args.length = 2
+  do
+    let a: Money := ev.eval(args.get(0), env, order)
+    let b: Money := ev.eval(args.get(1), env, order)
+    if a &lt; b then result := a else result := b end
+  end
 end</code></pre>
 
 <p>Installing it teaches the running evaluator a word it did not have a moment ago — and no line of the <code>Evaluator</code> class is touched:</p>
@@ -124,20 +125,20 @@ ev.install("round_to_cents", create Round_To_Cents)</code></pre>
 
 <pre><code>class Environment
   create make() do defs := {} end
-  feature
-    defs: Map[String, Expr]
+feature
+  defs: Map[String, Expr]
 
-    define(name: String, e: Expr)
-      do
-        defs.put(name, e)
-      end
+  define(name: String, e: Expr)
+  do
+    defs.put(name, e)
+  end
 
-    lookup(name: String): Expr
-      require
-        defined: defs.contains_key(name)      -- an unbound name is a located failure
-      do
-        result := defs.get(name)
-      end
+  lookup(name: String): Expr
+  require
+    defined: defs.contains_key(name)      -- an unbound name is a located failure
+  do
+    result := defs.get(name)
+  end
 end</code></pre>
 
 <p>Now the vocabulary and the definitions both grow at runtime, independently of the evaluator. A manager defines <code>"summer_sale"</code> as an expression; another rule references <code>"summer_sale"</code> by name; a plugin installs a <code>"loyalty_discount"</code> primitive that the summer-sale rule uses — and none of this required editing, recompiling, or even restarting the evaluator. The language has become a living thing, extended from the outside in three independent directions: new syntax never (it is sealed), new operators freely, new named definitions freely.</p>

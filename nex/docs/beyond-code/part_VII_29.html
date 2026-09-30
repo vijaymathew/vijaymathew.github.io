@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -62,38 +62,38 @@
 <pre class="nex"><code>class Route_Planner
 feature
   plan(start_loc, end_loc: String): String
-    require
-      inputs_present: start_loc /= "" and end_loc /= ""
-    do
-      if start_loc = end_loc then
-        result := start_loc
-      elseif start_loc = "A" and end_loc = "C" then
-        result := "A-&gt;B-&gt;C"
-      else
-        result := "UNREACHABLE"
-      end
-    ensure
-      non_empty_result: result /= ""
+  require
+    inputs_present: start_loc /= "" and end_loc /= ""
+  do
+    if start_loc = end_loc then
+      result := start_loc
+    elseif start_loc = "A" and end_loc = "C" then
+      result := "A-&gt;B-&gt;C"
+    else
+      result := "UNREACHABLE"
     end
+  ensure
+    non_empty_result: result /= ""
+  end
 end
 
 class Route_Planner_Tests
 feature
   run_all(): String
-    do
-      let p: Route_Planner := create Route_Planner
-      let t1: String := p.plan("A", "C")
-      let t2: String := p.plan("C", "C")
-      let t3: String := p.plan("X", "Z")
-      if t1 = "A-&gt;B-&gt;C" and t2 = "C" 
-         and t3 = "UNREACHABLE" then
-        result := "PASS"
-      else
-        result := "FAIL"
-      end
-    ensure
-      known_result: result = "PASS" or result = "FAIL"
+  do
+    let p: Route_Planner := create Route_Planner
+    let t1: String := p.plan("A", "C")
+    let t2: String := p.plan("C", "C")
+    let t3: String := p.plan("X", "Z")
+    if t1 = "A-&gt;B-&gt;C" and t2 = "C" 
+       and t3 = "UNREACHABLE" then
+      result := "PASS"
+    else
+      result := "FAIL"
     end
+  ensure
+    known_result: result = "PASS" or result = "FAIL"
+  end
 end</code></pre>
 <p><code>Route_Planner_Tests.run_all</code> is minimal but candid about what it does: it calls the routine with three inputs, compares each result to the specific expected value, and returns a single aggregate verdict. The oracle for each test is a specific expected string — <code>"A-&gt;B-&gt;C"</code>, <code>"C"</code>, <code>"UNREACHABLE"</code> — derived from the contract rather than from running the implementation.</p>
 <p>What this sketch does not show — and what a full test suite for a production route planner would require — is coverage of the <code>INVALID_INPUT</code> case and the property-based check that <code>FOUND</code> results always have non-empty paths. The three tests here provide evidence for the nominal case and two boundary cases. They do not provide evidence that the contract holds generally. A portfolio that adds the property check and the invalid-input case approaches the coverage that the contract’s three-outcome structure warrants.</p>

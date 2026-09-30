@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -72,16 +72,16 @@
 class Dispatch_Port
 feature
   send(task_id: String): String
-    require
-      id_present: task_id /= ""
-    do
-      result := "SENT"
-    ensure
-      known_result:
-        result = "SENT" or
-        result = "TRANSIENT_FAILURE" or
-        result = "PERMANENT_FAILURE"
-    end
+  require
+    id_present: task_id /= ""
+  do
+    result := "SENT"
+  ensure
+    known_result:
+      result = "SENT" or
+      result = "TRANSIENT_FAILURE" or
+      result = "PERMANENT_FAILURE"
+  end
 end
 
 class Dispatch_With_Retry
@@ -93,28 +93,28 @@ feature
   port: Dispatch_Port
 
   send_task(task_id: String, max_attempts: Integer): String
-    require
-      id_present: task_id /= ""
-      attempts_valid: max_attempts &gt;= 1
-    do
-      let attempt: Integer := 1
-      let status: String := "TRANSIENT_FAILURE"
+  require
+    id_present: task_id /= ""
+    attempts_valid: max_attempts &gt;= 1
+  do
+    let attempt: Integer := 1
+    let status: String := "TRANSIENT_FAILURE"
 
-      from
-      until attempt &gt; max_attempts or
-            status = "SENT" or
-            status = "PERMANENT_FAILURE" do
-        status := port.send(task_id)
-        attempt := attempt + 1
-      end
-
-      result := status
-    ensure
-      known_result:
-        result = "SENT" or
-        result = "TRANSIENT_FAILURE" or
-        result = "PERMANENT_FAILURE"
+    from
+    until attempt &gt; max_attempts or
+          status = "SENT" or
+          status = "PERMANENT_FAILURE" do
+      status := port.send(task_id)
+      attempt := attempt + 1
     end
+
+    result := status
+  ensure
+    known_result:
+      result = "SENT" or
+      result = "TRANSIENT_FAILURE" or
+      result = "PERMANENT_FAILURE"
+  end
 end</code></pre>
 <p>A reviewer looking at this Nex implementation can immediately see the logic’s boundaries. They can see that the loop is bounded by <code>max_attempts</code>. They can see that it stops correctly on a <code>PERMANENT_FAILURE</code>. The <code>ensure</code> clause makes the expected outcomes explicit. The review task is transformed from “understanding the code” to “validating the contract.”</p>
 </section>

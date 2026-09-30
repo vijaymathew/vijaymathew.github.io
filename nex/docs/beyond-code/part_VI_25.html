@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -74,17 +74,17 @@ feature
   assigned_robot: String
 
   assign(robot_id: String)
-    require
-      robot_present: robot_id /= ""
-      can_assign: status = "PENDING" 
-                   or status = "FAILED"
-    do
-      assigned_robot := robot_id
-      status := "IN_TRANSIT"
-    ensure
-      assigned: assigned_robot = robot_id 
-                and status = "IN_TRANSIT"
-    end
+  require
+    robot_present: robot_id /= ""
+    can_assign: status = "PENDING" 
+                 or status = "FAILED"
+  do
+    assigned_robot := robot_id
+    status := "IN_TRANSIT"
+  ensure
+    assigned: assigned_robot = robot_id 
+              and status = "IN_TRANSIT"
+  end
 invariant
   id_present: task_id /= ""
   valid_status:
@@ -97,17 +97,17 @@ end
 class Dispatch_Service
 feature
   dispatch(task: Delivery_Task, robot: Robot): String
-    require
-      robot_ready: robot.ready = true
-      task_pending_or_failed:
-        task.status = "PENDING" or
-        task.status = "FAILED"
-    do
-      task.assign(robot.robot_id)
-      result := "DISPATCHED"
-    ensure
-      known_result: result = "DISPATCHED"
-    end
+  require
+    robot_ready: robot.ready = true
+    task_pending_or_failed:
+      task.status = "PENDING" or
+      task.status = "FAILED"
+  do
+    task.assign(robot.robot_id)
+    result := "DISPATCHED"
+  ensure
+    known_result: result = "DISPATCHED"
+  end
 end</code></pre>
 <p><code>Robot</code> enforces one invariant and exposes one transition. <code>Delivery_Task</code> enforces four status values and one legal transition sequence. <code>Dispatch_Service</code> enforces the workflow-level preconditions and delegates the domain-level operation to the task itself.</p>
 <p>The precondition on <code>Dispatch_Service.dispatch</code> — <code>robot.ready = true</code> and the task’s status condition — duplicates part of the task’s own precondition. This is not redundant. The coordinator’s precondition is checked before <code>task.assign</code> is called; the task’s precondition is checked when <code>task.assign</code> is called. The coordinator’s check is the gate that prevents the call from being made when preconditions are not met; the task’s check is the guarantee that its own invariants are always enforced, regardless of whether the coordinator checked first. Both are necessary, and they serve different purposes.</p>

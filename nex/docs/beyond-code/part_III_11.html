@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -87,23 +87,23 @@ end
 class Route_Algorithm
 feature
   compute(start_loc, dest_loc: String): Route_Result
-    require
-      inputs_present: start_loc /= "" 
-                      and dest_loc /= ""
-    do
-      if start_loc = dest_loc then
-        result := create Route_Result.make("FOUND", start_loc)
-      elseif start_loc = "A" and dest_loc = "C" then
-        result := create Route_Result.make("FOUND", "A-&gt;B-&gt;C")
-      else
-        result := create Route_Result.make("UNREACHABLE", "")
-      end
-    ensure
-      status_is_declared:
-        result.status = "FOUND" or
-        result.status = "UNREACHABLE" or
-        result.status = "INVALID_INPUT"
+  require
+    inputs_present: start_loc /= "" 
+                    and dest_loc /= ""
+  do
+    if start_loc = dest_loc then
+      result := create Route_Result.make("FOUND", start_loc)
+    elseif start_loc = "A" and dest_loc = "C" then
+      result := create Route_Result.make("FOUND", "A-&gt;B-&gt;C")
+    else
+      result := create Route_Result.make("UNREACHABLE", "")
     end
+  ensure
+    status_is_declared:
+      result.status = "FOUND" or
+      result.status = "UNREACHABLE" or
+      result.status = "INVALID_INPUT"
+  end
 end</code></pre>
 <p>This sketch is deliberately minimal — the hardcoded paths are a placeholder for a graph traversal that is not yet the point. What deserves attention is the structure surrounding the algorithm rather than its interior.</p>
 <p><code>Route_Result</code> carries an invariant that makes it impossible to construct a result with an undeclared status. The <code>compute</code> operation has a precondition that rejects empty inputs before any traversal begins. Its postcondition guarantees that whatever the interior of the algorithm does, the returned status will always be one of the three declared values. The contract is enforced at the boundary, independently of the implementation — which means it will continue to hold when the hardcoded cases are replaced by a real graph traversal, and will continue to hold again when that traversal is later replaced by a faster one.</p>

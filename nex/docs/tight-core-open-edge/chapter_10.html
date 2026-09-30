@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="tcoe">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -36,8 +37,8 @@
 
 <pre><code>-- The language: any pricing expression can be evaluated against an order.
 deferred class Price_Expr
-  feature
-    eval(order: Placed): Money deferred   -- each term provides this
+feature
+  eval(order: Placed): Money deferred   -- each term provides this
 end</code></pre>
 
 <p>As with <code>Spec[T]</code> and <code>Handler</code>, the interface is <code>deferred</code> and open — new terms are new subclasses, and the vocabulary grows without editing what exists.</p>
@@ -49,60 +50,60 @@ end</code></pre>
 <p>Each term is a small class, and the combining terms hold sub-expressions — closure again, so expressions nest to any depth. The base term is the order's own total; the rest transform it.</p>
 
 <pre><code>class Base inherit Price_Expr
-  feature
-    eval(order: Placed): Money do result := order.total end
+feature
+  eval(order: Placed): Money do result := order.total end
 end
 
 class Percent_Off inherit Price_Expr
   create make(pct: Integer, inner: Price_Expr) do percent := pct  base := inner end
-  feature
-    percent: Integer
-    base: Price_Expr
-    eval(order: Placed): Money
-      require
-        valid_percent: percent &gt;= 0 and percent &lt;= 100
-      do
-        result := base.eval(order).less_percent(percent)
-      ensure
-        no_increase: result &lt;= base.eval(order)      -- a discount never raises the price
-      end
+feature
+  percent: Integer
+  base: Price_Expr
+  eval(order: Placed): Money
+  require
+    valid_percent: percent &gt;= 0 and percent &lt;= 100
+  do
+    result := base.eval(order).less_percent(percent)
+  ensure
+    no_increase: result &lt;= base.eval(order)      -- a discount never raises the price
+  end
 end</code></pre>
 
 <p>The conditional term is where the language pays a dividend from earlier chapters: its condition is a <code>Spec[Placed]</code> — the very specification algebra of Chapter 7. The two small languages compose, one supplying the <em>questions</em> and the other the <em>prices</em>.</p>
 
 <pre><code>class When inherit Price_Expr
   create make(s: Spec[Placed], t: Price_Expr, e: Price_Expr)
-    do condition := s  yes := t  no := e end
-  feature
-    condition: Spec[Placed]
-    yes: Price_Expr
-    no: Price_Expr
-    eval(order: Placed): Money
-      do
-        if condition.holds(order) then
-          result := yes.eval(order)
-        else
-          result := no.eval(order)
-        end
-      end
+  do condition := s  yes := t  no := e end
+feature
+  condition: Spec[Placed]
+  yes: Price_Expr
+  no: Price_Expr
+  eval(order: Placed): Money
+  do
+    if condition.holds(order) then
+      result := yes.eval(order)
+    else
+      result := no.eval(order)
+    end
+  end
 end
 
 -- "Never below the order's floor" — the membrane invariant, as a term.
 class Floored inherit Price_Expr
   create make(inner: Price_Expr) do base := inner end
-  feature
-    base: Price_Expr
-    eval(order: Placed): Money
-      do
-        let p: Money := base.eval(order)
-        if p &lt; order.floor_price then
-          result := order.floor_price
-        else
-          result := p
-        end
-      ensure
-        respects_floor: result &gt;= order.floor_price
-      end
+feature
+  base: Price_Expr
+  eval(order: Placed): Money
+  do
+    let p: Money := base.eval(order)
+    if p &lt; order.floor_price then
+      result := order.floor_price
+    else
+      result := p
+    end
+  ensure
+    respects_floor: result &gt;= order.floor_price
+  end
 end</code></pre>
 
 <p>Now a rule of real complexity is written as one nested expression — and it reads, top to bottom, like the sentence a pricing manager would speak:</p>

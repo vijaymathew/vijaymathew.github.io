@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -63,52 +63,52 @@
 <pre class="nex"><code>class Rank_Functions
 feature
   score(doc, query: String): Integer
-    require
-      inputs_present: doc /= "" and query /= ""
-    do
-      if doc = query then
-        result := 100
-      else
-        result := 20
-      end
-    ensure
-      non_negative: result &gt;= 0
+  require
+    inputs_present: doc /= "" and query /= ""
+  do
+    if doc = query then
+      result := 100
+    else
+      result := 20
     end
+  ensure
+    non_negative: result &gt;= 0
+  end
 
   pick_top(doc1, doc2, doc3, query: String): String
-    require
-      docs_present:
-        doc1 /= "" and
-        doc2 /= "" and
-        doc3 /= "" and
-        query /= ""
-    do
-      let s1: Integer := score(doc1, query)
-      let s2: Integer := score(doc2, query)
-      let s3: Integer := score(doc3, query)
+  require
+    docs_present:
+      doc1 /= "" and
+      doc2 /= "" and
+      doc3 /= "" and
+      query /= ""
+  do
+    let s1: Integer := score(doc1, query)
+    let s2: Integer := score(doc2, query)
+    let s3: Integer := score(doc3, query)
 
-      if s1 &gt;= s2 and s1 &gt;= s3 then
-        result := doc1
-      elseif s2 &gt;= s1 and s2 &gt;= s3 then
-        result := doc2
-      else
-        result := doc3
-      end
-    ensure
-      from_inputs: result = doc1 or result = doc2 or result = doc3
+    if s1 &gt;= s2 and s1 &gt;= s3 then
+      result := doc1
+    elseif s2 &gt;= s1 and s2 &gt;= s3 then
+      result := doc2
+    else
+      result := doc3
     end
+  ensure
+    from_inputs: result = doc1 or result = doc2 or result = doc3
+  end
 end
 
 class Rank_Publisher
 feature
   publish(top_doc: String): String
-    require
-      doc_present: top_doc /= ""
-    do
-      result := "PUBLISHED"
-    ensure
-      known_status: result = "PUBLISHED" or result = "FAILED"
-    end
+  require
+    doc_present: top_doc /= ""
+  do
+    result := "PUBLISHED"
+  ensure
+    known_status: result = "PUBLISHED" or result = "FAILED"
+  end
 end</code></pre>
 <p><code>Rank_Functions</code> is the pure core. <code>score</code> is a pure function: given a document and a query, it returns a non-negative score, with no side effects and no dependencies on external state. <code>pick_top</code> is also pure: it calls <code>score</code> three times and returns the identifier of the highest-scoring document. Neither function reads from a database, modifies shared state, or produces output. They can be called with any inputs and their behavior is fully determined by those inputs.</p>
 <p><code>Rank_Publisher</code> is the effectful shell. Its <code>publish</code> operation delivers a result and returns a status. It is separated from <code>Rank_Functions</code> completely — it knows nothing about how the top document was selected, and <code>Rank_Functions</code> knows nothing about how results are delivered. The separation means that <code>Rank_Functions</code> can be tested by calling its operations directly with controlled inputs. <code>Rank_Publisher</code> can be tested by providing a mock delivery target and verifying that the correct status is returned.</p>

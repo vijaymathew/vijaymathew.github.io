@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -75,13 +75,13 @@ end
 class Reroute_Policy
 feature
   should_reroute(t: Task): Boolean
-    require
-      task_present: t.task_id /= ""
-    do
-      result := t.tier = "PREMIUM" and t.status = "IN_TRANSIT"
-    ensure
-      bool_result: result = true or result = false
-    end
+  require
+    task_present: t.task_id /= ""
+  do
+    result := t.tier = "PREMIUM" and t.status = "IN_TRANSIT"
+  ensure
+    bool_result: result = true or result = false
+  end
 end
 
 class Dispatch_App_Service
@@ -93,19 +93,19 @@ feature
   policy: Reroute_Policy
 
   process_reroute(t: Task): String
-    require
-      task_present: t.task_id /= ""
-    do
-      if policy.should_reroute(t) then
-        result := "REROUTE_TRIGGERED"
-      else
-        result := "NO_REROUTE"
-      end
-    ensure
-      known_result:
-        result = "REROUTE_TRIGGERED" or
-        result = "NO_REROUTE"
+  require
+    task_present: t.task_id /= ""
+  do
+    if policy.should_reroute(t) then
+      result := "REROUTE_TRIGGERED"
+    else
+      result := "NO_REROUTE"
     end
+  ensure
+    known_result:
+      result = "REROUTE_TRIGGERED" or
+      result = "NO_REROUTE"
+  end
 end</code></pre>
 <p><code>Task</code> and <code>Reroute_Policy</code> are domain layer. <code>Dispatch_App_Service</code> is application layer. There is no infrastructure layer in this sketch — no storage, no notification, no transport — and that absence is intentional. The domain and application layers contain the logic that determines what the system does. The infrastructure layer, when added, contains the code that executes it. The separation is visible in what each layer imports: <code>Dispatch_App_Service</code> depends on <code>Reroute_Policy</code> and <code>Task</code>; nothing here depends on a database or a message queue.</p>
 <p><code>Reroute_Policy.should_reroute</code> encodes the eligibility rule: a task must be <code>PREMIUM</code> tier and <code>IN_TRANSIT</code> status to qualify for rerouting. When this rule changes — when a new tier is introduced, when rerouting becomes available to <code>STANDARD</code> tasks above a certain age — this is the single location that must change. The application service <code>process_reroute</code> does not encode the rule; it calls the policy and acts on the result. A developer reading <code>process_reroute</code> can understand the workflow without understanding the policy logic, and a developer changing the policy logic can do so without reading the workflow.</p>

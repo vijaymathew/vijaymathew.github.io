@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -67,41 +67,41 @@ feature
   a_to_d: Boolean
 
   has_edge(from_node, to_node: String): Boolean
-    require
-      non_empty_nodes: from_node /= "" 
-                       and to_node /= ""
-    do
-      if from_node = "A" and to_node = "B" then
-        result := a_to_b
-      elseif from_node = "B" and to_node = "C" then
-        result := b_to_c
-      elseif from_node = "C" and to_node = "D" then
-        result := c_to_d
-      elseif from_node = "A" and to_node = "D" then
-        result := a_to_d
-      else
-        result := false
-      end
-    ensure
-      bool_result: result = true or result = false
+  require
+    non_empty_nodes: from_node /= "" 
+                     and to_node /= ""
+  do
+    if from_node = "A" and to_node = "B" then
+      result := a_to_b
+    elseif from_node = "B" and to_node = "C" then
+      result := b_to_c
+    elseif from_node = "C" and to_node = "D" then
+      result := c_to_d
+    elseif from_node = "A" and to_node = "D" then
+      result := a_to_d
+    else
+      result := false
     end
+  ensure
+    bool_result: result = true or result = false
+  end
 
   route_a_to_d(): String
-    do
-      if has_edge("A", "D") then
-        result := "A-&gt;D"
-      elseif has_edge("A", "B") and has_edge("B", "C") 
-             and has_edge("C", "D") then
-        result := "A-&gt;B-&gt;C-&gt;D"
-      else
-        result := "UNREACHABLE"
-      end
-    ensure
-      declared_result:
-        result = "A-&gt;D" or
-        result = "A-&gt;B-&gt;C-&gt;D" or
-        result = "UNREACHABLE"
+  do
+    if has_edge("A", "D") then
+      result := "A-&gt;D"
+    elseif has_edge("A", "B") and has_edge("B", "C") 
+           and has_edge("C", "D") then
+      result := "A-&gt;B-&gt;C-&gt;D"
+    else
+      result := "UNREACHABLE"
     end
+  ensure
+    declared_result:
+      result = "A-&gt;D" or
+      result = "A-&gt;B-&gt;C-&gt;D" or
+      result = "UNREACHABLE"
+  end
 end</code></pre>
 <p><code>Route_Graph</code> is minimal — four nodes, four possible edges, represented as boolean fields. What it demonstrates is the separation of concerns that a graph model requires. <code>has_edge</code> is the primitive operation: given two node identifiers, does the edge between them exist? It knows nothing about routes. <code>route_a_to_d</code> composes <code>has_edge</code> calls to determine which paths are available and returns the first valid one it finds, or <code>UNREACHABLE</code> if none exists.</p>
 <p>The postcondition on <code>route_a_to_d</code> — three explicitly declared possible return values — is the contract that <code>route_a_to_d</code> makes with its callers. Every path it might return is valid according to <code>has_edge</code>: the direct route is guarded by <code>has_edge("A", "D")</code>, the long route by three consecutive edge checks. The algorithm cannot return a route that includes an edge which <code>has_edge</code> would reject. The contract is enforced by the structure of the code rather than by a runtime check that might be forgotten.</p>

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="tcoe">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -45,12 +46,12 @@ total := total + 1                   -- reassignment
 <p>A class groups data and behavior. Constructors live under <code>create</code> and are named (there is no single unnamed constructor); fields and methods live under <code>feature</code>. You build an instance with the keyword <code>create</code> followed by the class and constructor name. Inside a method, <code>this</code> refers to the current object, and the return value is assigned to the special name <code>result</code>.</p>
 
 <pre><code>class Counter
-  create
-    make(start: Integer) do value := start end
-  feature
-    value: Integer
-    increment() do value := value + 1 end
-    current(): Integer do result := value end     -- 'result' is the return value
+create
+  make(start: Integer) do value := start end
+feature
+  value: Integer
+  increment() do value := value + 1 end
+  current(): Integer do result := value end     -- 'result' is the return value
 end
 
 let c: Counter := create Counter.make(0)           -- construct with 'create'
@@ -93,12 +94,12 @@ end</code></pre>
 <p>You take a sum type apart with <code>match</code>, which dispatches on the runtime shape. Because <code>Shape</code> is closed, the compiler requires every case to be handled — a missing one is a compile error.</p>
 
 <pre><code>function area(s: Shape): Real
-  do
-    match s of
-      Circle(radius) then result := 3.14159 * radius * radius   -- destructure the field
-      Square(side) then result := side * side
-    end
-  end</code></pre>
+do
+  match s of
+    Circle(radius) then result := 3.14159 * radius * radius   -- destructure the field
+    Square(side) then result := side * side
+  end
+end</code></pre>
 
 <p>A <code>match</code> pattern both selects a shape and reads into it: <code>Circle(radius)</code> binds the <code>radius</code> field to a local of the same name. You can rename a field (<code>Circle(radius as r)</code>), ignore one (<code>_</code>), constrain it to a literal or a type (<code>Circle(radius: Integer)</code>), add a Boolean <em>guard</em> that falls through when false (<code>Circle(radius) if radius &gt; 0 then …</code>), and nest a pattern inside a field. Binding the whole value instead is still available as <code>Circle as c then … c.radius …</code>. An <code>else</code> branch may cover the rest, but it switches off the exhaustiveness check, so we use it sparingly. A non-sealed <code>deferred</code> class is instead an <em>open</em> interface — new subclasses may be added anywhere — which is how the combinator and generic-operation chapters keep their vocabularies extensible.</p>
 
@@ -130,14 +131,14 @@ declare type Percentage = Real where p: p &gt;= 0.0 and p &lt;= 100.0</code></pr
 
 <pre><code>-- a routine of the Account class from Chapter 2
 withdraw(amount: Money)
-  require
-    positive: amount.is_positive()
-    sufficient: amount &lt;= balance
-  do
-    balance := balance - amount
-  ensure
-    reduced: balance = old balance - amount
-  end</code></pre>
+require
+  positive: amount.is_positive()
+  sufficient: amount &lt;= balance
+do
+  balance := balance - amount
+ensure
+  reduced: balance = old balance - amount
+end</code></pre>
 
 <p>The clause names (<code>positive</code>, <code>sufficient</code>, <code>reduced</code>) are part of the design: a violated contract reports which named promise broke.</p>
 </section>
@@ -148,21 +149,21 @@ withdraw(amount: Money)
 <p>A free-standing function is written with <code>function</code>. The loop form is <code>from … until … do … end</code>, with optional <code>invariant</code> and <code>variant</code> clauses; the <code>from</code> block initializes, the loop runs until its condition holds. A <code>for-each</code> over a collection is <code>across xs as x do … end</code>.</p>
 
 <pre><code>function sum(xs: Array[Integer]): Integer
+do
+  from
+    let i: Integer := 0
+    result := 0
+  invariant
+    in_range: 0 &lt;= i and i &lt;= xs.length
+  variant
+    xs.length - i                     -- proves termination
+  until
+    i &gt;= xs.length
   do
-    from
-      let i: Integer := 0
-      result := 0
-    invariant
-      in_range: 0 &lt;= i and i &lt;= xs.length
-    variant
-      xs.length - i                     -- proves termination
-    until
-      i &gt;= xs.length
-    do
-      result := result + xs.get(i)
-      i := i + 1
-    end
-  end</code></pre>
+    result := result + xs.get(i)
+    i := i + 1
+  end
+end</code></pre>
 
 <p>Finally, <code>convert value to name: Type</code> attempts a runtime downcast: on success <code>name</code> is bound to the converted value, on failure to <code>nil</code>. It appears at the points where an open, table-dispatched design has to recover a concrete type the compiler no longer tracks (Chapter 9). A leading <code>?</code> on a type, as in <code>?T</code>, marks it <em>detachable</em> — it may hold <code>nil</code>.</p>
 

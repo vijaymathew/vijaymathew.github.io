@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="tcoe">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -43,22 +44,22 @@ end</code></pre>
 
 <pre><code>class Substitution
   create make() do bindings := {} end
-  feature
-    bindings: Map[String, Term]
+feature
+  bindings: Map[String, Term]
 
-    bind(vname: String, t: Term): Substitution
-      do bindings.put(vname, t)  result := this end
+  bind(vname: String, t: Term): Substitution
+  do bindings.put(vname, t)  result := this end
 
-    resolve(t: Term): Term
-      do
-        match t of
-          Var(name) then
-            if bindings.contains_key(name) then result := resolve(bindings.get(name))
-            else result := t end
-          else
-            result := t
-        end
-      end
+  resolve(t: Term): Term
+  do
+    match t of
+      Var(name) then
+        if bindings.contains_key(name) then result := resolve(bindings.get(name))
+        else result := t end
+      else
+        result := t
+    end
+  end
 end</code></pre>
 </section>
 
@@ -68,65 +69,65 @@ end</code></pre>
 <p>Unification takes two terms and a substitution, and returns either an extended substitution that makes the two terms identical, or a failure. Failure is <em>data</em> — a <code>Result</code>, as in Chapter 4 — not an exception, because failing to unify is an ordinary, expected outcome that the search above will handle.</p>
 
 <pre><code>function unify(a: Term, b: Term, s: Substitution): Result[Substitution, String]
-  do
-    let x: Term := s.resolve(a)          -- follow existing bindings first
-    let y: Term := s.resolve(b)
-    match x of
-      Var(name) then
-        result := create Ok[Substitution, String].make(s.bind(name, y))   -- bind the unknown
-      Atom as ax then
-        result := unify_atom(ax, y, s)
-      Compound as cx then
-        result := unify_compound(cx, y, s)
-    end
-  end</code></pre>
+do
+  let x: Term := s.resolve(a)          -- follow existing bindings first
+  let y: Term := s.resolve(b)
+  match x of
+    Var(name) then
+      result := create Ok[Substitution, String].make(s.bind(name, y))   -- bind the unknown
+    Atom as ax then
+      result := unify_atom(ax, y, s)
+    Compound as cx then
+      result := unify_compound(cx, y, s)
+  end
+end</code></pre>
 
 <p>A <code>match</code> clause reads straight into a variant's payload: <code>Var(name)</code> both selects the variable case and binds its <code>name</code> field to a local, with no intermediate <code>v.name</code> — the pattern is the shape it destructures. The rules are simple and total over the sealed structure. A variable unifies with anything, by binding to it. Two atoms unify only if they are equal; otherwise it is a <em>clash</em>, and clash is a failure, not a crash. Here a <em>guard</em> — an <code>if</code> after the pattern — separates the agreeing atoms from the clashing ones, falling through to the next clause when it does not hold:</p>
 
 <pre><code>function unify_atom(ax: Atom, y: Term, s: Substitution): Result[Substitution, String]
-  do
-    match y of
-      Var(name) then
-        result := create Ok[Substitution, String].make(s.bind(name, ax))
-      Atom(value as v) if v = ax.value then
-        result := create Ok[Substitution, String].make(s)              -- atoms agree
-      Atom(value as v) then
-        result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
-      Compound then
-        result := create Err[Substitution, String].make("atom does not match a structure")
-    end
-  end</code></pre>
+do
+  match y of
+    Var(name) then
+      result := create Ok[Substitution, String].make(s.bind(name, ax))
+    Atom(value as v) if v = ax.value then
+      result := create Ok[Substitution, String].make(s)              -- atoms agree
+    Atom(value as v) then
+      result := create Err[Substitution, String].make("clash: " + ax.value + " vs " + v)
+    Compound then
+      result := create Err[Substitution, String].make("atom does not match a structure")
+  end
+end</code></pre>
 
 <p>The guarded <code>Atom</code> clause narrows to the agreeing case; the unguarded <code>Atom</code> clause beneath it catches the rest, so the match stays exhaustive over the closed structure even with a guard in play. Two compounds unify when their functors and arities match and their arguments unify pairwise — threading the substitution through, so a binding learned from the first argument constrains the rest. That recursion, and the <em>occurs-check</em> that stops a variable being bound to a structure containing itself, are what keep unification from producing a circular or inconsistent answer. They are the structural analogue of the propagator's <code>ordered</code> invariant: guardrails that catch an inconsistency the moment it would enter.</p>
 
 <p>In code that is two small functions. <code>unify_compound</code> handles the three ways a compound can meet another term; <code>unify_args</code> is the pairwise recursion, carrying each argument's substitution into the next so learning accumulates left to right:</p>
 
 <pre><code>function unify_compound(cx: Compound, y: Term, s: Substitution): Result[Substitution, String]
-  do
-    match y of
-      Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
-      Atom then result := create Err[Substitution, String].make("structure vs atom")
-      Compound as cy then
-        if cx.functor = cy.functor and cx.args.length = cy.args.length then
-          result := unify_args(cx.args, cy.args, s, 0)       -- functor + arity agree; check the args
-        else
-          result := create Err[Substitution, String].make("functor / arity mismatch")
-        end
-    end
+do
+  match y of
+    Var(name) then result := create Ok[Substitution, String].make(s.bind(name, cx))
+    Atom then result := create Err[Substitution, String].make("structure vs atom")
+    Compound as cy then
+      if cx.functor = cy.functor and cx.args.length = cy.args.length then
+        result := unify_args(cx.args, cy.args, s, 0)       -- functor + arity agree; check the args
+      else
+        result := create Err[Substitution, String].make("functor / arity mismatch")
+      end
   end
+end
 
 -- Unify arguments left to right, threading each result substitution into the next.
 function unify_args(xs: Array[Term], ys: Array[Term], s: Substitution, i: Integer): Result[Substitution, String]
-  do
-    if i &gt;= xs.length then
-      result := create Ok[Substitution, String].make(s)       -- all arguments agreed
-    else
-      match unify(xs.get(i), ys.get(i), s) of
-        Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)   -- carry bindings forward
-        Err as e then result := create Err[Substitution, String].make(e.error)
-      end
+do
+  if i &gt;= xs.length then
+    result := create Ok[Substitution, String].make(s)       -- all arguments agreed
+  else
+    match unify(xs.get(i), ys.get(i), s) of
+      Ok as ok then result := unify_args(xs, ys, ok.value, i + 1)   -- carry bindings forward
+      Err as e then result := create Err[Substitution, String].make(e.error)
     end
-  end</code></pre>
+  end
+end</code></pre>
 
 <p>The <em>occurs-check</em> named above — refusing to bind a variable to a structure that contains it — is elided here for brevity; a production unifier performs it in the <code>Var</code> case before binding.</p>
 </section>
@@ -146,31 +147,31 @@ function unify_args(xs: Array[Term], ys: Array[Term], s: Substitution, i: Intege
 
 <pre><code>-- Try each route; the first whose bindings satisfy every constraint wins.
 function route(order: Term, routes: Array[Term]): Result[Substitution, String]
+do
+  from
+    let i: Integer := 0
+    let found: Boolean := false
+    result := create Err[Substitution, String].make("no eligible route")
+  invariant
+    in_range: 0 &lt;= i and i &lt;= routes.length
+  variant
+    routes.length - i                       -- the search is bounded: it must end
+  until
+    i &gt;= routes.length or found
   do
-    from
-      let i: Integer := 0
-      let found: Boolean := false
-      result := create Err[Substitution, String].make("no eligible route")
-    invariant
-      in_range: 0 &lt;= i and i &lt;= routes.length
-    variant
-      routes.length - i                       -- the search is bounded: it must end
-    until
-      i &gt;= routes.length or found
-    do
-      match unify(order, routes.get(i), create Substitution.make()) of
-        Ok as s then
-          if satisfies_constraints(s.value) then
-            result := create Ok[Substitution, String].make(s.value)   -- commit to this route
-            found := true
-          end
-          -- else: bindings don't satisfy stock/deadline — fall through and backtrack
-        Err then
-          do end -- structural mismatch — backtrack and try the next route
-      end
-      i := i + 1
+    match unify(order, routes.get(i), create Substitution.make()) of
+      Ok as s then
+        if satisfies_constraints(s.value) then
+          result := create Ok[Substitution, String].make(s.value)   -- commit to this route
+          found := true
+        end
+        -- else: bindings don't satisfy stock/deadline — fall through and backtrack
+      Err then
+        do end -- structural mismatch — backtrack and try the next route
     end
-  end</code></pre>
+    i := i + 1
+  end
+end</code></pre>
 
 <p>The domain check the loop defers to is where "unifies structurally" becomes "is a route we can actually honor." Here it is a one-liner — did the search bind a warehouse at all — but this is the point where a real system would add the checks that matter: stock on hand, a carrier that meets the deadline, a cost within budget.</p>
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -75,25 +75,25 @@ end
 class Route_Interface
 feature
   plan_route(start_loc, goal_loc: String): Route_Response
-    require
-      inputs_present: start_loc /= "" and goal_loc /= ""
-    do
-      if start_loc = goal_loc then
-        result := 
-         create Route_Response.make("FOUND", start_loc)
-      elseif start_loc = "A" and goal_loc = "C" then
-        result := 
-         create Route_Response.make("FOUND", "A-&gt;B-&gt;C")
-      else
-        result := 
-         create Route_Response.make("UNREACHABLE", "")
-      end
-    ensure
-      declared_status:
-        result.status = "FOUND" or
-        result.status = "UNREACHABLE" or
-        result.status = "INVALID_INPUT"
+  require
+    inputs_present: start_loc /= "" and goal_loc /= ""
+  do
+    if start_loc = goal_loc then
+      result := 
+       create Route_Response.make("FOUND", start_loc)
+    elseif start_loc = "A" and goal_loc = "C" then
+      result := 
+       create Route_Response.make("FOUND", "A-&gt;B-&gt;C")
+    else
+      result := 
+       create Route_Response.make("UNREACHABLE", "")
     end
+  ensure
+    declared_status:
+      result.status = "FOUND" or
+      result.status = "UNREACHABLE" or
+      result.status = "INVALID_INPUT"
+  end
 end
 
 class Route_Client
@@ -105,22 +105,22 @@ feature
   route_api: Route_Interface
 
   request(start_loc, goal_loc: String): String
-    require
-      inputs_present: start_loc /= "" 
-                      and goal_loc /= ""
-    do
-      let resp: Route_Response
-        := route_api.plan_route(start_loc, goal_loc)
-      if resp.status = "FOUND" then
-        result := "OK:" + resp.path
-      elseif resp.status = "UNREACHABLE" then
-        result := "NO_ROUTE"
-      else
-        result := "BAD_INPUT"
-      end
-    ensure
-      known_result: result /= ""
+  require
+    inputs_present: start_loc /= "" 
+                    and goal_loc /= ""
+  do
+    let resp: Route_Response
+      := route_api.plan_route(start_loc, goal_loc)
+    if resp.status = "FOUND" then
+      result := "OK:" + resp.path
+    elseif resp.status = "UNREACHABLE" then
+      result := "NO_ROUTE"
+    else
+      result := "BAD_INPUT"
     end
+  ensure
+    known_result: result /= ""
+  end
 end</code></pre>
 <p><code>Route_Response</code> carries an invariant that constrains the status to one of three declared values. No code can construct a <code>Route_Response</code> with an undeclared status — the constraint is structural, not advisory. <code>Route_Interface.plan_route</code> has a precondition that rejects empty identifiers and a postcondition that asserts the output status is always one of the three declared values. Together, these define the complete contract.</p>
 <p><code>Route_Client</code> depends on nothing about <code>Route_Interface</code> except its contract. It does not know whether the route is computed by BFS or Dijkstra, whether the graph is stored as an adjacency list or a matrix, or whether routes are cached. It knows the three possible statuses and what to do with each. This is the definition of a stable caller: one whose behavior is determined by the interface contract and nothing else.</p>

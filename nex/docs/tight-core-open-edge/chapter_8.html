@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="tcoe">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -34,17 +35,17 @@
 
 <pre><code>-- Every stratum, from the core to the outermost concern, is a Handler.
 deferred class Handler
-  feature
-    handle(d: Draft): Result[Placement, String] deferred   -- each layer provides
+feature
+  handle(d: Draft): Result[Placement, String] deferred   -- each layer provides
 end
 
 -- The base: the domain work itself, wrapping nothing.
 class Core_Handler inherit Handler
-  feature
-    handle(d: Draft): Result[Placement, String]
-      do
-        result := place(d)          -- the pure transition from Chapter 5
-      end
+feature
+  handle(d: Draft): Result[Placement, String]
+  do
+    result := place(d)          -- the pure transition from Chapter 5
+  end
 end</code></pre>
 
 <p>Because a layer <em>is</em> a <code>Handler</code> and also <em>holds</em> a <code>Handler</code>, layers stack. This is the closure property of Chapter 7 again, but pointed vertically: the output of wrapping is the same type as its input, so a wrapped handler can itself be wrapped.</p>
@@ -57,20 +58,20 @@ end</code></pre>
 
 <pre><code>class Logging_Layer inherit Handler
   create make(next: Handler, log: Logger) do inner := next  logger := log end
-  feature
-    inner: Handler
-    logger: Logger
-    handle(d: Draft): Result[Placement, String]
-      do
-        logger.info("placing order with " + d.items.length.to_string + " item(s)")
-        result := inner.handle(d)                    -- delegate downward
-        match result of
-          Ok as ok then
-            logger.info("placed, total " + ok.value.order.total.to_string)
-          Err as e then
-            logger.warn("rejected: " + e.error)
-        end
-      end
+feature
+  inner: Handler
+  logger: Logger
+  handle(d: Draft): Result[Placement, String]
+  do
+    logger.info("placing order with " + d.items.length.to_string + " item(s)")
+    result := inner.handle(d)                    -- delegate downward
+    match result of
+      Ok as ok then
+        logger.info("placed, total " + ok.value.order.total.to_string)
+      Err as e then
+        logger.warn("rejected: " + e.error)
+    end
+  end
 end</code></pre>
 
 <p>Two things are worth noticing. The layer does its work <em>around</em> the delegation — before the call and after it — which is exactly the power a wrapper has that a side-by-side combinator does not: it surrounds the base rather than sitting next to it. And the concern is completely isolated: everything about logging lives in this one class, and nothing about logging appears anywhere in <code>Core_Handler</code> or in the domain. A metrics layer, a retry layer, an idempotency layer each look the same — one class, one concern, delegating the rest.</p>

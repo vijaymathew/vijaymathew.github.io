@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-book="bc">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="site_libs/quarto-html/quarto-syntax-highlighting-877de8ef627fbd6d13bea28b8d3ca4fb.css">
-  <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../book.css">
+<script src="../book.js"></script>
 </head>
 <body>
 <header class="site-header">
@@ -87,25 +87,25 @@ feature
   a_d: Integer
 
   best_a_to_d(): Path_Result
-    require
-      non_negative_costs:
-        a_b &gt;= 0 and b_d &gt;= 0 and a_c &gt;= 0 and c_d &gt;= 0 and a_d &gt;= 0
-    do
-      let abd: Integer := a_b + b_d
-      let acd: Integer := a_c + c_d
+  require
+    non_negative_costs:
+      a_b &gt;= 0 and b_d &gt;= 0 and a_c &gt;= 0 and c_d &gt;= 0 and a_d &gt;= 0
+  do
+    let abd: Integer := a_b + b_d
+    let acd: Integer := a_c + c_d
 
-      if a_d &lt;= abd and a_d &lt;= acd then
-        result := create Path_Result.make("FOUND", "A-&gt;D", a_d)
-      elseif abd &lt;= acd then
-        result := create Path_Result.make("FOUND", "A-&gt;B-&gt;D", abd)
-      else
-        result := create Path_Result.make("FOUND", "A-&gt;C-&gt;D", acd)
-      end
-    ensure
-      known_status:
-        result.status = "FOUND" or
-        result.status = "UNREACHABLE"
+    if a_d &lt;= abd and a_d &lt;= acd then
+      result := create Path_Result.make("FOUND", "A-&gt;D", a_d)
+    elseif abd &lt;= acd then
+      result := create Path_Result.make("FOUND", "A-&gt;B-&gt;D", abd)
+    else
+      result := create Path_Result.make("FOUND", "A-&gt;C-&gt;D", acd)
     end
+  ensure
+    known_status:
+      result.status = "FOUND" or
+      result.status = "UNREACHABLE"
+  end
 end</code></pre>
 <p>The precondition on <code>best_a_to_d</code> asserts non-negativity for all five edge costs. This is not defensive programming — it is the statement of the assumption under which the algorithm is correct. A caller that provides a negative edge cost has violated the contract, and the algorithm’s guarantees no longer hold.</p>
 <p>The body computes the costs of the three candidate paths — <code>A→D</code> directly, <code>A→B→D</code>, and <code>A→C→D</code> — and selects the minimum. The comparisons encode the priority-driven selection logic in a form suitable for a fixed three-path graph: the path with the lowest total cost is selected, with ties broken in favor of the direct path and then the first intermediate path. In a full implementation over an arbitrary graph, these comparisons would be replaced by a priority queue that maintains the frontier and a relaxation step that updates known costs as new paths are discovered. The contract — non-negative preconditions, declared output status, non-negative total cost — would remain exactly the same.</p>
