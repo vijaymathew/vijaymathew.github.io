@@ -23,18 +23,18 @@
 <div class="opener">
 <span class="opener-label">Chapter 6 · Part II</span>
 <h1 class="opener-title">Effects at the Edges, Purity at the Core</h1>
-<p class="opener-lede">The pure transformations of Chapter 5 have to be driven by something that touches the world. Keep that something thin and at the boundary, so the domain stays referentially transparent — and provable — behind it.</p>
+<p class="opener-lede">The pure transformations of <a href="chapter_5.html" title="Chapter 5: Workflows as Transformations">Chapter 5</a> have to be driven by something that touches the world. Keep that something thin and at the boundary, so the domain stays referentially transparent — and provable — behind it.</p>
 </div>
 <article class="prose">
 
-<p>Everything Part II has built rests on a quiet assumption: that the domain code is a function of its inputs and nothing else. A <code>Quantity</code> is positive by construction, a <code>place</code> step returns the same order for the same draft, an invariant means what it says — all of this holds only while the core stays pure. The moment a transition reaches out to a database, a payment gateway, or the system clock, the assumption breaks, and with it the guarantees.</p>
+<p>Everything <a href="index.html#part-ii" title="Part II: Constraining the Core">Part II</a> has built rests on a quiet assumption: that the domain code is a function of its inputs and nothing else. A <code>Quantity</code> is positive by construction, a <code>place</code> step returns the same order for the same draft, an invariant means what it says — all of this holds only while the core stays pure. The moment a transition reaches out to a database, a payment gateway, or the system clock, the assumption breaks, and with it the guarantees.</p>
 
 <p>Yet real systems must do those things. An order is worthless if no payment is charged and no shipment recorded. The task of this chapter is to reconcile the two: to let the system perform effects without letting effects into the core. The shape that achieves it is a <strong>functional core inside a thin imperative shell</strong> — the core decides, the shell acts.</p>
 
 <section id="how-effects-entangle" class="level2" data-number="6.1">
 <h2 class="anchored" data-anchor-id="how-effects-entangle"><span class="header-section-number">6.1</span> How Effects Entangle</h2>
 
-<p>Here is the placement step from Chapter 5, written the way it is usually written — with the effects performed inline, right where the decision is made:</p>
+<p>Here is the placement step from <a href="chapter_5.html" title="Chapter 5: Workflows as Transformations">Chapter 5</a>, written the way it is usually written — with the effects performed inline, right where the decision is made:</p>
 
 <pre><code>-- Impure: the core reaches into the world. Every guarantee of Part II is now void.
 function place(d: Draft): Result[Placed, String]
@@ -112,9 +112,9 @@ do
   end
 end</code></pre>
 
-<p>The <code>match</code> is exhaustive over <code>Effect</code>, so the day someone adds a new kind of effect to the core, the compiler marks this shell as incomplete (§3.4) — you cannot decide to do something the shell has forgotten how to perform. The domain and the infrastructure meet at exactly one boundary, and the boundary is a sum type: the vocabulary of things the core may ask for, and the shell knows how to grant.</p>
+<p>The <code>match</code> is exhaustive over <code>Effect</code>, so the day someone adds a new kind of effect to the core, the compiler marks this shell as incomplete (<a href="chapter_3.html#exhaustive-match" title="Section 3.4: Exhaustiveness: The Compiler Guarantee">§3.4</a>) — you cannot decide to do something the shell has forgotten how to perform. The domain and the infrastructure meet at exactly one boundary, and the boundary is a sum type: the vocabulary of things the core may ask for, and the shell knows how to grant.</p>
 
-<p>The system as a whole now has a characteristic shape. Untrusted input is parsed at the boundary (Chapter 4); the pure core transforms trustworthy values and returns new state plus a list of effects (Chapters 5–6); the shell performs those effects and loops. Almost all the code, and all the interesting code, is pure. The impure part is small, mechanical, and the same in every workflow — which is exactly where you want the risk concentrated: in the thinnest, most boring layer.</p>
+<p>The system as a whole now has a characteristic shape. Untrusted input is parsed at the boundary (<a href="chapter_4.html" title="Chapter 4: Parse, Don&#x27;t Validate: Boundaries and Trust">Chapter 4</a>); the pure core transforms trustworthy values and returns new state plus a list of effects (Chapters <a href="chapter_5.html" title="Chapter 5: Workflows as Transformations">5</a>–6); the shell performs those effects and loops. Almost all the code, and all the interesting code, is pure. The impure part is small, mechanical, and the same in every workflow — which is exactly where you want the risk concentrated: in the thinnest, most boring layer.</p>
 </section>
 
 <section id="time-and-identity" class="level2" data-number="6.4">
@@ -136,7 +136,7 @@ function place(d: Draft, now: Instant): Result[Placement, String]
 
 <p>Separating core from shell also sorts out failure, which until now we have treated as one thing. There are really two, and they belong on opposite sides of the boundary.</p>
 
-<p><strong>Domain failure</strong> is a legitimate outcome the business defines: an empty order cannot be placed, a discount cannot exceed a subtotal, a refund cannot outrun a payment. These are expected, they are part of the model, and — as Chapter 4 established — they belong in the types, as <code>Result</code> values the core returns. They are not errors in any exceptional sense; they are answers.</p>
+<p><strong>Domain failure</strong> is a legitimate outcome the business defines: an empty order cannot be placed, a discount cannot exceed a subtotal, a refund cannot outrun a payment. These are expected, they are part of the model, and — as <a href="chapter_4.html" title="Chapter 4: Parse, Don&#x27;t Validate: Boundaries and Trust">Chapter 4</a> established — they belong in the types, as <code>Result</code> values the core returns. They are not errors in any exceptional sense; they are answers.</p>
 
 <p><strong>Effect failure</strong> is the world refusing to cooperate: the network times out, the disk is full, the gateway returns a 500. These are not domain outcomes and have no place in domain types — a payment gateway being unreachable says nothing about whether the order was valid. They arise only in the shell, where effects run, and are handled there, with the shell's own tools: retries, timeouts, circuit breakers, compensating actions. Keeping them out of the core keeps the domain's <code>Result</code> vocabulary about the <em>domain</em>, not about the reliability of infrastructure.</p>
 
@@ -146,9 +146,9 @@ function place(d: Draft, now: Instant): Result[Placement, String]
 <section id="purity-as-constraint" class="level2" data-number="6.6">
 <h2 class="anchored" data-anchor-id="purity-as-constraint"><span class="header-section-number">6.6</span> Purity Is the Last Constraint</h2>
 
-<p>It is worth seeing this chapter as the completion of Part II rather than a separate concern. Making illegal states unrepresentable (Chapter 3), parsing at the boundary (Chapter 4), and modelling workflows as total functions (Chapter 5) all assumed a pure core. This chapter makes that assumption safe to rely on by naming what threatens it — effects, time, infrastructure failure — and pushing each one out to the system's edge. Purity is significant here: every other constraint in this book holds only because it does. An invariant you can trust, a transition you can test, a <code>Result</code> that means a domain outcome — all of them require that the core be a function of its inputs, and that is precisely what keeping effects at the edge guarantees.</p>
+<p>It is worth seeing this chapter as the completion of <a href="index.html#part-ii" title="Part II: Constraining the Core">Part II</a> rather than a separate concern. Making illegal states unrepresentable (<a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a>), parsing at the boundary (<a href="chapter_4.html" title="Chapter 4: Parse, Don&#x27;t Validate: Boundaries and Trust">Chapter 4</a>), and modelling workflows as total functions (<a href="chapter_5.html" title="Chapter 5: Workflows as Transformations">Chapter 5</a>) all assumed a pure core. This chapter makes that assumption safe to rely on by naming what threatens it — effects, time, infrastructure failure — and pushing each one out to the system's edge. Purity is significant here: every other constraint in this book holds only because it does. An invariant you can trust, a transition you can test, a <code>Result</code> that means a domain outcome — all of them require that the core be a function of its inputs, and that is precisely what keeping effects at the edge guarantees.</p>
 
-<p>With that, the core is as constrained as we can make it: correct by construction, airtight in its signatures, and pure enough to reason about. Part II is done. But a constrained core is only half a system, and a lonely one — a pile of trustworthy parts is not yet a working whole. The next question is how to <em>assemble</em> those parts: how to compose trustworthy pieces into larger behaviour without rewiring them, and how to add capability without editing what already works. That is Part III, and it is the bridge from constraint toward the flexibility we spend the second half reaching.</p>
+<p>With that, the core is as constrained as we can make it: correct by construction, airtight in its signatures, and pure enough to reason about. Part II is done. But a constrained core is only half a system, and a lonely one — a pile of trustworthy parts is not yet a working whole. The next question is how to <em>assemble</em> those parts: how to compose trustworthy pieces into larger behaviour without rewiring them, and how to add capability without editing what already works. That is <a href="index.html#part-iii" title="Part III: Composing Behavior">Part III</a>, and it is the bridge from constraint toward the flexibility we spend the second half reaching.</p>
 </section>
 
 </article>

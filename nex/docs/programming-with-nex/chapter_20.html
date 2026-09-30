@@ -29,8 +29,8 @@
     <h1 class="opener-title">Contracts as Design</h1>
   </div>
   <div class="prose">
-<p>The last four chapters presented contracts as a way to check code. That is valuable, but it is not the main reason they matter. Their deeper value is that they help you decide what the code should be before you write it.</p>
-<p>When you write a routine body first, the implementation tends to drag the design behind it. When you write the contract first, the design leads and the body follows. This changes the central question from “how should I code this?” to “what exactly should this routine require and guarantee?”</p>
+<p>The last four chapters presented contracts as a way to check code. That is valuable, but their deeper value is that they help you decide what the code should be before you write it.</p>
+<p>When you write a routine body first, the implementation tends to drag the design behind it. When you write the contract first, the design leads and the body follows. This changes the central question from <em>how should I code this?</em> to <em>what exactly should this routine require and guarantee?</em></p>
 <section class="level2" data-number="21.1" id="starting-with-the-interface">
 <h2 class="anchored" data-anchor-id="starting-with-the-interface" data-number="21.1"> Starting with the Interface</h2>
 <p>Suppose we want a routine that transfers money between accounts. Before writing any code, we can write the contract:</p>
@@ -39,9 +39,10 @@ require
   positive_amount: amount &gt; 0.0
   enough: amount &lt;= balance
   different_account: other /= this
-  ensure
+
+ensure
   sender_lost_amount: balance = old balance - amount
-  end</code></pre>
+end</code></pre>
 <p>Even without a body, this is already useful. It answers the main design questions immediately:</p>
 <ul>
 <li>what counts as a valid call</li>
@@ -59,7 +60,9 @@ end</code></pre>
 <p>Sometimes the attempt to write a contract reveals that the design is still missing a decision.</p>
 <p>Suppose a <code>Document</code> class stores text and a cursor position. You begin to specify a routine:</p>
 <pre><code>move_cursor(offset: Integer)
-  ensure
+do
+
+ensure
     cursor_changed: cursor = old cursor + offset
 end</code></pre>
 <p>Immediately a problem appears. What if the new cursor would fall before the start of the text or after its end? The postcondition forces the question. The routine cannot stay vague. It either needs:</p>
@@ -121,9 +124,10 @@ end</code></pre>
 <pre><code>function without_last(s: String): String
 require
   not_empty: s.length &gt; 0
-  ensure
+
+ensure
   one_shorter: result.length = s.length - 1
-  end</code></pre>
+end</code></pre>
 <p>Step 2: ask whether the contract is strong enough.</p>
 <p>It is not. A routine returning <code>"xxxxx"</code> for any input string of length six would satisfy <code>one_shorter</code>.</p>
 <p>Step 3: strengthen the contract and then write the body that satisfies it.</p>
@@ -153,32 +157,34 @@ end</code></pre>
 <li>adding the same word twice should not create duplicates</li>
 </ul>
 <p>One possible design:</p>
-<pre><code>nex&gt; class Word_Set
-     create
-       make() do
-         items := []
-       end
-     feature
-       items: Array[String]
-       has(word: String): Boolean do
-         result := items.contains(word)
-       end
-       add(word: String)
-       require
-         not_empty: word.length &gt; 0
-       do
-         if not has(word) then
-           items.add(word)
-         end
-       ensure
-         word_present: has(word)
-       end
-       size(): Integer do
-         result := items.length
-       end
-     invariant
-       storage_exists: items /= nil
-     end</code></pre>
+<pre><code>class Word_Set
+create
+  make() do
+    items := []
+  end
+feature
+  items: Array[String]
+  has(word: String): Boolean
+  do
+    result := items.contains(word)
+  end
+  add(word: String)
+  require
+    not_empty: word.length &gt; 0
+  do
+    if not has(word) then
+      items.add(word)
+    end
+  ensure
+    word_present: has(word)
+  end
+  size(): Integer
+  do
+    result := items.length
+  end
+invariant
+ storage_exists: items /= nil
+end</code></pre>
 <p>The postcondition on <code>add</code> is the important part. It says what the routine must achieve, not how. The body then chooses one reasonable implementation.</p>
 <p>If later we replace <code>Array[String]</code> with a map or a tree, the contract can remain the same. That is contract-first design doing its proper job.</p>
 </section>
@@ -326,8 +332,8 @@ end</code></pre>
 <p><strong>1.</strong> Design the contract for a routine <code>append_line(path: String, text: String)</code> before writing its body. What belongs in the precondition, and what belongs in error handling instead?</p>
 <p><strong>2.</strong> Write a contract-first design for <code>front(queue: Queue[String]): String</code>. Include any necessary preconditions and at least one postcondition.</p>
 <p><strong>3.</strong> Consider a class <code>Timer</code> with methods <code>start</code>, <code>stop</code>, and <code>elapsed</code>. Write the contracts you would want before implementing any of the methods.</p>
-<p><strong>4.</strong> For the <code>Word_Set</code> class in Section 20.8, strengthen the specification of <code>add</code> by adding a postcondition about <code>size</code>. Explain why the postcondition must account for both the “already present” and “new word” cases.</p>
-<p><strong>5.*</strong> Choose a routine from Chapters 1 through 15 that you wrote or imagined earlier without contracts. Redesign it contract-first. Show the old idea, the new contract, and one thing the contract revealed that the earlier design had left vague.</p>
+<p><strong>4.</strong> For the <code>Word_Set</code> class in <a href="chapter_20.html#a-worked-example-designing-a-small-set-class" title="Section 20.8: A Worked Example: Designing a Small Set Class">Section 20.8</a>, strengthen the specification of <code>add</code> by adding a postcondition about <code>size</code>. Explain why the postcondition must account for both the “already present” and “new word” cases.</p>
+<p><strong>5.*</strong> Choose a routine from Chapters <a href="chapter_1.html" title="Chapter 1: Your First Programs">1</a> through <a href="chapter_15.html" title="Chapter 15: Generic Classes">15</a> that you wrote or imagined earlier without contracts. Redesign it contract-first. Show the old idea, the new contract, and one thing the contract revealed that the earlier design had left vague.</p>
 </section>
 
   </div>

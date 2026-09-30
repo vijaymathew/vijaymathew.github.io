@@ -56,15 +56,13 @@ end</code></pre>
 <pre><code>ensure
   decreased: balance = old balance - amount</code></pre>
 <p><code>old balance</code> means the value of <code>balance</code> at routine entry. Without <code>old</code>, many useful guarantees would be impossible to state cleanly.</p>
-<p>In practice, the simplest use of <code>old</code> in Nex is on fields of the current object, or on expressions built from those fields. That is the style used throughout this tutorial.</p>
+<p>In practice, the simplest use of <code>old</code> in Nex is on attributes of the current object, or on expressions built from those attributes.</p>
 <p>There is an important practical limitation to keep in mind. <code>old</code> is not a deep immutable snapshot of every object reachable from the current routine. If a field refers to a mutable object and that object is updated in place, then <code>old</code> may still refer to the same underlying object rather than to a frozen copy of its earlier contents.</p>
-<p>For example, if a class field is an <code>Array</code> and a routine calls <code>items.add(value)</code>, a postcondition such as:</p>
+<p>The mutable object's attributes which are essentially immutable can still be referenced by <code>old</code>. For example, if a class field is an <code>Array</code> and a routine calls <code>items.add(value)</code>, a postcondition such as:</p>
 <pre><code>ensure
   size_increased: items.length = old items.length + 1</code></pre>
-<p>is not reliable in the current implementation, because both <code>items</code> and <code>old items</code> may observe the same mutated array object. In such cases, it is better to write a postcondition about the visible result after the update, for example:</p>
-<pre><code>ensure
-  last_is_value: items.get(items.length - 1) = value</code></pre>
-<p>So the safest rule is this: use <code>old</code> mainly for current-object fields and value-like expressions whose earlier state is not being mutated in place through the same reference.</p>
+<p>is reliable because <code>items.length</code> is an immutable integer (once copied at the start of the routine). But the actual internal structure used by <code>items</code> itself is mutable and cannot be reliably used with <code>old</code> (assuming it can be accessed like <code>length</code>).</p>
+<p>So the safest rule is this: use <code>old</code> mainly for current-object attributes and value-like expressions whose earlier state is not being mutated in place through the same reference.</p>
 <p>For example:</p>
 <pre><code>nex&gt; class Counter
      create
@@ -84,7 +82,7 @@ end</code></pre>
 </section>
 <section class="level2" data-number="18.3" id="routine-responsibility">
 <h2 class="anchored" data-anchor-id="routine-responsibility" data-number="18.3"> Routine Responsibility</h2>
-<p>A precondition is the caller’s responsibility; a postcondition is the routine’s. That distinction matters in practice: if a call satisfies its precondition but the postcondition is then violated, the bug lies inside the routine or in the code it calls, and the fault is not with the caller.</p>
+<p>A precondition is the caller’s responsibility; a postcondition is the routine’s. The consequence is: if a call satisfies its precondition but the postcondition is then violated, the bug lies inside the routine or in the code it calls, and the fault is not with the caller.</p>
 <p>Suppose we write:</p>
 <pre><code>nex&gt; class Counter
      create
@@ -229,8 +227,6 @@ Error: Postcondition violation: advanced</code></pre>
 <li>the returned value is exactly the element that used to be last</li>
 </ul>
 <p>That is the behavior the caller cares about. The internal array representation is almost irrelevant.</p>
-
-<p><b>Note</b>: <code>items</code> is an Array, a mutable container — so <code>old items</code> can't just remember the same list <code>pop</code> is about to shrink; the runtime takes a shallow copy of it at entry and evaluates <code>old items.length</code> against that frozen copy. This shallow copy is optimal, meaning that only the fields required by <code>ensure</code> are stored. That's why <code>old items.length - 1</code> still refers to the pre-call length even though items itself is mutated by <code>pop</code>.</p>
 </section>
 <section class="level2" data-number="18.9" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="18.9"> Summary</h2>
@@ -246,7 +242,7 @@ Error: Postcondition violation: advanced</code></pre>
 </section>
 <section class="level2" data-number="18.10" id="exercises">
 <h2 class="anchored" data-anchor-id="exercises" data-number="18.10"> Exercises</h2>
-<p><strong>1.</strong> Add a postcondition to the <code>average(items: Array[Real]): Real</code> routine from Chapter 16. The postcondition should state at least one useful fact about the result relative to the input.</p>
+<p><strong>1.</strong> Add a postcondition to the <code>average(items: Array[Real]): Real</code> routine from <a href="chapter_16.html" title="Chapter 16: Preconditions">Chapter 16</a>. The postcondition should state at least one useful fact about the result relative to the input.</p>
 <p><strong>2.</strong> Define a class <code>Lamp</code> with a Boolean field <code>is_on</code>, a constructor that starts it in the <code>false</code> state, and methods <code>switch_on</code> and <code>switch_off</code>. Add postconditions showing the effect of each routine.</p>
 <p><strong>3.</strong> Write a function <code>absolute_value(x: Integer): Integer</code> and give it a postcondition strong enough to rule out both <code>result := x</code> and <code>result := -x</code> as universally correct implementations.</p>
 <p><strong>4.</strong> Extend the <code>Queue[G]</code> class so that <code>enqueue(value: G)</code> has a postcondition describing the new size and the value at the back of the queue.</p>
