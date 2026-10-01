@@ -27,16 +27,16 @@
 </div>
 <article class="prose">
 
-<p>The constrained core of <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a> rests on an assumption: that the values reaching it are already the right types — a real <code>Array[Line_Item]</code>, a real <code>Quantity</code>, not a blob of JSON or a half-filled form. That assumption is what lets the interior stop checking. But it has to be <em>made true</em> somewhere, and the only place it can be made true is the boundary — where the open world hands its raw material to the closed core.</p>
+<p>The constrained core of <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a> rests on an assumption: that the values reaching it are already the right types. That assumption is what lets the interior stop checking. But it has to be <em>made true</em> somewhere, and the ideal place for that is the boundary — where the open world hands its raw material to the closed core.</p>
 
 <p>How you treat that boundary decides whether the constraint discipline holds or leaks. There are two ways to meet untrusted input, and they look similar but differ in one decisive respect: what they leave behind.</p>
 
 <section id="validate-vs-parse" class="level2" data-number="4.1">
 <h2 class="anchored" data-anchor-id="validate-vs-parse"><span class="header-section-number">4.1</span> Two Ways to Meet Untrusted Input</h2>
 
-<p>To <strong>validate</strong> is to ask a yes-or-no question and keep the same value either way. A function <code>is_valid_quantity(raw: Integer): Boolean</code> inspects its argument, returns <code>true</code>, and hands you back... the same raw <code>Integer</code> you started with. The knowledge it gained — that this number is positive — evaporates the moment it returns. The next function that receives the integer knows nothing, and must ask again.</p>
+<p>To <strong>validate</strong> is to ask a yes-or-no question and keep the same value either way. A function <code>is_valid_quantity(raw: Integer): Boolean</code> inspects its argument, returns <code>true</code>, and hands you back ... the same raw <code>Integer</code> you started with. The knowledge it gained — that this number is positive — evaporates the moment it returns. The next function that receives the integer knows nothing, and must ask again.</p>
 
-<p>To <strong>parse</strong> is to ask the same question but <em>keep the answer in the type</em>. A function <code>parse_quantity(raw: Integer): Result[Quantity, String]</code> either fails or returns a <code>Quantity</code> — and a <code>Quantity</code>, by <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a>'s construction, cannot exist unless it is positive. The value it returns <em>is</em> the proof. No later function has to re-establish positivity, because holding a <code>Quantity</code> already means it.</p>
+<p>To <strong>parse</strong> is to ask the same question but <em>keep the answer in the type</em>. A function <code>parse_quantity(raw: Integer): Result[Quantity, String]</code> either fails or returns a <code>Quantity</code> — a value that cannot exist unless it's positive. The value <em>is</em> the proof. No later function has to re-establish positivity, because holding a <code>Quantity</code> already means it.</p>
 
 <p>The difference is not stylistic. Validation throws away evidence; parsing preserves it by moving it from a transient check into a durable type. This is why re-validation spreads through validate-style codebases like damp: because the type never changed, every layer distrusts the value equally, and the same check reappears at every level — the "shotgun parser", where input is picked at again and again because no single act ever converted it for good.</p>
 
@@ -46,7 +46,7 @@
 <section id="result-as-value" class="level2" data-number="4.2">
 <h2 class="anchored" data-anchor-id="result-as-value"><span class="header-section-number">4.2</span> Failure as a Returnable Value</h2>
 
-<p>Parsing can fail — that is the whole reason it exists — so we need a way to return failure that a caller cannot ignore. Throwing an exception is the wrong tool here: an exception is an <em>invisible</em> exit that does not show up in the type, so a caller who forgets to handle it compiles cleanly and crashes at runtime. At a trust boundary, failure is not exceptional; it is expected, and it should be as visible as success.</p>
+<p>Parsing can fail. So we need a way to return failure that a caller cannot ignore. Throwing an exception is the wrong tool here: an exception is an <em>invisible</em> exit that does not show up in the type, so a caller who forgets to handle it compiles cleanly and crashes at runtime. At a trust boundary, failure is not exceptional; it is expected, and it should be as visible as success.</p>
 
 <p>So we make failure a value. <code>Result</code> is a sum type — exactly the construction from <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a> — with two shapes: a success carrying a value, and a failure carrying an explanation. It is common enough that Nex ships it in the standard library, so we bring it in rather than redeclare it:</p>
 
@@ -103,13 +103,13 @@ do
   -- qty is positive because a Quantity cannot be anything else
 end</code></pre>
 
-<p>This is the payoff of parsing, and it is worth stating plainly: <em>a precondition that re-checks something a type could carry is a sign the type is too weak.</em> When you find the same <code>require</code> repeated across routines, the fix is usually not to keep writing it but to push it back to a parser and let a stronger type retire it. Contracts guard the relationships types cannot express (<a href="chapter_3.html#what-types-cannot-say" title="Section 3.5: What Types Cannot Say">§3.5</a>); they should not be spent re-establishing facts a type could have carried for free.</p>
+<p>So the takeaway is: <em>a precondition that re-checks something a type could carry is a sign the type is too weak.</em> When you find the same <code>require</code> repeated across routines, the fix is usually not to keep writing it but to push it back to a parser and let a stronger type retire it. Contracts guard the relationships types cannot express (<a href="chapter_3.html#what-types-cannot-say" title="Section 3.5: What Types Cannot Say">§3.5</a>); they should not be spent re-establishing facts a type could have carried for free.</p>
 </section>
 
 <section id="parsers-compose" class="level2" data-number="4.5">
 <h2 class="anchored" data-anchor-id="parsers-compose"><span class="header-section-number">4.5</span> Parsers Compose</h2>
 
-<p>Real input is structured — a line item is a SKU <em>and</em> a quantity; an order is a list of line items — so parsers must combine. The rule of composition is that a compound parse succeeds only if every part succeeds, and reports the first failure otherwise. Done by hand, sequencing two parsers means matching the first result, and on its failure branch building a fresh <code>Err</code> to carry the reason up — the same rewrapping at every level. The standard library function <code>result_map</code> transforms the success value and leaves any failure untouched:</p>
+<p>Real world data is structured. For example, a line item is a SKU <em>and</em> a quantity, and an order is a list of line items. Parsers must combine to reflect the structure of data. The rule of composition is that a compound parse succeeds only if every part succeeds, and reports the first failure otherwise. Done by hand, sequencing two parsers means matching the first result, and on its failure branch building a fresh <code>Err</code> to carry the reason up — the same rewrapping at every level. The standard library function <code>result_map</code> transforms the success value and leaves any failure untouched:</p>
 
 <pre><code>function parse_line_item(raw_sku: String, raw_qty: Integer): Result[Line_Item, String]
 do
@@ -121,7 +121,7 @@ do
     end)
 end</code></pre>
 
-<p>Notice what did <em>not</em> have to be written: the failure branch. Because the error lives in its own type parameter, the <code>Err</code> from <code>parse_quantity</code> is already a <code>Result[Line_Item, String]</code>'s kind of failure — the same <code>String</code> channel — so <code>result_map</code> passes it through with no rebuilding. When the next step can <em>itself</em> fail, reach for <code>result_and_then</code>, whose function returns a <code>Result</code> and which short-circuits on the first <code>Err</code>; and when a lower layer's error type differs from the caller's, <code>result_map_err</code> translates the one channel into the other. These three — map the value, chain a fallible step, translate the error — collapse the hand-written match-and-rewrap to a single expression.</p>
+<p>There's no need to write the failure branch. Because the error lives in its own type parameter, the <code>Err</code> from <code>parse_quantity</code> is already a <code>Result[Line_Item, String]</code>'s kind of failure — the same <code>String</code> channel — so <code>result_map</code> passes it through with no rebuilding. When the next step can <em>itself</em> fail, reach for <code>result_and_then</code>, whose function returns a <code>Result</code> and which short-circuits on the first <code>Err</code>; and when a lower layer's error type differs from the caller's, <code>result_map_err</code> translates the one channel into the other. These three — map the value, chain a fallible step, translate the error — collapse the hand-written match-and-rewrap to a single expression.</p>
 
 <p>Each parser converts one loose input into one precise value or failure reason; combining them yields a parser for the whole record with the same shape. Assemble line-item parsers the same way and you get <code>parse_order</code>, whose success case is a value the constrained core will accept without a second look — because by the time it exists, every constituent check has already been done. This is the pipeline the next chapter builds on: once the boundary hands the core a trustworthy value, the domain logic is just a sequence of total functions over precise types.</p>
 
@@ -134,7 +134,7 @@ end</code></pre>
 
 <p>Placing the gate well is a design act, not a mechanical one. Put it too deep and untrusted values roam the interior, forcing the re-checking that parsing was meant to abolish. Put it right at the edge and the interior gets to stay trustworthy by construction, because nothing untrustworthy can reach it. Every input crosses one gate, changes type once, and is believed thereafter.</p>
 
-<p>We now have a constrained core (<a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a>) and a boundary that feeds it only trustworthy values (Chapter 4). What remains is to make the core <em>do</em> something — to model a business process as a flow of these precise values through a sequence of reliable transformations.</p>
+<p>We now have a constrained core and a boundary that feeds it only trustworthy values. What remains is to make the core <em>do</em> something — to model a business process as a flow of these precise values through a sequence of reliable transformations.</p>
 </section>
 
 </article>

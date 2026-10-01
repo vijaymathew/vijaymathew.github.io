@@ -43,7 +43,7 @@
 <li><strong><code>variant</code></strong> — a quantity that strictly decreases toward a bound, used to prove that a loop or recursion terminates.</li>
 </ul>
 
-<p>Here is an account that uses the first three. Read the contracts first and the body second — that is the order in which they were designed.</p>
+<p>Here is an <code>Account</code> class that uses the first three. Read the contracts first and the body second, the same order in which they were designed.</p>
 
 <pre><code>class Account
 create
@@ -81,15 +81,15 @@ invariant
   solvent: not balance.is_negative()
 end</code></pre>
 
-<p>Every clause has a name — <code>sufficient_funds</code>, <code>never_negative</code>, <code>solvent</code> — and the names are not decoration. They are the vocabulary of the design. When a contract is violated at runtime, the failure reports <em>which named requirement</em> broke, so a bug announces itself in domain language rather than as an anonymous stack trace. Writing the name forces you to say, in words, what you believe — and half the value of a contract is extracted at the moment you are forced to name it, long before it ever runs.</p>
+<p>Every clause has a name — <code>sufficient_funds</code>, <code>never_negative</code>, <code>solvent</code> — and the names are not mere decoration. They are the vocabulary of the design. When a contract is violated at runtime, the failure reports <em>which named requirement</em> broke, so a bug announces itself in domain language rather than as an anonymous stack trace. Writing the name forces you to say, in words, what you believe should be true about the design. Half the value of a contract is extracted at the moment you name it, long before it ever runs.</p>
 </section>
 
 <section id="precondition-as-specification" class="level2" data-number="2.2">
-<h2 class="anchored" data-anchor-id="precondition-as-specification"><span class="header-section-number">2.2</span> The Precondition Is a Specification</h2>
+<h2 class="anchored" data-anchor-id="precondition-as-specification"><span class="header-section-number">2.2</span> Preconditions — the Caller's Duty</h2>
 
-<p>Look again at <code>withdraw</code>. Its precondition says <code>amount &lt;= balance</code>. A defensive programmer would instead write the check <em>inside</em> the body — <code>if amount &gt; balance then return error</code> — and hand the caller a failure to inspect. The contract makes the opposite choice, and the difference is the whole point.</p>
+<p>Look again at <code>withdraw</code>. Its precondition says <code>amount &lt;= balance</code>. A defensive programmer would instead write the check <em>inside</em> the body — <code>if amount &gt; balance then return error</code> — and hand the caller a failure to inspect. The contract makes the opposite choice, which as we will see, is qualitatively different.</p>
 
-<p>A precondition is a statement about <em>whose responsibility</em> a condition is. By writing <code>require sufficient_funds: amount &lt;= balance</code>, the routine declares: <em>establishing this is the caller's job, not mine.</em> Inside the body, the routine may then treat sufficiency as a fact. It does not re-check; it does not branch; it does not return an error for the case, because the case is not its to handle. The contract has moved the obligation across the boundary and, in doing so, has made the body simpler and the caller's duty explicit.</p>
+<p>A precondition is a statement about <em>whose responsibility</em> a condition is. By writing <code>require sufficient_funds: amount &lt;= balance</code>, the routine declares: <em>establishing this is the caller's job, not mine.</em> Inside the body, the routine may then treat sufficiency as a fact. It does not re-check because the case is not its to handle. The contract has moved the obligation across the boundary and, in doing so, has made the body simpler and the caller's duty explicit.</p>
 
 <p>This is what it means to say a precondition is a specification rather than an assertion. An assertion asks, "is this true right now?" A specification asks, "who must make this true, and who may assume it?" The first is a runtime event. The second is a design decision — a division of labour written into the interface — and it holds whether or not the check ever executes.</p>
 
@@ -100,11 +100,11 @@ end</code></pre>
 </section>
 
 <section id="postconditions-and-old" class="level2" data-number="2.3">
-<h2 class="anchored" data-anchor-id="postconditions-and-old"><span class="header-section-number">2.3</span> Postconditions, and the Word <code>old</code></h2>
+<h2 class="anchored" data-anchor-id="postconditions-and-old"><span class="header-section-number">2.3</span> Postconditions as Obligation</h2>
 
-<p>Where a precondition binds the caller, a postcondition binds the routine. <code>ensure balance_reduced: balance = old balance - amount</code> promises that, if you met the precondition, the balance afterward is exactly the balance before minus the amount — no rounding drift, no fee sneaked in, no forgotten path that leaves the balance untouched.</p>
+<p>Where a precondition binds the caller, a postcondition binds the routine. <code>ensure balance_reduced: balance = old balance - amount</code> promises that, if you met the precondition, the balance afterward is exactly the balance before minus the amount.</p>
 
-<p>The keyword <code>old</code> refers to the value an expression had <em>on entry</em>, before the body ran. It is what lets a postcondition talk about change rather than just about the final state: not merely "the balance is non-negative" but "the balance moved by precisely this much." That distinction is where a whole class of quiet arithmetic bugs would otherwise live. A postcondition with <code>old</code> is a promise about the <em>transition</em>, and transitions are exactly what the order core of our running system must never get wrong.</p>
+<p>The keyword <code>old</code> refers to the value an expression had <em>on entry</em>, before the body ran. It is what lets a postcondition talk about change rather than just about the final state: not merely "the balance is non-negative" but "the balance moved by precisely this much." That distinction is where a whole class of quiet logical bugs would otherwise live. A postcondition with <code>old</code> is a promise about the <em>transition</em>, and transitions are exactly what the order core of our running system must never get wrong.</p>
 
 <p>Notice how the two halves cooperate. The precondition lets the body assume; the postcondition obliges the body to deliver. Together they form a complete specification of the routine that a reader can trust <em>without reading the body at all</em> — which is precisely what you want at the boundaries of a large system, where you compose routines you did not write and will not re-read.</p>
 </section>
@@ -114,9 +114,9 @@ end</code></pre>
 
 <p>A precondition and postcondition describe a single routine. An <strong>invariant</strong> describes the whole object, across its entire lifetime. The <code>Account</code>'s invariant, <code>solvent: not balance.is_negative()</code>, is a promise that holds after construction and after every method — that there is no sequence of legal operations, however long, that can leave an account with a negative balance.</p>
 
-<p>This is a stronger and more useful promise than any single postcondition, because it is <em>closed under composition</em>. Each method must both assume the invariant on entry and re-establish it on exit; in exchange, no method ever has to worry about receiving an object in a broken state. The invariant is the object's contract with itself, and it is the constraint tradition of <a href="chapter_1.html" title="Chapter 1: Two Ways Software Gets Hard">Chapter 1</a> in its most local form: a standing narrowing of what states the object may occupy, enforced at every step rather than hoped for.</p>
+<p>This is a stronger and more useful promise than any single postcondition, because it is <em>closed under composition</em>. Each method must both assume the invariant on entry and re-establish it on exit; in exchange, no method ever has to worry about receiving an object in a broken state. The invariant is the object's contract with itself, and it is the constraint tradition of <a href="chapter_1.html" title="Chapter 1: Two Ways Software Gets Hard">Chapter 1</a> in its most local form: a declaration of what states the object may occupy, actively enforced at every externally visible step.</p>
 
-<p>When we model the order core in <a href="index.html#part-ii" title="Part II: Constraining the Core">Part II</a>, its invariants will carry most of the responsibility around correctness — a placed order's total equals the sum of its lines, a shipped order has a tracking id, and so on. The invariant is where "make illegal states unrepresentable" lands for a mutable object: the states are still reachable in memory, but the invariant forbids the object from ever resting in one.</p>
+<p>When we model the order core in <a href="index.html#part-ii" title="Part II: Constraining the Core">Part II</a>, its invariants will carry most of the responsibility around correctness. The invariant is where "make illegal states unrepresentable" lands for a mutable object. The illegal states may exist temporarily in transition stages, but the invariant forbids the object from ever resting in one.</p>
 </section>
 
 <section id="variants" class="level2" data-number="2.5">
@@ -169,7 +169,7 @@ ensure
   still_valid: order.is_consistent
 end</code></pre>
 
-<p>Any pricing rule at all may compute <code>quote</code> — a promotion, a loyalty tier, something invented next year. The core does not know and does not care. What it insists on is the contract at the doorway: the quote is in the right currency, not negative, not below the order's floor. The rule's author, on the other side of the membrane, reads the same precondition and knows exactly what they must deliver for their price to be accepted. Neither side has to see inside the other. The precondition <em>is</em> the interface between a discipline of openness and a discipline of constraint.</p>
+<p>Any pricing rule at all may compute <code>quote</code> — it could be a promotion, a loyalty tier, or something invented next year. The core does not know and does not care. What it insists on is the contract at the doorway: the quote is in the right currency, not negative, and not below the order's floor. The rule's author, on the other side of the membrane, reads the same precondition and knows exactly what they must deliver for their price to be accepted. Neither side has to see inside the other. The precondition <em>is</em> the interface between a discipline of openness and a discipline of constraint.</p>
 
 <p>This is the pattern the rest of the book turns on. In <a href="index.html#part-iv" title="Part IV: Opening the Frontier">Part IV</a>, when we step outside the type system into generic dispatch, and in <a href="index.html#part-v" title="Part V: Flexibility Under Partial Information">Part V</a>, when computation runs on partial information, the type checker will fall silent again and again — and each time, a contract will take over the guarding. That recurrence is what makes constraint and flexibility one story rather than two. With the tool in hand, we can now go and constrain the core. The next part begins where correctness begins: making illegal states impossible to write down.</p>
 </section>
