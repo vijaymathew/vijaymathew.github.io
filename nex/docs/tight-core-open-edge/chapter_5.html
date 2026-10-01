@@ -34,7 +34,7 @@
 <section id="the-tangled-version" class="level2" data-number="5.1">
 <h2 class="anchored" data-anchor-id="the-tangled-version"><span class="header-section-number">5.1</span> The Tangled Version</h2>
 
-<p>Here is the process modelled on the bag-of-fields <code>Order</code> from <a href="chapter_3.html#the-bag-of-fields" title="Section 3.1: The Bag of Nullable Fields">§3.1</a> — one object, a status string, one method to move it along:</p>
+<p>Here is the process modelled on the bag-of-fields <code>Order</code> from <a href="chapter_3.html#the-bag-of-fields" title="Section 3.1: The Bag of Nullable Fields">§3.1</a> — one object, a status string, and a method to move it along:</p>
 
 <pre><code>-- One mutable object, one status flag, and every illegal path left open.
 function advance(o: Order)
@@ -104,7 +104,7 @@ do
   end
 end</code></pre>
 
-<p>The pipeline reads as the process itself: place the draft; if that succeeded, ship what came back; if it failed, carry the reason out and go no further. There is no shared mutable object threaded through the steps, no status flag anyone can set out of order, no stage that runs on the assumption that a previous stage left things tidy. Each arrow in the state diagram is one function, and the diagram and the code are the same shape.</p>
+<p>The pipeline reads as the process itself: place the draft; if that succeeded, ship what came back; if it failed, carry the reason out and go no further. There is no shared mutable object threaded through the steps, no status flag anyone can set out of order, or no stage that runs on the assumption that a previous stage left things tidy. Each arrow in the state diagram is one function, and the diagram and the code are the same shape.</p>
 
 <p>Because <code>ship</code> receives <code>placed.value</code> — a genuine <code>Placed</code> produced by <code>place</code> — it never runs on anything but a fully-formed placed order. The pipeline cannot be assembled in the wrong order, because the types would not line up: <code>ship</code>'s output is a <code>Shipped</code>, which is not what <code>place</code> accepts, so "ship then place" does not even compose. The legal sequence is the only one that typechecks.</p>
 </section>
@@ -112,9 +112,9 @@ end</code></pre>
 <section id="decisions-vs-effects" class="level2" data-number="5.5">
 <h2 class="anchored" data-anchor-id="decisions-vs-effects"><span class="header-section-number">5.5</span> Decisions Stay In, Effects Stay Out</h2>
 
-<p>A real <code>place</code> does more than check for emptiness — it prices the order, and pricing is where marketing's ever-changing rules live. It is tempting to reach out from inside <code>place</code> and consult a database, a tax service, a clock. Resist it. The transition should remain a <em>pure</em> function of its inputs: give it the same draft and the same prices and it returns the same placed order, every time, with no reference to the outside world.</p>
+<p>A real <code>place</code> does more than check for emptiness — it prices the order, and pricing is where marketing's ever-changing rules live. It is tempting to reach out from inside <code>place</code> and consult a database or a tax service. Resist it. The transition should remain a <em>pure</em> function of its inputs: give it the same draft and the same prices and it returns the same placed order, every time, with no reference to the outside world.</p>
 
-<p>Keeping the workflow pure is what keeps it testable and legible. A pure transition can be checked by handing it values and inspecting the result — no database to stand up, no clock to freeze, no network to mock. It is also what lets contracts mean something on a transition: an <code>ensure</code> that no money is created or destroyed across a step is a promise you can actually rely on only if the step has no hidden inputs. In this chapter <code>place</code> uses <code>sum_of(d.items)</code> as the order's total precisely because that is a pure function of the draft; when genuine pricing rules enter, they will arrive as an <em>input</em> to the step, computed at the open edge and handed in — not fetched from inside it.</p>
+<p>Keeping the workflow pure is what keeps it testable and legible. A pure transition can be checked by handing it values and inspecting the result. It has no database to stand up, and no network to mock. It is also what lets contracts mean something on a transition: an <code>ensure</code> that no money is created or destroyed across a step is a promise you can actually rely on only if the step has no hidden inputs. In this chapter <code>place</code> uses <code>sum_of(d.items)</code> as the order's total precisely because that is a pure function of the draft; when genuine pricing rules enter, they will arrive as an <em>input</em> to the step, computed at the open edge and handed in — not fetched from inside it.</p>
 
 <p>That separation — decisions computed purely inside the core, effects performed at the edge — is important enough to be the whole of the next chapter. For now the rule is simply: a transition takes everything it needs as arguments, and touches nothing else.</p>
 </section>
@@ -126,7 +126,7 @@ end</code></pre>
 
 <p>This is the constraint tradition at the scale of a process rather than a single value. Chapter 3 made the illegal <em>states</em> unrepresentable; this chapter made the illegal <em>transitions</em> unrepresentable, by encoding the state machine in the argument types of its steps. Between them, nothing in the order core — from the shape of a single quantity up to the flow of the whole fulfillment process — can drift into a state its types forbid.</p>
 
-<p>One assumption still stands unpaid, though — the same one that opened <a href="chapter_4.html" title="Chapter 4: Parse, Don&#x27;t Validate: Boundaries and Trust">Chapter 4</a>, now wearing different clothes. These pure transformations have to be driven by something that <em>does</em> touch the world: reads the order off a queue, calls the payment gateway, writes the shipment to a database, asks what time it is. <a href="chapter_6.html" title="Chapter 6: Effects at the Edges, Purity at the Core">Chapter 6</a> takes that up directly — pushing I/O, time, and failure to the boundary so the domain stays pure. Let those effects leak into the core instead, and everything just built here comes apart.</p>
+<p>But the same assumption that opened <a href="chapter_4.html" title="Chapter 4: Parse, Don&#x27;t Validate: Boundaries and Trust">Chapter 4</a> still stands, now wearing different clothes. These pure transformations have to be driven by something that <em>does</em> touch the world. This could be reading the order off a queue, calling the payment gateway, writing the shipment to a database, or even asking what time it is. <a href="chapter_6.html" title="Chapter 6: Effects at the Edges, Purity at the Core">Chapter 6</a> takes that up directly — pushing I/O, time, and failure to the boundary so the domain stays pure. Let those effects leak into the core instead, and everything just built here comes apart.</p>
 </section>
 
 </article>
