@@ -29,7 +29,7 @@
     <h1 class="opener-title">Concurrency with Tasks and Channels</h1>
   </div>
   <div class="prose">
-<p>So far the tutorial has treated a Nex program as one thread of control: a function calls another, a method updates an object, and the next statement waits for the previous one to finish. Many real systems do not have that luxury. A server may need to wait for incoming requests while also writing logs. A pipeline may need one stage to produce data while another stage consumes it. A user interface may need background work without freezing the screen.</p>
+<p>So far we have treated a Nex program as one thread of control: a function calls another, a method updates an object, and the next statement waits for the previous one to finish. Many real systems do not have that luxury. A server may need to wait for incoming requests while also writing logs or a user interface may need background work without freezing the screen.</p>
 <p>Nex approaches concurrency with a small set of explicit tools:</p>
 <ul>
 <li><code>spawn</code> starts a task</li>
@@ -64,7 +64,7 @@ print(t.await)</code></pre>
 end
 
 t.await</code></pre>
-<p>A task is a value. You can store it in a variable, return it from a routine, place it in an array, or pass it to another routine. That matters because concurrency should compose. We do not want a special hidden execution model that only works in toy cases.</p>
+<p>A task is a value. You can store it in a variable, return it from a routine, place it in an array, or pass it to another routine. This enables concurrency to compose.</p>
 </section>
 <section class="level2" data-number="29.3" id="what-await-means">
 <h2 class="anchored" data-anchor-id="what-await-means" data-number="29.3"> What <code>await</code> Means</h2>
@@ -89,7 +89,7 @@ end
 print(t.is_done)
 print(t.await)
 print(t.is_done)</code></pre>
-<p>In real code, <code>is_done</code> is most useful when combined with <code>select</code>, or when you need a non-blocking readiness test before choosing the next step.</p>
+<p>In real code, <code>is_done</code> is most useful when combined with <code>select</code> (which we will discuss in detail soon), or when you need a non-blocking readiness test before choosing the next step.</p>
 <p>Tasks can also be cancelled:</p>
 <pre><code>let t: Task := spawn do
   sleep(10000)
@@ -97,7 +97,7 @@ end
 
 print(t.cancel)
 print(t.is_cancelled)</code></pre>
-<p>Cancellation is a request, not magic. It tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.</p>
+<p>Cancellation is a request that tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.</p>
 <p>If a cancelled task is later awaited, <code>await</code> raises a task-cancelled failure rather than returning a normal result.</p>
 </section>
 <section class="level2" data-number="29.5" id="waiting-with-a-timeout">
@@ -137,7 +137,7 @@ producer.await</code></pre>
 <li>the main thread receives it</li>
 <li>both sides agree on the element type because the channel itself is typed</li>
 </ul>
-<p>That type information matters. Concurrency already adds one level of indirection. The language should not also force the programmer to guess what kind of value may arrive.</p>
+<p>That type information matters because concurrency already adds one level of indirection. The language should not also force the programmer to guess what kind of value may arrive.</p>
 </section>
 <section class="level2" data-number="29.7" id="unbuffered-and-buffered-channels">
 <h2 class="anchored" data-anchor-id="unbuffered-and-buffered-channels" data-number="29.7"> Unbuffered and Buffered Channels</h2>
@@ -148,8 +148,7 @@ producer.await</code></pre>
 <li><code>send</code> waits until some receiver is ready</li>
 <li><code>receive</code> waits until some sender is ready</li>
 </ul>
-<p>This is a very strong coordination mechanism. The send and the receive meet at one point in time.</p>
-<p>Sometimes that is too strict. One side may need to run ahead a little. For that, Nex supports buffered channels:</p>
+<p>This is a very strong coordination mechanism. The send and the receive meet at one point in time. But sometimes that is too strict. One side may need to run ahead a little. For that, Nex supports buffered channels:</p>
 <pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
 ch.send(10)
 ch.send(20)
@@ -193,7 +192,7 @@ print(ch.receive)</code></pre>
 <li>buffered values, if any, can still be received</li>
 <li>once a closed channel is drained, later <code>receive</code> attempts fail</li>
 </ul>
-<p>Closing matters because streams of values are rarely infinite in practice. A reader often needs a definite signal that no more messages are coming.</p>
+<p>Streams of values are rarely infinite in practice. A reader often needs a definite signal that no more messages are coming. <code>ch.close</code> sends that signal.</p>
 </section>
 <section class="level2" data-number="29.10" id="coordinating-several-tasks-with-await_any-and-await_all">
 <h2 class="anchored" data-anchor-id="coordinating-several-tasks-with-await_any-and-await_all" data-number="29.10"> Coordinating Several Tasks with <code>await_any</code> and <code>await_all</code></h2>
@@ -269,7 +268,7 @@ end</code></pre>
 <li><code>else</code> means do not wait at all</li>
 <li><code>timeout n</code> means wait up to <code>n</code> milliseconds</li>
 </ul>
-<p>That distinction matters. One is a non-blocking probe. The other is a bounded wait.</p>
+<p>In other words, <code>else</code> is a non-blocking probe and <code>timeout</code> is a bounded wait.</p>
 </section>
 <section class="level2" data-number="29.13" id="a-small-pipeline-example">
 <h2 class="anchored" data-anchor-id="a-small-pipeline-example" data-number="29.13"> A Small Pipeline Example</h2>
@@ -296,7 +295,7 @@ worker.await</code></pre>
 </section>
 <section class="level2" data-number="29.14" id="sharing-state-directly-the-atomic-types">
 <h2 class="anchored" data-anchor-id="sharing-state-directly-the-atomic-types" data-number="29.14"> Sharing State Directly: The Atomic_* Types</h2>
-<p>Everything so far has followed the chapter's own advice: hand a value to another task through a channel rather than share an object between them. But sometimes the thing you want to share genuinely <em>is</em> one small piece of state — a counter, a flag, a cached last-computed value — and building a channel-based protocol around a single number is more machinery than the problem needs.</p>
+<p>We have so far followed the advice: hand a value to another task through a channel rather than share an object between them. But sometimes the thing you want to share genuinely <em>is</em> one small piece of state — a counter, a flag or a cached last-computed value. Building a channel-based protocol around a single state could be more machinery than the problem needs.</p>
 <p>Nex provides four small classes for exactly that: <code>Atomic_Integer</code>, <code>Atomic_Integer64</code> (the same 64-bit representation under a second name), <code>Atomic_Boolean</code>, and <code>Atomic_Reference[T]</code>. Each guarantees that every task sees a consistent value, with no channel or task boundary required to read or write it.</p>
 <pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
 hits.increment
@@ -306,7 +305,7 @@ print(hits.load)                        -- 2</code></pre>
 <pre><code>let ready: Atomic_Boolean := create Atomic_Boolean.make(false)
 print(ready.compare_and_set(false, true))   -- true: it was false, now true
 print(ready.compare_and_set(false, true))   -- false: it is already true</code></pre>
-<p>The guarantee holds under real contention, not just in a single-threaded example. Four tasks, each incrementing the same counter twenty thousand times:</p>
+<p>The guarantee holds under real contention, not just in a single-threaded code. Let's look at an example where four tasks, each incrementing the same counter twenty thousand times:</p>
 <pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
 
 function bump_many(c: Atomic_Integer, n: Integer): Task do
@@ -334,7 +333,7 @@ t4.await
 
 print(hits.load)                        -- 80000, never less</code></pre>
 <p>An ordinary <code>Integer</code> field updated the same way from four tasks would lose updates — two tasks can read the same old value before either writes back — and print something short of <code>80000</code>. <code>Atomic_Integer</code> rules that out.</p>
-<p>Notice what these four classes have in common: each protects exactly <em>one</em> value. When the state you need to protect is compound — a map you read and then write back, a running total that must stay paired with a count — a single <code>Atomic_*</code> is not enough on its own. That is the next section's tool.</p>
+<p>Notice what these four classes have in common: each protects exactly <em>one</em> value. When the state you need to protect is compound — a map you read and then write back or a running total that must stay paired with a count — a single <code>Atomic_*</code> is not enough on its own. That is the next section's tool.</p>
 </section>
 <section class="level2" data-number="29.15" id="protecting-a-compound-critical-section-with-mutex">
 <h2 class="anchored" data-anchor-id="protecting-a-compound-critical-section-with-mutex" data-number="29.15"> Protecting a Compound Critical Section with Mutex</h2>
@@ -396,7 +395,11 @@ rescue
   print(exception)                      -- "Mutex.use: already held by this task"
 end</code></pre>
 <p>What <code>use</code> does <em>not</em> catch is blocking or waiting <em>inside</em> the callback — calling <code>spawn</code>, <code>await</code>, a channel <code>send</code>/<code>receive</code>, <code>select</code>, or <code>use</code> on a <em>different</em> <code>Mutex</code> while this one is held. Avoid that; a program that deadlocks this way looks like an ordinary blocked acquire, not a raised error. Keep a <code>use</code> callback to the plain reads and writes it exists for.</p>
-<p>Put the three tools side by side: reach for a channel when tasks are handing work to each other; reach for an <code>Atomic_*</code> when the shared state is one value; reach for <code>Mutex</code> when it is a compound update against shared, mutable structure. All three keep the same promise the rest of this chapter has made — the coordination is visible in the source, not hidden inside a shared object's ordinary-looking method calls.</p>
+<p>Let's Put the three tools side by side. Reach for, </p>
+<ul><li> a channel when tasks are handing work to each other;</li>
+<li> an <code>Atomic_*</code> when the shared state is one value;</li>
+<li> a <code>Mutex</code> when it is a compound update against shared, mutable structure.</li></ul>
+<p>All three are built on the same basic principle — the coordination is visible in the source, not hidden inside a shared object's ordinary-looking method calls.</p>
 </section>
 <section class="level2" data-number="29.16" id="designing-with-concurrency-in-mind">
 <h2 class="anchored" data-anchor-id="designing-with-concurrency-in-mind" data-number="29.16"> Designing with Concurrency in Mind</h2>

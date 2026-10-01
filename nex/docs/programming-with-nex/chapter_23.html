@@ -62,8 +62,7 @@
 <p>For a path-qualified intern such as:</p>
 <pre class="text"><code>intern net/Tcp_Socket</code></pre>
 <p>Nex tries these local layouts under each search root:</p>
-<pre class="text"><code>Tcp_Socket.nex
-tcp_socket.nex
+<pre class="text"><code>
 lib/net/Tcp_Socket.nex
 lib/net/tcp_socket.nex
 lib/net/src/Tcp_Socket.nex
@@ -79,7 +78,7 @@ lib/net/src/tcp_socket.nex</code></pre>
 </section>
 <section class="level2" data-number="24.4" id="a-simple-two-file-example">
 <h2 class="anchored" data-anchor-id="a-simple-two-file-example" data-number="24.4"> A Simple Two-File Example</h2>
-<p>Suppose <code>math/Counter.nex</code> contains:</p>
+<p>Suppose <code>lib/math/Counter.nex</code> contains:</p>
 <pre><code>class Counter
 create
   make() do
@@ -106,7 +105,7 @@ create
     print(c.value)
   end
 end</code></pre>
-<p>The point is not merely that the code compiles. The point is that <code>Counter</code> now has its own module boundary. It can be read, tested, and reused on its own.</p>
+<p>The point is that <code>Counter</code> now has its own module boundary. It can be read, tested, and reused on its own.</p>
 </section>
 <section class="level2" data-number="24.5" id="namespaces-and-ambiguous-references">
 <h2 class="anchored" data-anchor-id="namespaces-and-ambiguous-references" data-number="24.5"> Namespaces and Ambiguous References</h2>
@@ -119,7 +118,7 @@ let a := create Account.make(1)</code></pre>
 <pre class="text"><code>Ambiguous reference to 'Account': interned from billing.Account and finance.Account.
 Reference one directly by its qualified name (e.g. billing.Account), or rename it
 on the way in with a path-qualified `intern ... as`.</code></pre>
-<p>The fix is to write the class's full name — the same <code>path/Class</code> form used on the <code>intern</code> line — anywhere the class name would otherwise appear: in a type annotation, in <code>create</code>, in <code>inherit</code>, in a <code>match</code> clause.</p>
+<p>The fix is to write the class's full name — the same <code>path/Class</code> form used on the <code>intern</code> line — anywhere the class name would otherwise appear: in a type annotation, in <code>create</code>, in <code>inherit</code>, or in a <code>match</code> clause.</p>
 <pre><code>intern finance/Account
 intern billing/Account
 
@@ -143,20 +142,27 @@ print(b.id)</code></pre>
 <li>a local short name improves readability</li>
 </ul>
 <p>Example:</p>
-<pre><code>intern geometry/Long_Polygon_Name as Polygon</code></pre>
-<p>Now:</p>
-<pre><code>let p := create Polygon.with_sides(5)</code></pre>
+<pre><code>intern geometry/Long_Polygon_Name as Polygon
+
+let p := create Polygon.with_sides(5)</code></pre>
 <p>Use aliases sparingly. The goal is clarity, not abbreviation for its own sake.</p>
 <h3>Aliasing to resolve a collision</h3>
 <p>A path-qualified alias is also a second way out of the ambiguity in the previous section — rename one side of a collision (or both) on the way in, and each alias refers unambiguously to its own class from then on:</p>
 <pre><code>intern finance/Account
 intern billing/Account as Billing_Account
 
-let a := create Account.make(1)
+let b := create Billing_Account.make(2)
+print(b.id)</code></pre>
+<p><code>Billing_Account</code> reaches billing's class directly, without ever touching the name it collides on. The bare name <code>Account</code> is unchanged, though: it is still ambiguous, so it must not be used while both classes are interned. To refer to both classes by short names, alias both sides:</p>
+<pre><code>intern finance/Account as Finance_Account
+intern billing/Account as Billing_Account
+
+let a := create Finance_Account.make(1)
 let b := create Billing_Account.make(2)</code></pre>
-<p>Here the bare name <code>Account</code> still means finance's <code>Account</code> — nothing about it changed — while <code>Billing_Account</code> reaches billing's class directly, without ever touching the name it collides on. Aliasing only helps this way when the <code>intern</code> being renamed is path-qualified; aliasing a bare, unpathed intern is purely for shortening or readability, since there is no path to disambiguate with.</p>
+<p>Aliasing only helps this way when the <code>intern</code> being renamed is path-qualified; aliasing a bare, unpathed intern is purely for shortening or readability, since there is no path to disambiguate with.</p>
 <h3>Free Functions and intern</h3>
 <p><code>intern</code> brings in a unit's free functions exactly as it brings in its classes — the whole file, not only the one name written after the path. A function sharing a file with an interned class arrives alongside it, under its own bare name, whether or not you ever use it.</p>
+<p>A function's qualified name is the directory path of the <code>intern</code> followed by the function's own name — not the file's name. Interning <code>trade/shipping</code>, whose file defines <code>ship</code>, makes the function callable as <code>trade.ship</code>.</p>
 <p>But a function has none of the escape hatches above: <code>as</code> only ever renames a class. Given two warehouses that each define a <code>ship</code> function, rounding a shipment quantity a different way:</p>
 <pre><code>-- trade/ship.nex
 function ship(qty: Integer): Integer do result := qty + 1 end
@@ -176,16 +182,16 @@ intern other/ship
 
 print(trade.ship(10))  -- 11
 print(other.ship(10))  -- 9</code></pre>
-<p>The different spelling is a matter of syntax, not style. A class's <code>path/Class</code> form only ever appears in a type annotation, a <code>create</code>, an <code>inherit</code>, or a <code>match</code> clause — never in the middle of an ordinary expression, so <code>/</code> can be used there without ever being mistaken for division. A function call <em>is</em> an ordinary expression, and <code>/</code> already means division inside one, so a qualified call instead reuses <code>.</code> — the same character an ordinary method call already uses.</p>
-<p><code>trade.ship(&hellip;)</code> parses exactly like a method call on a variable named <code>trade</code>. Nex only reads it as a qualified call when <code>trade</code> is not otherwise bound to anything in the program — no local, parameter, field, or class of that name. An ordinary binding always wins, even one out of scope at the call site itself:</p>
+<p>The different spelling is a matter of syntax, not style. A class's <code>path/Class</code> could only appear in a type annotation, a <code>create</code>, an <code>inherit</code>, or a <code>match</code> clause — never in the middle of an ordinary expression, so <code>/</code> can be used there without being mistaken for division. A function call <em>is</em> an ordinary expression, and <code>/</code> already means division inside one, so a qualified call instead reuses <code>.</code> — the same character an ordinary method call already uses.</p>
+<p><code>trade.ship(&hellip;)</code> parses exactly like a method call on a variable named <code>trade</code>. Nex reads it as a qualified call unless <code>trade</code> is bound where the call appears — a local, parameter, or field of that name in the enclosing routine or class, or a global or class of that name. A local only shadows the module inside the routine that declares it:</p>
 <pre><code>intern trade/ship
 
 function use(trade: Integer): Integer do
-  result := trade + 1
+  result := trade + 2
 end
 
-print(trade.ship(10))  -- Undefined variable: trade</code></pre>
-<p>Because <code>trade</code> is used as a parameter name somewhere in this program, <code>trade.ship(&hellip;)</code> is always read as an ordinary member access — never as the module path, even on a line where no such parameter is in scope. Avoid naming a local or parameter after an intern path segment you also plan to call qualified.</p>
+print(trade.ship(10))  -- 11</code></pre>
+<p>The parameter <code>trade</code> belongs to <code>use</code> alone, so the top-level call still reaches the module. Inside <code>use</code>, however, <code>trade.ship(&hellip;)</code> would be an ordinary member access on the parameter — avoid reusing an intern path segment as a local name in a routine that also calls that module.</p>
 <p>A multi-segment path is written the same way, one more <code>.</code>:</p>
 <pre><code>intern trade/core/ship
 
@@ -288,8 +294,8 @@ end</code></pre>
 <li>Resolve a collision by writing the class's qualified name (<code>path/Class</code>) directly, or by giving one side a path-qualified alias with <code>as</code></li>
 <li>A class declared in the current file always wins over an interned one of the same name; only two interned classes can collide</li>
 <li>Use <code>as</code> when a local alias improves clarity, even without a collision</li>
-<li><code>intern</code> brings in a unit's free functions the same way it brings in its classes, but a function has no qualified name and no <code>as</code>; a colliding bare call is an ambiguous reference too, resolved instead with a <strong>qualified call</strong> — <code>path.name(&hellip;)</code>, spelled with <code>.</code> rather than <code>/</code> because a function call, unlike a class reference, is an ordinary expression where <code>/</code> already means division</li>
-<li>A qualified call is read that way only when its leading name is not already bound to something else in the program — an ordinary local, parameter, field, or class always takes precedence</li>
+<li><code>intern</code> brings in a unit's free functions the same way it brings in its classes, but a function cannot be renamed with <code>as</code>; a colliding bare call is an ambiguous reference too, resolved instead with a <strong>qualified call</strong> — <code>path.name(&hellip;)</code>, spelled with <code>.</code> rather than <code>/</code> because a function call, unlike a class reference, is an ordinary expression where <code>/</code> already means division</li>
+<li>A qualified call is read that way unless its leading name is bound where the call appears — a local, parameter, or field in the enclosing routine or class, or a global or class of that name; a local shadows the module only inside the routine that declares it</li>
 <li>Good file boundaries usually follow good class boundaries</li>
 <li>Contracts make multi-file code easier to trust and reuse</li>
 <li>A clean module layout reduces coupling and mental overhead</li>

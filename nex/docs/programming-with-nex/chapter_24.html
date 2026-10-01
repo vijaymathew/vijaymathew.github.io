@@ -30,7 +30,6 @@
   </div>
   <div class="prose">
 <p>No practical language lives entirely by itself. Sooner or later a program needs a file system, a library, a host API, or an external service. Nex is designed for that reality. It can import host-platform symbols and it targets the JVM.</p>
-<p>The important question is not whether interop exists, but where it should live in the design. This chapter is about that boundary.</p>
 <section class="level2" data-number="25.1" id="importing-platform-symbols">
 <h2 class="anchored" data-anchor-id="importing-platform-symbols" data-number="25.1"> Importing Platform Symbols</h2>
 <p>Nex supports <code>import</code> statements at the top level. For Java:</p>
@@ -51,7 +50,7 @@
 <li>use <code>intern</code> for Nex-to-Nex modularity</li>
 <li>use <code>import</code> for host-platform interop</li>
 </ul>
-<p>Confusing the two leads to confused architecture. A Nex class is part of your program’s design. An imported host symbol is part of the surrounding environment.</p>
+<p>A Nex class is part of your program’s design. An imported host symbol is part of the surrounding environment.</p>
 </section>
 <section class="level2" data-number="25.3" id="keeping-the-boundary-small">
 <h2 class="anchored" data-anchor-id="keeping-the-boundary-small" data-number="25.3"> Keeping the Boundary Small</h2>
@@ -72,19 +71,15 @@
 <p>The jar can be copied to any machine with a JVM and executed there. The target machine need not have the Nex runtime installed.</p>
 </section>
 <section class="level2" data-number="25.5" id="with-java-blocks">
-<h2 class="anchored" data-anchor-id="with-java-blocks" data-number="25.5"> <code>with "java"</code> Blocks</h2>
-<p>On the JVM, Nex also supports:</p>
-<pre class="text"><code>with "java" do
-  ...
-end</code></pre>
-<p>This marks a block whose body may use Java interop directly. In practice, that means method calls and class names inside the block may resolve against imported Java classes and host objects rather than only against ordinary Nex classes.</p>
+<h2 class="anchored" data-anchor-id="with-java-blocks" data-number="25.5"> <code>with &lt;host&gt;</code> Blocks</h2>
+<p>The <code>with &lt;host&gt; do ... end</code> construct will execute the block only when the program is running on the specified host.
 <p>For example:</p>
 <pre class="text"><code>import java.lang.System
 
 with "java" do
   print(System.getProperty("java.version"))
 end</code></pre>
-<p>This form is JVM-specific. It is useful when a small part of the program genuinely needs host behavior, but the surrounding design should remain ordinary Nex.</p>
+<p>The code in the <code>with</code> block will run only on the JVM (which is currently the only host on which Nex runs) and will be ignored on other hosts, like say, Node. It is useful for isolating parts of a program that needs host specific-behavior, but the surrounding design should remain ordinary Nex.</p>
 <p>In wrapper classes, <code>with "java"</code> is often the most practical way to isolate the host boundary. A common pattern is:</p>
 <ul>
 <li>keep Java calls inside <code>with "java"</code> blocks</li>
@@ -97,8 +92,7 @@ end</code></pre>
 import java.lang.Thread
 
 class Countdown
-  inherit
-  Runnable
+inherit Runnable
 feature
   run() do
     print("liftoff")
@@ -119,8 +113,7 @@ end</code></pre>
 <pre class="text"><code>import java.lang.Thread
 
 class Worker
-  inherit
-  Thread
+inherit Thread
 feature
   run() do
     super.run()
@@ -176,7 +169,7 @@ feature
     result := buf.text()
   end
 end</code></pre>
-<p>The design point is the important part: <code>StringBuilder</code> is confined to <code>Line_Buffer</code>. The rest of the program depends on ordinary Nex routines such as <code>append_line</code> and <code>text</code>, not on Java library details.</p>
+<p>The design approach is the point: <code>StringBuilder</code> is confined to <code>Line_Buffer</code>. The rest of the program depends on ordinary Nex routines such as <code>append_line</code> and <code>text</code>, not on Java library details.</p>
 </section>
 <section class="level2" data-number="25.7" id="portability-and-contracts">
 <h2 class="anchored" data-anchor-id="portability-and-contracts" data-number="25.7"> Portability and Contracts</h2>
