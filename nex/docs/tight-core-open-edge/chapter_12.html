@@ -29,7 +29,7 @@
 
 <p>Every technique so far, however open, has computed in one direction. A workflow flows a draft to a shipment; an evaluator pulls a price from the leaves of an expression to its root. Inputs go in; an output comes out; the direction is fixed. <a href="index.html#part-v" title="Part V: Flexibility Under Partial Information">Part V</a> is about problems that refuse that shape — where knowledge arrives in fragments, from several directions at once, and the answer must be assembled rather than reduced.</p>
 
-<p>The quoting problem in the running system is exactly this. What an order finally costs is constrained from many independent directions: inventory bounds what can be fulfilled, a promotion lowers the ceiling, the order's floor raises the base, tax jurisdiction shifts the total, shipping adds to it. None of these is <em>the</em> input; each is a partial fact about the same unknown quote, and they may arrive in any order, some late, some never. A function cannot model this, because a function must know its inputs before it runs. What models it is a <strong>propagator network</strong>.</p>
+<p>The quoting problem in the running system is exactly this. What an order finally costs is constrained from many independent directions. For instance, inventory bounds what can be fulfilled, while a promotion lowers the ceiling. The order's floor raises the base, while the tax jurisdiction shifts the total and shipping adds to it. None of these is <em>the</em> input; each is a partial fact about the same unknown quote, and they may arrive in any order, some late, some never. A function cannot model this, because a function must know its inputs before it runs. What models it is a <strong>propagator network</strong>.</p>
 
 <section id="not-a-function" class="level2" data-number="12.1">
 <h2 class="anchored" data-anchor-id="not-a-function"><span class="header-section-number">12.1</span> Computation That Isn't a Function</h2>
@@ -114,32 +114,85 @@ end</code></pre>
 <section id="the-quoting-network" class="level2" data-number="12.4">
 <h2 class="anchored" data-anchor-id="the-quoting-network"><span class="header-section-number">12.4</span> The Quoting Network</h2>
 
-<p>Now the running example comes together. The quote is a cell, initialized knowing almost nothing — a range from zero to some ceiling. Each source is a propagator that adds what it knows, from its own direction, whenever it learns it:</p>
+<p>Now the running example comes together. The quote is not one unknown but several: what the goods cost, the tax on them, the shipping charge, and the totals those add up to. Each is a cell, initialized knowing almost nothing — a range from zero to some ceiling. Every source adds what it knows to the cell it knows about, and one kind of propagator ties the cells together, a sum:</p>
 
-<pre><code>let quote: Cell := create Cell.make(
-  create Price_Range.make(create Money.zero(ceiling.currency), ceiling))
+<pre><code>-- total = left + right, usable in any direction.
+class Sum inherit Propagator
+  create make(l: Cell, r: Cell, t: Cell)
+  do
+    left := l  right := r  total := t
+    -- wiring: this propagator is a neighbor of every cell it relates
+    l.neighbors.add(this)
+    r.neighbors.add(this)
+    t.neighbors.add(this)
+  end
+feature
+  left: Cell
+  right: Cell
+  total: Cell
 
--- Each source contributes a partial fact; order does not matter.
-quote.add_content(floor_bounds)       -- the order floor raises the low end
-quote.add_content(promo_bounds)       -- a promotion lowers the high end
-quote.add_content(tax_bounds)         -- jurisdiction shifts the range
-quote.add_content(inventory_bounds)   -- limited stock caps the fulfillable amount
+  wake()
+  do
+    -- forward: the total lies between the sum of the lows and the sum of the highs
+    total.add_content(create Price_Range.make(
+      left.content.low + right.content.low, left.content.high + right.content.high))
+    -- backward: each part is the total less the other part
+    left.add_content(total_less(right))
+    right.add_content(total_less(left))
+  end
+
+  -- What the total implies about one part, given what is known of the other.
+  total_less(other: Cell): Price_Range
+  do
+    let zero: Money := create Money.zero(total.content.low.currency)
+    let low: Money := total.content.low - other.content.high
+    if low &lt; zero then low := zero end   -- no part of a price is negative
+    result := create Price_Range.make(low, total.content.high - other.content.low)
+  end
+end</code></pre>
+
+<p>Now build the network and let the sources feed it:</p>
+
+<pre><code>let unknown: Price_Range :=
+  create Price_Range.make(create Money.zero(ceiling.currency), ceiling)
+
+let goods: Cell := create Cell.make(unknown)
+let tax: Cell := create Cell.make(unknown)
+let shipping: Cell := create Cell.make(unknown)
+let subtotal: Cell := create Cell.make(unknown)
+let quote: Cell := create Cell.make(unknown)
+
+let taxed: Sum := create Sum.make(goods, tax, subtotal)         -- subtotal = goods + tax
+let shipped: Sum := create Sum.make(subtotal, shipping, quote)  -- quote = subtotal + shipping
+
+-- Each source adds a partial fact to the cell it knows about; order does not matter.
+goods.add_content(floor_bounds)         -- the order floor raises the low end
+goods.add_content(promo_bounds)         -- a promotion lowers the high end
+goods.add_content(inventory_bounds)     -- limited stock caps the fulfillable amount
+tax.add_content(tax_bounds)             -- the jurisdiction bounds the tax owed
+shipping.add_content(shipping_bounds)   -- the carrier bounds the shipping charge
 
 if quote.content.is_known then
   -- low = high: the sources have pinned the quote to a single price
 end</code></pre>
 
-<p>This is additive design carried to its limit. A new source of pricing knowledge — a seasonal surcharge, a regional subsidy — is a new propagator wired to the quote cell. It is never an edit to the others; the network simply has one more way to learn. And because merging is monotone and order-free, it does not matter whether the surcharge is known at checkout or arrives a second later from a slow service: the cell integrates it whenever it comes and settles to the same answer. The engine computes with partial knowledge and keeps computing as knowledge fills in.</p>
+<p>Neither <code>Sum</code> is ever called by name. When <code>promo_bounds</code> lowers the high end of <code>goods</code>, <code>goods</code> accepts the sharper range, walks its <code>neighbors</code>, and wakes <code>taxed</code>. <code>taxed</code> lowers the high end of <code>subtotal</code>, which wakes both of its neighbors, <code>taxed</code> and <code>shipped</code>, and <code>shipped</code> lowers the high end of <code>quote</code>. Knowledge flows backwards just as easily. A fact about the quote alone, such as a price the customer has already been shown, wakes <code>shipped</code>, which bounds <code>subtotal</code> and <code>shipping</code>. The change to <code>subtotal</code> then wakes <code>taxed</code>, which bounds <code>goods</code> and <code>tax</code>.</p>
+
+<p>Each <code>add_content</code> intersects the new range with what the cell already knows, so a cell can narrow but never jump to a new value. The spreading stops when no cell can narrow further. Wakes nest rather than queue: a <code>Sum</code> may be woken again by its own write before its first <code>wake</code> has finished. That is harmless, because each nested wake starts from sharper content and only narrows further. The propagators keep no state of their own, so waking one twice with the same inputs adds nothing.</p>
+
+<p><code>total_less</code> clamps a part's low bound at zero, since no part of a price can be negative. If the total's high bound drops below the least the other part can be, the clamped low ends up above the computed high. An example is a quote capped below the shipping charge. The <code>ordered</code> contract on <code>Price_Range</code> then fires. That is a real contradiction, and it is reported where it entered.</p>
+
+<p>This is additive design carried to its limit. A new source of pricing knowledge — a seasonal surcharge or a regional subsidy — is a new cell and one more <code>Sum</code> wired into the network. It is never an edit to the others; the network simply has one more way to learn. And because merging is monotone and order-free, it does not matter whether the surcharge is known at checkout or arrives a second later from a slow service: the cell integrates it whenever it comes and settles to the same answer. The engine computes with partial knowledge and keeps computing as knowledge fills in.</p>
 </section>
 
 <section id="invariants-keep-it-honest" class="level2" data-number="12.5">
 <h2 class="anchored" data-anchor-id="invariants-keep-it-honest"><span class="header-section-number">12.5</span> Invariants Keep the Network Reliable</h2>
 
-<p>An open, multi-directional network is a frightening thing to trust. There is no single evaluation order to trace, no function signature that captures what it computes, and any number of independently-authored sources feeding it at once. What stops two of those sources from quietly disagreeing — a promotion insisting the price is at most ten, a floor insisting it is at least twelve — and the network settling on a confident, wrong number?</p>
+<p>An open, multi-directional network is a frightening thing to trust. There is no single evaluation order to trace, no function signature that captures what it computes, and any number of independently-authored sources feeding it at once. What stops two of those sources from quietly disagreeing — like a promotion insisting the price is at most ten versus a floor insisting it is at least twelve — and the network settling on a confident, wrong number?</p>
 
-<p>The invariant does. Look again at <code>Price_Range</code>: its <code>ordered</code> invariant, and the matching precondition on <code>make</code>, say that the low bound may never exceed the high. When two sources disagree, their merge tries to construct a range whose low is above its high — and the contract fires, at the exact moment and place the contradiction entered, naming it. A silent wrong answer becomes a located, explained failure. In a full system this is the signal a truth-maintenance layer uses to back out an assumption and try another; here the point is narrower and it is the whole idea: <em>in a network too open for the type system to check, the invariant is what catches the inconsistency.</em> Constraint does not disappear at the most flexible edge of the system; it moves into the merge, where it guards a computation no signature could describe.</p>
+<p>The invariant does. Look again at <code>Price_Range</code>: its <code>ordered</code> invariant, and the matching precondition on <code>make</code>, say that the low bound may never exceed the high. When two sources disagree, their merge tries to construct a range whose low is above its high — and the contract fires, at the exact moment and place the contradiction entered, naming it. A silent wrong answer becomes a located, explained failure. <em>In a network too open for the type system to check, the invariant is what catches the inconsistency.</em> Constraint does not disappear at the most flexible edge of the system; it moves into the merge, where it guards a computation no signature could describe.</p>
 
-<div class="thesis">A propagator network is the most open computation we have built — no fixed direction, no fixed inputs, no fixed set of contributors. Its reliability rests entirely on one invariant on the merge: information may sharpen but never contradict. Where flexibility is total, a single well-placed constraint is what keeps it from lying.</div>
+<div class="thesis">A propagator network is the most adventurous computation we have built — no fixed direction, no fixed inputs, no fixed set of contributors. Its reliability rests entirely on one invariant on the merge: information may sharpen but never contradict. Where flexibility is total, a single well-placed constraint is what keeps it from lying.</div>
 </section>
 
 <section id="provenance-and-retraction" class="level2" data-number="12.6">
@@ -150,7 +203,7 @@ end</code></pre>
 <p>The resolution is to record not just <em>what</em> a cell knows but <em>why</em> — the provenance of each contribution, the set of premises it rests on. A cell's content becomes knowledge-relative-to-assumptions, and retracting a premise means recomputing the cell from the contributions that did not depend on it. Within any fixed set of assumptions, information is still monotone and the network still settles; across a change of assumptions, a supervising layer — a truth-maintenance system — rebuilds what the withdrawn premise supported. The withdrawn promo cleanly retracts, not by reversing time, but by asking what the network would have known without it.</p>
 
 
-<p>Propagators show flexibility in a new dimension — not an open <em>vocabulary</em>, as in <a href="index.html#part-iv" title="Part IV: Opening the Frontier">Part IV</a>, but an open <em>topology</em>: any number of sources, in any direction, over time. There is one more shape of partial-knowledge computation to meet, and it is the most open technique we will meet. Instead of narrowing numeric ranges, it matches and merges <em>structures</em> — asking not "what is the price?" but "what assignment of unknowns makes these shapes agree?", and searching when more than one might. That is unification and search.</p>
+<p>Propagators show flexibility in a new dimension — not an open <em>vocabulary</em>, as in <a href="index.html#part-iv" title="Part IV: Opening the Frontier">Part IV</a>, but an open <em>topology</em>: any number of sources, in any direction, over time. There is one more species of partial-knowledge computation to meet. Instead of narrowing numeric ranges, it matches and merges <em>structures</em> — asking not "what is the price?" but "what assignment of unknowns makes these shapes agree?", and searching when more than one might. That is unification and search.</p>
 </section>
 
 </article>

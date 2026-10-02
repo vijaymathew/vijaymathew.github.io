@@ -23,7 +23,7 @@
 <div class="opener">
 <span class="opener-label">Chapter 13 · Part V</span>
 <h1 class="opener-title">Unification and Search</h1>
-<p class="opener-lede">Propagators narrowed a number from many directions. Unification does the same for structure — finding the assignment of unknowns that makes two shapes agree — and search explores when more than one assignment could. The most open technique we will meet, guarded almost entirely at runtime.</p>
+<p class="opener-lede">Propagators narrowed a number from many directions. Unification does the same for structure — finding the assignment of unknowns that makes two shapes agree — and search explores when more than one assignment could. A very open technique, guarded almost entirely at runtime.</p>
 </div>
 <article class="prose">
 
@@ -138,7 +138,7 @@ end</code></pre>
 <section id="routing-by-unification" class="level2" data-number="13.3">
 <h2 class="anchored" data-anchor-id="routing-by-unification"><span class="header-section-number">13.3</span> Routing by Unification</h2>
 
-<p>Now the domain. An order presents a shape — its destination zone, its weight class, the items it needs — and each fulfillment route is a pattern over that shape with the unknowns left open. Unifying the order against a route either fails (this route cannot serve this order) or succeeds with the unknowns bound: <em>this</em> warehouse, <em>this</em> carrier, <em>this</em> cost. A route pattern like <code>route("zone-a", Warehouse, Carrier, Cost)</code> unified against an order in zone A binds <code>Warehouse</code>, <code>Carrier</code>, and <code>Cost</code> to whatever that route offers — computing the assignment rather than looking it up, and running in whichever direction the knowns allow.</p>
+<p>An order presents its structure with a destination zone, a weight class and the items it needs, and each fulfillment route is a pattern over that structure with the unknowns left open. Unifying the order against a route either fails (this route cannot serve this order) or succeeds with the unknowns bound. A route pattern like <code>route("zone-a", Warehouse, Carrier, Cost)</code> unified against an order in zone A binds <code>Warehouse</code>, <code>Carrier</code>, and <code>Cost</code> to whatever that route offers — computing the assignment rather than looking it up, and running in whichever direction the knowns allow.</p>
 
 <p>The power over a hand-written matcher is the same power the DSL had over hand-written handlers: routes are <em>data</em>. New routes are new patterns added to a table, never edits to the router. The set of ways an order can be fulfilled is open, and unification is the engine that matches an order against all of them uniformly.</p>
 </section>
@@ -146,7 +146,7 @@ end</code></pre>
 <section id="search" class="level2" data-number="13.4">
 <h2 class="anchored" data-anchor-id="search"><span class="header-section-number">13.4</span> Search: When More Than One Fits</h2>
 
-<p>Usually several routes unify with an order, and not all of them will hold up: a route may match structurally but the warehouse is out of stock, or the carrier cannot meet the deadline. So we <em>search</em> — try a candidate, check whether its bindings satisfy the domain constraints, and if not, <em>backtrack</em> and try the next. This is the nondeterminism at the heart of logic programming: commit tentatively, and undo on failure.</p>
+<p>Usually several routes unify with an order, and not all of them will be optimal: a route may match structurally but the warehouse is out of stock, or the carrier cannot meet the deadline. So we <em>search</em> — try a candidate, check whether its bindings satisfy the domain constraints, and if not, <em>backtrack</em> and try the next. This is the nondeterminism at the heart of logic programming: commit tentatively, and undo on failure.</p>
 
 <pre><code>-- Try each route; the first whose bindings satisfy every constraint wins.
 function route(order: Term, routes: Array[Term]): Result[Substitution, String]
@@ -176,14 +176,14 @@ do
   end
 end</code></pre>
 
-<p>The domain check the loop defers to is where "unifies structurally" becomes "is a route we can actually honor." Here it is a one-liner — did the search bind a warehouse at all — but this is the point where a real system would add the checks that matter: stock on hand, a carrier that meets the deadline, a cost within budget.</p>
+<p>The domain check the loop defers to is where "unifies structurally" becomes "is a route we can actually use." Here it is a one-liner — did the search bind a warehouse at all — but this is the point where a real system would add the checks that matter, like stock on hand, a carrier that meets the deadline, and a cost within budget.</p>
 
 <pre><code>-- The domain postcondition a committed solution must satisfy.
 -- A real one checks stock and deadline; here: was a warehouse bound at all?
 function satisfies_constraints(s: Substitution): Boolean
   do result := s.bindings.contains_key("Warehouse") end</code></pre>
 
-<p>The essential moves are all here: unify to propose an assignment, test it against the domain, keep it if it holds, and otherwise advance to the next candidate. A richer search would explore a tree rather than a list — routes whose choices open further choices — but the shape is the same: propose, check, backtrack. And whether it seeks the first valid route or the cheapest, the searching itself is the same machinery.</p>
+<p>The essential moves are all here: unify to propose an assignment, test it against the domain, keep it if it holds, and otherwise advance to the next candidate. A richer search would explore a tree rather than a list — routes whose choices open further choices — but the flow is the same: propose, check, backtrack. And whether it seeks the first valid route or the cheapest, the searching itself is the same machinery.</p>
 
 <p>Seeing it run makes both ideas concrete at once. A few one-line builders let a term read like the fact it stands for; the route table is ordinary data, and the query fixes what is known and leaves the rest open:</p>
 
@@ -211,28 +211,28 @@ match route(query, routes) of
     do end -- e.error is "no eligible route": nothing in the table can ship this order
 end</code></pre>
 
-<p>The query fixes the zone and leaves the rest open; <code>route</code> walks the table, unifies against <code>zone-a</code>'s fact, and comes back with the unknowns filled — <code>wh-1</code>, <code>ground</code>, <code>500</code> — computed, not looked up. Point the same order at a zone no row serves and every unification clashes on the zone atom, the loop exhausts the table, and the result is the <code>Err</code> the search began with. Add a fulfillment path and it is one more row in <code>routes</code>; the searcher is never touched.</p>
+<p>The query fixes the zone and leaves the rest open; <code>route</code> walks the table, unifies against <code>zone-a</code>'s fact, and comes back with the unknowns filled — <code>wh-1</code>, <code>ground</code>, <code>500</code> — computed, not looked up. Point the same order at a zone no row serves and every unification clashes on the zone atom, the loop exhausts the table, and results in an <code>Err</code>. Add a fulfillment path and it is one more row in <code>routes</code>; the searcher is never touched.</p>
 </section>
 
 <section id="runtime-guardrails" class="level2" data-number="13.5">
 <h2 class="anchored" data-anchor-id="runtime-guardrails"><span class="header-section-number">13.5</span> The Technique That Lives on Guardrails</h2>
 
-<p>Unification and search are the most open construction we have built, and it is worth being exact about how little the type system can promise inside them. The bindings are discovered at runtime; whether any assignment exists is unknown until the search runs; whether the search even <em>terminates</em> is not a fact any signature carries. Everything the compiler proved through <a href="index.html#part-ii" title="Part II: Constraining the Core">Part II</a> — exhaustive states, total functions, values well-formed by construction — is, in the interior of a search, simply unavailable. The type of <code>route</code> tells you it returns a <code>Result[Substitution, String]</code>; it cannot tell you the substitution is any good.</p>
+<p>How much of unification and search can be guarded by the type system? Very little. The bindings are discovered at runtime; whether any assignment exists is unknown until the search runs; whether the search even <em>terminates</em> is not a fact any signature carries. Everything the compiler can prove, like exhaustive states, total functions and values well-formed by construction, is in the interior of a search. The type of <code>route</code> tells you it returns a <code>Result[Substitution, String]</code>; it cannot tell you the substitution is any good.</p>
 
-<p>So the guarantees are carried, almost in their entirety, by runtime guardrails — and every one of them is visible in the code above. Failure is <em>data</em>, so a clash or a dead end is an ordinary value the search consumes, not a crash. The <code>variant</code> <code>routes.length - i</code> is a proof of <em>termination</em>: a search that cannot decrease its bound cannot run forever, which is the single most important thing to guarantee about any search. And <code>satisfies_constraints</code> is the domain <em>postcondition</em> that a committed solution must meet — the guardrail that turns "unifies structurally" into "is actually a route we can honor", refusing to return an answer that type-checks but cannot ship.</p>
+<p>So the guarantees are carried, almost in their entirety, by contracts. The <code>variant</code> <code>routes.length - i</code> is a proof of <em>termination</em>: a search whose bound must shrink on every step, and can never fall below zero, cannot run forever, which is the single most important thing to guarantee about any search. And <code>satisfies_constraints</code> is the domain <em>postcondition</em> that a committed solution must meet and refuses to return an answer that type-checks but cannot ship.</p>
 
-<div class="thesis">Unification and search sit at the far end of the spectrum: open structure, discovered bindings, nondeterministic control, and a type system that can vouch for almost none of it. What keeps such a computation reliable is entirely runtime — failure as data, a variant that proves it ends, and a contract that a committed solution satisfies the domain. This is the flexibility tradition at its most extreme, and the constraint tradition, in the form of a few guardrails, is exactly what makes it usable.</div>
+<div class="thesis">Unification and search sit at the far end of the spectrum: open structure, discovered bindings, nondeterministic control, and a type system that can vouch for almost none of it. What keeps such a computation reliable is entirely runtime — failure as data, a variant that proves it ends, and a contract that a committed solution satisfies the domain. This is the flexibility tradition at its most extreme, and the constraint tradition, in the form of a few contracts, is exactly what makes it usable.</div>
 
 </section>
 
 <section id="the-edge-of-the-frontier" class="level2" data-number="13.6">
 <h2 class="anchored" data-anchor-id="the-edge-of-the-frontier"><span class="header-section-number">13.6</span> The Edge of the Frontier</h2>
 
-<p><a href="index.html#part-v" title="Part V: Flexibility Under Partial Information">Part V</a> explored flexibility in two dimensions the earlier parts did not reach. Propagators opened the <em>topology</em> of computation — many sources, many directions, over time. Unification and search opened its <em>structure and control</em> — shapes with unknowns, and a nondeterministic hunt for the assignment that fits. Both left the type system nearly behind, and both stayed reliable only because a small, well-placed constraint — a monotone merge, an ordering invariant, a termination variant, a solution postcondition — sat at the one point where an inconsistency could enter.</p>
+<p><a href="index.html#part-v" title="Part V: Flexibility Under Partial Information">Part V</a> explored flexibility in two dimensions the earlier parts did not reach. Propagators opened the <em>topology</em> of computation — many sources, many directions, over time. Unification and search opened its <em>structure and control</em> — shapes with unknowns, and a nondeterministic hunt for the assignment that fits. Both left the type system nearly behind, and both stayed reliable only because a small, well-placed contract sat at the one point where an inconsistency could enter.</p>
 
 <p>That is the whole spectrum, now traversed end to end: from a sealed order state whose every case the compiler checks, to a backtracking search the compiler can barely see, with contracts as the connective tissue at every step between. We have seen what it is to constrain, to compose, and to open — and, at each opening, what it costs and what buys the cost back.</p>
 
-<p>Which leaves the only question that finally matters, the one no technique answers on its own. For the actual decision in front of you — this type, this module, this boundary in this system — do you constrain, or do you open? That is judgment, and <a href="index.html#part-vi" title="Part VI: Judgment">Part VI</a> turns it into a working checklist for making the call.</p>
+<p>Which leaves the only question that finally matters, the one no technique answers on its own. For the actual decision in front of you — given a type, module, or boundary in a system — do you constrain, or do you open? That is judgment, and <a href="index.html#part-vi" title="Part VI: Judgment">Part VI</a> turns it into a working checklist for making the call.</p>
 </section>
 
 </article>
