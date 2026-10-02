@@ -72,13 +72,16 @@ class Shipped
   inherit Order
 feature
   tracking: Tracking_Id
-  create make(xs: Array[Line_Item], t: Tracking_Id) do
+  create make(xs: Array[Line_Item], t: Tracking_Id)
+  require
+    not_empty: xs.length &gt; 0        -- nothing ships without lines
+  do
     Order.init(xs)
     tracking := t
   end
 end</code></pre>
 
-<p>An <code>Order</code> is now <em>exactly one</em> of <code>Draft</code>, <code>Placed</code>, or <code>Shipped</code>. Notice how the fields divide. What every order has whatever its state — its line items — lives on the parent, so code that does not care which state it holds can simply read <code>o.items</code>; what belongs to a single state — a <code>total</code> or a <code>tracking</code> id — lives only on the class for that state, and is invisible everywhere else. There is no way to hold an order that is simultaneously shipped and empty, because <code>Shipped</code> and <code>Draft</code> are different types and the "empty" case only makes sense for a draft. The precondition on <code>Placed</code> goes one step further: it closes a door the type system alone could not, refusing at construction time to build a placed order with no items. <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a> develops this fully; for now, notice only the direction of the move — <em>fewer</em> representable states, checked <em>early</em>.</p>
+<p>An <code>Order</code> is now <em>exactly one</em> of <code>Draft</code>, <code>Placed</code>, or <code>Shipped</code>. Notice how the fields divide. Every order can have its own local state, but its line items lives on the parent and can be simply accessed as <code>o.items</code> from any routine. Values like<code>tracking</code> id lives only in the class that needs it, and is invisible everywhere else. A shipped order cannot be mistaken for a draft, because <code>Shipped</code> and <code>Draft</code> are different types. The preconditions on <code>Placed</code> and <code>Shipped</code> go one step further: they close a door the type system alone could not, refusing at construction time to build a placed or shipped order with no items. Only a draft may be empty. <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a> develops this fully; for now, notice only the direction of the move — <em>fewer</em> representable states, checked <em>early</em>.</p>
 </section>
 
 <section id="the-flexibility-tradition" class="level2" data-number="1.2">
@@ -108,7 +111,7 @@ end</code></pre>
 
 <p>The <strong>core</strong> is the part of the system whose correctness is not negotiable — the domain model, the invariants that define what a valid order or a valid price even <em>is</em>. That belongs to the constraint tradition. Make illegal states unrepresentable there; enumerate the cases; let the compiler be more responsible. The core should be the part of the program you are least afraid of, because it is the part that can least afford to be wrong.</p>
 
-<p>The <strong>edge</strong> is the part that must absorb change you cannot predict. This include pricing rules, payment methods, export formats and integrations. All of those belong to the flexibility tradition. Leave it open; let it grow by registration and extension rather than by editing a closed enumeration. The edge should be the part of the program you can change without holding your breath, because it was built expecting to be changed.</p>
+<p>The <strong>edge</strong> is the part that must absorb change you cannot predict. This includes pricing rules, payment methods, export formats and integrations. All of those belong to the flexibility tradition. Leave it open; let it grow by registration and extension rather than by editing a closed enumeration. The edge should be the part of the program you can change without holding your breath, because it was built expecting to be changed.</p>
 
 <p>The <strong>membrane</strong> is what makes the arrangement hold together instead of leaking. When an open edge hands a value to a constrained core (examples: a price computed by some rule the core has never heard of, or an input parsed from a format that did not exist last year), the core cannot rely on the compiler to vouch for it, because the whole point of the edge was to stay outside the compiler's knowledge. What the core <em>can</em> rely on is a stated contract: a precondition the value must satisfy to cross the boundary and a postcondition the edge promised to uphold. The contract is the handshake that lets a closed core accept work from an open edge without either side having to become the other.</p>
 

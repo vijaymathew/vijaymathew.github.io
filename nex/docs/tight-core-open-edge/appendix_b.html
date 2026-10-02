@@ -29,12 +29,12 @@
 
 <p>This appendix collects the running example into a single coherent program: a tightly-modelled order core, an open pricing engine, a contract membrane between them, fulfillment routing by unification and search, and a thin imperative shell. It is organized bottom-up — leaf types first, orchestration last — so each section depends only on the ones above it.</p>
 
-<p>To keep the listing about the architecture rather than about currency arithmetic and string parsing, two things at the very edges are taken as given, with the exact interface the rest of the code relies on. Everything else is complete.</p>
+<p>To keep the listing about the architecture rather than about currency arithmetic and string parsing, two things at the very edges are taken as given, with the exact interface the rest of the code relies on. So is the outside world itself: the request type <code>Order_Request</code>, the infrastructure interfaces (<code>Payment_Gateway</code>, <code>Mailer</code>, <code>Order_Store</code>, <code>Warehouse_Api</code>), and, in the last section, the values a real deployment would supply (the incoming request, the clock reading, the threshold, and the infrastructure objects). Everything else is complete.</p>
 
 <section id="assumed" class="level2" data-number="B.1">
 <h2 class="anchored" data-anchor-id="assumed"><span class="header-section-number">B.1</span> Assumed Leaf Types and Boundary Parser</h2>
 
-<p>The primitive value types are treated as a small library. <code>Money</code> is an amount with a currency. Its arithmetic is written with the ordinary operators, because a Nex class earns an operator by binding a routine to it: <code>minus</code> declares <code>alias "-"</code>, and <code>a - b</code> is then exactly <code>a.minus(b)</code> — precondition and all. That is why <code>same_currency</code> can be a <em>contract</em> on the subtraction rather than a check every caller must remember. The comparisons come the same way, from <code>Comparable</code>'s <code>compare</code>, and value equality from <code>equals</code>. Only the zero has no notation: a Nex class has no members of its own, so a zero is made with a constructor and, because an amount of nothing is still an amount of nothing <em>in some currency</em>, it is made in one; the sign predicates <code>is_negative</code> and <code>is_positive</code> spare the contracts from having to conjure one at all. Two further domain operations are used by pricing: <code>less_percent(pct)</code> and <code>times(n)</code>. <code>Sku</code>, <code>Email_Address</code>, <code>Tracking_Id</code>, and <code>Instant</code> are opaque identifiers and timestamps.</p>
+<p>The primitive value types are treated as a small library. <code>Money</code> is an amount with a currency. Its arithmetic is written with the ordinary operators, because a Nex class earns an operator by binding a routine to it: <code>minus</code> declares <code>alias "-"</code>, and <code>a - b</code> is then exactly <code>a.minus(b)</code> — precondition and all. That is why <code>same_currency</code> can be a <em>contract</em> on the subtraction rather than a check every caller must remember. The comparisons come the same way, from <code>Comparable</code>'s <code>compare</code>, and value equality from <code>equals</code>. Only the zero has no notation. A class constant would have to fix one currency, and an amount of nothing is still an amount of nothing <em>in some currency</em>, so a zero is made with a constructor that takes the currency; the sign predicates <code>is_negative</code> and <code>is_positive</code> spare the contracts from having to conjure one at all. Two further domain operations are used by pricing: <code>less_percent(pct)</code> and <code>times(n)</code>. <code>Sku</code>, <code>Email_Address</code>, <code>Tracking_Id</code>, and <code>Instant</code> are opaque identifiers and timestamps.</p>
 
 <pre><code>-- Assumed value types (a small supporting library):
 --   Money           : create Money.make(amount: Integer, currency: String)
@@ -116,7 +116,9 @@ end
 
 class Shipped
   inherit Order
-  create make(xs: Array[Line_Item], t: Tracking_Id) do Order.init(xs)  tracking := t end
+  create make(xs: Array[Line_Item], t: Tracking_Id)
+  require not_empty: xs.length &gt; 0
+  do Order.init(xs)  tracking := t end
 feature
   tracking: Tracking_Id
 end
@@ -173,13 +175,14 @@ feature
   percent: Integer
   base: Price_Expr
   eval(d: Draft): Money
-  require valid_percent: percent &gt;= 0 and percent &lt;= 100
   do result := base.eval(d).less_percent(percent)
   ensure no_increase: result &lt;= base.eval(d)
   end
-  end
+invariant
+  valid_percent: percent &gt;= 0 and percent &lt;= 100
+end
 
-  class When inherit Price_Expr
+class When inherit Price_Expr
   create make(s: Spec[Draft], t: Price_Expr, e: Price_Expr)
   do condition := s  yes := t  no := e end
 feature
@@ -276,11 +279,21 @@ feature
   end
 end
 
+-- Is t the variable called name?
+function is_var(t: Term, name: String): Boolean
+do
+  match t of
+    Var(name as n) then result := n = name
+    else result := false
+  end
+end
+
 function unify(a: Term, b: Term, s: Substitution): Result[Substitution, String]
 do
   let x: Term := s.resolve(a)
   let y: Term := s.resolve(b)
   match x of
+    Var(name) if is_var(y, name) then result := create Ok[Substitution, String].make(s)
     Var(name) then result := create Ok[Substitution, String].make(s.bind(name, y))
     Atom as ax then result := unify_atom(ax, y, s)
     Compound as cx then result := unify_compound(cx, y, s)
@@ -338,6 +351,15 @@ end
 function satisfies_constraints(s: Substitution): Boolean
   do result := s.bindings.contains_key("Warehouse") end
 
+-- route's postcondition: a committed answer satisfies the domain.
+function is_admissible(r: Result[Substitution, String]): Boolean
+do
+  match r of
+    Ok as ok then result := satisfies_constraints(ok.value)
+    Err then result := true
+  end
+end
+
 function warehouse_of(s: Substitution): String
 do
   match s.resolve(create Var.make("Warehouse")) of
@@ -371,6 +393,8 @@ do
     end
     i := i + 1
   end
+ensure
+  satisfies_domain: is_admissible(result)
 end</code></pre>
 </section>
 
@@ -478,8 +502,8 @@ do
 end
 
 let routes: Array[Term] := []
--- routes.add(route_fact("zone-a", "wh-1", "ups", "500"))
--- routes.add(route_fact("zone-b", "wh-2", "fedex", "650"))
+routes.add(route_fact("zone-a", "wh-1", "ups", "500"))
+routes.add(route_fact("zone-b", "wh-2", "fedex", "650"))
 
 let outcome: Result[Placed, String] :=
   handle_request(incoming, rule, routes, now,

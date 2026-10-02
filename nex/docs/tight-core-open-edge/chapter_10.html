@@ -36,12 +36,12 @@
 
 <p>The shift is from writing behaviors to writing them <em>down</em>. A domain-specific language has the same two parts as any combinator system (<a href="chapter_7.html" title="Chapter 7: Combinators: Building by Composition">Chapter 7</a>): a set of <em>terms</em> — the primitive words — and <em>combining forms</em> that assemble terms into larger terms. The difference is one of intent. Here the terms are chosen to read as the domain reads, so that a pricing rule expressed in the language looks like a description of a pricing rule, not like the code that implements one.</p>
 
-<p>We build it <em>embedded</em> first — as an algebra of values in Nex itself, no parser, no new syntax. A pricing rule becomes a value of a type <code>Price_Expr</code>: an expression that, given an order, evaluates to a price. The interpreter is a single method, <code>eval</code>, that every term implements.</p>
+<p>We build it <em>embedded</em> first — as an algebra of values in Nex itself, no parser, no new syntax. A pricing rule becomes a value of a type <code>Price_Expr</code>: an expression that, given an order, evaluates to a price. The order it is given is a <code>Draft</code>, not a <code>Placed</code>: the price is what the core needs before it will place an order (<a href="chapter_15.html" title="Chapter 15: Capstone: One System, Both Disciplines">Chapter 15</a>), so pricing has to happen first. The interpreter is a single method, <code>eval</code>, that every term implements.</p>
 
-<pre><code>-- The language: any pricing expression can be evaluated against an order.
+<pre><code>-- The language: any pricing expression can be evaluated against a draft order.
 deferred class Price_Expr
 feature
-  eval(order: Placed): Money deferred   -- each term provides this
+  eval(order: Draft): Money deferred   -- each term provides this
 end</code></pre>
 
 <p>As with <code>Spec[T]</code> and <code>Handler</code>, the interface is <code>deferred</code> and open — new terms are new subclasses, and the vocabulary grows without editing what exists.</p>
@@ -50,11 +50,11 @@ end</code></pre>
 <section id="the-terms" class="level2" data-number="10.2">
 <h2 class="anchored" data-anchor-id="the-terms"><span class="header-section-number">10.2</span> The Words of the Language</h2>
 
-<p>Each term is a small class, and the combining terms hold sub-expressions — closure again, so expressions nest to any depth. The base term is the order's own total; the rest transform it.</p>
+<p>Each term is a small class, and the combining terms hold sub-expressions — closure again, so expressions nest to any depth. The base term is the sum of the draft's lines; the rest transform it.</p>
 
 <pre><code>class Base inherit Price_Expr
 feature
-  eval(order: Placed): Money do result := order.total end
+  eval(order: Draft): Money do result := sum_of(order.items) end
 end
 
 class Percent_Off inherit Price_Expr
@@ -62,26 +62,26 @@ class Percent_Off inherit Price_Expr
 feature
   percent: Integer
   base: Price_Expr
-  eval(order: Placed): Money
-  require
-    valid_percent: percent &gt;= 0 and percent &lt;= 100
+  eval(order: Draft): Money
   do
     result := base.eval(order).less_percent(percent)
   ensure
     no_increase: result &lt;= base.eval(order)      -- a discount never raises the price
   end
+invariant
+  valid_percent: percent &gt;= 0 and percent &lt;= 100   -- checked from construction on
 end</code></pre>
 
-<p>The conditional term is a <code>Spec[Placed]</code> — the very specification algebra of <a href="chapter_7.html" title="Chapter 7: Combinators: Building by Composition">Chapter 7</a>. The two small languages compose, one supplying the <em>questions</em> and the other the <em>prices</em>.</p>
+<p>The conditional term is a <code>Spec[Draft]</code> — the very specification algebra of <a href="chapter_7.html" title="Chapter 7: Combinators: Building by Composition">Chapter 7</a>, asked of a draft instead of a placed order. The two small languages compose, one supplying the <em>questions</em> and the other the <em>prices</em>.</p>
 
 <pre><code>class When inherit Price_Expr
-  create make(s: Spec[Placed], t: Price_Expr, e: Price_Expr)
+  create make(s: Spec[Draft], t: Price_Expr, e: Price_Expr)
   do condition := s  yes := t  no := e end
 feature
-  condition: Spec[Placed]
+  condition: Spec[Draft]
   yes: Price_Expr
   no: Price_Expr
-  eval(order: Placed): Money
+  eval(order: Draft): Money
   do
     if condition.holds(order) then
       result := yes.eval(order)
@@ -96,7 +96,7 @@ class Floored inherit Price_Expr
   create make(inner: Price_Expr) do base := inner end
 feature
   base: Price_Expr
-  eval(order: Placed): Money
+  eval(order: Draft): Money
   do
     let p: Money := base.eval(order)
     if p &lt; order.floor_price then
@@ -115,11 +115,11 @@ end</code></pre>
 let holiday_rule: Price_Expr :=
   create Floored.make(
     create When.make(
-      create Loyalty_Member,                        -- a Spec[Placed]
+      create Loyalty_Member,                        -- a Spec[Draft]
       create Percent_Off.make(10, create Base),
       create Base))
 
-let quote: Money := holiday_rule.eval(order)</code></pre>
+let quote: Money := holiday_rule.eval(draft)</code></pre>
 </section>
 
 <section id="rules-are-data" class="level2" data-number="10.3">
@@ -137,16 +137,16 @@ let quote: Money := holiday_rule.eval(order)</code></pre>
 
 <p>A language is a wider opening than a table, and it lets in a new kind of author. Handlers were written by programmers; rules in a domain language are written by pricing managers, loaded from configuration, assembled by a UI. The values flowing through the interpreter are now, in the fullest sense, untrusted — and the type checker, which never saw the external ones at all, is more silent than ever. So the interpreter must carry its guarantees itself.</p>
 
-<p>It does so in two layers. Each term states its own contract: <code>Percent_Off</code> requires a percentage in range and ensures it never raises the price; <code>Floored</code> ensures its result respects the order's floor. Because these contracts live on <code>eval</code>, they hold no matter how the term was assembled — hand-written, deserialized, or emitted by a builder — and no matter how deeply it is nested. A malformed sentence in the language fails at the term that is malformed, named and located, rather than producing a quietly wrong price.</p>
+<p>It does so in two layers. Each term states its own contract: <code>Percent_Off</code>'s invariant keeps its percentage in range, and its <code>eval</code> ensures it never raises the price; <code>Floored</code> ensures its result respects the order's floor. The percentage is an invariant rather than a precondition on <code>eval</code> because it is a fact about the term, not something a caller of <code>eval</code> could arrange, and <code>Price_Expr</code>'s callers were promised no such condition (<a href="chapter_8.html#layers-and-contracts" title="Section 8.5: A Layer Must Keep the Base&#x27;s Promise">§8.5</a>). Because these contracts live on the terms themselves, they hold no matter how the term was assembled — hand-written, deserialized, or emitted by a builder — and no matter how deeply it is nested. A malformed sentence in the language fails at the term that is malformed, named and located, rather than producing a quietly wrong price.</p>
 
-<p>And the whole interpreter sits behind the same membrane as everything on the open edge. Whatever tree it evaluates, the price it hands back crosses into the constrained core only through the engine's postcondition from <a href="chapter_9.html#contracts-take-over" title="Section 9.5: Contracts Take Over the Guarding">§9.5</a> — non-negative, right currency, and, via a term like <code>Floored</code>, above the floor. The language is free to grow new words indefinitely; the core still accepts their output only on its stated terms. Openness in the vocabulary, constraint at the boundary — just one level up.</p>
+<p>And the whole interpreter sits behind the same membrane as everything on the open edge. Nothing in <code>eval</code> itself checks the price it hands back, and it does not need to. That price reaches the constrained core only by passing a membrane: the core's own <code>apply_quote</code> (<a href="chapter_2.html#contracts-as-membrane" title="Section 2.6: Contracts as the Membrane">§2.6</a>), or the engine's postconditions (<a href="chapter_9.html#contracts-take-over" title="Section 9.5: Contracts Take Over the Guarding">§9.5</a>) if the rule is installed as a handler behind the engine. Either way it must be non-negative, in the right currency, and not below the floor. A term like <code>Floored</code> exists so that well-written rules meet the last of those terms by construction, rather than by being rejected. The language is free to grow new words indefinitely; the core still accepts their output only on its stated terms. Openness in the vocabulary, constraint at the boundary — just one level up.</p>
 
 </section>
 
 <section id="embedded-vs-external" class="level2" data-number="10.5">
 <h2 class="anchored" data-anchor-id="embedded-vs-external"><span class="header-section-number">10.5</span> How Far to Open the Language</h2>
 
-<p>Embedded and external DSLs sit at different points on the openness scale, and choosing between them is a judgment we will return to. An <em>embedded</em> language is cheaper and safer: no parser, and the host compiler checks every rule you write in code. Its ceiling is that only programmers can write rules, and only at build time. An <em>external</em> language — its own syntax, parsed from text — is more work and gives up the compiler entirely, but it opens authorship to the whole business and to runtime. The more the vocabulary must grow in hands that are not the programmers', the further toward external you go, and the more of the guarding shifts from types to parsing (<a href="chapter_4.html" title="Chapter 4: Parse, Don&#x27;t Validate: Boundaries and Trust">Chapter 4</a>) and contracts.</p>
+<p>Embedded and external DSLs sit at different points on the openness scale, and choosing between them is a judgment we will return to. An <em>embedded</em> language is cheaper and safer: no parser, and the host compiler checks every rule you write in code. Its ceiling is that the compiler checks only the rules programmers write as source, at build time. A tree assembled at runtime — loaded from storage or emitted by a rule builder, as in <a href="#rules-are-data" title="Section 10.3: A Rule Is Now Data">§10.3</a> — gets no compile-time check at all. It is already the external form in all but syntax, and it relies on the term contracts of <a href="#contracts-guard-the-language" title="Section 10.4: Contracts Guard the Sentences">§10.4</a>. An <em>external</em> language — its own syntax, parsed from text — is more work and gives up the compiler entirely, but it opens authorship to the whole business and to runtime. The more the vocabulary must grow in hands that are not the programmers', the further toward external you go, and the more of the guarding shifts from types to parsing (<a href="chapter_4.html" title="Chapter 4: Parse, Don&#x27;t Validate: Boundaries and Trust">Chapter 4</a>) and contracts.</p>
 
 <p>Most systems want a point in between which could be reached by having an embedded core algebra of terms (what we have right now), with an external front that parses untrusted text into that same validated tree. Parse once at the boundary; evaluate a trusted expression thereafter. The domain gets its language; the core keeps its guarantees.</p>
 </section>
@@ -154,9 +154,9 @@ let quote: Money := holiday_rule.eval(order)</code></pre>
 <section id="toward-extensible-evaluators" class="level2" data-number="10.6">
 <h2 class="anchored" data-anchor-id="toward-extensible-evaluators"><span class="header-section-number">10.6</span> Toward Evaluators You Can Extend</h2>
 
-<p>We now have a domain language whose sentences are data and whose interpreter is a method that walks them. Its vocabulary is open — new terms extend it — but the interpreter itself is still a fixed thing: <code>eval</code> is defined once, and the set of operations the language supports is whatever the terms implement. The rules can grow; the <em>evaluator</em> cannot, not without editing it.</p>
+<p>We now have a domain language whose sentences are data and whose interpreter is a method that walks them. Its vocabulary is open — new terms extend it — but each word is two things at once: a new shape of expression and the code that evaluates it, fused in one class. A rule can be built only from the classes the program was compiled with, and a rule stored as text can name a word only through a registry someone keeps in step by hand (<a href="#rules-are-data" title="Section 10.3: A Rule Is Now Data">§10.3</a>). The structure of the language and its vocabulary are one and the same.</p>
 
-<p>The last step of the frontier removes even that limit. What if the interpreter's own primitives could be added at runtime — if the language could be taught new fundamental operations, not just new combinations of old ones, while it is running? That is an evaluator you can extend, the logical endpoint of generic operations. It is the most open construction we have built so far, and, unsurprisingly, the one that leans hardest of all on contracts to stay reliable.</p>
+<p>The last step of the frontier pulls them apart. What if the shapes of expressions were fixed, and the words were names the evaluator looks up as it runs — so that new fundamental operations could be installed while it is running, and a rule could name an operation that is resolved only when the rule is evaluated? That is an evaluator you can extend, the logical endpoint of generic operations. It is the most open construction we have built so far, and, unsurprisingly, the one that leans hardest of all on contracts to stay reliable.</p>
 </section>
 
 </article>
