@@ -91,7 +91,7 @@ feature
   end
 end</code></pre>
 
-<p>The engine is now <em>closed to modification and open to extension</em> in the strongest sense we have seen. It has no branch per rule, no <code>match</code> to keep exhaustive, no knowledge of any specific rule at all. To teach it a new rule kind, you never touch this class.</p>
+<p>The engine is now <em>closed to modification and open to extension</em> in the strongest sense we have seen. It has no branch per rule and no knowledge of any specific rule at all. To teach it a new rule kind, you never touch this class.</p>
 </section>
 
 <section id="adding-a-rule" class="level2" data-number="9.3">
@@ -120,7 +120,7 @@ feature
   end
 end</code></pre>
 
-<p>Registering it wires the kind to its handler — and a second, entirely new rule slots in the same way, with zero edits to <code>Pricing_Engine</code>, to <code>Placed</code>, or to any existing rule:</p>
+<p>Registering it wires the kind to its handler — and a second, entirely new rule slots in the same way, with zero edits to <code>Pricing_Engine</code> or to any existing rule:</p>
 
 <pre><code>engine.register("percent_off", create Percent_Off_Handler)
 
@@ -129,7 +129,7 @@ engine.register("loyalty_tier", create Loyalty_Handler.make())
 
 let quoted: Money := engine.price(rule, order)</code></pre>
 
-<p>The set of pricing rules is now genuinely open: a new rule is new code in a new file, and the engine, the order core, and every existing rule are untouched. Both axes of growth — new kinds, and new operations if we add more tables — are additive. This is the <em>expression problem</em>, and the table sidesteps it rather than solving it. As Wadler posed the problem, it asks for both axes of growth <em>without giving up static type safety</em>. The table gets both axes by keeping the association between kind and behavior in data, where anyone can add to it, and pays for that with static safety at the one point where a kind meets its handler. That is the trade the next section makes explicit.</p>
+<p>The set of pricing rules is now genuinely open: a new rule is new code in a new file, and nothing that already exists is touched. Both axes of growth — new kinds, and new operations if we add more tables — are additive. This is the <em>expression problem</em>, and the table sidesteps it rather than solving it. As Wadler posed the problem, it asks for both axes of growth <em>without giving up static type safety</em>. The table gets both axes by keeping the association between kind and behavior in data, where anyone can add to it, and pays for that with static safety at the one point where a kind meets its handler. That is the trade the next section makes explicit.</p>
 </section>
 
 <section id="where-types-fall-silent" class="level2" data-number="9.4">
@@ -155,7 +155,7 @@ let quoted: Money := engine.price(rule, order)</code></pre>
 
 <div class="thesis">Types close the doors you can name in advance. Contracts guard the doorways you cannot — and a generic operation is a doorway left open on purpose, so a value from a rule that did not exist when the engine was written can still be trusted only on the engine's stated terms.</div>
 
-<p>Those postconditions are not new. They are the <em>membrane</em> from <a href="chapter_2.html" title="Chapter 2: Contracts as a Design Tool">Chapter 2</a>, finally doing its real work. Recall <code>apply_quote</code>, the core's boundary routine, whose precondition demanded a price be non-negative, in the order's currency, and not below the order's floor before the core would accept it. The engine's postcondition is the matching promise on the other side of that boundary: the open pricing edge <em>guarantees</em> exactly what the constrained core <em>requires</em>. Neither side sees inside the other; the contract is the whole of their agreement. This is the arrangement the first chapter sketched — constrain the core, open the edge, let contracts be the membrane between them — running for real, with a genuinely open edge on one side and a genuinely closed core on the other.</p>
+<p>Those postconditions are not new. They are the <em>membrane</em> from <a href="chapter_2.html" title="Chapter 2: Contracts as a Design Tool">Chapter 2</a>, finally doing its real work. Recall <code>apply_quote</code>, the core's boundary routine, whose precondition stated the terms on which the core would accept a price. The engine's postcondition is the matching promise on the other side of that boundary: the open pricing edge <em>guarantees</em> exactly what the constrained core <em>requires</em>. Neither side sees inside the other; the contract is the whole of their agreement. This is the arrangement the first chapter sketched — constrain the core, open the edge, let contracts be the membrane between them — running for real, with a genuinely open edge on one side and a genuinely closed core on the other.</p>
 </section>
 
 <section id="the-considered-trade" class="level2" data-number="9.6">

@@ -23,11 +23,11 @@
 <div class="opener">
 <span class="opener-label">Chapter 12 · Part V</span>
 <h1 class="opener-title">Propagators: Computing with Partial Knowledge</h1>
-<p class="opener-lede">Some answers do not reduce from inputs to output. They accumulate — from many directions, in any order, out of fragments — and settle into place. This is computation as a network of partial knowledge, kept reliable by invariants.</p>
+<p class="opener-lede">Some answers do not reduce from inputs to output. They accumulate — from many directions and in any order — and settle into place. This is computation as a network of partial knowledge, kept reliable by invariants.</p>
 </div>
 <article class="prose">
 
-<p>Every technique so far, however open, has computed in one direction. A workflow flows a draft to a shipment; an evaluator pulls a price from the leaves of an expression to its root. Inputs go in; an output comes out; the direction is fixed. <a href="index.html#part-v" title="Part V: Flexibility Under Partial Information">Part V</a> is about problems that refuse that shape — where knowledge arrives in fragments, from several directions at once, and the answer must be assembled rather than reduced.</p>
+<p>Every technique so far, however open, has computed in one direction. A workflow flows a draft to a shipment; an evaluator pulls a price from the leaves of an expression to its root. Inputs go in and an output comes out, always in that direction. <a href="index.html#part-v" title="Part V: Flexibility Under Partial Information">Part V</a> is about problems that refuse that shape — where knowledge arrives in fragments, from several directions at once, and the answer must be assembled rather than reduced.</p>
 
 <p>The quoting problem in the running system is exactly this. What an order finally costs is constrained from many independent directions. For instance, inventory bounds what can be fulfilled, while a promotion lowers the ceiling. The order's floor raises the base, while the tax jurisdiction shifts the total and shipping adds to it. None of these is <em>the</em> input; each is a partial fact about the same unknown quote, and they may arrive in any order, some late, some never. A function cannot model this, because a function must know its inputs before it runs. What models it is a <strong>propagator network</strong>.</p>
 
@@ -36,7 +36,7 @@
 
 <p>You already rely on propagator networks daily, under other names. A <em>spreadsheet</em> is one: cells hold values, formulas connect them, and changing one cell wakes every formula that depends on it, which updates its cell, which wakes the next — computation spreading through a network until it settles. Reactive UI <em>signals</em> are the same idea: a derived value recomputes when any source changes. A <em>constraint layout</em> engine, like the one behind Auto Layout, solves position and size from constraints that arrive from all sides. An <em>incremental build</em> system repropagates only what a change can reach. Each is a special case of one general model: cells that hold information, and machines that keep the cells consistent as information arrives.</p>
 
-<p>The generalization, due to Radul and Sussman, makes two moves past the spreadsheet. First, a cell holds not a value but <em>partial knowledge</em> — it may know nothing yet, or a range, or an exact value, or that it has been told contradictory things. Second, the connections are <em>multi-directional</em>: where a spreadsheet formula computes one cell from others, a propagator can run whichever way the available knowledge allows. Together these let a network compute with what it has, from wherever it comes, in whatever order it arrives.</p>
+<p>The generalization, due to Radul and Sussman, makes two moves past the spreadsheet. First, a cell holds not a value but <em>partial knowledge</em> — it may know nothing yet, or a range, or an exact value, or that it has been told contradictory things. Second, the connections are <em>multi-directional</em>: where a spreadsheet formula computes one cell from others, a propagator can run whichever way the available knowledge allows. Together these let a network compute with what it has, in whatever order it arrives.</p>
 </section>
 
 <section id="cells-and-partial-info" class="level2" data-number="12.2">
@@ -188,7 +188,7 @@ end</code></pre>
 <section id="invariants-keep-it-honest" class="level2" data-number="12.5">
 <h2 class="anchored" data-anchor-id="invariants-keep-it-honest"><span class="header-section-number">12.5</span> Invariants Keep the Network Reliable</h2>
 
-<p>An open, multi-directional network is a frightening thing to trust. There is no single evaluation order to trace, no function signature that captures what it computes, and any number of independently-authored sources feeding it at once. What stops two of those sources from quietly disagreeing — like a promotion insisting the price is at most ten versus a floor insisting it is at least twelve — and the network settling on a confident, wrong number?</p>
+<p>An open, multi-directional network is a frightening thing to trust. There is no single evaluation order to trace, and any number of independently-authored sources feed it at once. What stops two of those sources from quietly disagreeing — like a promotion insisting the price is at most ten versus a floor insisting it is at least twelve — and the network settling on a confident, wrong number?</p>
 
 <p>The invariant does. Look again at <code>Price_Range</code>: its <code>ordered</code> invariant, and the matching precondition on <code>make</code>, say that the low bound may never exceed the high. When two sources disagree, their merge tries to construct a range whose low is above its high — and the contract fires, at the exact moment and place the contradiction entered, naming it. A silent wrong answer becomes a located, explained failure. <em>In a network too open for the type system to check, the invariant is what catches the inconsistency.</em> Constraint does not disappear at the most flexible edge of the system; it moves into the merge, where it guards a computation no signature could describe.</p>
 
@@ -203,7 +203,7 @@ end</code></pre>
 <p>The resolution is to record not just <em>what</em> a cell knows but <em>why</em> — the provenance of each contribution, the set of premises it rests on. A cell's content becomes knowledge-relative-to-assumptions, and retracting a premise means recomputing the cell from the contributions that did not depend on it. Within any fixed set of assumptions, information is still monotone and the network still settles; across a change of assumptions, a supervising layer — a truth-maintenance system — rebuilds what the withdrawn premise supported. The withdrawn promo cleanly retracts, not by reversing time, but by asking what the network would have known without it.</p>
 
 
-<p>Propagators show flexibility in a new dimension — not an open <em>vocabulary</em>, as in <a href="index.html#part-iv" title="Part IV: Opening the Frontier">Part IV</a>, but an open <em>topology</em>: any number of sources, in any direction, over time. There is one more species of partial-knowledge computation to meet. Instead of narrowing numeric ranges, it matches and merges <em>structures</em> — asking not "what is the price?" but "what assignment of unknowns makes these shapes agree?", and searching when more than one might. That is unification and search.</p>
+<p>Propagators show flexibility in a new dimension — not an open <em>vocabulary</em>, as in <a href="index.html#part-iv" title="Part IV: Opening the Frontier">Part IV</a>, but an open <em>topology</em>, with sources arriving from any direction and at any time. There is one more species of partial-knowledge computation to meet. Instead of narrowing numeric ranges, it matches and merges <em>structures</em> — asking not "what is the price?" but "what assignment of unknowns makes these shapes agree?", and searching when more than one might. That is unification and search.</p>
 </section>
 
 </article>
