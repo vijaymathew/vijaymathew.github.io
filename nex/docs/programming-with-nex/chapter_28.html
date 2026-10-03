@@ -37,11 +37,11 @@
 <li><code>Channel[T]</code> moves values between tasks</li>
 <li><code>select</code> waits for whichever communication or task completion becomes ready first</li>
 </ul>
-<p>The design goal is clarity. Concurrency is difficult enough already. The language should help you say what is running concurrently, how results are collected, and where coordination happens.</p>
+<p>The design goal is clarity. Concurrency is difficult enough already. The language should help you say what is running concurrently and where coordination happens.</p>
 <section class="level2" data-number="29.1" id="why-tasks-instead-of-shared-objects">
 <h2 class="anchored" data-anchor-id="why-tasks-instead-of-shared-objects" data-number="29.1"> Why Tasks Instead of Shared Objects</h2>
 <p>There are two broad ways to structure concurrent programs.</p>
-<p>One style shares mutable objects and synchronises access with locks, monitors, or similar mechanisms. That can work, but it pushes a great deal of reasoning burden onto the programmer. Every shared variable becomes a potential source of races, stale reads, or deadlocks.</p>
+<p>One style shares mutable objects and synchronises access with locks, monitors, or similar mechanisms. That can work, but it pushes a great deal of reasoning burden onto the programmer. Every shared variable becomes a potential source of races or deadlocks.</p>
 <p>Nex takes a different starting point:</p>
 <ul>
 <li>start work in explicit tasks</li>
@@ -295,7 +295,7 @@ worker.await</code></pre>
 </section>
 <section class="level2" data-number="29.14" id="sharing-state-directly-the-atomic-types">
 <h2 class="anchored" data-anchor-id="sharing-state-directly-the-atomic-types" data-number="29.14"> Sharing State Directly: The Atomic_* Types</h2>
-<p>We have so far followed the advice: hand a value to another task through a channel rather than share an object between them. But sometimes the thing you want to share genuinely <em>is</em> one small piece of state — a counter, a flag or a cached last-computed value. Building a channel-based protocol around a single state could be more machinery than the problem needs.</p>
+<p>We have so far followed the advice: hand a value to another task through a channel rather than share an object between them. But sometimes the thing you want to share genuinely <em>is</em> one small piece of state — a counter or a flag. Building a channel-based protocol around a single state could be more machinery than the problem needs.</p>
 <p>Nex provides four small classes for exactly that: <code>Atomic_Integer</code>, <code>Atomic_Integer64</code> (the same 64-bit representation under a second name), <code>Atomic_Boolean</code>, and <code>Atomic_Reference[T]</code>. Each guarantees that every task sees a consistent value, with no channel or task boundary required to read or write it.</p>
 <pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
 hits.increment

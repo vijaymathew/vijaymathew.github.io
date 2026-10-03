@@ -32,7 +32,7 @@
 <p>Now that we are comfortable with the basic mechanics of defining a class, let's think more about judgment — the harder question of what a class should contain and why. Knowing how to write a class is a matter of an hour. Knowing how to design one well is a matter of years. We cannot compress those years, but we can identify the principles that guide good decisions and figure out what those principles look like in practice.</p>
 <section class="level2" data-number="14.1" id="one-class-one-responsibility">
 <h2 class="anchored" data-anchor-id="one-class-one-responsibility" data-number="14.1"> One Class, One Responsibility</h2>
-<p>The most reliable principle in class design is also the simplest to state: a class should have one responsibility. It should model one concept, manage one piece of state, and give callers one reason to use it.</p>
+<p>The most reliable principle in class design is also the simplest to state: a class should have one responsibility. It should model one concept, and give callers one reason to use it.</p>
 <p>A class that has one responsibility is easy to name. If you find yourself reaching for a name like <code>User_Manager_And_Formatter</code> or <code>Order_Processor_With_Logging</code>, the class is doing too much. A class that is hard to name is usually a class that has not yet been designed — it is a collection of code that happens to share a file.</p>
 <p>Consider the difference between these two designs for a student record:</p>
 <pre><code>nex&gt; -- one class doing too much
@@ -90,7 +90,7 @@ nex&gt; class Student
          result := result / scores.length
        end
      end</code></pre>
-<p><code>Student</code> manages student data and computes statistics intrinsic to a student. Sending email belongs to an email service. Exporting to CSV belongs to a report generator. Each class has one reason to exist.</p>
+<p><code>Student</code> manages student data and computes statistics intrinsic to a student, while sending email and exporting to CSV belong to services of their own. Each class has one reason to exist.</p>
 </section>
 <section class="level2" data-number="14.2" id="what-belongs-inside-a-class">
 <h2 class="anchored" data-anchor-id="what-belongs-inside-a-class" data-number="14.2"> What Belongs Inside a Class</h2>
@@ -99,7 +99,7 @@ nex&gt; class Student
 <p>A method does not belong inside a class when:</p>
 <ul>
 <li>It does not need access to any private fields and could be written as a free function</li>
-<li>It represents an operation from an external perspective — formatting for display, persisting to a database, sending over a network</li>
+<li>It represents an operation from an external perspective — formatting for display, say, or persisting to a database</li>
 <li>It introduces a dependency on an external system that the class itself should not know about</li>
 </ul>
 <p>The last point deserves emphasis. There's no need for the <code>Student</code> class to depend on an email library or to know the CSV format. These dependencies belong to the systems that perform those operations, not to the data model they operate on. Keeping them out means <code>Student</code> can be used, tested, and changed without any knowledge of how it is displayed, exported, or communicated.</p>
@@ -154,7 +154,7 @@ nex&gt; class Student
          result := value
        end
      end</code></pre>
-<p>The name <code>next_value</code> sounds like a question, but calling it changes the object. A reader cannot tell from the name alone whether this is safe to call repeatedly, whether it is merely observing the counter, or whether it is advancing it.</p>
+<p>The name <code>next_value</code> sounds like a question, but calling it changes the object. A reader cannot tell from the name alone whether this is merely observing the counter or advancing it.</p>
 <p>The clearer design separates the two responsibilities:</p>
 <pre><code>nex&gt; class Counter
      private feature
@@ -180,11 +180,11 @@ nex&gt; class Student
 <li>commands should be named as actions and should make state changes explicit</li>
 <li>queries should answer questions and should not alter observable state</li>
 </ul>
-<p>That discipline makes classes easier to read, easier to trust, and easier to use correctly.</p>
+<p>That discipline makes classes easier to read and easier to use correctly.</p>
 </section>
 <section class="level2" data-number="14.5" id="classes-as-models">
 <h2 class="anchored" data-anchor-id="classes-as-models" data-number="14.5"> Classes as Models</h2>
-<p>A well-designed class is a model of a real-world entity, a domain concept, or an abstraction. The attributes and methods of the class represent the properties and operations that matter for the domain, everything else is left out.</p>
+<p>A well-designed class is a model of a real-world entity or a domain concept. The attributes and methods of the class represent the properties and operations that matter for the domain, everything else is left out.</p>
 <p>Consider modelling a playing card:</p>
 <pre><code>nex&gt; class Card
      create
@@ -211,7 +211,7 @@ nex&gt; ace.name
 
 nex&gt; ace.beats(seven)
 true</code></pre>
-<p><code>Card</code> does not include methods for shuffling (that belongs to <code>Deck</code>), dealing (that belongs to <code>Game</code>), or rendering to a screen (that belongs to a display layer). It models what a card <em>is</em> and what a card <em>does</em> in isolation.</p>
+<p><code>Card</code> does not include methods for shuffling (that belongs to <code>Deck</code>) or rendering to a screen (that belongs to a display layer). It models what a card <em>is</em> and what a card <em>does</em> in isolation.</p>
 </section>
 <section class="level2" data-number="14.6" id="the-difference-between-data-classes-and-behaviour-classes">
 <h2 class="anchored" data-anchor-id="the-difference-between-data-classes-and-behaviour-classes" data-number="14.6"> The Difference Between Data Classes and Behaviour Classes</h2>
@@ -244,7 +244,7 @@ true</code></pre>
        last_ordered_date: String
        reorder_threshold: Integer
      end</code></pre>
-<p>Apply the single responsibility question: what is a <code>Product</code>? A product has an identity (id, name, category), a price, and a description. Stock management belongs to an <code>Inventory</code> concept. Supplier information belongs to a <code>Supplier</code>. Last ordered date is an event record, not a product attribute.</p>
+<p>Apply the single responsibility question: what is a <code>Product</code>? A product has an identity (id, name, category), a price, and a description. Stock management and supplier information belong to concepts of their own (<code>Inventory</code> and <code>Supplier</code>), and the last-ordered date is an event record rather than a product attribute.</p>
 <p>The redesigned model:</p>
 <pre><code>nex&gt; class Product
      create
@@ -286,12 +286,12 @@ nex&gt; class Stock_Record
 <section class="level2" data-number="14.9" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="14.9"> Summary</h2>
 <ul>
-<li>A class should have one responsibility: one concept to model, one piece of state to manage, one reason to change</li>
+<li>A class should have one responsibility: one concept to model, and one reason to change</li>
 <li>A method belongs inside a class when it operates on private fields or represents an intrinsic operation; not when it introduces external dependencies or could be a free function</li>
 <li>Data and the behaviour that naturally governs it belong together; the class enforces invariants by controlling what operations are possible</li>
 <li>Prefer command-query separation: routines that change state should usually be distinct from routines that answer questions</li>
 <li>Model only what is needed; speculative fields and methods make classes harder to understand and change</li>
-<li>Data classes are centred on their attributes; behaviour classes on their methods; god classes on nothing in particular</li>
+<li>Data classes are centred on their attributes, behaviour classes on their methods</li>
 <li>Class names should be nouns a domain expert would recognise; names describing what a class does rather than what it is are a warning sign</li>
 <li>When a class has too many fields, ask which belong to different concepts and split accordingly</li>
 </ul>
