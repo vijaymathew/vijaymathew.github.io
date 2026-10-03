@@ -1,38 +1,49 @@
-<p class="opener-lede">The preceding chapters define the elaboration and evaluation of the phrases of
-Nex. This short chapter assembles them into the meaning of a whole program: how
-its declarations and statements are processed, and in what order.</p>
+<p class="opener-lede">The preceding chapters define how each phrase of Nex is checked
+and evaluated. This short chapter puts them together into the meaning of a whole
+program: how its declarations and statements are processed, and in what
+order.</p>
 
 <h2 id="sec-7.1"><span class="secno">7.1</span>The Two Worlds of a Program</h2>
 
-<p>Recall from Section&nbsp;<a href="syntax-modules.html#sec-3.1">3.1</a> that a program is a sequence of top-level items
-in any order, and that these fall into two kinds. The <em>declarations</em>
-&mdash; the classes, free functions, and type aliases, together with the
-module links that bring further declarations into scope &mdash; form the
-<strong>static world</strong>. The top-level <em>statements</em> form the
-<strong>dynamic world</strong>.</p>
+<p>As Section&nbsp;<a href="syntax-modules.html#sec-3.1">3.1</a> describes, a program is a sequence of top-level
+items in any order, of two kinds. The <em>declarations</em> (the classes, free
+functions and type aliases, together with the module links that bring further
+declarations into scope) form the <strong>static world</strong>. The top-level
+<em>statements</em> form the <strong>dynamic world</strong>.</p>
 
-<p>A program is processed by first building the static world in full, and
-then executing the dynamic world against it.</p>
+<p>A program is processed by first building the static world in full, and then
+executing the dynamic world against it. This is not the order in which the items
+are written. Every declaration is in scope throughout every other, so classes and
+functions may refer to one another freely, and a top-level statement runs only
+after the whole static world exists. The programmer therefore need not arrange
+declarations in order of dependency, and a top-level statement may use a class or
+function declared later in the file.</p>
 
-<p>This order is not the textual order of the items, but a reordering
-imposed by the Definition. Every declaration is in scope throughout every
-other, so classes and functions may refer to one another freely. A top-level
-statement runs only after the entire static world exists.</p>
+<pre><code>print(twice(4))
+let p := create Point.make()
+print(p.x)
 
-<p>The benefit is that the programmer need not arrange declarations in
-dependency order, and that forward reference among classes and functions is
-always available.</p>
+function twice(n: Integer): Integer do result := n * 2 end
 
-<p>The two worlds are not wholly sealed from one another: a function or
-class body may <em>read</em> a top-level <code>let</code> binding &mdash; a
-<em>global</em> &mdash; though it may not assign to one. Section&nbsp;<a href="#sec-7.4">7.4</a>
-gives the rule that keeps such reads well-defined.</p>
+class Point
+  create make() do x := 9 end
+feature
+  x: Integer
+end</code></pre>
+
+<p>The first three statements use a function and a class that are declared after
+them. The program prints <code>8</code> and then <code>9</code>.</p>
+
+<p>The two worlds are not wholly separate. A function or class body may
+<em>read</em> a variable declared by a top-level <code>let</code>, called a
+<em>global</em>, though it may not assign to one. Section&nbsp;<a href="#sec-7.4">7.4</a> gives the
+rule that keeps such reads well defined.</p>
 
 <h2 id="sec-7.2"><span class="secno">7.2</span>Building the Static World</h2>
 
-<p>The static world is built in stages, against the <em>standard environment</em>
-\(E_0\) of Appendix&nbsp;<a href="appendix-basis.html">B</a>&mdash;the classes and values that exist before any
-user code.</p>
+<p>The static world is built in three stages, starting from the <em>standard
+environment</em> of Appendix&nbsp;<a href="appendix-basis.html">B</a>: the classes and values that exist before
+any user code is loaded.</p>
 
 <ol>
   <li><strong>Module links.</strong> Each <code>import</code> declaration adds
@@ -53,11 +64,11 @@ user code.</p>
   subject to the same rule (Section&nbsp;<a href="static.html#sec-4.8.1">4.8.1</a>), by a qualified call rather
   than a qualified name.</p></li>
   <li><strong>Class and function registration.</strong> The names of all
-  classes and all functions (including the signatures announced by
-  <code>declare</code>) are entered into the class bindings \(\Sigma\), so
-  that every later step sees every name.</li>
+  classes and all functions, including the signatures announced by
+  <code>declare</code>, are put in scope (Section&nbsp;<a href="static.html#sec-4.2">4.2</a>), so that every
+  later step sees every name.</li>
   <li><strong>Elaboration.</strong> Each class is elaborated: its parents
-  are resolved, its fields and routines typed, and its contracts checked for
+  are resolved, its fields and methods typed, and its contracts checked for
   well-formedness. Each function body is typed against the registered
   signatures. The class well-formedness conditions of Section&nbsp;<a href="static.html#sec-4.9">4.9</a>
   (acyclic inheritance, conformant overriding, complete deferral,
@@ -66,36 +77,24 @@ user code.</p>
 
 <p>If any step fails, the program is rejected and nothing is executed.</p>
 
-<p>A program that survives all three stages is statically valid, and yields
-a static environment \(C\) together with the initial dynamic bindings
-\(E_1\) and store \(s_0\) &mdash; extending the standard environment
-\(E_0\) with the elaborated classes and the function and constructor
-closures.</p>
+<p>A program that passes all three stages is statically valid. Its classes and
+functions, added to the standard environment, are the starting point for
+executing the top-level statements.</p>
 
 <h2 id="sec-7.3"><span class="secno">7.3</span>Executing the Dynamic World</h2>
 
-<p>The top-level statements are then evaluated in source order, against
-\(E_1\), by the statement judgement of Chapter&nbsp;<a href="dynamic.html">5</a>. The bindings thread
-from one statement to the next, so a top-level <code>let</code> is visible
-to the statements that follow it; the store threads likewise.</p>
+<p>The top-level statements are then executed in the order they are written,
+by the rules of Chapter&nbsp;<a href="dynamic.html">5</a>, as the statements of a single block. A
+variable declared by a top-level <code>let</code> is in scope for the
+statements after it, and each statement sees the objects as the statements
+before it left them.</p>
 
-<p>The program&rsquo;s observable behaviour &mdash; its output, the host
-effects of its <code>import</code>ed classes, the final store &mdash; is the
-cumulative effect of this evaluation.</p>
+<p>The program&rsquo;s observable behaviour is the combined effect of executing
+these statements: its output, the effects of the host classes it
+<code>import</code>s, and the objects it leaves behind.</p>
 
-<div class="rule-block">
-<a id="rule-7.1"></a>\[ \frac{\vdash \mathit{decs} \;\leadsto\; C, E_1 \quad s_0, E_1 \vdash \mathit{stmts} \Rightarrow E', s'}{\vdash \mathit{program} \;\Downarrow\; s'} \tag{7.1} \]
-</div>
-
-<p>Here \(\mathit{decs}\) are the declarations of the program and
-\(\mathit{stmts}\) its top-level statements. The relation \(\leadsto\) is
-the construction of Section&nbsp;<a href="#sec-7.2">7.2</a>, \(E_1\) and \(s_0\) are the initial
-dynamic bindings and store, and \(\Downarrow\) is the evaluation of the
-whole program to a final store.</p>
-
-<p>An uncaught exception raised by a top-level statement terminates the
-program; its value and position are reported, and no further statement
-runs.</p>
+<p>If a top-level statement raises an exception that nothing handles, the
+program ends: the exception is reported, and no further statement runs.</p>
 
 <p>A program that spawns tasks (Chapter&nbsp;<a href="concurrency.html">6</a>) completes when its top-level
 statements have been evaluated and the host&rsquo;s policy for outstanding
@@ -106,7 +105,7 @@ disposal of unawaited tasks to the realisation.</p>
 <h2 id="sec-7.4"><span class="secno">7.4</span>Readable Globals</h2>
 
 <p>A top-level <code>let</code> binds a <em>global</em>. Within the static
-world &mdash; the body of any free function or class routine &mdash; a
+world &mdash; the body of any free function or class method &mdash; a
 global is <strong>readable</strong>: an otherwise-unbound name that matches
 a global denotes that global&rsquo;s current value.</p>
 
@@ -143,13 +142,13 @@ depend on before the program begins calling into them.</p>
 
 <h2 id="sec-7.5"><span class="secno">7.5</span>The Definition and the Implementation</h2>
 
-<p>The procedure of this chapter mirrors the reference interpreter, which
-registers imports and interns, then classes, then functions, and only then
-executes the top-level statements &mdash; loading the static world before
-running the dynamic one. That correspondence is intentional: the Definition
-is meant to describe the same language the interpreter implements.</p>
+<p>The procedure of this chapter, building the static world in full before
+running the top-level statements, is the one the reference implementation
+follows (Section&nbsp;<a href="introduction.html#sec-1.3">1.3</a>). That correspondence is intentional: the
+Definition is meant to describe the same language the implementation
+implements.</p>
 
-<p>The bytecode back end is required to reproduce the behaviour defined
-here. A back end that diverges is, by the project&rsquo;s own rule, in
-error &mdash; the divergence is a defect to be repaired, not a second
-meaning to be admitted.</p>
+<p>Every implementation of Nex, the reference compiler and the tree-walking
+interpreter alike, is required to reproduce the behaviour defined here. An
+implementation that diverges is in error: the divergence is a defect to be
+repaired, not a second meaning to be admitted.</p>

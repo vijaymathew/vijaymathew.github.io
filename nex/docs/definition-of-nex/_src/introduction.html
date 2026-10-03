@@ -1,16 +1,16 @@
-<p class="opener-lede">A precise description of a programming language is a prerequisite for its
-implementation and for its use. This document is such a description for Nex:
-a formal account of both the <em>grammar</em> and the <em>meaning</em> of the
-language.</p>
+<p class="opener-lede">This document defines Nex. It states exactly which
+texts are Nex programs&mdash;the <em>grammar</em>&mdash;and what each of those
+programs does&mdash;the <em>meaning</em>&mdash;so that questions about the
+language can be settled by appeal to rules rather than to examples.</p>
 
-<p>A language description can take many forms. The most common is the reference
-manual: a careful narrative of what each construction does, usually backed by a
-grammar in Backus&ndash;Naur form. That is enough for many purposes, and Nex has
-such a manual. But a reference manual is ill-suited to the reader who must
-implement the language, or who wants to reason about a program with
-mathematical rigour. For
-those readers a different kind of document is needed, in which the meaning of a
-program is not described but <em>defined</em>.</p>
+<p>Nex already has a reference manual, and for everyday programming it is the
+better guide: it explains each construct in prose, with a grammar alongside.
+But prose leaves gaps, and those gaps matter to two kinds of reader. One is
+writing a second implementation. The other is trying to show that a program
+behaves as intended. Both need to know what happens when two features meet in
+a way no example covered, and which of two plausible readings is the right one.
+Closing those gaps takes a document in which the meaning of a program is not
+described but <em>defined</em>.</p>
 
 <p>This Definition aims to be that document. It does not replace the tutorial or
 the reference; it underwrites them. Where the tutorial says what a construct is
@@ -24,7 +24,7 @@ draws on four traditions. From Eiffel comes its structural vocabulary&mdash;clas
 features, inheritance, and contracts. From Scheme comes the conviction that a
 small, regular core scales further than a large feature set. From ML comes the
 discipline of static, soundness-minded typing, checked before a program runs
-and set down, like this Definition, in inference rules. From CSP and its
+and specified in full by a formal definition. From CSP and its
 descendants comes its concurrency model: lightweight tasks communicating over
 channels.</p>
 
@@ -55,24 +55,13 @@ Hindley&ndash;Milner inference nor structural typing.</p>
   theory pays for itself in the regularity of the surface.</li>
 </ul>
 
-<p>It is the third and fourth commitments that make Nex worth defining formally,
+<p>It is the third and fourth commitments that make Nex worth defining precisely,
 and the second that makes it feasible.</p>
 
 <h2 id="sec-1.2"><span class="secno">1.2</span>The Form of the Definition</h2>
 
-<p>Every programming language presents its own conceptual view of computation.
-This view is indicated by the words the language uses for its phrase
-classes&mdash;<em>class</em>, <em>feature</em>, <em>contract</em>,
-<em>task</em>, <em>channel</em>. But those words also have abstract
-counterparts, which are what people really have in mind when they use the
-language.</p>
-
-<p>We call these abstract counterparts <em>semantic objects</em>. It is they,
-not the syntax, that carry the character of a language. A definition of Nex
-must therefore be given in terms of such objects.</p>
-
-<p>Following the tradition established by <em>The Definition of Standard ML</em>,
-we factor the task in two ways.</p>
+<p>Following <em>The Definition of Standard ML</em>, this Definition divides
+its task in two ways.</p>
 
 <p>First, we separate <strong>syntax</strong> from <strong>semantics</strong>.
 Chapters&nbsp;<a href="syntax-core.html">2</a> and&nbsp;<a href="syntax-modules.html">3</a> give the grammar: the rules that decide which strings
@@ -91,32 +80,41 @@ statically and then either interprets or compiles it. It also mirrors the
 programmer's experience: a type error and a contract violation are events of
 two quite different kinds.</p>
 
-<div class="note">
-  <span class="note-label">The shape of an assertion</span>
-  The keystone of the method is a certain kind of assertion about evaluation. It
-  takes the form
-  \[ B \vdash \mathit{phrase} \Rightarrow A \]
-  and may be read: <em>against the background</em> \(B\), <em>the phrase
-  evaluates to</em> \(A\). The background \(B\) is itself a semantic
-  object&mdash;a distillation of the meanings established by earlier phrases
-  (the classes in scope, the variables bound, the current object). In the static
-  semantics \(A\) is a type and \(B\) is a collection of typing assumptions; in
-  the dynamic semantics \(A\) is a value and \(B\) is a collection of bindings.
-  The same shape of rule serves both.
-</div>
+<p>This Definition tries to describe the rules of the language precisely, but
+its readers need not be versed in formal semantics. The rules are presented in clear prose
+that can be checked directly against a program.</p>
 
-<h2 id="sec-1.3"><span class="secno">1.3</span>The Status of the Interpreter</h2>
+<ul>
+  <li><strong>A compile-time rule</strong> lists the conditions a phrase must
+  meet, and gives the type it has when it meets them. If a condition fails, the
+  program is rejected with a compile-time error.</li>
+  <li><strong>A run-time rule</strong> gives, in order, the steps by which a
+  phrase is evaluated, and says what happens when a step raises an exception.
+  Rules that hold for every phrase, such as left-to-right evaluation, are stated
+  once, in Section&nbsp;<a href="dynamic.html#sec-5.2">5.2</a>, and each later rule gives only its
+  exceptions to them.</li>
+  <li><strong>Examples</strong> are complete programs wherever possible, shown
+  with the output they produce on the reference implementation
+  (Section&nbsp;<a href="#sec-1.3">1.3</a>).</li>
+  <li><strong>Figures</strong> illustrate particular cases. Where a figure and
+  the prose seem to differ, the prose is authoritative.</li>
+</ul>
 
-<p>Nex is defined here in mathematical notation that is independent of any
-implementation. But Nex also has a reference implementation: a tree-walking
-interpreter that reads the abstract syntax and evaluates it directly. That
-interpreter is, by the project&rsquo;s own convention, the authoritative
-statement of what the language means; the bytecode back end is
-correct exactly when it agrees with the interpreter.</p>
+<h2 id="sec-1.3"><span class="secno">1.3</span>The Status of the Implementations</h2>
 
-<p>This Definition and that interpreter are intended to describe the same
-language. Where they agree, the Definition explains the interpreter and the
-interpreter exhibits the Definition. Where they disagree, one of them is in
+<p>Nex is defined here independently of any implementation. But Nex also has a
+reference implementation: the compiler that translates a program to JVM
+bytecode, which is how the <code>nex</code> command runs a program by default.
+It is the most thoroughly tested implementation of the language, and it is the
+one this Definition is checked against.</p>
+
+<p>Nex also has a tree-walking interpreter, which evaluates the abstract syntax
+directly. It has no special authority. Like any other implementation, where it
+differs from this Definition, it is in error.</p>
+
+<p>This Definition and the reference implementation are intended to describe
+the same language. Where they agree, the Definition explains the implementation
+and the implementation exhibits the Definition. Where they disagree, one of them is in
 error, and the disagreement is a defect to be repaired rather than a matter of
 taste. The Definition does not silently extend the language; if it appears to,
 that is a bug in the Definition.</p>
@@ -125,19 +123,22 @@ that is a bug in the Definition.</p>
 
 <p>The reader who wants only the grammar may read Chapters&nbsp;<a href="syntax-core.html">2</a> and&nbsp;<a href="syntax-modules.html">3</a> and
 stop. The reader implementing a checker will want Chapter&nbsp;<a href="static.html">4</a>; the one
-implementing an evaluator, Chapter&nbsp;<a href="dynamic.html">5</a>. The appendices collect the full
+implementing an evaluator, Chapters&nbsp;<a href="dynamic.html">5</a> to&nbsp;<a href="programs.html">7</a>. The appendices collect the full
 grammar (Appendix&nbsp;<a href="appendix-grammar.html">A</a>), the classes and values that exist before any user
 code is loaded (Appendix&nbsp;<a href="appendix-basis.html">B</a>, <em>the standard environment</em>), and the derived
 forms&mdash;surface conveniences explained by translation into a smaller bare
-language (Appendix&nbsp;<a href="appendix-derived.html">C</a>).</p>
+language (Appendix&nbsp;<a href="appendix-derived.html">C</a>), and the works on which Nex and this
+Definition draw (Appendix&nbsp;<a href="references.html">D</a>).</p>
 
-<p>Throughout, a few notational conventions are observed. Nex source text is set
-in a monospaced face: <code>class</code>, <code>require</code>,
-<code>spawn</code>. Nonterminals of the grammar are set in slanted type:
-<em>exp</em>, <em>dec</em>, <em>ty</em>. Semantic objects and the judgements
-relating them are set in mathematics.</p>
+<p>Throughout, a few typographic conventions are observed. Nex source text,
+including the types written in it, is set in a monospaced face:
+<code>class</code>, <code>require</code>, <code>?T</code>. Nonterminals of the
+grammar are set in slanted type: <em>exp</em>, <em>dec</em>, <em>ty</em>.</p>
 
-<p>Three symbols recur throughout: \(\Rightarrow\) is reserved for evaluation;
-\(\vdash\) for &ldquo;elaborates&rdquo; or &ldquo;evaluates&rdquo; in a
-context; and \(\preceq\) for the conformance relation between types,
-introduced in Chapter&nbsp;<a href="static.html">4</a>.</p>
+<p>In a monospaced form that describes a whole kind of phrase, a name the text
+has not otherwise defined stands for any phrase of the right kind. In
+<code>e.m(e1, &hellip;, en)</code>, for example, <code>e</code> is any
+expression, <code>m</code> any method name, and <code>e1</code> to
+<code>en</code> the arguments; in <code>A[T1, &hellip;, Tn]</code>,
+<code>A</code> is any class and <code>T1</code> to <code>Tn</code> any
+types.</p>

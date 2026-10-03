@@ -2,7 +2,7 @@
 """Static site generator for *The Definition of Nex*.
 
 Reads body fragments from ``_src/<id>.html`` and wraps each in the shared
-chrome (header, chapter opener, prev/next navigation, MathJax, code copy).
+chrome (header, chapter opener, prev/next navigation, code copy).
 Outputs finished ``<id>.html`` files in this directory. No Quarto involved.
 """
 import os, re, html
@@ -35,9 +35,7 @@ PAGES = [
         "The classes and values present before any user code is loaded."),
     ("appendix-derived","Appendix C","Derived Forms",
         "Surface forms defined by translation into the bare language."),
-    ("appendix-rules",  "Appendix D","The Inference Rules in Full",
-        "Every typing and evaluation rule of Chapters 4-5, gathered in one place."),
-    ("references",      "Appendix E","References",
+    ("references",      "Appendix D","References",
         "The works on whose ideas Nex and this Definition draw."),
 ]
 
@@ -48,24 +46,7 @@ NAV = [
     ("Static", "static.html"),
     ("Dynamic", "dynamic.html"),
     ("Grammar", "appendix-grammar.html"),
-    ("Rules", "appendix-rules.html"),
 ]
-
-MATHJAX = """
-<script>
-window.MathJax = {
-  tex: {
-    inlineMath: [['\\\\(','\\\\)']], displayMath: [['\\\\[','\\\\]']],
-    macros: {
-      llbracket: ["[\\\\mkern-3mu[", 0],
-      rrbracket: ["]\\\\mkern-3mu]", 0]
-    }
-  },
-  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
-};
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
-"""
 
 COPY_JS = """
 <script>
@@ -102,7 +83,6 @@ HEAD = """<!doctype html>
 <link rel="apple-touch-icon" href="../../assets/icons/nex-180.png">
 <link rel="stylesheet" href="../book.css">
 <script src="../book.js"></script>
-{mathjax}
 </head>
 <body>
 <header class="site-header"><div class="site-header-inner">
@@ -133,7 +113,7 @@ def render_page(i):
     href = pid + ".html"
     head = HEAD.format(title=html.escape(title), book=BOOK_TITLE,
                        desc=html.escape(desc or BOOK_TITLE),
-                       mathjax=MATHJAX, nav=nav_html(href))
+                       nav=nav_html(href))
 
     if pid == "index":
         # Cover page: fragment supplies everything inside .page already.

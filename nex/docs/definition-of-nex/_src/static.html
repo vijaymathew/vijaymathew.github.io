@@ -1,139 +1,143 @@
-<p class="opener-lede">The static semantics describes what can be known about a program before it
-runs, and the checks that knowledge makes possible (Section&nbsp;<a href="introduction.html#sec-1.2">1.2</a>). A program that passes these
-checks is <em>elaborated</em>; one that fails is rejected, and never reaches the
-dynamic semantics of Chapter&nbsp;<a href="dynamic.html">5</a>.</p>
+<p class="opener-lede">The static semantics describes what can be known about a program
+before it runs, and the checks that this knowledge makes possible
+(Section&nbsp;<a href="introduction.html#sec-1.2">1.2</a>). Checking a program and working out the types of its
+phrases is called <em>elaboration</em>. A program that elaborates without
+error is accepted; one that does not is rejected with a compile-time error, and
+never reaches the dynamic semantics of Chapter&nbsp;<a href="dynamic.html">5</a>.</p>
 
-<p>We proceed in this manner: first the
-<em>semantic objects</em>&mdash;the types and bindings the rules manipulate;
-then the relations among them&mdash;conformance and lookup; then the
-<em>inference rules</em> that assign types to phrases.</p>
+<p>This chapter first describes the types (Section&nbsp;<a href="#sec-4.1">4.1</a>) and the names in scope
+during elaboration (Section&nbsp;<a href="#sec-4.2">4.2</a>), then the relation between types on which
+every check depends, conformance (Section&nbsp;<a href="#sec-4.3">4.3</a>). The remaining sections give
+the checks themselves: for expressions, statements, contracts, generics, free
+functions, and the structure of classes.</p>
 
 <h2 id="sec-4.1"><span class="secno">4.1</span>Types</h2>
 
 <p>A <em>type</em> is one of the following.</p>
 
-<div class="grammar">
-<table>
-<tr><td>\(\tau\)</td><td class="op">::=</td><td>\(\texttt{Integer} \mid \texttt{Byte} \mid \texttt{Integer16} \mid \texttt{Integer32} \mid \texttt{Real}\)</td><td class="cmt">&mdash; numeric</td></tr>
-<tr><td></td><td class="op">|</td><td>\(\texttt{Char} \mid \texttt{Boolean} \mid \texttt{String}\)</td><td class="cmt">&mdash; other scalars</td></tr>
-<tr><td></td><td class="op">|</td><td>\(A[\tau_1,\dots,\tau_n]\)</td><td class="cmt">&mdash; class type (\(n \ge 0\))</td></tr>
-<tr><td></td><td class="op">|</td><td>\(\alpha\)</td><td class="cmt">&mdash; type variable</td></tr>
-<tr><td></td><td class="op">|</td><td>\(\tau_1 \times \cdots \times \tau_n \to \tau\)</td><td class="cmt">&mdash; function type</td></tr>
-<tr><td></td><td class="op">|</td><td>\(\mathsf{Fun}\)</td><td class="cmt">&mdash; the unconstrained function type</td></tr>
-<tr><td></td><td class="op">|</td><td>\(\tau\,?\)</td><td class="cmt">&mdash; optional type</td></tr>
-<tr><td></td><td class="op">|</td><td>\(\mathsf{Any} \mid \mathsf{Void} \mid \mathsf{Nil}\)</td><td class="cmt">&mdash; top, no-result, the type of <code>nil</code></td></tr>
-</table>
-</div>
+<ul>
+  <li><strong>A numeric type</strong>: <code>Integer</code>, <code>Byte</code>,
+  <code>Integer16</code>, <code>Integer32</code> or <code>Real</code>.</li>
+  <li><strong>Another scalar type</strong>: <code>Char</code>,
+  <code>Boolean</code> or <code>String</code>.</li>
+  <li><strong>A class type</strong>, written <code>A</code> or
+  <code>A[T1, &hellip;, Tn]</code>, where <code>A</code> names a class and
+  <code>T1</code> to <code>Tn</code> are types supplied for its generic
+  parameters.</li>
+  <li><strong>A type variable</strong>: a generic parameter of an enclosing
+  class or routine, such as <code>G</code> within <code>class Box [G]</code>.</li>
+  <li><strong>A function type</strong>, written
+  <code>Function(a1: T1, &hellip;, an: Tn): T</code>, the type of a function
+  that takes arguments of types <code>T1</code> to <code>Tn</code> and returns a
+  <code>T</code>.</li>
+  <li><strong>The unconstrained function type</strong>, written
+  <code>Function</code> with no parameter list, to which every function type
+  conforms.</li>
+  <li><strong>An optional type</strong>, written <code>?T</code>, whose values
+  are the values of <code>T</code> together with <code>nil</code>.</li>
+  <li><strong><code>Any</code></strong>, the type to which every type conforms.
+  It is the type of the root class <code>Any</code>.</li>
+  <li><strong>The void type</strong>, the type of a statement and of a call to
+  a routine that declares no return type. It is not a value type, so no field,
+  parameter or variable may have it.</li>
+  <li><strong>The nil type</strong>, the type of the constant <code>nil</code>.
+  It conforms to every optional type and to <code>Any</code>, and to nothing
+  else.</li>
+</ul>
 
-<p>Here \(A\) ranges over class names. A class type with no arguments is
-written \(A\) rather than \(A[\,]\).</p>
-
-<p>The scalar types, \(\mathsf{Any}\), \(\mathsf{Function}\), and the
-collection classes are not primitive in any deep sense. They are ordinary
-classes of the standard environment (Appendix&nbsp;<a href="appendix-basis.html">B</a>), and
-\(\texttt{Integer}\) and the rest are just abbreviations for particular
-class types. We keep them syntactically distinct only because the lexer
-does.</p>
-
-<p>\(\mathsf{Any}\) is the type that every other type is a subtype of; it is
-the elaborated form of the root class <code>Any</code>.</p>
-
-<p>\(\mathsf{Void}\) is the type assigned to a statement, and to a routine
-with no declared return type. It is not a value type, so it may not be the
-type of a field or parameter.</p>
-
-<p>\(\mathsf{Nil}\) is the type of the constant <code>nil</code>. It is a
-subtype of every optional type, and of no other.</p>
+<p>The scalar types, <code>Any</code>, <code>Function</code> and the
+collection types are not primitive in any deep sense. They are ordinary classes
+of the standard environment (Appendix&nbsp;<a href="appendix-basis.html">B</a>), and a scalar type such as
+<code>Integer</code> is simply a class type. They are listed separately only
+because the lexer treats their names specially.</p>
 
 <h2 id="sec-4.2"><span class="secno">4.2</span>The Static Environment</h2>
 
-<p>Elaboration takes place against a <em>static environment</em>, written \(C\),
-comprising three components:</p>
+<p>Each phrase is elaborated against a <em>static environment</em>: the names
+in scope at that point, and what each one means. It has three parts.</p>
 
 <ul>
-  <li>a <strong>class bindings</strong> \(\Sigma\), mapping each class name
-  \(A\) in scope to its <em>class signature</em> &mdash; its generic parameters
-  and their constraints, its modifiers (<code>deferred</code>,
-  <code>sealed</code>), its parents, the typed fields it declares, and the typed
-  signatures of its routines and constructors;</li>
-  <li>a <strong>variable bindings</strong> \(\Gamma\), mapping each
-  identifier in scope (parameters, locals, fields of the current object) to its
-  type;</li>
-  <li>a set \(\Delta\) of <strong>type variables</strong> currently in scope,
-  introduced by the generic parameters of the enclosing class or routine.</li>
+  <li><strong>The classes in scope.</strong> For each class name, the
+  environment records the class&rsquo;s <em>signature</em>: its generic
+  parameters and their constraints, its modifiers (<code>deferred</code>,
+  <code>sealed</code>), its parents, the fields it declares with their types,
+  and the parameter and return types of its methods and constructors.</li>
+  <li><strong>The variables in scope</strong>, with their types: the
+  parameters and local variables of the enclosing routine or block, and the
+  fields of the current object.</li>
+  <li><strong>The type variables in scope</strong>: the generic parameters of
+  the enclosing class and routine.</li>
 </ul>
 
-<p>We write \(C(x) = \tau\) for the lookup of an ordinary variable, and
-\(C \oplus \{x : \tau\}\) for the environment \(C\) extended with the
-binding \(x:\tau\) (shadowing any earlier binding of \(x\)). We write
-\(C(A)\) for the signature of class \(A\).</p>
+<p>A declaration of a variable adds it to the environment for the rest of its
+scope, and shadows any variable of the same name in an enclosing scope.</p>
 
-<p>The functions \(\mathit{fields}(C, A)\) and \(\mathit{routine}(C, A, m)\)
-collect the fields, and the named routine \(m\), visible in \(A\) &mdash;
-those declared in \(A\) itself, together with those inherited from its
-parents. \(A\)&rsquo;s own declarations override any inherited one of the
-same name.</p>
+<p>The fields and methods <em>of</em> a class are those it declares itself
+together with those it inherits from its parents. A class&rsquo;s own
+declaration of a member overrides any inherited member of the same name.</p>
 
 <h3 id="sec-4.2.1"><span class="secno">4.2.1</span>Qualified Names and Ambiguity</h3>
 
-<p>\(\Sigma\) is built from two sources: the classes the current compilation
-unit declares itself, and those brought in by each of its <code>intern</code>
-declarations (Section&nbsp;<a href="syntax-modules.html#sec-3.6">3.6</a>). Each interned class is entered under both
-its bare and its qualified name (Section&nbsp;<a href="syntax-modules.html#sec-3.6.1">3.6.1</a>).</p>
+<p>The classes in scope come from two sources: the classes the current
+compilation unit declares itself, and those brought in by each of its
+<code>intern</code> declarations (Section&nbsp;<a href="syntax-modules.html#sec-3.6">3.6</a>). Each interned class is in
+scope under both its bare name and its qualified name
+(Section&nbsp;<a href="syntax-modules.html#sec-3.6.1">3.6.1</a>).</p>
 
-<p>The current unit&rsquo;s own declarations take precedence over anything
-interned. If the unit itself declares a class \(A\), \(\Sigma(A)\) is that
-declaration &mdash; regardless of what any interned unit also declares
-under the bare name \(A\).</p>
+<ul>
+  <li><strong>The current unit takes precedence.</strong> If the unit declares
+  a class <code>A</code> itself, the name <code>A</code> means that class,
+  whatever any interned unit also declares under the bare name
+  <code>A</code>.</li>
+  <li><strong>A qualified name is never ambiguous.</strong> It always names the
+  one class it spells out, however many other units declare a class with the
+  same bare name.</li>
+  <li><strong>The same unit interned twice counts once.</strong> Two
+  <code>intern</code> declarations that reach the same compilation unit,
+  directly or through what each interns in turn, contribute its classes once,
+  not twice. The procedure of Section&nbsp;<a href="programs.html#sec-7.2">7.2</a> visits each compilation unit at
+  most once, so this is never a source of ambiguity.</li>
+  <li><strong>A bare name may be ambiguous.</strong> If the current unit does
+  not declare <code>A</code> and more than one interned unit does, the bare name
+  <code>A</code> is an <em>ambiguous reference</em>. It is a compile-time error
+  to write it unqualified as a type, as a parent in an <code>inherit</code>
+  clause, in a <code>create</code>, or in a <code>match</code> pattern.</li>
+</ul>
 
-<p>A qualified name is always well-defined in \(\Sigma\), and always
-denotes the one declaration it names, however many other units happen to
-share its bare spelling.</p>
-
-<p>Two <code>intern</code> declarations that name the same underlying
-compilation unit &mdash; directly, or transitively through what each in
-turn interns &mdash; contribute one declaration to \(\Sigma\), not two. The
-elaboration procedure of Section&nbsp;<a href="programs.html#sec-7.2">7.2</a> visits each compilation unit at
-most once, so this is never a source of ambiguity.</p>
-
-<p>A bare name \(A\) that the current unit does not declare itself is
-well-defined in \(\Sigma\) only when at most one interned unit declares a
-class of that name. When more than one does, \(A\) is an <strong>ambiguous
-reference</strong>: \(C(A)\) is undefined by ambiguity rather than by
-absence.</p>
-
-<p>A program is rejected wherever such an \(A\) is written, unqualified, in
-a \(\mathit{ty}\), \(\mathit{parent}\), \(\mathit{createexp}\), or
-\(\mathit{pattern}\) &mdash; before any of the conditions of the rules
-below that read \(C(A)\) are even checked.</p>
-
-<p>Writing the class in its qualified form always sidesteps the problem. So
-does renaming the interned unit with <code>as</code> (Section&nbsp;<a href="syntax-modules.html#sec-3.6">3.6</a>),
-provided the renamed <code>intern</code> is itself path-qualified: an alias
-of a bare, unpathed <code>intern</code> has no qualified spelling to fall
-back on, and merely renames access to whichever single class that bare
-name already denotes.</p>
+<p>Writing the class&rsquo;s qualified name always avoids the ambiguity. So does
+renaming the interned unit with <code>as</code> (Section&nbsp;<a href="syntax-modules.html#sec-3.6">3.6</a>), provided the
+renamed <code>intern</code> names a path. Renaming an <code>intern</code> that
+has no path gives no qualified spelling to fall back on; it only renames access
+to whichever single class the bare name already denotes.</p>
 
 <h2 id="sec-4.3"><span class="secno">4.3</span>Conformance</h2>
 
-<p>The central relation of the static semantics is <em>conformance</em>,
-written \(\tau \preceq \tau'\) and read &ldquo;\(\tau\) conforms to
-\(\tau'\)&rdquo; or &ldquo;\(\tau\) is a subtype of \(\tau'\).&rdquo; A
-value of a conforming type may be used wherever the wider type is
-expected.</p>
+<p>The central relation of the static semantics is <em>conformance</em>. When a
+type <code>S</code> <em>conforms to</em> a type <code>T</code>, a value of type
+<code>S</code> may be used wherever a value of type <code>T</code> is expected:
+assigned to a variable of type <code>T</code>, passed as an argument for a
+parameter of type <code>T</code>, or returned from a routine whose return type is
+<code>T</code>. <code>S</code> is then also called a <em>subtype</em> of
+<code>T</code>.</p>
 
-<p>Conformance is reflexive and transitive, and makes \(\mathsf{Any}\) a
-top to which every type conforms (rules <a href="appendix-rules.html#rule-C-Refl">C-Refl</a>, <a href="appendix-rules.html#rule-C-Trans">C-Trans</a>, <a href="appendix-rules.html#rule-C-Top">C-Top</a> in
-Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
+<p>One type conforms to another exactly when the rules of this section say so.</p>
 
-<p>Its one substantive rule is <em>inheritance</em>: a class type conforms
-to its parents, with type arguments substituted through the inheritance
-clause. If \(A\) is declared <code>inherit</code> \(B[\sigma_1,\dots]\)
-under generic parameters \(\alpha_1,\dots,\alpha_n\), then:</p>
+<h4>General rules</h4>
 
-<div class="rule-block">
-\[ \frac{A[\alpha_1,\dots,\alpha_n] \;\text{inherits}\; B[\sigma_1,\dots,\sigma_m]}{A[\tau_1,\dots,\tau_n] \preceq B[\sigma_1,\dots,\sigma_m][\tau_i/\alpha_i]} \tag{C-Inherit} \]
-</div>
+<ul>
+  <li>Every type conforms to itself.</li>
+  <li>If <code>S</code> conforms to <code>T</code> and <code>T</code> conforms to
+  <code>U</code>, then <code>S</code> conforms to <code>U</code>.</li>
+  <li>Every type conforms to <code>Any</code>.</li>
+</ul>
+
+<h4>Inheritance</h4>
+
+<p>A class type conforms to each of its parents, with the type arguments
+substituted through the <code>inherit</code> clause. For example, if a class is
+declared <code>class LabelledBox [G] inherit Box [G]</code>, then
+<code>LabelledBox[Integer]</code> conforms to <code>Box[Integer]</code>, where
+<code>Box</code> is the generic class of Section&nbsp;<a href="#sec-4.7">4.7</a>.</p>
 
 <pre><code>class Animal
   create make() do end
@@ -151,233 +155,261 @@ end
 let a: Animal := create Dog.make()
 print(a.speak())</code></pre>
 
-<p>The binding type-checks because <code>Dog</code> conforms to
-<code>Animal</code> by (<a href="appendix-rules.html#rule-C-Inherit">C-Inherit</a>), so a <code>Dog</code> may stand where an
-<code>Animal</code> is expected; the access <code>a.speak()</code> elaborates to
-<code>String</code>. (At run time it prints <code>woof</code>: the call dispatches
-on the object&rsquo;s actual class, Section&nbsp;<a href="dynamic.html#sec-5.4">5.4</a>.)</p>
+<p>The <code>let</code> is accepted because <code>Dog</code> conforms to
+<code>Animal</code>, so a <code>Dog</code> may stand where an
+<code>Animal</code> is expected. The call <code>a.speak()</code> has type
+<code>String</code>. At run time it prints <code>woof</code>, because the call
+dispatches on the class of the object (Section&nbsp;<a href="dynamic.html#sec-5.4">5.4</a>).</p>
 
-<p>(<a href="appendix-rules.html#rule-C-Inherit">C-Inherit</a>) makes no distinction between a Nex parent and an imported
-host interface or class (Section&nbsp;<a href="#sec-4.9">4.9</a>): the latter is a class type like
-any other in \(\Sigma\). So a class implementing a host interface conforms
-to it, and a class extending a host class conforms to that class, exactly
-as <code>Dog</code> conforms to <code>Animal</code> above.</p>
+<p>The rule makes no distinction between a Nex parent and an imported host
+interface or class (Section&nbsp;<a href="#sec-4.9">4.9</a>), which is a class type like any other. A
+class that implements a host interface conforms to it, and a class that extends
+a host class conforms to that class, exactly as <code>Dog</code> conforms to
+<code>Animal</code>. A value of such a class may therefore be assigned to a
+variable whose type is the host interface or class, whether or not the code is
+inside a <code>with "java"</code> block (Section&nbsp;<a href="dynamic.html#sec-5.8">5.8</a>).</p>
 
-<p>A value of such a class may therefore be bound to a variable typed by
-the host interface or class it inherits, whether or not the surrounding
-code lies within a <code>with "java"</code> block (Section&nbsp;<a href="dynamic.html#sec-5.8">5.8</a>).</p>
+<p>Inheritance is the only way one class type conforms to another. In
+particular, two types made from the same generic class conform only if their
+type arguments are the same: <code>Box[Dog]</code> does not conform to
+<code>Box[Animal]</code>, even though <code>Dog</code> conforms to
+<code>Animal</code>.</p>
 
-<p>There are exactly five numeric types: \(\texttt{Integer}\),
-\(\texttt{Real}\), and the three <em>fixed-width integer types</em>
-\(\texttt{Byte}\), \(\texttt{Integer16}\), and \(\texttt{Integer32}\).
-(<code>Integer64</code> is another name for \(\texttt{Integer}\), not a further
-type.) None of them conforms to another. A widening chain such as
-\(\texttt{Integer} \preceq \texttt{Real}\) is <em>not</em> assumed here as a
-conformance &mdash; numeric conversions in Nex are explicit, except where the
-standard environment provides a coercion. The explicit conversions are routines of
-the classes (<code>to_byte</code>, <code>to_integer16</code>, <code>to_integer32</code>,
-<code>to_integer</code>, <code>to_real</code>; Appendix&nbsp;<a href="appendix-basis.html">B</a>), and each
-that narrows checks the range of its result.</p>
+<h4>Numeric types</h4>
 
-<p>In particular a numeric constant is never converted to fit its context. The
-unsuffixed constant <code>200</code> has type \(\texttt{Integer}\), which does not
-conform to \(\texttt{Byte}\), so <code>let b: Byte := 200</code> is ill-typed; the
-constant <code>200u8</code> has type \(\texttt{Byte}\) (rule <a href="appendix-rules.html#rule-4.1a">4.1a</a>). Equally,
-a \(\texttt{Byte}\) is not admitted where an \(\texttt{Integer}\) parameter is
-declared, nor the reverse. Nor does <code>convert</code> change a number&rsquo;s type
-(Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Type conversion</em>): two distinct numeric types are related by
-conformance in neither direction, so a <code>convert</code> from one to another is ill-typed.</p>
+<p>There are exactly five numeric types: <code>Integer</code>, <code>Real</code>,
+and the three <em>fixed-width integer types</em> <code>Byte</code>,
+<code>Integer16</code> and <code>Integer32</code>. (<code>Integer64</code> is
+another name for <code>Integer</code>, not a further type.) None of them conforms
+to another. Even <code>Integer</code> does not conform to <code>Real</code>.
+Numeric conversions are explicit, and are made by methods of the numeric
+classes (<code>to_byte</code>, <code>to_integer16</code>,
+<code>to_integer32</code>, <code>to_integer</code>, <code>to_real</code>;
+Appendix&nbsp;<a href="appendix-basis.html">B</a>). Each method that narrows checks that its result is in
+range.</p>
 
-<p>The one implicit numeric rule the language relies on belongs to the arithmetic
-operators, not to conformance. The operands of an arithmetic operator may be of any two
-numeric types, and the result has the type \(\tau_1 \sqcup \tau_2\) of rule&nbsp;(<a href="appendix-rules.html#rule-4.8">4.8</a>),
-where the join of two numeric types is
+<p>In particular, a numeric constant is never converted to fit its context. The
+constant <code>200</code> has type <code>Integer</code>, which does not conform
+to <code>Byte</code>, so <code>let b: Byte := 200</code> is a compile-time
+error; the constant <code>200u8</code> has type <code>Byte</code>. Equally, a
+<code>Byte</code> is not accepted where an <code>Integer</code> parameter is
+declared, nor the reverse. Nor does <code>convert</code> change a number&rsquo;s
+type (Section&nbsp;<a href="#sec-4.5">4.5</a>): two different numeric types are related by conformance in
+neither direction, so a <code>convert</code> from one to the other is a
+compile-time error.</p>
 
-\[ \tau_1 \sqcup \tau_2 \;=\; \begin{cases}
-\texttt{Real} & \text{if } \tau_1 = \texttt{Real} \text{ or } \tau_2 = \texttt{Real},\\
-\texttt{Integer} & \text{otherwise.}
-\end{cases} \]
-
-So an integer operand is admitted where a real is required
-(\(\texttt{Integer} \sqcup \texttt{Real} = \texttt{Real}\)), and arithmetic on operands
-of the fixed-width types yields an \(\texttt{Integer}\), never a fixed-width value:
-\(\texttt{Byte} \sqcup \texttt{Byte} = \texttt{Integer}\). This is recorded with the
-arithmetic operators in Appendix&nbsp;<a href="appendix-basis.html">B</a>, rather than as a conformance.</p>
+<p>The one implicit numeric rule belongs to the arithmetic operators, not to
+conformance. The operands of an arithmetic operator may be of any two numeric
+types. The result is a <code>Real</code> if either operand is a
+<code>Real</code>, and an <code>Integer</code> otherwise
+(Section&nbsp;<a href="#sec-4.4">4.4</a>). So an <code>Integer</code> operand is accepted beside a
+<code>Real</code> one, and arithmetic on fixed-width operands yields an
+<code>Integer</code>, never a fixed-width value: <code>Byte</code> plus
+<code>Byte</code> is an <code>Integer</code>. This rule is recorded with the
+arithmetic operators in Appendix&nbsp;<a href="appendix-basis.html">B</a>.</p>
 
 <h4>Optional types</h4>
-<p>An optional type \(\tau\,?\) is inhabited by the values of \(\tau\) together
-with <code>nil</code>. Hence \(\tau\) conforms to \(\tau\,?\), and
-\(\mathsf{Nil}\) conforms to every optional type; but \(\tau\,?\) does
-<em>not</em> conform to \(\tau\) (rules <a href="appendix-rules.html#rule-C-Opt">C-Opt</a>, <a href="appendix-rules.html#rule-C-Nil">C-Nil</a>, <a href="appendix-rules.html#rule-C-OptMono">C-OptMono</a> in
-Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
+
+<p>An optional type <code>?T</code> has the values of <code>T</code> together
+with <code>nil</code>.</p>
+
+<ul>
+  <li><code>T</code> conforms to <code>?T</code>.</li>
+  <li>The nil type conforms to every optional type.</li>
+  <li>If <code>S</code> conforms to <code>T</code>, then <code>?S</code> conforms
+  to <code>?T</code>.</li>
+</ul>
+
+<p><code>?T</code> does <em>not</em> conform to <code>T</code>. A value of an
+optional type can be used where a non-optional one is expected only after a test
+has shown that it is not <code>nil</code> (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Narrowing</em>).</p>
 
 <h4>Function types</h4>
+
 <p>A function type conforms to another when it accepts <em>at least</em> the
 arguments the other accepts, and returns <em>at most</em> what the other
-promises. Its parameters vary <strong>contravariantly</strong> and its
-result <strong>covariantly</strong>; the unconstrained type \(\mathsf{Fun}\)
-is a supertype of every function type (rules <a href="appendix-rules.html#rule-C-Fun">C-Fun</a>, <a href="appendix-rules.html#rule-C-FunTop">C-FunTop</a> in
-Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
+promises. Precisely, <code>Function(a1: S1, &hellip;, an: Sn): S</code> conforms
+to <code>Function(b1: T1, &hellip;, bn: Tn): T</code> when both take the same
+number of parameters, each <code>Ti</code> conforms to the corresponding
+<code>Si</code>, and <code>S</code> conforms to <code>T</code>. Parameters vary
+in the opposite direction to the function type (they are
+<em>contravariant</em>), and the result in the same direction (it is
+<em>covariant</em>). Every function type conforms to the unconstrained function
+type <code>Function</code>.</p>
 
-<p>The direction is the crux: for the subtype, each parameter type must be
-a <em>supertype</em> of the other&rsquo;s, while the result must be a
-<em>subtype</em>. So a <code>Function(a: Animal)</code> conforms to a
-<code>Function(a: Dog)</code> &mdash; a handler for any animal may stand in
-wherever a dog-handler is wanted &mdash; but not the reverse.</p>
+<p>So a <code>Function(a: Animal): String</code> conforms to a
+<code>Function(a: Dog): String</code>, because a function that handles any
+animal can stand in wherever a function that handles dogs is wanted. The reverse
+does not hold.</p>
 
 <div class="note">
   <span class="note-label">Why contravariant, and why it is sound</span>
   Contravariance is what makes conformance a <em>local</em> guarantee. A value
-  that conforms to <code>Function(a: A)</code> genuinely accepts every \(A\), so
-  a call through that type cannot go wrong &mdash; there is no &ldquo;catcall&rdquo;
-  to chase down later. This is the opposite of the Eiffel tradition, which makes
-  parameters covariant. That admits an unsound relation, one that must be rescued
-  by a separate whole-program analysis. Nex instead rejects the unsafe direction
-  at the point of conformance, with a diagnostic at the offending value. The same
-  rule governs method redefinition (Section&nbsp;<a href="#sec-4.9">4.9</a>): an overriding routine may
-  <em>widen</em> a parameter and <em>narrow</em> a return, but not the reverse.
-  It also matches the Design-by-Contract substitution principle the language
-  follows elsewhere &mdash; an heir may weaken what it demands and strengthen
-  what it guarantees.
+  that conforms to <code>Function(a: Animal)</code> really does accept every
+  <code>Animal</code>, so a call through that type cannot go wrong, and there is
+  no &ldquo;catcall&rdquo; to track down later. This is the opposite of the
+  Eiffel tradition, which makes parameters covariant. That allows unsound
+  conformances, which must then be caught by a separate whole-program analysis.
+  Nex instead rejects the unsafe direction at the point of conformance, with an
+  error at the offending value. The same rule governs overriding
+  (Section&nbsp;<a href="#sec-4.9">4.9</a>): an overriding method may <em>widen</em> a parameter type and
+  <em>narrow</em> its return type, but not the reverse. It also matches the
+  Design by Contract principle the language follows elsewhere: an heir may
+  weaken what it demands and strengthen what it guarantees.
 </div>
 
 <h4>Refinement types</h4>
-<p>A refinement type \(R\), declared <code>declare type R = B where n: p</code>
-(Section&nbsp;<a href="syntax-modules.html#sec-3.5.1">3.5.1</a>), conforms to its base: \(R \preceq B\) (rule <a href="appendix-rules.html#rule-C-Refine">C-Refine</a>
-in Appendix&nbsp;<a href="appendix-rules.html">D</a>). Widening is therefore free &mdash; an \(R\) flows into
-any context that expects \(B\).</p>
 
-<p>The reverse direction is not a conformance: a \(B\) does not conform to
-\(R\), because not every \(B\) satisfies \(p\).</p>
+<p>A refinement type, declared <code>declare type R = B where n: p</code>
+(Section&nbsp;<a href="syntax-modules.html#sec-3.5.1">3.5.1</a>), conforms to its base type <code>B</code>. Widening is
+therefore free: a value of type <code>R</code> may be used wherever a
+<code>B</code> is expected.</p>
 
-<p>Instead, a base value enters a refinement only at a <em>narrowing
-site</em> &mdash; a binding, parameter, field, or return typed \(R\), or an
-explicit <code>convert&nbsp;&hellip;&nbsp;to</code>. There, elaboration
-attaches the predicate \(p\) as a contract to be checked at run time
-(Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>).</p>
+<p>The reverse is not a conformance. A <code>B</code> does not conform to
+<code>R</code>, because not every <code>B</code> satisfies the predicate
+<code>p</code>. Instead, a value of the base type enters a refinement type only
+at a <em>narrowing site</em>: a variable, parameter, field or return of type
+<code>R</code>, or an explicit <code>convert &hellip; to</code> a variable of
+type <code>R</code>. At each such site, elaboration attaches the predicate as a
+contract to be checked at run time (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>).</p>
 
-<p>The refinement name is not erased during elaboration, so these
-narrowing sites remain visible to the checker. It is erased only in the
-value representation, where an \(R\) is exactly a \(B\).</p>
-
-<p>Consequently, an operation on refinement values has the <em>base</em>
-type: <code>q1 + q2</code> for two <code>Quantity</code> operands is an
-<code>Integer</code>, and is re-checked only if it flows back into a
-<code>Quantity</code>-typed target.</p>
+<p>The refinement type&rsquo;s name is kept during elaboration, so these
+narrowing sites stay visible to the checker. It disappears only in the
+representation of values, where an <code>R</code> is exactly a
+<code>B</code>. Consequently, an operation on refinement values has the
+<em>base</em> type: <code>q1 + q2</code> for two <code>Quantity</code> operands
+is an <code>Integer</code>, and is checked again only if it flows into a target
+of type <code>Quantity</code>.</p>
 
 <h2 id="sec-4.4"><span class="secno">4.4</span>Elaboration of Expressions</h2>
 
-<p>The judgement \(C \vdash e \Rightarrow \tau\) asserts that, in the static
-environment \(C\), the expression \(e\) is well-typed with type \(\tau\). The rules
-follow the grammar of Section&nbsp;<a href="syntax-core.html#sec-2.7">2.7</a>.</p>
+<p>For each kind of expression, this section gives the conditions under which
+it is accepted and the type it has. If a condition does not hold, it is a
+compile-time error. The kinds of expression follow the grammar of
+Section&nbsp;<a href="syntax-core.html#sec-2.7">2.7</a>.</p>
 
 <h4>Constants and variables</h4>
-<p>A literal takes the type of its scalar class: an integer literal is
-<code>Integer</code>, a real is <code>Real</code>, and so on for
-<code>String</code>, <code>Char</code>, and <code>Boolean</code>.
-<code>nil</code> has the type \(\mathsf{Nil}\), and a variable has whatever
-type \(C\) records for it (rules <a href="appendix-rules.html#rule-4.1">4.1</a>&ndash;<a href="appendix-rules.html#rule-4.7">4.7</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
-<p>The auto-declared return variable, <code>result</code>, has the
-declared return type of the enclosing routine, and is in \(C\) only there
-(Section&nbsp;<a href="syntax-core.html#sec-2.9">2.9</a>).</p>
+<p>A constant has the type of its scalar class. An integer constant is an
+<code>Integer</code>; with the suffix <code>u8</code>, <code>i16</code> or
+<code>i32</code> it is a <code>Byte</code>, <code>Integer16</code> or
+<code>Integer32</code> (Section&nbsp;<a href="syntax-core.html#sec-2.2">2.2</a>). A real constant is a
+<code>Real</code>, and string, character and boolean constants are
+<code>String</code>, <code>Char</code> and <code>Boolean</code>. The constant
+<code>nil</code> has the nil type.</p>
 
-<p>The constant <code>this</code> has the type of the current class, available in
-\(C\) within the body of a routine. The constant <code>super</code> is available
-there too, with the type of that class&rsquo;s <em>direct</em> superclass &mdash;
-provided it has exactly one.</p>
+<p>A variable has the type the environment records for it. The variable
+<code>result</code> has the declared return type of the enclosing routine, and is
+in scope only within a routine that declares one (Section&nbsp;<a href="syntax-core.html#sec-2.9">2.9</a>).</p>
 
-<p>A class declaring no <code>inherit</code> clause, or one naming more
-than one parent (Section&nbsp;<a href="syntax-modules.html#sec-3.2">3.2</a>), makes every occurrence of
-<code>super</code> within it ill-formed. The intended ancestor must then be
-named explicitly, as in <code>Shape.describe</code> (rule <a href="appendix-rules.html#rule-4.7a">4.7a</a> in
-Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
+<h4>The current object and its ancestors</h4>
 
-<p>Writing an ancestor's name explicitly like this — instead of <code>super</code>,
-or because the current class merely conforms to that ancestor without directly
-inheriting from it — works as follows.</p>
+<ul>
+  <li><strong><code>this</code></strong> is in scope within the body of a
+  method or constructor, and has the type of the current class.</li>
+  <li><strong><code>super</code></strong> is in scope there too, provided the
+  current class inherits exactly one class. Its type is that class. In a class
+  that has no <code>inherit</code> clause, or names more than one parent
+  (Section&nbsp;<a href="syntax-modules.html#sec-3.2">3.2</a>), every use of <code>super</code> is a compile-time error,
+  and the intended ancestor must be named instead.</li>
+  <li><strong>The name of an ancestor</strong>, <code>B</code>, may be written
+  where <code>super</code> could be, as in <code>Shape.describe</code>.
+  <code>B</code> must be a class to which the current class conforms, other than
+  the current class itself, and need not be a direct parent. Its type is
+  <code>B</code>.</li>
+</ul>
 
-<p><strong>For routines</strong>: the bare name <code>B</code> has its own type in
-the class environment  \(C\) (rule <a href="appendix-rules.html#rule-4.7b">4.7b</a>). Rule <a href="appendix-rules.html#rule-4.12">4.12</a> then treats <code>B.describe</code>
-just like a variable of that type: it looks up a routine that <code>B</code> either declares
-or inherits. So the named ancestor doesn't have to be a direct parent — it just
-has to be something the current class conforms to.</p>
+<p>Naming an ancestor in this way works as follows for each kind of member.</p>
 
-<p><strong>For constructors</strong>: the same explicit form, written before a constructor's
-name (<code>Shape.make(…)</code>), doesn't create a new object — it delegates to that
-ancestor's constructor. This isn't rule <a href="appendix-rules.html#rule-4.13">4.13</a> (object creation), but its counterpart, rule <a href="appendix-rules.html#rule-4.13a">4.13a</a>
-(constructor delegation), with <a href="appendix-rules.html#rule-5.11a">5.11a</a> as the matching dynamic rule. One restriction here: <code>B</code>
-must declare that constructor itself, not just inherit it — a match found further up <code>B</code>'s own ancestry doesn't count.</p>
+<ul>
+  <li><strong>Methods.</strong> <code>B.describe</code> is checked like a call
+  on a receiver of type <code>B</code> (see <em>Member access and calls</em>,
+  below). It finds a method that <code>B</code> declares or inherits.</li>
+  <li><strong>Constructors.</strong> The same form written before a
+  constructor&rsquo;s name, <code>Shape.make(&hellip;)</code>, does not create an
+  object. It delegates to that ancestor&rsquo;s constructor (see <em>Object
+  creation</em>, below, and Section&nbsp;<a href="dynamic.html#sec-5.5">5.5</a>). Here <code>B</code> must declare
+  the constructor itself: one it only inherits does not qualify.</li>
+  <li><strong>Fields.</strong> <code>B.f</code> reads the field <code>f</code> as
+  <code>B</code> would see it, whether <code>B</code> declares or inherits it.
+  This is how to pick out a particular ancestor&rsquo;s copy of a field when
+  repeated inheritance has produced more than one (Section&nbsp;<a href="#sec-4.9">4.9</a>): a plain
+  <code>f</code> cannot say which copy is meant, but <code>B.f</code> can.</li>
+</ul>
 
-<p><strong>For fields</strong>: the same form reaches a field, <code>B.f</code>, the same way rule <a href="appendix-rules.html#rule-4.12">4.12</a>
-reaches a routine — reading it (via rule <a href="appendix-rules.html#rule-4.11">4.11</a>) as <code>B</code> itself would see it,
-whether <code>B</code> declares or inherits it. This gives you a way to pick out a specific
-ancestor's copy of a field when repeated inheritance would otherwise create duplicates
-(see Section <a href="#sec-4.9">4.9</a> on ambiguous member resolution and shared ancestors): a plain <code>f</code>
-can't specify which copy you mean, but <code>B.f</code> can — just as <code>B.describe</code>
-already disambiguates which copy of an overridden routine runs.</p>
-
-<p>One limit, though: naming an ancestor lets you read through it, but not assign through it.
-However you write the receiver — <code>f</code>, <code>this.f</code>, <code>super.f</code>, or <code>B.f</code> —
-assignment is governed by a single rule (<a href="appendix-rules.html#rule-4.17a">4.17a</a>): it only succeeds if the class actually
-performing the write is the same class that declares the field. So <code>B.f := e</code> still
-parses as a normal assignment, but only succeeds in the trivial case where <code>B</code> is
-the class doing the writing. Naming a different ancestor doesn't get you around this.</p>
-
-<p><b>In short</b>: you can refer to an ancestor by name, but you can't assign
-to its fields unless you are that class.</p>
+<p>Naming an ancestor lets a class read through it, but not assign through it.
+However the receiver is written (<code>f</code>, <code>this.f</code>,
+<code>super.f</code> or <code>B.f</code>), an assignment to a field is accepted
+only in the class that declares the field (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Field
+assignment</em>). So <code>B.f := e</code> is a valid assignment only when the
+class doing the writing is <code>B</code> itself.</p>
 
 <h4>Operators</h4>
-<p>An infix operator denotes a routine of the operand&rsquo;s class. The
-arithmetic and comparison operators are elaborated through the signatures
-recorded in the standard environment; here we just summarise their
-effect.</p>
 
-<p>For an arithmetic operator \(\odot\) &mdash; one of <code>+ - * / % ^</code>
-&mdash; on numeric operands, the result has the type \(\tau_1 \sqcup \tau_2\) of
-Section&nbsp;<a href="#sec-4.3">4.3</a>: <code>Real</code> if either operand is, and <code>Integer</code> otherwise.
-Unary minus on an operand of a fixed-width type likewise yields an <code>Integer</code>.
-Comparison operators yield <code>Boolean</code>; the ordering operators
-require operands of the same type, so a <code>Byte</code> is not ordered against an
-<code>Integer</code> until one of them is converted. The equality
-operators \(=\), \(/\!=\), \(==\), \(!\!=\) yield <code>Boolean</code> for
-any operands of conforming type. The logical operators require and yield
-<code>Boolean</code>.</p>
+<ul>
+  <li><strong>Arithmetic operators</strong> (<code>+ - * / % ^</code>) on
+  numeric operands. The operands may be of any two numeric types. The result is
+  a <code>Real</code> if either operand is a <code>Real</code>, and an
+  <code>Integer</code> otherwise (Section&nbsp;<a href="#sec-4.3">4.3</a>). Unary minus on an operand of a
+  fixed-width type also yields an <code>Integer</code>.</li>
+  <li><strong>Ordering operators</strong> require operands of the same type, and
+  yield <code>Boolean</code>. A <code>Byte</code> cannot be ordered against an
+  <code>Integer</code>, nor an <code>Integer</code> against a
+  <code>Real</code>, until one of them is converted.</li>
+  <li><strong>Equality operators</strong> (<code>=</code>, <code>/=</code>,
+  <code>==</code>, <code>!=</code>) require the type of one operand to conform to
+  the type of the other, and yield <code>Boolean</code>. So <code>1 = 1.0</code>
+  and <code>65u8 = 65</code> are compile-time errors.</li>
+  <li><strong>Logical operators</strong> require <code>Boolean</code> operands
+  and yield <code>Boolean</code>.</li>
+</ul>
 
-<p>Formally these are rules <a href="appendix-rules.html#rule-4.8">4.8</a>&ndash;<a href="appendix-rules.html#rule-4.10">4.10</a> of Appendix&nbsp;<a href="appendix-rules.html">D</a>, where
-\(\tau_1 \sqcup \tau_2\) is the join of two numeric types defined in Section&nbsp;<a href="#sec-4.3">4.3</a>; disjunction and
-negation are analogous to the conjunction rule.</p>
+<p>An infix operator stands for a method of its left operand&rsquo;s class, and
+a class may make this literally true for itself. A class binds an arithmetic
+operator to a one-argument method with an <code>alias</code> clause
+(Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>), declared in the class or in one of its ancestors. When the
+left operand of that operator is <em>not</em> numeric, the operator is checked
+as the call it abbreviates: the right operand&rsquo;s type must conform to the
+method&rsquo;s parameter type, and the type of the expression is the
+method&rsquo;s return type.</p>
 
-<p>The claim at the top of this section &mdash; that an infix operator
-denotes a routine of the operand&rsquo;s class &mdash; is meant literally,
-and a class may make it so for itself. Write \(\mathrm{alias}_\tau(\odot) =
-m\) when the class \(\tau\), or an ancestor of it, declares a one-argument
-routine \(m\) bound to \(\odot\) by an <code>alias</code> clause
-(Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>).</p>
-
-<p>Where the operands of an arithmetic operator are <em>not</em> numeric
-&mdash; so rule <a href="appendix-rules.html#rule-4.8">4.8</a> does not apply &mdash; the operator elaborates as the
-call it abbreviates: the right operand must conform to the parameter of
-\(m\), and the type of the operator expression is the return type of
-\(m\). This is rule <a href="appendix-rules.html#rule-4.8a">4.8a</a> of Appendix&nbsp;<a href="appendix-rules.html">D</a>.</p>
-
-<p>The numeric rule is tried first, so an alias can never displace
-built-in arithmetic. Where neither applies, the expression is ill-typed,
-as before.</p>
+<p>The numeric rule is tried first, so an alias can never displace built-in
+arithmetic. If neither rule applies, the expression is a compile-time error.</p>
 
 <h4>Member access and calls</h4>
-<p>A member access \(e.f\) requires that the static type of \(e\) be a class
-type possessing an accessible field or routine named \(f\). If \(f\) is a field,
-its type is the result; if \(f\) is a nullary routine, its return type is the
-result; if \(f\) is applied to arguments, the argument types must conform to the
-parameter types of the routine.</p>
 
-<p>Field access \(e.f\) has the field&rsquo;s type (rule <a href="appendix-rules.html#rule-4.11">4.11</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>);
-the call rule is:</p>
+<p>A field access <code>e.f</code> is accepted if:</p>
 
-<div class="rule-block">
-\[ \frac{\begin{array}{c}C \vdash e \Rightarrow A[\bar\tau] \quad \mathit{routine}(C, A[\bar\tau], m) = (\sigma_1 \times \cdots \times \sigma_n \to \sigma) \\ C \vdash e_i \Rightarrow \rho_i \quad \rho_i \preceq \sigma_i \;\; (1 \le i \le n)\end{array}}{C \vdash e.m(e_1,\dots,e_n) \Rightarrow \sigma} \tag{4.12} \]
-</div>
+<ul>
+  <li>the type of <code>e</code> is a class type, say
+  <code>A[T1, &hellip;, Tk]</code>; and</li>
+  <li><code>A</code> has a field named <code>f</code>, declared or inherited, that
+  is accessible at the point of the access.</li>
+</ul>
+
+<p>The type of the access is the type of the field, with <code>A</code>&rsquo;s
+generic parameters replaced by <code>T1</code> to <code>Tk</code>
+(Section&nbsp;<a href="#sec-4.7">4.7</a>).</p>
+
+<p>A call <code>e.m(e1, &hellip;, en)</code> is accepted if:</p>
+
+<ul>
+  <li>the type of <code>e</code> is a class type, say
+  <code>A[T1, &hellip;, Tk]</code>;</li>
+  <li><code>A</code> has a method named <code>m</code> with <code>n</code>
+  parameters, declared or inherited, that is accessible at the point of the call;
+  and</li>
+  <li>the type of each argument <code>ei</code> conforms to the type of the
+  corresponding parameter, after <code>A</code>&rsquo;s generic parameters are
+  replaced by <code>T1</code> to <code>Tk</code>.</li>
+</ul>
+
+<p>The type of the call is the method&rsquo;s return type, with the same
+replacement, or the void type if the method declares no return type.</p>
+
+<p>A member is <em>accessible</em> unless it is declared in a
+<code>private</code> feature section of <code>A</code> and the access is written
+outside the text of <code>A</code>.</p>
 
 <pre><code>class Counter
   create make() do count := 0 end
@@ -389,81 +421,123 @@ end
 let c := create Counter.make()
 print(c.bump(5))</code></pre>
 
-<p>The receiver <code>c</code> has type <code>Counter</code>, the routine
-<code>bump</code> takes one <code>Integer</code> and returns one, and the argument
-<code>5</code> conforms; so by (<a href="appendix-rules.html#rule-4.12">4.12</a>) the call <code>c.bump(5)</code> elaborates to
-<code>Integer</code> (and evaluates to <code>5</code>). An argument of the wrong
-type, or the wrong number of arguments, is rejected here.</p>
+<p>The receiver <code>c</code> has type <code>Counter</code>. The method
+<code>bump</code> takes one <code>Integer</code> and returns one, and the
+argument <code>5</code> conforms to <code>Integer</code>, so the call
+<code>c.bump(5)</code> is accepted and has type <code>Integer</code>. It
+evaluates to <code>5</code>. An argument of the wrong type, or the wrong number
+of arguments, is a compile-time error.</p>
 
-<p>The accessibility condition is that \(f\) is not declared in a
-<code>private</code> feature section of \(A\), unless the access occurs textually
-within \(A\). A bare call \(m(e_1,\dots,e_n)\) is elaborated as a call on
-<code>this</code> if \(m\) is a routine of the current class, and otherwise as a
-call of the free function \(m\) (Section&nbsp;<a href="#sec-4.8">4.8</a>).</p>
+<p>A bare call <code>m(e1, &hellip;, en)</code> is checked as a call on
+<code>this</code> if <code>m</code> is a method of the current class, and
+otherwise as a call of the free function <code>m</code>
+(Section&nbsp;<a href="#sec-4.8">4.8</a>).</p>
 
 <div class="note">
-  <span class="note-label">Method overloading by arity</span>
-  A class may declare several routines of the same name differing in the
-  <em>number</em> of parameters. \(\mathit{routine}(C, A, m)\) therefore selects
-  among them by the count of arguments at the call site; there is no overloading
-  by parameter <em>type</em>, and free functions may not be overloaded at all.
-  A safe member access \(e\,?.f\) has type \(\sigma\,?\) where \(\sigma\) is the
-  type of \(e.f\): the access yields <code>nil</code> when \(e\) is
-  <code>nil</code>, and so is defined precisely on optional receivers.
+  <span class="note-label">Overloading by number of arguments</span>
+  A class may declare several methods with the same name if they take different
+  numbers of parameters. A call selects among them by the number of arguments it
+  passes. There is no overloading by parameter <em>type</em>, and free functions
+  may not be overloaded at all.
 </div>
 
+<p>The safe access <code>e?.f</code> may be applied to a receiver of optional
+type. If <code>e</code> has type <code>?T</code>, the conditions are those of
+<code>e.f</code> on a receiver of type <code>T</code>, and if that access has
+type <code>S</code>, the safe access has type <code>?S</code>: it yields
+<code>nil</code> when <code>e</code> is <code>nil</code>. An ordinary access or
+call on a receiver of optional type is a compile-time error.</p>
+
 <h4>Object creation</h4>
-<p>The expression <code>create</code> \(A[\bar\tau].k(e_1,\dots,e_n)\) requires
-that \(A\) be a non-deferred class, that \(k\) be one of its constructors, and
-that the arguments conform to \(k\)&rsquo;s parameters; its type is
-\(A[\bar\tau]\). When the constructor and argument list are omitted, \(A\) must
-have a constructor taking no arguments, or none at all. The type of the
-expression is the class type created (rule <a href="appendix-rules.html#rule-4.13">4.13</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
-<p>A <strong>constructor-delegation call</strong> — written as \(P.k(e_1,\dots,e_n)\),
-or <code>super</code>.\(k(e_1,\dots,e_n)\) when rule <a href="appendix-rules.html#rule-4.7a">4.7a</a> allows <code>super</code> —
-runs <em>another</em> constructor on the object that's already being built, rather
-than creating a new object. It can appear anywhere a statement can, but it's most often
-the first line of a constructor, delegating to its parent's constructor.</p>
+<p>A creation <code>create A[T1, &hellip;, Tn].k(e1, &hellip;, en)</code> is
+accepted if:</p>
 
-<p>It differs from <code>create</code> in two ways:</p>
-<ol> <li><strong>\(P\) must be a proper ancestor.</strong>
-The current class \(A\) must conform to \(P\), but \(P\) can't be \(A\) itself.</li>
-<li><strong>\(P\) must declare \(k\) directly</strong> — not just inherit it.
-If \(k\) only exists further up \(P\)'s own ancestry chain, that doesn't count.
-(This is stricter than the ordinary routine-call form, which <em>does</em> accept a
-match found further up the chain.)</li> </ol>
+<ul>
+  <li><code>A</code> is not deferred;</li>
+  <li><code>A[T1, &hellip;, Tn]</code> is a well-formed type
+  (Section&nbsp;<a href="#sec-4.7">4.7</a>);</li>
+  <li><code>k</code> is a constructor of <code>A</code>, declared or inherited;
+  and</li>
+  <li>the type of each argument conforms to the type of the corresponding
+  parameter of <code>k</code>.</li>
+</ul>
 
-<p>The reason for restriction #2: a constructor's job is to initialise the fields
-declared alongside it. If you delegated to a constructor two levels removed,
-you'd skip whatever the intermediate ancestor's constructor was meant to set up
-for its own fields.</p>
+<p>Its type is <code>A[T1, &hellip;, Tn]</code>. A creation that names no
+constructor, <code>create A</code>, is accepted only if <code>A</code> has no
+constructors at all, neither declared nor inherited.</p>
 
-<p>The call itself produces no result and leaves the environment
-unchanged (rule <a href="appendix-rules.html#rule-4.13a">4.13a</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>; the corresponding dynamic
-rule is <a href="appendix-rules.html#rule-5.11a">5.11a</a> in Section&nbsp;<a href="dynamic.html#sec-5.5">5.5</a>).</p>
+<p>A <strong>constructor delegation</strong>, written <code>P.k(e1, &hellip;,
+en)</code> or, where <code>super</code> is allowed, <code>super.k(e1, &hellip;,
+en)</code>, runs another constructor on the object already being built, instead
+of creating a new one. It may appear anywhere a statement may, but is most often
+the first statement of a constructor, delegating to a parent&rsquo;s constructor.
+It is accepted if:</p>
 
-<h4>Conditional and anonymous-function expressions</h4>
-<p>The conditional expression requires a boolean condition and two branches; its
-type is the join&mdash;the least common supertype&mdash;of the branch types,
-written \(\tau_1 \sqcup \tau_2\) and always defined because \(\mathsf{Any}\) is a
-top. An anonymous function <code>fn</code>&hellip; has the function type built from
-its parameter and result types, its body checked under the parameters
-(rules <a href="appendix-rules.html#rule-4.14">4.14</a>&ndash;<a href="appendix-rules.html#rule-4.15">4.15</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
+<ul>
+  <li><code>P</code> is a proper ancestor: the current class conforms to
+  <code>P</code>, but is not <code>P</code>;</li>
+  <li><code>P</code> declares <code>k</code> itself; and</li>
+  <li>the type of each argument conforms to the type of the corresponding
+  parameter of <code>k</code>.</li>
+</ul>
+
+<p>The second condition is stricter than for an ordinary call, which accepts a
+method found further up the ancestry. A constructor&rsquo;s job is to initialise
+the fields declared alongside it. Delegating to a constructor two levels up would
+skip whatever the intermediate ancestor&rsquo;s constructor sets up for its own
+fields.</p>
+
+<p>A delegation produces no value and declares no names; it is checked like a
+statement (Section&nbsp;<a href="#sec-4.5">4.5</a>), even though it is written as a call. Its run-time
+behaviour is described in Section&nbsp;<a href="dynamic.html#sec-5.5">5.5</a>.</p>
+
+<h4>Conditional expressions</h4>
+
+<p>A conditional expression <code>when c then a else b end</code> requires
+<code>c</code> to be a <code>Boolean</code>. Its type is the <em>join</em> of the
+types of <code>a</code> and <code>b</code>: the narrowest type to which both
+conform. The join of <code>Dog</code> and <code>Animal</code> is
+<code>Animal</code>, and the join of <code>Dog</code> and the nil type is
+<code>?Dog</code>. Every type conforms to <code>Any</code>, so a join always
+exists. Where there is no single narrowest type, the join is <code>Any</code>:
+the join of <code>Integer</code> and <code>Real</code> is <code>Any</code>, and so
+is the join of two classes that both inherit <code>Animal</code> and
+<code>Swimmer</code>, since neither of those conforms to the other. The
+condition narrows the types of variables in the two branches as an
+<code>if</code> statement&rsquo;s does (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Narrowing</em>).</p>
+
+<h4>Anonymous functions</h4>
+
+<p>An anonymous function <code>fn(x1: T1, &hellip;, xn: Tn): T do body end</code>
+has the type <code>Function(x1: T1, &hellip;, xn: Tn): T</code>. Its body is
+checked with the parameters in scope, and with <code>result</code> of type
+<code>T</code>.</p>
+
+<h4>Object tests</h4>
+
+<p>An object test <code>? e as x</code> requires <code>e</code> to have an
+optional type, and has type <code>Boolean</code>. It is true when
+<code>e</code> is not <code>nil</code>. Used as the condition of an
+<code>if</code>, it makes <code>x</code> available in the <code>then</code>
+branch with the non-optional type (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Narrowing</em>).</p>
 
 <h2 id="sec-4.5"><span class="secno">4.5</span>Elaboration of Statements</h2>
 
-<p>Elaborating a statement is a judgement \(C \vdash \mathit{stmt} \Rightarrow C'\):
-it takes an environment \(C\) and produces a new one, \(C'\), possibly extended
-with a name the statement binds. A statement that binds nothing just returns
-\(C\) unchanged.</p>
+<p>A statement is checked against the environment in force where it is written.
+A statement that declares a name adds it to the environment for the statements
+that follow it in the same block. A statement that declares nothing leaves the
+environment as it was. A block is checked one statement at a time, each against
+the environment the statements before it have built.</p>
 
-<p>A block is elaborated by threading the environment through its statements,
-one after another.</p>
+<h4>Local declarations</h4>
 
-<div class="rule-block">
-\[ \frac{C \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x : \notin C}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16} \]
-</div>
+<p>A declaration <code>let x: T := e</code> is accepted if the type of
+<code>e</code> conforms to <code>T</code>, and no other variable named
+<code>x</code> is declared in the same block. A variable in an enclosing block
+may be shadowed. After the declaration, <code>x</code> is in scope with type
+<code>T</code>. A <code>let</code> with no type annotation, <code>let x :=
+e</code>, gives <code>x</code> the type of <code>e</code>.</p>
 
 <pre><code>let x: Integer := 10
 if x > 5 then
@@ -473,79 +547,18 @@ else
   print(0)
 end</code></pre>
 
-<p>In this example, <code>let</code> extends the environment with
-\(x : \texttt{Integer}\), by rule (<a href="appendix-rules.html#rule-4.16">4.16</a>). That extended environment is what
-gets threaded into the <code>if</code>.</p>
-
-<p>Inside the <code>then</code> branch, \(y\) extends it further &mdash; but
-only for that block. It is not visible in the statements after the
-<code>if</code>.</p>
-
-<p>Assignment requires the value to conform to the variable&rsquo;s type, and
-leaves the environment unchanged. The <code>if</code> checks each branch
-under whatever environment it is given (rules <a href="appendix-rules.html#rule-4.17">4.17</a>&ndash;<a href="appendix-rules.html#rule-4.18">4.18</a> in
-Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
-
-<h4>Field assignment</h4>
-
-<p>A field can be assigned through several spellings: <code>this.f := e'</code>,
-<code>super.f := e'</code>, an arbitrary object expression <code>e.f := e'</code>,
-an explicit ancestor name <code>B.f := e'</code>, or the bare form
-<code>f := e'</code> with no receiver written at all. All of these are
-elaborated by one rule, separate from (<a href="appendix-rules.html#rule-4.17">4.17</a>), no matter which spelling is
-used.</p>
-
-<p>That rule makes two demands. First, \(e'\) must conform to \(f\)&rsquo;s
-declared type. Second, the assignment must occur textually within the class
-that declares \(f\) &mdash; regardless of the receiver&rsquo;s static type,
-what object it denotes at run time, or whether a receiver was written at all
-(the bare form is just <code>this.f := e'</code> with the receiver token
-dropped).</p>
-
-<p>So a class may write a field on <em>another</em> instance of its own class
-(<code>other.f := e'</code>, from within a routine of the class that declares
-\(f\)), but it can never write a field it only inherits &mdash; not from a
-constructor, and not by dropping <code>this.</code> to reach it bare, under
-any spelling.</p>
-
-<p>One exception: where an enclosing <code>let</code> or parameter binds a
-name \(f\), rule (<a href="appendix-rules.html#rule-4.17">4.17</a>) treats it as an ordinary variable instead. That is
-the only case where a bare assignment to a name shared with a field is
-governed by something other than this rule.</p>
-
-<div class="rule-block">
-\[ \frac{\begin{array}{c} C \vdash e \Rightarrow B \quad f : \sigma \in \mathit{fields}(C, B) \quad \mathit{declaredBy}(B, f) = A \quad C(\texttt{this}) = A \\ C \vdash e' \Rightarrow \tau \quad \tau \preceq \sigma \end{array}}{C \vdash e.f := e' \Rightarrow C} \tag{4.17a} \]
-</div>
-
-<p>Inheriting a field gives you no way to write to it directly &mdash; only to
-read it. A subclass constructor that needs to initialise an inherited field
-has two options: delegate to a constructor of the declaring class (<a href="appendix-rules.html#rule-4.13a">4.13a</a>),
-or call a routine the declaring class exposes for the purpose &mdash; the
-same options any other code outside that class would have.</p>
-
-<p>This is why the derived forms of Appendix&nbsp;<a href="appendix-derived.html">C</a> &mdash; an
-<code>enum union</code>&rsquo;s generated variant constructors, among others
-&mdash; route every such assignment through a routine the parent declares. A
-plain method dispatches normally and needs no allocation, so it is the
-ordinary way to expose this without resorting to constructor delegation for
-a case that is not really about construction at all.</p>
-
-<p>(<a href="appendix-rules.html#rule-4.17">4.17</a>)&rsquo;s own <code>once</code> premise applies here exactly as it
-does there. The corresponding dynamic rule, (<a href="appendix-rules.html#rule-5.18">5.18</a>) in Section&nbsp;<a href="dynamic.html#sec-5.8">5.8</a>,
-carries no restriction of its own: by the time a statically valid program
-runs, (<a href="appendix-rules.html#rule-4.17a">4.17a</a>) has already ensured every field write in it is one this rule
-permits.</p>
+<p>The <code>let</code> puts <code>x</code>, of type <code>Integer</code>, in
+scope for the <code>if</code> that follows. Inside the <code>then</code> branch,
+<code>y</code> is added as well, but only for that block. It is not in scope in
+the statements after the <code>if</code>.</p>
 
 <h4>Self- and mutually recursive closures</h4>
 
-<p>Rule (<a href="appendix-rules.html#rule-4.16">4.16</a>) has one exception, mirroring &sect;<a href="#sec-4.8">4.8</a>&rsquo;s treatment of
-free functions. When \(e\) is itself an anonymous function
-<code>fn</code>&hellip;, \(x\) is bound in the environment <em>while</em>
-\(e\) is elaborated, rather than withheld from it.</p>
-
-<div class="rule-block">
-\[ \frac{C \oplus \{x : \sigma\} \vdash e \Rightarrow \tau \quad \tau \preceq \sigma \quad x \notin C \quad e = \texttt{fn}\ldots}{C \vdash \texttt{let}\; x{:}\sigma := e \Rightarrow C \oplus \{x : \sigma\}} \tag{4.16'} \]
-</div>
+<p>There is one exception to the rule that a <code>let</code> puts its name in
+scope only after the declaration, mirroring the treatment of free functions in
+Section&nbsp;<a href="#sec-4.8">4.8</a>. When the initialiser <code>e</code> is itself an anonymous function
+<code>fn</code>&hellip;, the name <code>x</code> is already in scope while
+<code>e</code> is checked.</p>
 
 <pre><code>let fact: Function(n: Integer): Integer := fn(n: Integer): Integer do
   if n <= 1 then
@@ -556,16 +569,14 @@ free functions. When \(e\) is itself an anonymous function
 end
 print(fact(5))                       -- 120</code></pre>
 
-<p>A closure bound this way can call itself, just as a named
-<code>function</code> already could under &sect;<a href="#sec-4.8">4.8</a>.</p>
+<p>A closure declared this way can call itself, just as a named
+<code>function</code> can (Section&nbsp;<a href="#sec-4.8">4.8</a>).</p>
 
-<p>The same widening applies to a run of consecutive closure-literal
-<code>let</code>s within one block: every name is added to the environment
-together, before any of the bodies is elaborated. That lets two or more
-closures call one another regardless of which is written first &mdash; the
-closure-literal version of &sect;<a href="#sec-4.8">4.8</a>&rsquo;s rule that any function may call
-any other regardless of textual order. No <code>declare function</code>-style
-forecast is needed, because the whole run is elaborated as one unit.</p>
+<p>The same applies to a run of consecutive <code>let</code>s in one block whose
+initialisers are all anonymous functions. All of their names are put in scope
+together, before any of the bodies is checked, so the closures may call one
+another whichever is written first. No <code>declare function</code>-style
+signature is needed, because the whole run is checked as one unit.</p>
 
 <pre><code>let is_even := fn(n: Integer): Boolean do
   if n = 0 then result := true else result := is_odd(n - 1) end
@@ -575,126 +586,230 @@ let is_odd := fn(n: Integer): Boolean do
 end
 print(is_even(10))                   -- true</code></pre>
 
-<p>This widening is withdrawn for any name that is also introduced a second
-time within reach of the closures &mdash; by another <code>let</code> in the
-same block, or as a parameter of one of the closures themselves. In that
-case, elaboration falls back to the ordinary rule (<a href="appendix-rules.html#rule-4.16">4.16</a>), under which the
-name is simply not yet visible.</p>
-
-<p>So a program that relies on self- or mutual reference should give each
-such closure, and every name it closes over, a name found nowhere else in
-the enclosing block.</p>
+<p>This exception is withdrawn for any name that is introduced a second time
+within reach of the closures, by another <code>let</code> in the same block or
+as a parameter of one of the closures. The ordinary rule then applies, and the
+name is simply not yet in scope. A program that relies on self- or mutual
+reference should therefore give each such closure, and every name it refers to, a
+name used nowhere else in the enclosing block.</p>
 
 <div class="note">
   <span class="note-label">A REPL implementation limitation, not a language one</span>
-  (<a href="appendix-rules.html#rule-4.16'">4.16&prime;</a>) is about elaboration, not execution, and it holds wherever a
-  whole program or a single interactive input is elaborated as one unit
-  &mdash; a <code>let</code> naming a nested closure, an entire file, or one
-  multi-statement REPL input all qualify. There is one known gap in the
-  current implementation: a mutually recursive pair defined together in
-  <em>one</em> REPL input, then called from a <em>later, separate</em> one.
-  The interactive session keeps the two closures&rsquo; runtime values and
-  compiled metadata in ways that can disagree once a later input re-runs one
-  of them, so the call fails there even though (<a href="appendix-rules.html#rule-4.16'">4.16&prime;</a>) accepted the
-  definition. A closure that only calls itself is unaffected &mdash; the gap
-  is specific to two or more closures elaborated together and then invoked
-  from a <em>different</em> REPL input than the one that defined them.
-  Ordinary <code>function</code> definitions (&sect;<a href="#sec-4.8">4.8</a>), including ones
-  using <code>declare function</code>, are unaffected in every case: give
-  mutually recursive routines names via <code>function</code> instead of
-  <code>let</code> when they must be called across separate REPL inputs.</div>
+  The exception concerns elaboration, not execution, and it holds wherever a
+  whole program or a single interactive input is checked as one unit: a
+  <code>let</code> naming a nested closure, an entire file, or one
+  multi-statement REPL input. There is one known gap in the current
+  implementation: a mutually recursive pair defined together in <em>one</em> REPL
+  input, then called from a <em>later, separate</em> one. The interactive session
+  keeps the two closures&rsquo; run-time values and compiled metadata in ways that
+  can disagree once a later input re-runs one of them, so the call fails there,
+  even though the definition was accepted. A closure that only calls itself is
+  unaffected. Ordinary <code>function</code> definitions
+  (Section&nbsp;<a href="#sec-4.8">4.8</a>), including ones using <code>declare function</code>, are
+  unaffected in every case: define mutually recursive routines with
+  <code>function</code> instead of <code>let</code> when they must be called
+  across separate REPL inputs.
+</div>
 
-<p>A <code>let</code> with no type annotation takes \(\sigma\) to be the
-inferred type \(\tau\) of its initialiser.</p>
+<h4>Assignment</h4>
 
-<p>The premise &ldquo;\(x\) not a <code>once</code> field outside a
-constructor&rdquo; in (<a href="appendix-rules.html#rule-4.17">4.17</a>) is the static enforcement of immutability:
-assigning a <code>once</code> field anywhere but in a constructor of its
-class is rejected.</p>
+<p>An assignment <code>x := e</code> to a variable is accepted if
+<code>x</code> is a variable in scope and the type of <code>e</code> conforms to
+the type of <code>x</code>. It leaves the environment unchanged. Assigning a
+<code>once</code> field anywhere other than in a constructor of its class is a
+compile-time error; this is the static enforcement of a <code>once</code>
+field&rsquo;s immutability.</p>
 
-<p>The loop, <code>case</code>, <code>match</code>, <code>across</code>, and
-<code>do</code>/<code>rescue</code> statements all elaborate their blocks
-under the environment extended with whatever variable they introduce
-&mdash; the cursor variable of <code>across</code>, the bound variable of a
-<code>match</code> clause. Each then produces the original environment back:
-a block never leaks its locals to the statements that follow it.</p>
+<h4>Field assignment</h4>
+
+<p>A field can be assigned through several spellings: <code>this.f :=
+e</code>, <code>super.f := e</code>, an arbitrary object expression
+<code>o.f := e</code>, an explicit ancestor name <code>B.f := e</code>, or the
+bare form <code>f := e</code> with no receiver at all. All of them are checked by
+the same rule, whichever spelling is used. An assignment to a field is accepted
+if:</p>
+
+<ul>
+  <li>the type of <code>e</code> conforms to the declared type of
+  <code>f</code>; and</li>
+  <li>the assignment is written in the text of the class that declares
+  <code>f</code>.</li>
+</ul>
+
+<p>The second condition holds whatever the receiver&rsquo;s static type, whatever
+object it refers to at run time, and whether or not a receiver is written. The
+bare form is just <code>this.f := e</code> with the receiver left out. So a class
+may assign a field of <em>another</em> object of its own class,
+<code>other.f := e</code>, from within one of its methods. But it can never
+assign a field it only inherits, from a constructor or anywhere else, under any
+spelling.</p>
+
+<p>The one exception is where a <code>let</code> or a parameter in scope has the
+same name as the field. The bare form <code>f := e</code> then assigns that
+variable, by the rule for assignment above.</p>
+
+<p>Inheriting a field therefore gives a class no way to assign it directly, only
+to read it. A subclass constructor that needs to initialise an inherited field
+has two options: delegate to a constructor of the declaring class
+(Section&nbsp;<a href="#sec-4.4">4.4</a>), or call a method that the declaring class provides for the
+purpose. These are the same options any other code outside that class has.</p>
+
+<p>This is why the derived forms of Appendix&nbsp;<a href="appendix-derived.html">C</a>, such as the variant
+constructors generated for an <code>enum union</code>, route every such
+assignment through a method the parent declares. An ordinary method dispatches
+normally and allocates nothing, so it is the natural way to provide this, without
+resorting to constructor delegation for something that is not really about
+construction.</p>
+
+<p>The run-time rule for field assignment (Section&nbsp;<a href="dynamic.html#sec-5.8">5.8</a>) has no restriction
+of its own: by the time a program runs, this rule has already ensured that every
+field assignment in it is allowed.</p>
+
+<h4>Conditionals and narrowing</h4>
+
+<p>The condition of an <code>if</code> must be a <code>Boolean</code>. Each branch
+is checked against the environment the <code>if</code> is given, except that the
+condition may <em>narrow</em> the types of some variables within a branch. In the
+<code>then</code> branch:</p>
+
+<ul>
+  <li>after <code>x /= nil</code>, where <code>x</code> is a variable of type
+  <code>?T</code>, <code>x</code> has type <code>T</code>;</li>
+  <li>after <code>convert e to x: S</code>, <code>x</code> has type
+  <code>S</code> rather than <code>?S</code>;</li>
+  <li>after <code>? e as x</code>, where <code>e</code> has type <code>?T</code>,
+  <code>x</code> is in scope with type <code>T</code>;</li>
+  <li>after <code>a and b</code>, the narrowings of both <code>a</code> and
+  <code>b</code> apply.</li>
+</ul>
+
+<p>In the <code>else</code> branch, after <code>x = nil</code>, where
+<code>x</code> has type <code>?T</code>, <code>x</code> has type
+<code>T</code>.</p>
+
+<p>No other condition narrows anything. In particular, <code>or</code> narrows
+nothing, and an <code>and</code> condition narrows nothing in the
+<code>else</code> branch.</p>
+
+<p>Narrowing also applies within the condition itself. The right operand of an
+<code>and</code> is checked with the narrowings of its left operand in effect,
+so in <code>if x /= nil and x.v &gt; 0 then</code> the access <code>x.v</code>
+is accepted. This holds only in the condition of an <code>if</code> or
+<code>when</code>. Elsewhere an <code>and</code> narrows nothing, so
+<code>print(x /= nil and x.v &gt; 0)</code> is a compile-time error. The
+conditional expression <code>when</code> narrows its branches in the same way as
+<code>if</code> (Section&nbsp;<a href="#sec-4.4">4.4</a>).</p>
+
+<pre><code>class Point
+  create make(v: Integer) do value := v end
+feature
+  value: Integer
+end
+
+function find_point(n: Integer): ?Point do
+  if n > 0 then result := create Point.make(n) end
+end
+
+let x := find_point(3)
+if x /= nil then
+  print(x.value)              -- x has type Point here
+end
+print(when x = nil then 0 else x.value end)</code></pre>
+
+<p><code>x</code> has type <code>?Point</code>. In the <code>then</code> branch of
+the <code>if</code>, and in the <code>else</code> branch of the <code>when</code>,
+it has type <code>Point</code>, so <code>x.value</code> is accepted. The program
+prints <code>3</code> twice.</p>
+
+<h4>Blocks and scope</h4>
+
+<p>The loop, <code>case</code>, <code>match</code>, <code>across</code> and
+<code>do</code>/<code>rescue</code> statements check their blocks with any
+variable they introduce added to the environment: the cursor variable of
+<code>across</code>, or the bound variable of a <code>match</code> clause. A block
+never makes its local variables visible to the statements after it.</p>
 
 <h4>Type dispatch and exhaustiveness</h4>
-<p>A <code>match</code> on an expression of class type \(A\) dispatches on
-the runtime class. Each clause <code>when</code> \(B\) <code>as</code> \(x\)
-<code>then</code> \(\mathit{block}\) requires \(B \preceq A\), and elaborates
-its block with \(x\) bound to \(B\) (rule <a href="appendix-rules.html#rule-4.19">4.19</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
 
-<p>A destructuring clause <code>when</code> \(B(\ldots)\) additionally binds
-each named field of the matched variant in the block, at that field&rsquo;s
-declared type. A guard <code>if</code> \(g\) requires \(g\) to elaborate to
-<code>Boolean</code>, in the scope of those bindings.</p>
+<p>A <code>match</code> whose subject has class type <code>A</code> dispatches on
+the class of the subject&rsquo;s object at run time. Each clause
+<code>B as x then block</code> requires <code>B</code> to conform to
+<code>A</code>, and checks its block with <code>x</code> in scope with type
+<code>B</code>.</p>
 
-<p>When \(A\) is sealed, the clause classes must exhaust
-\(\mathit{subclasses}(C, A)\), unless an <code>else</code> clause covers the
-remainder. A missing variant is a compile-time error.</p>
+<p>A destructuring clause <code>B(&hellip;)</code> also puts each field it names in
+scope in the block, with that field&rsquo;s declared type. A guard <code>if
+g</code> requires <code>g</code> to be a <code>Boolean</code>, and is checked
+with those names in scope.</p>
 
-<p>A clause class is identified by the declaration \(C(B)\) it names, not by
-the spelling \(B\) is written with: naming a variant by its qualified name
-(Section&nbsp;<a href="#sec-4.2.1">4.2.1</a>) covers the same member of \(\mathit{subclasses}(C, A)\)
-a bare-named clause for it would &mdash; never an additional one.</p>
+<p>If <code>A</code> is sealed, the clauses must cover every subclass of
+<code>A</code>, unless an <code>else</code> clause covers the rest. A missing
+variant is a compile-time error.</p>
 
-<p>A clause that can fail <em>after</em> its class matches &mdash; one
-carrying a guard, a literal field, or a nested pattern &mdash; does not count
-toward this coverage, since it may fall through. So a variant whose only
-clause is qualified this way still needs an unguarded clause, a wildcard, or
-an <code>else</code>.</p>
+<ul>
+  <li>A clause is identified by the class declaration it names, not by how the
+  name is spelt. Naming a variant by its qualified name
+  (Section&nbsp;<a href="#sec-4.2.1">4.2.1</a>) covers the same subclass a clause with the bare name would,
+  never an additional one.</li>
+  <li>A clause that can fail <em>after</em> its class matches does not count
+  toward coverage, since control may fall through to the next clause. This is a
+  clause with a guard, a literal field pattern or a nested pattern. A variant
+  whose only clause is of this kind still needs a plain clause, a wildcard, or an
+  <code>else</code>.</li>
+</ul>
 
 <p>This exhaustiveness check is the whole purpose of the <code>sealed</code>
 modifier, and is why a sealed class is required to be deferred
 (Section&nbsp;<a href="#sec-4.9">4.9</a>).</p>
 
 <h4>Type conversion</h4>
-<p>The form <code>convert</code> \(e\) <code>to</code> \(x{:}\sigma\) is a
-boolean expression that attempts a downward or upward cast.</p>
 
-<p>It succeeds &mdash; binding \(x\) of type \(\sigma\) &mdash; when the
-runtime type of \(e\) is related to \(\sigma\), either as a supertype or a
-subtype. Otherwise it yields <code>false</code>, with \(x\) bound to
-<code>nil</code>.</p>
+<p>The expression <code>convert e to x: S</code> tests whether the value of
+<code>e</code> can be viewed as an <code>S</code>, and binds <code>x</code> to it if
+so. It is accepted if the type of <code>e</code> and <code>S</code> are related by
+conformance, in either direction. Its type is <code>Boolean</code>, and it puts
+<code>x</code> in scope with type <code>?S</code>, or <code>S</code> in the
+<code>then</code> branch of an <code>if</code> whose condition it is
+(<em>Narrowing</em>, above).</p>
 
-<p>Statically, it requires the type of \(e\) and \(\sigma\) to be related by
-conformance in one direction or the other. (Distinct numeric types are related in neither
-direction, Section&nbsp;<a href="#sec-4.3">4.3</a>, so <code>convert</code> never turns an <code>Integer</code> into a
-<code>Byte</code> or a <code>Real</code>; the conversion routines do.) The form itself has type
-<code>Boolean</code>, and binds \(x : \sigma\,?\) (rule <a href="appendix-rules.html#rule-4.20">4.20</a> in
-Appendix&nbsp;<a href="appendix-rules.html">D</a>).</p>
+<p>At run time it succeeds, binding <code>x</code> to the value, when the class of
+the value conforms to <code>S</code>. Otherwise it yields <code>false</code>, with
+<code>x</code> bound to <code>nil</code>. Because two different numeric types are
+related by conformance in neither direction (Section&nbsp;<a href="#sec-4.3">4.3</a>),
+<code>convert</code> never turns an <code>Integer</code> into a <code>Byte</code>
+or a <code>Real</code>; the conversion methods do that.</p>
 
 <h2 id="sec-4.6"><span class="secno">4.6</span>Contract Formation</h2>
 
-<p>Every assertion &mdash; in a <code>require</code>, an <code>ensure</code>,
-an <code>invariant</code>, a loop <code>invariant</code>, or an
-<code>assert</code> &mdash; must elaborate to <code>Boolean</code>.</p>
+<p>Every assertion, in a <code>require</code>, an <code>ensure</code>, a class
+<code>invariant</code>, a loop <code>invariant</code> or an <code>assert</code>,
+must have type <code>Boolean</code>. A loop <code>variant</code> must have type
+<code>Integer</code>. Each kind of assertion is elaborated with its own names in
+scope.</p>
 
-<p>Each kind is elaborated in its own environment. A precondition uses the
-environment of the routine&rsquo;s entry (parameters and fields in scope).
-A postcondition uses that same environment, extended with
-<code>result</code> and the <code>old</code> forms. An invariant uses the
-environment of the class&rsquo;s fields.</p>
+<ul>
+  <li><strong>A precondition</strong> sees the routine&rsquo;s parameters and the
+  fields of the current object.</li>
+  <li><strong>A postcondition</strong> sees the same names, together with
+  <code>result</code> and <code>old</code> expressions.</li>
+  <li><strong>A class invariant</strong> sees the fields of the class.</li>
+  <li><strong>An <code>assert</code></strong> sees whatever is in scope at the
+  point where it is written, like any other statement. The bare form, with no
+  label, is elaborated exactly as the named form is.</li>
+</ul>
 
-<p>An <code>assert</code> is elaborated in whatever environment holds at
-the point it appears &mdash; the environment of an ordinary statement in
-that body. The bare form, carrying no label, is elaborated exactly as the
-named one.</p>
+<p>The label of an assertion has no effect on its type. It is carried into the
+dynamic semantics only to name the condition in a violation report.</p>
 
-<p>This requirement is formalised as rule <a href="appendix-rules.html#rule-4.21">4.21</a> in Appendix&nbsp;<a href="appendix-rules.html">D</a>. Its
-main point is the typing of <code>old</code>, which is admitted only in a
-postcondition, and whose operand is elaborated over the fields of the
-current object alone.</p>
+<h4><code>old</code> expressions</h4>
 
-<p>Writing \(C^{\mathsf{fields}}\) for the environment holding just those
-fields &mdash; the one an invariant elaborates in &mdash; the operand
-\(e\) may be any expression well-typed there, and <code>old</code>&nbsp;\(e\)
-carries its type:</p>
-
-<div class="rule-block">
-\[ \frac{C^{\mathsf{fields}} \vdash e \Rightarrow \tau}{C^{\mathsf{ensure}} \vdash \texttt{old}\; e \Rightarrow \tau} \tag{4.22} \]
-</div>
+<p>The expression <code>old e</code> may appear only in a postcondition. Its
+operand <code>e</code> is elaborated with only the fields of the current object
+in scope: not the parameters, not local variables, and not <code>result</code>.
+Any expression that is well typed there is allowed, and <code>old e</code> has
+the same type as <code>e</code>. Writing <code>old</code> outside an
+<code>ensure</code> clause, or applying it to a parameter, is a compile-time
+error.</p>
 
 <pre><code>class Counter
   create make() do count := 0 end
@@ -712,54 +827,39 @@ let c := create Counter.make()
 c.bump()
 print(c.count)</code></pre>
 
-<p>The postcondition <code>advanced</code> elaborates because
+<p>The postcondition <code>advanced</code> is accepted because
 <code>count</code> is a field of the current class, so <code>old count</code>
-has type <code>Integer</code> by (<a href="appendix-rules.html#rule-4.22">4.22</a>); the assertion as a whole is
-<code>Boolean</code> by (<a href="appendix-rules.html#rule-4.21">4.21</a>). At run time <code>old count</code> is the
-value held on entry, so after one <code>bump</code> the count is
+has type <code>Integer</code>, and the assertion as a whole is
+<code>Boolean</code>. At run time <code>old count</code> is the value the field
+held on entry, so after one call of <code>bump</code> the count is
 <code>1</code> and the postcondition holds.</p>
 
-<p>The operand need not be a bare field: <code>old items.length</code>
-elaborates just as well, since every name it reads is a field, and its
-value is the length the collection had on entry (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>).
-Writing <code>old</code> on a parameter, or outside an <code>ensure</code>,
-is a compile-time error.</p>
-
-<p>Rule (<a href="appendix-rules.html#rule-4.22">4.22</a>) records the restriction of Section&nbsp;<a href="syntax-core.html#sec-2.9">2.9</a>: beneath
-<code>old</code> only the fields of the current object are in scope &mdash;
-not the parameters, the locals, or <code>result</code>. And
-<code>old</code> itself may stand only within a postcondition (the
-superscript \(\mathsf{ensure}\) marks that environment).</p>
-
-<p>The label of an assertion has no effect on its type. It is carried into
-the dynamic semantics solely to name the condition in a violation
-report.</p>
+<p>The operand need not be a bare field. <code>old items.length</code> is
+accepted just as well, since every name it reads is a field, and its value is
+the length the collection had on entry (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>).</p>
 
 <h2 id="sec-4.7"><span class="secno">4.7</span>Generic Elaboration</h2>
 
-<p>A generic class \(A[\alpha_1{\to}K_1,\dots]\) is elaborated once, with
-its parameters \(\alpha_i\) added to \(\Delta\) and constrained so that any
-actual argument must conform to \(K_i\).</p>
+<p>A generic class, such as <code>class Kennel [G -&gt; Animal]</code>, is checked
+once, with its generic parameters in scope as type variables. Each parameter may
+carry a <em>constraint</em>, the type after the arrow; a parameter with no
+constraint is constrained by <code>Any</code>.</p>
 
-<p>An application \(A[\tau_1,\dots,\tau_n]\) is well-formed when each
-\(\tau_i\) conforms to the constraint \(K_i\) of the corresponding
-parameter. Its fields and routine signatures are those of \(A\), with
-\(\tau_i\) substituted for \(\alpha_i\) throughout.</p>
+<p>A generic class type <code>A[T1, &hellip;, Tn]</code> is <em>well formed</em>
+if <code>A</code> has <code>n</code> generic parameters and each
+<code>Ti</code> conforms to the constraint of the corresponding parameter. Using a
+type that is not well formed is a compile-time error. The fields and method
+signatures of <code>A[T1, &hellip;, Tn]</code> are those of <code>A</code>, with
+each <code>Ti</code> in place of the corresponding parameter throughout.</p>
 
-<div class="rule-block">
-\[ \frac{A[\alpha_1{\to}K_1,\dots,\alpha_n{\to}K_n] \in \Sigma \quad \tau_i \preceq K_i \;\;(1 \le i \le n)}{C \vdash A[\tau_1,\dots,\tau_n] \;\mathbf{type}} \tag{4.23} \]
-</div>
-
-<p>A constraint is not merely a gate on the actual argument; it is what the
-body of the generic may rely on. Within the scope of \(\alpha \to K\), a
-value of type \(\alpha\) has the features of \(K\): its fields may be read
-and its routines called, and the call is elaborated against \(K\)&rsquo;s
-signature.</p>
-
-<p>A routine deferred in \(K\) may be called on an \(\alpha\) even though
-no implementation is known statically &mdash; the receiver&rsquo;s dynamic
-class supplies one (Section&nbsp;<a href="dynamic.html#sec-5.5">5.5</a>). An unconstrained parameter has no
-features beyond those of <code>Any</code>.</p>
+<p>A constraint is not only a test on the type argument; it is also what the
+body of the generic class may rely on. Within the class, a value whose type is a
+parameter constrained by <code>K</code> has the members of <code>K</code>: its
+fields may be read and its methods called, and each call is checked against
+<code>K</code>&rsquo;s signature. A method that is deferred in <code>K</code> may
+be called on such a value, even though no implementation is known statically: the
+class of the actual object supplies one (Section&nbsp;<a href="dynamic.html#sec-5.4">5.4</a>). An unconstrained
+parameter has no members beyond those of <code>Any</code>.</p>
 
 <pre><code>function total_area[T -> Shape](xs: Array[T]): Integer do
   result := 0
@@ -778,222 +878,201 @@ end
 let b: Box[Integer] := create Box.make(42)
 print(b.get())</code></pre>
 
-<p>The application <code>Box[Integer]</code> is a well-formed type by (<a href="appendix-rules.html#rule-4.23">4.23</a>) &mdash;
-the unconstrained parameter <code>G</code> admits any argument &mdash; and within
-it <code>G</code> stands for <code>Integer</code>, so <code>get()</code> returns an
-<code>Integer</code>. Had <code>G</code> carried a constraint such as
-<code>[G -&gt; Comparable]</code>, the argument would have to conform to it.</p>
+<p>The type <code>Box[Integer]</code> is well formed, since the unconstrained
+parameter <code>G</code> accepts any type argument. Within it <code>G</code>
+stands for <code>Integer</code>, so <code>get()</code> returns an
+<code>Integer</code>. Had the parameter been declared with a constraint, as in
+<code>[G -&gt; Comparable]</code>, the argument would have to conform to
+it.</p>
 
-<p>A parameter written \(?\alpha\) additionally permits \(\mathsf{Nil}\) as
-an argument. A generic routine is elaborated the same way, with its type
-parameters local to the routine.</p>
+<p>A parameter written <code>?G</code> also accepts the nil type as its argument.
+A generic routine is checked in the same way, with its type parameters in scope
+only within the routine.</p>
 
-<p>Because elaboration substitutes rather than erases, the type
-\(\texttt{Array[Integer]}\) and the type \(\texttt{Array[String]}\) are
-distinct types with distinct field and routine signatures &mdash; a value
-of one does not conform to the other.</p>
+<p>Because elaboration substitutes type arguments rather than erasing them,
+<code>Array[Integer]</code> and <code>Array[String]</code> are different types,
+with different field and method signatures. Neither conforms to the other
+(Section&nbsp;<a href="#sec-4.3">4.3</a>).</p>
 
 <h2 id="sec-4.8"><span class="secno">4.8</span>Free Functions and the Static World</h2>
 
-<p>The free functions of a program are elaborated together with its
-classes, so that any function may call any other regardless of textual
-order. This alone is what admits mutual recursion among them &mdash; no
-forecast of a callee&rsquo;s signature is needed ahead of its own
-definition.</p>
+<p>The free functions of a program are elaborated together with its classes,
+so any function may call any other, whatever their order in the program text.
+This alone is what allows mutual recursion among them: a function&rsquo;s
+signature need not be announced before it is called.</p>
 
-<p>A bare application \(m(e_1,\dots,e_n)\), where \(m\) is not a routine of
-the current class, is elaborated against the signature of the free
-function \(m\), gathered from wherever in the program \(m\) is defined.</p>
+<p>A bare call <code>m(e1, &hellip;, en)</code>, where <code>m</code> is not a
+method of the current class, is checked against the signature of the free
+function <code>m</code>, wherever in the program <code>m</code> is defined. The
+conditions are those of a method call (Section&nbsp;<a href="#sec-4.4">4.4</a>): the number of arguments
+must match, and each argument&rsquo;s type must conform to its parameter&rsquo;s.
+The type of the call is the function&rsquo;s return type.</p>
 
-<p>A <code>declare function</code> signature (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>) is a
-separate, optional device: it pins \(m\)&rsquo;s signature explicitly, at
-the point a reader (or a much later definition) most wants to see it. Its
-later definition must then match it exactly &mdash; a self-check on the
-declaration, not a precondition for calling \(m\) before that definition
-is reached.</p>
+<p>A <code>declare function</code> signature (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>) is a separate,
+optional device. It states <code>m</code>&rsquo;s signature explicitly, at the
+point where a reader most wants to see it, and the later definition of
+<code>m</code> must then match it exactly. It is a check on the declaration, not
+a requirement for calling <code>m</code> before its definition.</p>
 
-<p>Free functions, unlike methods, may not be overloaded: each free
-function name is meant to be unique, and a definition matching an earlier
-<code>declare function</code> must agree with it in full.</p>
-
-<p>Both rules are enforced: a repeated definition, and a definition whose
-signature disagrees with its declaration, are each rejected, naming the
-function.</p>
+<p>Free functions, unlike methods of a class, cannot be overloaded: each free
+function name must be unique. It is a compile-time error to define a free
+function twice, or to define one whose signature disagrees with its
+<code>declare function</code>. The error names the function.</p>
 
 <h3 id="sec-4.8.1"><span class="secno">4.8.1</span>Qualified Calls and Ambiguous References</h3>
 
-<p>The collision Section&nbsp;<a href="#sec-4.2.1">4.2.1</a> describes among classes can arise among
-free functions too: two units interned into the same program may each
-declare a function under the same bare name.</p>
+<p>The collision that Section&nbsp;<a href="#sec-4.2.1">4.2.1</a> describes for classes can happen with free
+functions too: two units interned into the same program may each declare a
+function with the same bare name.</p>
 
-<p>A bare name \(m\) that no routine of the current class and no function
-declared directly in the current unit supplies is well-defined only when
-at most one interned unit declares a free function of that name. When more
-than one does, \(m\) is an <strong>ambiguous reference</strong>, and
-\(m(e_1,\dots,e_n)\) is rejected wherever it is written &mdash; before the
-call rule of Section&nbsp;<a href="#sec-4.8">4.8</a> is ever reached.</p>
+<ul>
+  <li>A function declared in the current unit takes precedence, as a class
+  does. It shadows any interned function with the same bare name, and is never
+  part of an ambiguity.</li>
+  <li>Otherwise, a bare name <code>m</code> that is not a method of the current
+  class names a function only if at most one interned unit declares a function
+  called <code>m</code>. If more than one does, <code>m</code> is an
+  <em>ambiguous reference</em>, and it is a compile-time error to call
+  <code>m(&hellip;)</code> by its bare name.</li>
+</ul>
 
-<p>A function declared directly in the current unit is, like a class,
-never part of such an ambiguity: it shadows an interned function of the
-same bare name outright.</p>
+<p>Unlike a class, a free function has no qualified-name syntax of its own
+(Section&nbsp;<a href="syntax-modules.html#sec-3.6.2">3.6.2</a>). The way around an ambiguity is a <em>qualified call</em>,
+<code>p.m(e1, &hellip;, en)</code>, written like a call on a variable named
+<code>p</code> (Section&nbsp;<a href="syntax-core.html#sec-2.7">2.7</a>). It is elaborated as a qualified call only when
+<code>p</code> is neither a variable in scope nor the name of a class. A
+variable or class of that name always takes precedence, just as a class
+declared in the current unit takes precedence over an interned one.</p>
 
-<p>Unlike a class, a free function has no <span class="nt">qid</span>
-spelling to fall back on (Section&nbsp;<a href="syntax-modules.html#sec-3.6.2">3.6.2</a>). The escape instead is a
-<strong>qualified call</strong>, \(p.m(e_1,\dots,e_n)\), written in the
-ordinary member-access/call form of Section&nbsp;<a href="syntax-core.html#sec-2.7">2.7</a> &mdash; syntactically
-the same as a method call on a variable named \(p\).</p>
-
-<p>It is elaborated by this rule, rather than by (<a href="appendix-rules.html#rule-4.12">4.12</a>), precisely when
-\(p\)&rsquo;s leading identifier is undefined in \(\Gamma\) and names no
-class in \(\Sigma\). An ordinary binding of that name always takes
-precedence, just as a class declared in the current unit always takes
-precedence over a same-named interned one (Section&nbsp;<a href="#sec-4.2.1">4.2.1</a>).</p>
-
-<p>Only once that binding is confirmed undefined does
-\(p.m(e_1,\dots,e_n)\) elaborate as a call to the free function whose
-interned unit path and own name, joined by <code>.</code>, spell \(p.m\).
-The argument types must conform to that function&rsquo;s parameters, and
-the type of the expression is its return type &mdash; exactly as for the
-ordinary call of Section&nbsp;<a href="#sec-4.8">4.8</a>.</p>
-
-<p>A multi-segment chain (<code>a.b.m(&hellip;)</code>) is resolved the
-same way, against the one dotted name its own <code>.</code>-structure
-spells: everything before the final, argument-taking step is the unit
-path. This is unambiguous because the syntax of Section&nbsp;<a href="syntax-core.html#sec-2.7">2.7</a>
-allows no other place where a chain's member accesses could split.</p>
+<p>When it applies, <code>p.m(e1, &hellip;, en)</code> is a call of the free
+function whose interned unit path and name, joined by a dot, spell
+<code>p.m</code>. Its arguments are checked, and its type determined, as for an
+ordinary call of a free function. A longer chain, <code>a.b.m(&hellip;)</code>,
+is resolved in the same way against the dotted name it spells: everything before
+the final call is the unit path. This is unambiguous, because the grammar of
+Section&nbsp;<a href="syntax-core.html#sec-2.7">2.7</a> allows a chain of member accesses to be divided in only one
+way.</p>
 
 <h2 id="sec-4.9"><span class="secno">4.9</span>Well-Formedness of Classes</h2>
 
-<p>Beyond the typing of expressions, a program must satisfy conditions on its
-class structure. These are checked once, over the whole static world.</p>
+<p>Beyond the typing of expressions and statements, a program must satisfy
+conditions on the structure of its classes. They are checked once, over the whole
+static world. A class that breaks one of them is a compile-time error.</p>
 
 <ul>
-  <li><strong>Acyclic inheritance.</strong> The relation &ldquo;\(A\) inherits
-  \(B\)&rdquo; must be acyclic; its reflexive-transitive closure is the
-  conformance among class types of (<a href="appendix-rules.html#rule-C-Inherit">C-Inherit</a>).</li>
+  <li><strong>Acyclic inheritance.</strong> No class may inherit from itself,
+  directly or through other classes.</li>
   <li><strong>Ambiguous member resolution.</strong>
-  <p>Two parents named in one class&rsquo;s <code>inherit</code>, or two
-  ancestors reached through them, may themselves share a common ancestor.
-  That can make a member it declares &mdash; field, routine, or constructor
-  &mdash; reachable by more than one path. This is not itself rejected.</p>
-  <p>A bare, unqualified reference to such a member is taken from the copy
-  reached through the first parent named in <code>inherit</code>, tried
-  depth-first through that parent&rsquo;s own ancestors before the
-  next-named parent is tried at all.</p>
-  <p>A member along another path can still be reached deliberately, by
-  naming the ancestor that declares it explicitly (Section&nbsp;<a href="#sec-4.4">4.4</a>)
-  &mdash; a call, for a routine or constructor; a read, for a field.
-  Assignment is the one exception: no explicit-ancestor spelling grants
-  license to write a field it would not already reach (Section&nbsp;<a href="#sec-4.4">4.4</a>,
-  <em>Field assignment</em>). So a specific path&rsquo;s copy can only be
-  attached or changed through a routine written on the ancestor that
+  <p>Two parents named in one class&rsquo;s <code>inherit</code> clause, or two
+  ancestors reached through them, may share a common ancestor. A member that
+  ancestor declares (a field, method or constructor) can then be reached by more
+  than one path. This is not itself an error.</p>
+  <p>An unqualified reference to such a member is resolved through the first
+  parent named in <code>inherit</code>, searching that parent&rsquo;s own
+  ancestors depth-first before the next parent is tried at all.</p>
+  <p>A member reached along another path can still be used deliberately, by
+  naming the ancestor that declares it (Section&nbsp;<a href="#sec-4.4">4.4</a>): a call, for a method
+  or constructor, and a read, for a field. Assignment is the exception. No
+  ancestor name allows a class to assign a field it could not already assign
+  (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Field assignment</em>), so a particular path&rsquo;s copy
+  of a field can only be set or changed through a method of the ancestor that
   declares it.</p>
-  <p>Made precise: for a class \(B\) and a member \(x\) &mdash; field,
-  routine, or constructor &mdash; \(\mathit{home}(B, x)\) is the path to
-  whichever ancestor actually declares \(x\).</p>
-  <div class="rule-block">
-  \[ \mathit{home}(B, x) = \begin{cases} \varepsilon & B \text{ declares } x \text{ directly} \\ P \cdot \mathit{home}(P, x) & \text{otherwise, } P \text{ the first parent of } B \text{ (inherit order) reaching } x \end{cases} \]
-  </div>
-  <p>The result is a path of parent names, well-defined because inheritance
-  is acyclic (<em>Acyclic inheritance</em>, above).</p>
-  <p>An unqualified reference to \(x\) written in \(B\)&rsquo;s own text is
-  exactly \(\mathit{home}(B, x)\). An explicit ancestor name \(P\) (or
-  <code>super</code>, which rule <a href="appendix-rules.html#rule-4.7a">4.7a</a> resolves to a specific \(P\)) instead
-  fixes the first step outright, and continues with \(\mathit{home}(P,
-  x)\) for whatever remains &mdash; which is empty, and so contributes
-  nothing further, exactly when \(P\) declares \(x\) directly.</p>
-  <p>A related function, \(\mathit{reach}(B, P)\), gives the path to
-  \(B\)&rsquo;s own nested copy of a named ancestor \(P\) itself
-  (Section&nbsp;<a href="dynamic.html#sec-5.3">5.3</a> needs it to evaluate a bare ancestor name as a value):
-  \(\varepsilon\) if \(B = P\), otherwise \(Q \cdot \mathit{reach}(Q, P)\)
-  for the first parent \(Q\) of \(B\) (inherit order) that conforms to
-  \(P\).</p></li>
+  <p>Put precisely, the <em>home</em> of a member <code>x</code> in a class
+  <code>B</code> is the path of parent names that leads from <code>B</code> to the
+  ancestor that declares <code>x</code>. If <code>B</code> declares
+  <code>x</code> itself, the path is empty. Otherwise it is the first parent of
+  <code>B</code>, in <code>inherit</code> order, through which <code>x</code> can
+  be reached, followed by the home of <code>x</code> in that parent. The path
+  always ends, because inheritance is acyclic.</p>
+  <p>An unqualified reference to <code>x</code> in the text of <code>B</code>
+  follows the home of <code>x</code> in <code>B</code>. An ancestor name
+  <code>P</code>, or <code>super</code> standing for <code>P</code>, instead fixes
+  the first step as <code>P</code>, and then follows the home of <code>x</code> in
+  <code>P</code>. That second part is empty when <code>P</code> declares
+  <code>x</code> itself.</p>
+  <p>Similarly, the path to <code>B</code>&rsquo;s own nested copy of an ancestor
+  <code>P</code> (which Section&nbsp;<a href="dynamic.html#sec-5.3">5.3</a> needs in order to evaluate an ancestor
+  name) is empty if <code>B</code> is <code>P</code>. Otherwise it is the first
+  parent <code>Q</code> of <code>B</code>, in <code>inherit</code> order, that
+  conforms to <code>P</code>, followed by the path from <code>Q</code> to its copy
+  of <code>P</code>.</p></li>
   <li><strong>Attachment (void safety).</strong>
-  <p>Every constructor of a class must leave each of the class&rsquo;s
-  fields <em>attached</em> &mdash; holding a value of its declared type
-  rather than <code>nil</code> &mdash; unless the field is of an optional
-  type \(\tau\,?\), which admits <code>nil</code>. A constructor that
-  returns with a non-optional reference field still unattached is
-  rejected.</p>
-  <p>Scalar fields are attached by their zero value, so need no explicit
-  assignment; optional fields are attached to <code>nil</code> by default.
-  It is this discipline that makes the absence of a rule for
-  <code>nil</code>-dereference (Section&nbsp;<a href="dynamic.html#sec-5.3">5.3</a>) a guarantee rather than a
-  hazard: a non-optional reference is never observed to be
-  <code>nil</code>.</p>
-  <p>&ldquo;The class&rsquo;s fields&rdquo; includes one declared by an
-  ancestor. Inheriting a field carries Attachment&rsquo;s obligation for it
-  along; it does not exempt it. A subclass cannot discharge that obligation
-  by assigning the field directly, under any spelling &mdash; field
-  assignment is confined to the declaring class regardless of receiver
-  (Section&nbsp;<a href="#sec-4.4">4.4</a>, <em>Field assignment</em>), and inheriting a field is
-  not itself membership in that class.</p>
-  <p>The only way a subclass constructor can attach such a field is to
-  delegate to a constructor of the declaring class (<a href="appendix-rules.html#rule-4.13a">4.13a</a>), directly or in
-  turn, or to call a routine the declaring class exposes for the purpose.
-  That is why a class inheriting attachable fields it does not itself
-  redeclare must still route each of its own constructors through one or
-  the other.</p></li>
-  <li><strong>Repeated inheritance and shared ancestors.</strong> When a
-  common ancestor reached this way (see Ambiguous member resolution, above)
-  declares a field, the field is not thereby shared: each path to it holds
-  its own copy, attached independently by whichever constructor delegation
-  reaches it along that path (<a href="appendix-rules.html#rule-4.13a">4.13a</a>). A write through one path&rsquo;s copy
-  is never observed through another&rsquo;s.</li>
+  <p>Every constructor of a class must leave each of the class&rsquo;s fields
+  <em>attached</em>, holding a value of its declared type rather than
+  <code>nil</code>, unless the field has an optional type, which admits
+  <code>nil</code>. A constructor that can return with a non-optional reference
+  field still unattached is a compile-time error.</p>
+  <p>Scalar fields are attached by their zero value, and need no explicit
+  assignment. Optional fields are attached to <code>nil</code> by default. This
+  discipline is what guarantees that a non-optional reference is never observed
+  to be <code>nil</code> at run time.</p>
+  <p>&ldquo;The class&rsquo;s fields&rdquo; includes those declared by its
+  ancestors. Inheriting a field carries the obligation to attach it; it does not
+  remove it. A subclass cannot meet that obligation by assigning the field
+  directly, under any spelling, since only the declaring class may assign a field
+  (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Field assignment</em>).</p>
+  <p>The only ways a subclass constructor can attach an inherited field are to
+  delegate, directly or in turn, to a constructor of the declaring class
+  (Section&nbsp;<a href="#sec-4.4">4.4</a>), or to call a method that the declaring class provides for
+  the purpose. So a class that inherits fields needing attachment must route each
+  of its own constructors through one or the other.</p></li>
+  <li><strong>Repeated inheritance and shared ancestors.</strong> When a common
+  ancestor reached by more than one path (see <em>Ambiguous member
+  resolution</em>, above) declares a field, the field is not shared. Each path
+  has its own copy, attached separately by whichever constructor delegation
+  reaches it along that path. A write to one path&rsquo;s copy is never seen
+  through another&rsquo;s (Section&nbsp;<a href="dynamic.html#sec-5.1">5.1</a>).</li>
   <li><strong>Conformant overriding.</strong>
-  <p>When \(A\) inherits \(B\) and redefines a routine \(m\) of \(B\), the
-  signature of \(A\)&rsquo;s \(m\) must conform to that of \(B\)&rsquo;s
-  \(m\) under (<a href="appendix-rules.html#rule-C-Fun">C-Fun</a>): each parameter may be <em>widened</em> but not
-  narrowed (contravariant), and the return may be <em>narrowed</em> but
-  not widened (covariant). A field of \(B\) may not be redeclared with a
-  non-conforming type.</p>
-  <p>This is checked at the override: a routine that narrows a parameter
-  or returns a non-conforming type is rejected there, naming the routine
-  and the offending position.</p></li>
-  <li><strong>Complete deferral.</strong> A non-deferred class must supply a
-  body for every routine declared <code>deferred</code> in any of its ancestors;
-  a class with an unimplemented deferred routine is itself deferred and may not
-  be instantiated.</li>
+  <p>When a class <code>A</code> inherits <code>B</code> and redefines a method
+  <code>m</code> of <code>B</code>, the signature of <code>A</code>&rsquo;s
+  <code>m</code> must conform to that of <code>B</code>&rsquo;s, as function types
+  do (Section&nbsp;<a href="#sec-4.3">4.3</a>): each parameter type may be <em>widened</em> but not
+  narrowed, and the return type may be <em>narrowed</em> but not widened. A field
+  of <code>B</code> may not be redeclared with a type that does not conform to its
+  original one.</p>
+  <p>This is checked at the override: a method that narrows a parameter type or
+  widens its return type is rejected there, and the error names the method and
+  the offending position.</p></li>
+  <li><strong>Complete deferral.</strong> A class that is not deferred must
+  supply a body for every method declared <code>deferred</code> in any of its
+  ancestors. A class with an unimplemented deferred method is itself deferred,
+  and may not be instantiated.</li>
   <li><strong>Host-type conformance.</strong>
-  <p>When a parent named in <code>inherit</code> is an imported host
-  interface or class rather than a Nex class, the inheriting class must
-  supply a routine for every member the host type declares without an
-  implementation. That routine is matched by name and parameter count
-  against the host type&rsquo;s own declaration of it, spelled exactly as
-  the host declares it &mdash; no correspondence between Nex&rsquo;s
-  naming convention and the host&rsquo;s is assumed.</p>
-  <p>This is the host-facing analogue of <em>Complete deferral</em> above,
-  and is checked the same way: a class missing such a routine is rejected,
-  naming the member it fails to supply.</p></li>
+  <p>When a parent named in <code>inherit</code> is an imported host interface or
+  class rather than a Nex class, the inheriting class must supply a method for
+  every member the host type declares without an implementation. The method is
+  matched by name and number of parameters against the host type&rsquo;s own
+  declaration, spelt exactly as the host spells it. No correspondence between
+  Nex&rsquo;s naming conventions and the host&rsquo;s is assumed.</p>
+  <p>This is the host-facing counterpart of <em>Complete deferral</em>, and is
+  checked the same way: a class that lacks such a method is rejected, and the
+  error names the missing member.</p></li>
   <li><strong>Single host-class extension.</strong>
-  <p>At most one parent named in a class&rsquo;s <code>inherit</code>
-  &mdash; counting the whole ancestor chain &mdash; may name a concrete
-  (non-interface) host class; a second is rejected.</p>
-  <p>A host platform&rsquo;s object model may permit only single extension
-  of a concrete class, and this condition holds regardless of which
-  platform a given implementation targets.</p></li>
+  <p>Among all of a class&rsquo;s ancestors, at most one may be a concrete
+  (non-interface) host class. A second is a compile-time error.</p>
+  <p>A host platform&rsquo;s object model may allow a concrete class only one
+  superclass, and this condition holds whichever platform an implementation
+  targets.</p></li>
   <li><strong>Host superclass construction.</strong>
-  <p>A class that extends a concrete host class by the previous condition
-  must, in each of its own constructors, do one of two things. Either open
-  with a call to the host superclass&rsquo;s own constructor &mdash;
-  <code>super.new(&hellip;)</code>, or the parent named explicitly in
-  place of <code>super</code> &mdash; as the constructor&rsquo;s first
-  statement and nowhere else. Or declare no such call at all, in which
-  case the host superclass must itself be constructible with no
-  arguments.</p>
-  <p>The first form must name an argument list the host superclass
-  actually accepts, by argument count. <code>new</code> is reserved for
-  this one purpose when the target is a host superclass; it is otherwise
-  an ordinary identifier (Section&nbsp;<a href="dynamic.html#sec-5.8">5.8</a>).</p></li>
-  <li><strong>Sealed implies deferred.</strong> A <code>sealed</code> class must
-  be <code>deferred</code>. Were a sealed class instantiable, a bare instance of
-  the parent would be a runtime value that an exhaustive <code>match</code> over
-  the parent&rsquo;s subclasses (<a href="appendix-rules.html#rule-4.19">4.19</a>) would fail to cover; requiring deferral
-  removes that value and so keeps exhaustiveness meaningful.</li>
-  <li><strong>Once discipline.</strong> A <code>once</code> field is assigned
-  only in constructors of its class (the premise of (<a href="appendix-rules.html#rule-4.17">4.17</a>)).</li>
+  <p>A class that extends a concrete host class must do one of two things in each
+  of its constructors. Either it begins with a call to the host
+  superclass&rsquo;s constructor, <code>super.new(&hellip;)</code> or the parent
+  named in place of <code>super</code>, as the constructor&rsquo;s first statement
+  and nowhere else. Or it makes no such call at all, in which case the host
+  superclass must be constructible with no arguments.</p>
+  <p>In the first form, the call must pass a number of arguments that one of the
+  host superclass&rsquo;s constructors accepts. <code>new</code> is reserved for
+  this purpose when the target is a host superclass; everywhere else it is an
+  ordinary identifier (Section&nbsp;<a href="dynamic.html#sec-5.5">5.5</a>).</p></li>
+  <li><strong>Sealed implies deferred.</strong> A <code>sealed</code> class must be
+  <code>deferred</code>. If a sealed class could be instantiated, a plain
+  instance of it would be a value that an exhaustive <code>match</code> over its
+  subclasses (Section&nbsp;<a href="#sec-4.5">4.5</a>) fails to cover. Requiring it to be deferred
+  removes that value, and so keeps exhaustiveness meaningful.</li>
+  <li><strong>Once discipline.</strong> A <code>once</code> field is assigned only
+  in constructors of its class (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Assignment</em>).</li>
 </ul>
 
-<p>A program all of whose phrases elaborate, and all of whose classes are
-well-formed, is <em>statically valid</em>. The dynamic semantics of the next
-chapter is defined only for statically valid programs.</p>
+<p>A program all of whose phrases elaborate, and all of whose classes are well
+formed, is <em>statically valid</em>. The dynamic semantics of the next chapter
+is defined only for statically valid programs.</p>
