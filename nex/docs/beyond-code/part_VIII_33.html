@@ -134,15 +134,44 @@ feature
 end</code></pre>
 <p>The <code>Refactored_Knowledge_Service.query()</code> has the exact same <code>require</code> and <code>ensure</code> as the legacy version. Any client using the legacy service can switch to the refactored one without knowing that the internal implementation has changed from a single tangled block to a clean two-service architecture.</p>
 </section>
-<section class="level2" data-number="34.5" id="refactoring-across-the-three-systems">
-<h2 class="anchored" data-anchor-id="refactoring-across-the-three-systems" data-number="34.5"> Refactoring Across the Three Systems</h2>
-<p>In the <strong>delivery system</strong>, refactoring often involves moving state transition logic out of a generic “task manager” and into specific “state machine” objects. The safety check is ensuring that the task still moves through the correct lifecycle.</p>
-<p>In the <strong>knowledge engine</strong>, refactoring might involve splitting the “indexing” pipeline into separate “extraction” and “storage” stages. The safety check is ensuring that a document indexed by the new pipeline is still retrievable and contains the same metadata.</p>
-<p>In the <strong>virtual world</strong>, refactoring might involve extracting the “collision detection” algorithm into its own module. The safety check is ensuring that entities still collide at the exact same coordinates they did before.</p>
-<p>In every case, the goal is to improve the “how” while strictly preserving the “what.”</p>
+<section class="level2" data-number="34.5" id="parity-checks-in-practice">
+<h2 class="anchored" data-anchor-id="parity-checks-in-practice" data-number="34.5"> Parity Checks in Practice</h2>
+<p>Each running system has a typical refactor, and each needs a parity check suited to it.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%"/>
+<col style="width: 46%"/>
+<col style="width: 36%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>System</th>
+<th>Typical refactor</th>
+<th>Parity check</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Delivery network</td>
+<td>Move state transition logic out of a generic “task manager” into specific “state machine” objects.</td>
+<td>The task still moves through the correct lifecycle.</td>
+</tr>
+<tr class="even">
+<td>Knowledge engine</td>
+<td>Split the “indexing” pipeline into separate “extraction” and “storage” stages.</td>
+<td>A document indexed by the new pipeline is still retrievable and carries the same metadata.</td>
+</tr>
+<tr class="odd">
+<td>Virtual world</td>
+<td>Extract the collision detection algorithm into its own module.</td>
+<td>Entities still collide at exactly the same coordinates as before.</td>
+</tr>
+</tbody>
+</table>
+<p>The goal is to improve the “how” while strictly preserving the “what.”</p>
 </section>
-<section class="level2" data-number="34.6" id="three-ways-refactoring-fails">
-<h2 class="anchored" data-anchor-id="three-ways-refactoring-fails" data-number="34.6"> Three Ways Refactoring Fails</h2>
+<section class="level2" data-number="34.6" id="where-refactoring-fails">
+<h2 class="anchored" data-anchor-id="where-refactoring-fails" data-number="34.6"> Where Refactoring Fails</h2>
 <p><strong>The “Big Bang” Temptation.</strong> As we noted, trying to fix everything at once is the fastest way to break a system. The remedy is to force yourself to work in slices that can be committed and verified in a single hour.</p>
 <p><strong>Missing Parity Checks.</strong> Assuming that “the tests passed” is enough can be dangerous if the test suite is sparse. The remedy is to use real-world data (or high-fidelity samples) to compare the output of the old and new paths before making the switch permanent.</p>
 <p><strong>Early Deletion.</strong> Deleting the legacy code before the new path has survived a production workload is a common source of “no-way-back” incidents. The remedy is to keep both paths alive for a short period — perhaps behind a feature flag — so that you can roll back instantly if a subtle behavioral difference is discovered.</p>

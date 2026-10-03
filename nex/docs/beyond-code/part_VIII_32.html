@@ -28,12 +28,12 @@
     <h1 class="opener-title">Designing for Change</h1>
   </div>
   <div class="prose">
-<p>Managing complexity, as we saw in <a class="xref" href="part_VIII_31.html">Managing Complexity</a>, is the discipline of keeping a system understandable today. It is about drawing boundaries so that the cost of reasoning remains within our budget. But a system that is easy to understand today may still be prohibitively expensive to change tomorrow. Requirements evolve, technology stacks shift, and business models pivot. If every such change requires reaching across boundaries and rewriting stable logic, the system has failed a fundamental engineering test.</p>
+<p>Managing complexity, as we saw in <a class="xref" href="part_VIII_31.html">Managing Complexity</a>, is the discipline of keeping a system understandable today. It is about drawing boundaries so that the cost of reasoning remains within our budget. But a system that is easy to understand today may still be prohibitively expensive to change tomorrow. Requirements evolve and business models pivot. If every such change requires reaching across boundaries and rewriting stable logic, the system has failed a fundamental engineering test.</p>
 <p>Designing for change is the practice of building “extension points” into a system — locations where behavior can vary without breaking the contracts that surround them. The goal is not to predict the future, which is impossible, but to build a system that can absorb it.</p>
 <section class="level2" data-number="33.1" id="the-concept-of-change-extension-points">
 <h2 class="anchored" data-anchor-id="the-concept-of-change-extension-points" data-number="33.1"> The Concept of Extension Points</h2>
 <p>An extension point is a place where we can alter behavior without editing the code that uses that behavior. In a well-designed system, extension points are placed at the points of highest likely volatility.</p>
-<p>Consider a notification system. Today, it sends emails. Tomorrow, it might need to send SMS messages, push notifications, or Slack alerts. If the logic for “how to send an email” is hardcoded into the heart of the dispatch workflow, then adding SMS support requires modifying the dispatch workflow. The dispatch workflow is now coupled to the notification transport.</p>
+<p>Consider a notification system. Today, it sends emails. Tomorrow, it might need to send SMS messages or push notifications. If the logic for “how to send an email” is hardcoded into the heart of the dispatch workflow, then adding SMS support requires modifying the dispatch workflow. The dispatch workflow is now coupled to the notification transport.</p>
 <p>An extension point decouples them. By defining a stable contract — <code>Notification_Transport.send(message)</code> — the dispatch workflow can remain entirely ignorant of how the message is delivered. It depends on the <em>interface</em> of the transport, not its implementation. When a new transport is added, we don’t change the dispatch logic; we simply provide a different implementation of the extension point.</p>
 <p>Good extension points isolate volatility. They allow the stable parts of the system (the “what”) to remain unchanged while the volatile parts (the “how”) evolve independently.</p>
 </section>
@@ -50,14 +50,14 @@
 <blockquote class="blockquote">
 <p><em>“We need to experiment with a new ranking algorithm for search results, but we must be able to switch back to the old one instantly if the metrics drop.”</em></p>
 </blockquote>
-<p>Without an extension point, the ranking logic is likely embedded in the search service. Switching algorithms means a code change, a deployment, and a high-risk transition.</p>
+<p>Without an extension point, the ranking logic is likely embedded in the search service. Switching algorithms means a code change and a risky deployment.</p>
 <p>With an extension point, we design for variation:</p>
 <ol type="1">
 <li><strong>Define the Port:</strong> We create a stable interface, <code>Ranking_Strategy</code>, with a single operation: <code>rank(results: List[Document])</code>.</li>
 <li><strong>Implement the Variants:</strong> We create <code>Legacy_Ranking</code> and <code>Experimental_Ranking</code>, both adhering to the <code>Ranking_Strategy</code> contract.</li>
 <li><strong>Introduce the Switch:</strong> The search service is given an instance of <code>Ranking_Strategy</code> at runtime. Which implementation it gets is decided by a configuration setting or a feature flag.</li>
 </ol>
-<p>The search service remains unchanged. Its contract is satisfied by any object that knows how to rank. We can now swap algorithms, run A/B tests, or roll back a failure without touching the core search orchestration.</p>
+<p>The search service remains unchanged. Its contract is satisfied by any object that knows how to rank. We can now run A/B tests or roll back a failure without touching the core search orchestration.</p>
 </section>
 <section class="level2" data-number="33.4" id="implementation-in-nex">
 <h2 class="anchored" data-anchor-id="implementation-in-nex" data-number="33.4"> Implementation in Nex</h2>
@@ -126,15 +126,49 @@ feature
 end</code></pre>
 <p>The <code>deferred</code> class <code>Ranking_Strategy</code> acts as the port. The <code>Search_Service</code> depends only on this abstraction. Whether the <code>strategy</code> is an instance of <code>Legacy_Ranking</code> or <code>Modern_Ranking</code> is a configuration detail. The search logic is protected from the volatility of the ranking algorithm.</p>
 </section>
-<section class="level2" data-number="33.5" id="designing-for-change-across-the-three-systems">
-<h2 class="anchored" data-anchor-id="designing-for-change-across-the-three-systems" data-number="33.5"> Designing for Change Across the Three Systems</h2>
-<p>In the <strong>delivery system</strong>, the extension point is the <code>Routing_Policy</code>. We can swap from a “shortest distance” policy to a “minimum fuel” policy or a “driver preference” policy without changing the dispatch engine that executes the routes.</p>
-<p>In the <strong>knowledge engine</strong>, the extension point is the <code>Document_Parser</code>. As new file formats are supported — PDF, Markdown, LaTeX — we add new parser implementations. The indexing pipeline remains unchanged because it interacts with the stable <code>Parsed_Content</code> contract.</p>
-<p>In the <strong>virtual world</strong>, the extension point is the <code>Entity_Behavior</code>. A “Player” and an “NPC” might share the same physical simulation rules but have different decision-making logic. By isolating behavior behind an extension point, we can add new types of entities without modifying the physics engine.</p>
-<p>In all three cases, the pattern is the same: identify the part that is likely to vary, wrap it in a stable contract, and allow the rest of the system to depend on the contract rather than the variation.</p>
+<section class="level2" data-number="33.5" id="choosing-the-extension-point">
+<h2 class="anchored" data-anchor-id="choosing-the-extension-point" data-number="33.5"> Choosing the Extension Point</h2>
+<p>Each running system has an obvious place for one.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%"/>
+<col style="width: 20%"/>
+<col style="width: 32%"/>
+<col style="width: 30%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>System</th>
+<th>Extension point</th>
+<th>What varies behind it</th>
+<th>What stays unchanged</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Delivery network</td>
+<td><code>Routing_Policy</code></td>
+<td>The routing objective, such as shortest distance or minimum fuel.</td>
+<td>The dispatch engine that executes the routes.</td>
+</tr>
+<tr class="even">
+<td>Knowledge engine</td>
+<td><code>Document_Parser</code></td>
+<td>One parser per supported file format, such as PDF or Markdown.</td>
+<td>The indexing pipeline, which depends only on the <code>Parsed_Content</code> contract.</td>
+</tr>
+<tr class="odd">
+<td>Virtual world</td>
+<td><code>Entity_Behavior</code></td>
+<td>Decision-making logic, which differs between, say, a “Player” and an “NPC”.</td>
+<td>The physics engine and the simulation rules all entities share.</td>
+</tr>
+</tbody>
+</table>
+<p>The pattern is to find the part most likely to vary and put a stable contract in front of it, so that the rest of the system depends on the contract rather than on the variation.</p>
 </section>
-<section class="level2" data-number="33.6" id="three-ways-design-for-change-fails">
-<h2 class="anchored" data-anchor-id="three-ways-design-for-change-fails" data-number="33.6"> Three Ways Design for Change Fails</h2>
+<section class="level2" data-number="33.6" id="where-design-for-change-fails">
+<h2 class="anchored" data-anchor-id="where-design-for-change-fails" data-number="33.6"> Where Design for Change Fails</h2>
 <p><strong>Premature Abstraction.</strong> The most common mistake is building extension points for variations that never happen. Every extension point adds a layer of indirection and a small cost to reasoning. If you build five different “strategy” ports for logic that hasn’t changed in three years, you have wasted complexity budget. The remedy is to add extension points only when volatility is evidenced or highly probable.</p>
 <p><strong>Leaky Abstractions.</strong> An extension point is useless if the contract requires the caller to know about the implementation. If <code>Ranking_Strategy</code> requires the caller to pass database-specific credentials, the extension point has leaked infrastructure details into the domain. The remedy is to keep contracts focused on the <em>intent</em> of the operation, not the <em>mechanics</em> of the implementation.</p>
 <p><strong>The “Big Bang” Migration.</strong> Designing for change implies that the system will evolve. If a team introduces a new version of a service but provides no compatibility for old clients, they haven’t designed for change — they’ve designed for disruption. The remedy is to make compatibility a first-class architectural requirement, using adapters and versioned interfaces to bridge the gap.</p>

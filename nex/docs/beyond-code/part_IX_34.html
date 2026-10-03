@@ -28,12 +28,12 @@
     <h1 class="opener-title">Working With AI Coding Assistants</h1>
   </div>
   <div class="prose">
-<p>The arrival of AI coding assistants represents one of the most significant shifts in the history of software development. For the first time, we have collaborators that can draft implementation, suggest refactors, and generate tests in seconds. But this speed comes with a profound risk: if we use AI to bypass the rigors of software engineering, we will simply build fragile systems faster.</p>
+<p>The arrival of AI coding assistants represents one of the most significant shifts in the history of software development. For the first time, we have collaborators that can draft implementation and generate tests in seconds. But this speed comes with a profound risk: if we use AI to bypass the rigors of software engineering, we will simply build fragile systems faster.</p>
 <p>The key to effective AI collaboration is not learning the right “magic words.” It is applying the same engineering constraints to the AI that we apply to ourselves. When we treat the AI as a junior implementation partner working within a strictly defined architectural sandbox, it becomes a powerful accelerator. When we treat it as an oracle that defines our architecture, it becomes a source of systemic debt.</p>
 <section class="level2" data-number="34.1" id="ai-as-a-collaborator-not-an-authority">
 <h2 class="anchored" data-anchor-id="ai-as-a-collaborator-not-an-authority" data-number="34.1"> AI as a Collaborator, Not an Authority</h2>
 <p>An AI assistant is an implementation engine, not a design authority. It is excellent at “filling in the blanks” once the boundaries, contracts, and invariants have been established. It is much less effective at determining what those boundaries should be.</p>
-<p>The most common failure mode in AI-assisted development is the “vague prompt”: <em>“Write a service that handles delivery task rerouting.”</em> This prompt provides no constraints. The AI will likely generate plausible-looking code that ignores your system’s existing state management, bypasses your domain invariants, and uses a different error-handling philosophy.</p>
+<p>The most common failure mode in AI-assisted development is the “vague prompt”: <em>“Write a service that handles delivery task rerouting.”</em> This prompt provides no constraints. The AI will likely generate plausible-looking code that bypasses your domain invariants and ignores your system’s existing state management.</p>
 <p>A successful collaborator provides context and constraints. The AI needs to know: - <strong>What is the goal?</strong> (The high-level intent). - <strong>What are the boundaries?</strong> (The existing interfaces it must use). - <strong>What are the invariants?</strong> (The rules it must not break). - <strong>What are the acceptance criteria?</strong> (The tests it must pass).</p>
 </section>
 <section class="level2" data-number="34.2" id="constraint-driven-prompting">
@@ -103,15 +103,14 @@ feature
 end</code></pre>
 <p>By providing the <code>Knowledge_Query_Service</code> as the context, we ensure the AI understands the <code>require</code> and <code>ensure</code> expectations. The <code>Knowledge_Fallback_Wrapper</code> is then generated to respect those same expectations, preserving the system’s trustworthiness.</p>
 </section>
-<section class="level2" data-number="34.5" id="ai-workflow-across-the-three-systems">
-<h2 class="anchored" data-anchor-id="ai-workflow-across-the-three-systems" data-number="34.5"> AI Workflow Across the Three Systems</h2>
-<p>In the <strong>delivery system</strong>, we might use an assistant to propose three different “fallback route” algorithms. We constrain the AI by providing the <code>Routing_Contract</code> and requiring that every proposal honor the “delivery window” invariant.</p>
-<p>In the <strong>knowledge engine</strong>, we might ask the assistant to generate a new <code>Document_Parser</code> for a specialized file format. We constrain it by providing the <code>Parser_Interface</code> and a set of “adversarial” inputs it must handle safely.</p>
-<p>In the <strong>virtual world</strong>, we might use an AI to draft a new set of “NPC interaction rules.” We constrain it by providing the <code>Simulation_State</code> invariant, ensuring the AI doesn’t generate rules that allow entities to enter illegal states.</p>
-<p>In each case, the engineer’s role is to define the “sandbox” and the AI’s role is to explore the implementation within it.</p>
+<section class="level2" data-number="34.5" id="building-the-sandbox">
+<h2 class="anchored" data-anchor-id="building-the-sandbox" data-number="34.5"> Building the Sandbox</h2>
+<p>Suppose we ask an assistant to propose several “fallback route” algorithms for the delivery system. The sandbox is the <code>Routing_Contract</code>, plus the requirement that every proposal honor the “delivery window” invariant. Within those walls the assistant can try any approach it likes; a proposal that breaks the invariant fails its contract checks, and the discussion ends there.</p>
+<p>The same move works in the other systems. A new <code>Document_Parser</code> for a specialized file format is constrained by the <code>Parser_Interface</code> and a set of “adversarial” inputs it must handle safely. A draft set of “NPC interaction rules” is constrained by the <code>Simulation_State</code> invariant, so the assistant cannot produce rules that let entities enter illegal states.</p>
+<p>The engineer defines the sandbox; the AI explores the implementation within it.</p>
 </section>
-<section class="level2" data-number="34.6" id="three-ways-ai-collaboration-fails">
-<h2 class="anchored" data-anchor-id="three-ways-ai-collaboration-fails" data-number="34.6"> Three Ways AI Collaboration Fails</h2>
+<section class="level2" data-number="34.6" id="where-ai-collaboration-fails">
+<h2 class="anchored" data-anchor-id="where-ai-collaboration-fails" data-number="34.6"> Where AI Collaboration Fails</h2>
 <p><strong>Prompting without context.</strong> Asking an AI to solve a problem without showing it the existing code is like asking a chef to cook in a kitchen they’ve never seen. The result will likely be incompatible with your environment. The remedy is to always include relevant interfaces, contracts, and a summary of your system’s architecture in your prompts.</p>
 <p><strong>Accepting the first draft.</strong> AI output is a draft, not a final product. It often contains subtle “hallucinations” — calls to methods that don’t exist or logic that almost, but not quite, satisfies the invariants. The remedy is to treat AI code with extreme skepticism until it has passed your full battery of contract checks and tests.</p>
 <p><strong>Asking for too much at once.</strong> Asking an AI to “redesign the entire dispatch system” is a recipe for a high-risk, unreviewable mess. The remedy is to scope your AI tasks to small, bounded changes — the same kind of slices you would use in a manual refactor.</p>

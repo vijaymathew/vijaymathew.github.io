@@ -34,13 +34,13 @@
 <section class="level2" data-number="17.1" id="the-question-each-structure-answers">
 <h2 class="anchored" data-anchor-id="the-question-each-structure-answers" data-number="17.1"> The Question Each Structure Answers</h2>
 <p>The choice between a set and a map follows directly from the question the operation asks.</p>
-<p>A set answers: <em>is this element present?</em> Checking whether a document has already been scored in the current query, whether a location has been visited in the current traversal, whether an entity is already active in the current frame — these are membership questions, and a set answers them in constant time regardless of how many elements it contains. The same question answered by scanning a list takes time proportional to the list’s size.</p>
-<p>A map answers: <em>given this key, what is the associated value?</em> Fetching a delivery task by its identifier, retrieving document metadata by document ID, looking up an entity’s current state by its entity ID — these are keyed retrieval questions, and a map answers them in constant time. The same question answered by scanning a list for a matching identifier takes linear time.</p>
+<p>A set answers: <em>is this element present?</em> Checking whether a location has already been visited in the current traversal is a membership question, and a set answers it in constant time regardless of how many elements it contains. The same question answered by scanning a list takes time proportional to the list’s size.</p>
+<p>A map answers: <em>given this key, what is the associated value?</em> Fetching a delivery task by its identifier is a keyed retrieval question, and a map answers it in constant time. The same question answered by scanning a list for a matching identifier takes linear time.</p>
 <p>If the dominant operation on a collection is a membership question and the structure is a list, the cost is avoidable. If the dominant operation is keyed retrieval and the structure is a list, the cost is equally avoidable. The structures that avoid it exist precisely because these two questions are asked frequently enough in real systems to justify structures organized around answering them efficiently.</p>
 </section>
 <section class="level2" data-number="17.2" id="key-design-is-a-correctness-decision">
 <h2 class="anchored" data-anchor-id="key-design-is-a-correctness-decision" data-number="17.2"> Key Design Is a Correctness Decision</h2>
-<p>Sets and maps are only as useful as the keys they are built on. A poorly chosen key produces errors that are more insidious than a slow linear scan: the wrong record is updated, a membership check reports false when the element is actually present, a lookup returns a stale result. These failures are not obviously performance problems — they are correctness failures that trace back to a structural decision made before the code was written.</p>
+<p>Sets and maps are only as useful as the keys they are built on. A poorly chosen key produces errors that are more insidious than a slow linear scan: the wrong record is updated, or a lookup returns a stale result. These failures are not obviously performance problems — they are correctness failures that trace back to a structural decision made before the code was written.</p>
 <p>A good key has three properties.</p>
 <p><strong>Stability.</strong> A key that changes over the lifetime of the entity it identifies cannot be used as a map key. If the key changes, the entity can no longer be found at its old location in the map, and the new location is wherever the changed key happens to point — which may be an entry that belongs to a different entity entirely. Keys must be stable across the full lifetime of the entity they identify. For delivery tasks, the task identifier assigned at creation is stable; the task’s current status is not. For documents, the document’s unique ID is stable; its title is not.</p>
 <p><strong>Uniqueness.</strong> A key that does not uniquely identify its entity within the intended scope produces collisions: two different entities map to the same key, and one overwrites the other. Uniqueness is a property of the domain, not of the implementation, and it must be verified rather than assumed. If two delivery tasks can share an identifier — because the identifier is generated from the destination location rather than from a globally unique counter — then the identifier is not a valid key for a map whose entries must be distinct.</p>
@@ -54,8 +54,8 @@
 <p><em>“For each query, avoid re-scoring the same document, and fetch metadata by id quickly.”</em></p>
 </blockquote>
 <p>Two operations are embedded here. The first is a membership question: has this document already been scored in the current query? A set of seen document identifiers answers this in constant time. The second is a keyed retrieval question: given a document identifier, what is the associated metadata? A map from document identifier to metadata record answers this in constant time.</p>
-<p>If result order matters for the output — if the ranked list of results must be returned in score order — a third structure is also needed: an ordered sequence that preserves the ranking. The set handles deduplication. The map handles metadata retrieval. The sequence handles ordered output. Each structure is used for exactly the operation it is good at.</p>
-<p>This hybrid pattern — an ordered sequence for presentation, a map for identity-based access, optionally a set for membership control — is one of the most common structural patterns in real systems. It appears in the delivery system (a sequence of tasks for dispatch order, a map from task identifier to task for status lookup), in the knowledge engine (a ranked sequence of results for display, a map from document identifier to metadata for enrichment), and in the virtual world (an ordered sequence of entities for deterministic update, a map from entity identifier to state for targeted access).</p>
+<p>If result order matters for the output — if the ranked list of results must be returned in score order — a third structure is also needed: an ordered sequence that preserves the ranking. The set handles deduplication and the map handles metadata retrieval, leaving the sequence to preserve output order. Each structure is used for exactly the operation it is good at.</p>
+<p>This hybrid pattern — an ordered sequence for presentation, a map for identity-based access, optionally a set for membership control — is one of the most common structural patterns in real systems. Each of the running systems uses some version of it.</p>
 <p>The hybrid works only if there is one authoritative write path that keeps the structures synchronized. A system that updates the map without updating the sequence, or updates the sequence without updating the map, will produce inconsistencies that are difficult to diagnose because the failure appears at read time, far from where the write error occurred.</p>
 </section>
 <section class="level2" data-number="17.4" id="a-map-in-code">
@@ -130,20 +130,48 @@ end</code></pre>
 <p>The explicit <code>"NOT_FOUND"</code> return is not defensive programming — it is part of the contract. A caller of <code>fetch_title</code> must handle the case where the key is absent. If the operation returned an empty string for both “this document has an empty title” and “this document does not exist,” the caller would have no way to distinguish the two. Declaring a distinct miss behavior as part of the output contract is what makes the operation composable without forcing the caller to inspect the implementation.</p>
 <p>The precondition on both operations — <code>doc_id /= ""</code> — rejects the empty string as a key. An empty string is not a stable, unique identifier; it is the absence of a value masquerading as one. Rejecting it at the boundary prevents a class of errors that would otherwise produce confusing behavior deep in the lookup logic.</p>
 </section>
-<section class="level2" data-number="17.5" id="sets-and-maps-in-the-three-systems">
-<h2 class="anchored" data-anchor-id="sets-and-maps-in-the-three-systems" data-number="17.5"> Sets and Maps in the Three Systems</h2>
-<p>The pattern across all three systems is consistent: membership control and keyed state access appear together, and each is handled by the structure suited to it.</p>
-<p>In the delivery system, a set of locations visited during the current traversal prevents the route-finding algorithm from revisiting nodes it has already explored. A map from task identifier to task provides O(1) access when a robot requests its current assignment or when a status update must be applied to a specific task.</p>
-<p>In the knowledge engine, a set of candidate document identifiers eliminates duplicates before scoring begins — a document that is reachable through multiple paths in the document graph should be scored once, not once per path. A map from document identifier to metadata provides the title, timestamp, and other fields needed to enrich the ranked results without re-fetching the full document.</p>
-<p>In the virtual world, a set of active entity identifiers tracks which entities are present in the current frame, providing a fast answer to the question of whether a newly spawned entity identifier is already in use. A map from entity identifier to entity state provides direct access when a collision rule must be applied to two specific entities.</p>
-<p>In every case, the set and the map are not replacements for the list that holds the ordered collection — they are complements to it, each handling the operation the list cannot.</p>
+<section class="level2" data-number="17.5" id="pairing-sets-with-maps">
+<h2 class="anchored" data-anchor-id="pairing-sets-with-maps" data-number="17.5"> Pairing Sets with Maps</h2>
+<p>Each running system pairs a set for membership control with a map for keyed state access.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%"/>
+<col style="width: 41%"/>
+<col style="width: 41%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>System</th>
+<th>Set: is this present?</th>
+<th>Map: what is stored under this key?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Delivery network</td>
+<td>Locations visited during the current traversal, so route finding never revisits a node.</td>
+<td>Task identifier to task, for O(1) access when a robot requests its assignment or a status update targets a specific task.</td>
+</tr>
+<tr class="even">
+<td>Knowledge engine</td>
+<td>Candidate document identifiers, so a document reachable through several paths in the document graph is scored once, not once per path.</td>
+<td>Document identifier to metadata, so ranked results can be enriched with titles and timestamps without re-fetching the full document.</td>
+</tr>
+<tr class="odd">
+<td>Virtual world</td>
+<td>Identifiers of entities active in the current frame, so a newly spawned identifier can be checked for reuse.</td>
+<td>Entity identifier to state, for direct access when a collision rule must be applied to two specific entities.</td>
+</tr>
+</tbody>
+</table>
+<p>Neither structure replaces the list that holds the ordered collection. Both complement it, each handling an operation the list cannot.</p>
 </section>
-<section class="level2" data-number="17.6" id="four-ways-set-and-map-usage-goes-wrong">
-<h2 class="anchored" data-anchor-id="four-ways-set-and-map-usage-goes-wrong" data-number="17.6"> Four Ways Set and Map Usage Goes Wrong</h2>
+<section class="level2" data-number="17.6" id="where-set-and-map-usage-goes-wrong">
+<h2 class="anchored" data-anchor-id="where-set-and-map-usage-goes-wrong" data-number="17.6"> Where Set and Map Usage Goes Wrong</h2>
 <p><strong>Poor key choice.</strong> An unstable key — one derived from a property that changes — produces a map that loses entries as the domain evolves. A non-unique key — one derived from a property that two entities can share — produces a map where one entry silently overwrites another. Neither failure announces itself as a key design error. Both present as mysterious correctness failures that are difficult to reproduce and trace. The remedy is to define the key policy explicitly before building the map, verify that the chosen key is stable and unique within the intended scope, and record that decision in the model.</p>
-<p><strong>Assuming order from a map or set.</strong> Neither a map nor a set guarantees any particular traversal order. A system that relies on iterating a map and receiving entries in insertion order, or alphabetical order, or any other order, is depending on an implementation detail that is not part of the structure’s contract. When the implementation changes — and map implementations vary across languages and platforms — the order changes with it. If ordered output is required, it must be maintained separately, in a structure whose purpose is to preserve order.</p>
+<p><strong>Assuming order from a map or set.</strong> Neither a map nor a set guarantees any particular traversal order. A system that relies on iterating a map and receiving entries in insertion order, or any other particular order, is depending on an implementation detail that is not part of the structure’s contract. When the implementation changes — and map implementations vary across languages and platforms — the order changes with it. If ordered output is required, it must be maintained separately, in a structure whose purpose is to preserve order.</p>
 <p><strong>Divergence between parallel structures.</strong> A system that maintains both a list and a map for the same collection has two representations of the same data. If both are updated atomically through a single write path, they remain consistent. If different parts of the system update one but not the other — if a task is added to the map but not the sequence, or removed from the sequence but not the map — the representations diverge, and the system will produce results that are inconsistent in ways that are hard to diagnose. The remedy is to define a single authoritative write path and to verify consistency between structures in tests that exercise that path.</p>
-<p><strong>Treating a missing key as impossible.</strong> An operation that assumes a key will always be present, and crashes or returns a meaningless default when it is not, has made an assumption that the domain does not guarantee. Keys are absent for legitimate reasons: a task has been completed and removed, a document has not yet been indexed, an entity has been destroyed. The correct response to a missing key is a declared behavior — an explicit miss result, an error status, an optional return type — that the caller can depend on. A crash is not a declared behavior.</p>
+<p><strong>Treating a missing key as impossible.</strong> An operation that assumes a key will always be present, and crashes or returns a meaningless default when it is not, has made an assumption that the domain does not guarantee. Keys are absent for legitimate reasons: a task has been completed and removed, or a document has not yet been indexed. The correct response to a missing key is a declared behavior — an explicit miss result or an optional return type — that the caller can depend on. A crash is not a declared behavior.</p>
 <div class="note-exercise">
 <p><strong>Quick Exercise</strong></p>
 <p>Identify one place in your system where a collection is currently searched by a key-like property — a scan for an element with a particular identifier, a check for whether a particular item is already present. Redesign that operation using map or set semantics by specifying: the chosen key and a justification for its stability and uniqueness, the membership or retrieval operation and its contract, the miss behavior, and one invariant that must hold between this structure and any parallel structure that covers the same data.</p>
