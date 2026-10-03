@@ -24,7 +24,7 @@ draws on four traditions. From Eiffel comes its structural vocabulary&mdash;clas
 features, inheritance, and contracts. From Scheme comes the conviction that a
 small, regular core scales further than a large feature set. From ML comes the
 discipline of static, soundness-minded typing, checked before a program runs
-and set down, like this Definition, in inference rules. From CSP and its
+and specified in full by a formal definition. From CSP and its
 descendants comes its concurrency model: lightweight tasks communicating over
 channels.</p>
 
@@ -55,22 +55,13 @@ Hindley&ndash;Milner inference nor structural typing.</p>
   theory pays for itself in the regularity of the surface.</li>
 </ul>
 
-<p>It is the third and fourth commitments that make Nex worth defining formally,
+<p>It is the third and fourth commitments that make Nex worth defining precisely,
 and the second that makes it feasible.</p>
 
 <h2 id="sec-1.2"><span class="secno">1.2</span>The Form of the Definition</h2>
 
-<p>Behind each keyword of Nex stands something the keyword is not. The word
-<em>class</em> names a template from which objects are made, and a programmer
-reasoning about a program thinks about the template, not the word.</p>
-
-<p>Following <em>The Definition of Standard ML</em>, whose method this document
-adopts, we call such things <em>semantic objects</em>: types, environments,
-values, objects in a store. Most of this Definition is spent saying what these
-objects are and which of them each phrase denotes. The grammar only fixes which
-phrases there are to give meanings to.</p>
-
-<p>As in that Definition, we divide the task in two ways.</p>
+<p>Following <em>The Definition of Standard ML</em>, this Definition divides
+its task in two ways.</p>
 
 <p>First, we separate <strong>syntax</strong> from <strong>semantics</strong>.
 Chapters&nbsp;<a href="syntax-core.html">2</a> and&nbsp;<a href="syntax-modules.html">3</a> give the grammar: the rules that decide which strings
@@ -89,18 +80,27 @@ statically and then either interprets or compiles it. It also mirrors the
 programmer's experience: a type error and a contract violation are events of
 two quite different kinds.</p>
 
-<div class="note">
-  <span class="note-label">The shape of an assertion</span>
-  Every judgement in this Definition has one shape, borrowed from
-  <em>The Definition of Standard ML</em>:
-  \[ B \vdash \mathit{phrase} \Rightarrow A \]
-  Read it as: <em>in the context</em> \(B\), <em>the phrase yields</em> \(A\).
-  The context records what earlier phrases have established (the classes in
-  scope, the variables bound, the current object) and is itself a semantic
-  object. Static and dynamic rules differ only in what \(B\) and \(A\) are.
-  For elaboration, \(B\) holds typing assumptions and \(A\) is a type; for
-  evaluation, \(B\) holds bindings and \(A\) is a value.
-</div>
+<p>Where <em>The Definition of Standard ML</em> states its rules in
+mathematical notation, this Definition states them in prose, in the manner of
+<em>The Java Language Specification</em>. Its readers need not be versed in
+formal semantics, and its rules are written so that each can be checked
+directly against a program.</p>
+
+<ul>
+  <li><strong>A compile-time rule</strong> lists the conditions a phrase must
+  meet, and gives the type it has when it meets them. If a condition fails, the
+  program is rejected with a compile-time error.</li>
+  <li><strong>A run-time rule</strong> gives, in order, the steps by which a
+  phrase is evaluated, and says what happens when a step raises an exception.
+  Rules that hold for every phrase, such as left-to-right evaluation, are stated
+  once, in Section&nbsp;<a href="dynamic.html#sec-5.2">5.2</a>, and each later rule gives only its
+  exceptions to them.</li>
+  <li><strong>Examples</strong> are complete programs wherever possible, shown
+  with the output they produce on the reference implementation
+  (Section&nbsp;<a href="#sec-1.3">1.3</a>).</li>
+  <li><strong>Figures</strong> illustrate particular cases. Where a figure and
+  the prose seem to differ, the prose is authoritative.</li>
+</ul>
 
 <h2 id="sec-1.3"><span class="secno">1.3</span>The Status of the Implementations</h2>
 
@@ -125,19 +125,22 @@ that is a bug in the Definition.</p>
 
 <p>The reader who wants only the grammar may read Chapters&nbsp;<a href="syntax-core.html">2</a> and&nbsp;<a href="syntax-modules.html">3</a> and
 stop. The reader implementing a checker will want Chapter&nbsp;<a href="static.html">4</a>; the one
-implementing an evaluator, Chapter&nbsp;<a href="dynamic.html">5</a>. The appendices collect the full
+implementing an evaluator, Chapters&nbsp;<a href="dynamic.html">5</a> to&nbsp;<a href="programs.html">7</a>. The appendices collect the full
 grammar (Appendix&nbsp;<a href="appendix-grammar.html">A</a>), the classes and values that exist before any user
 code is loaded (Appendix&nbsp;<a href="appendix-basis.html">B</a>, <em>the standard environment</em>), and the derived
 forms&mdash;surface conveniences explained by translation into a smaller bare
-language (Appendix&nbsp;<a href="appendix-derived.html">C</a>).</p>
+language (Appendix&nbsp;<a href="appendix-derived.html">C</a>), and the works on which Nex and this
+Definition draw (Appendix&nbsp;<a href="references.html">D</a>).</p>
 
-<p>Throughout, a few notational conventions are observed. Nex source text is set
-in a monospaced face: <code>class</code>, <code>require</code>,
-<code>spawn</code>. Nonterminals of the grammar are set in slanted type:
-<em>exp</em>, <em>dec</em>, <em>ty</em>. Semantic objects and the judgements
-relating them are set in mathematics.</p>
+<p>Throughout, a few typographic conventions are observed. Nex source text,
+including the types written in it, is set in a monospaced face:
+<code>class</code>, <code>require</code>, <code>?T</code>. Nonterminals of the
+grammar are set in slanted type: <em>exp</em>, <em>dec</em>, <em>ty</em>.</p>
 
-<p>Three symbols recur throughout: \(\Rightarrow\) is reserved for evaluation;
-\(\vdash\) for &ldquo;elaborates&rdquo; or &ldquo;evaluates&rdquo; in a
-context; and \(\preceq\) for the conformance relation between types,
-introduced in Chapter&nbsp;<a href="static.html">4</a>.</p>
+<p>In a monospaced form that describes a whole kind of phrase, a name the text
+has not otherwise defined stands for any phrase of the right kind. In
+<code>e.m(e1, &hellip;, en)</code>, for example, <code>e</code> is any
+expression, <code>m</code> any routine name, and <code>e1</code> to
+<code>en</code> the arguments; in <code>A[T1, &hellip;, Tn]</code>,
+<code>A</code> is any class and <code>T1</code> to <code>Tn</code> any
+types.</p>
