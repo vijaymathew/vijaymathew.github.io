@@ -524,7 +524,13 @@ behaviour is described in Section&nbsp;<a href="dynamic.html#sec-5.5">5.5</a>.</
 <p>A conditional expression <code>when c then a else b end</code> requires
 <code>c</code> to be a <code>Boolean</code>. Its type is the <em>join</em> of the
 types of <code>a</code> and <code>b</code>: the narrowest type to which both
-conform. It always exists, because every type conforms to <code>Any</code>. The
+conform. The join of <code>Dog</code> and <code>Animal</code> is
+<code>Animal</code>, and the join of <code>Dog</code> and the nil type is
+<code>?Dog</code>. Every type conforms to <code>Any</code>, so a join always
+exists. Where there is no single narrowest type, the join is <code>Any</code>:
+the join of <code>Integer</code> and <code>Real</code> is <code>Any</code>, and so
+is the join of two classes that both inherit <code>Animal</code> and
+<code>Swimmer</code>, since neither of those conforms to the other. The
 condition narrows the types of variables in the two branches as an
 <code>if</code> statement&rsquo;s does (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Narrowing</em>).</p>
 
@@ -708,12 +714,18 @@ condition may <em>narrow</em> the types of some variables within a branch. In th
 <code>x</code> has type <code>?T</code>, <code>x</code> has type
 <code>T</code>.</p>
 
-<p>No other condition narrows anything. The condition itself is checked before
-any narrowing applies, so in <code>x /= nil and x.v &gt; 0</code> the access
-<code>x.v</code> is still on an optional receiver, and is a compile-time error;
-the test must be written as a nested <code>if</code>. The conditional expression
-<code>when</code> narrows its branches in the same way as <code>if</code>
-(Section&nbsp;<a href="#sec-4.4">4.4</a>).</p>
+<p>No other condition narrows anything. In particular, <code>or</code> narrows
+nothing, and an <code>and</code> condition narrows nothing in the
+<code>else</code> branch.</p>
+
+<p>Narrowing also applies within the condition itself. The right operand of an
+<code>and</code> is checked with the narrowings of its left operand in effect,
+so in <code>if x /= nil and x.v &gt; 0 then</code> the access <code>x.v</code>
+is accepted. This holds only in the condition of an <code>if</code> or
+<code>when</code>. Elsewhere an <code>and</code> narrows nothing, so
+<code>print(x /= nil and x.v &gt; 0)</code> is a compile-time error. The
+conditional expression <code>when</code> narrows its branches in the same way as
+<code>if</code> (Section&nbsp;<a href="#sec-4.4">4.4</a>).</p>
 
 <pre><code>class Point
   create make(v: Integer) do value := v end
