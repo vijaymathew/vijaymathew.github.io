@@ -1,169 +1,286 @@
-<p class="opener-lede">Concurrency in Nex is explicit and structured. A program does not manipulate
-threads or locks directly; it starts lightweight
-<em>tasks</em> and lets them communicate over typed <em>channels</em>. The model
-descends from Hoare&rsquo;s Communicating Sequential Processes by way of the
+<p class="opener-lede">Concurrency in Nex is explicit and structured. A program does not
+manipulate threads or locks directly. It starts lightweight <em>tasks</em> and
+lets them communicate over typed <em>channels</em>. The model descends from
+Hoare&rsquo;s Communicating Sequential Processes by way of the
 goroutine-and-channel discipline of Go.</p>
 
-<p>This chapter extends the dynamic semantics of Chapter&nbsp;<a href="dynamic.html">5</a> to several tasks
-evaluating at once. The single-threaded judgement \(s, E \vdash e \Rightarrow v,
-s'\) now describes one task&rsquo;s contribution to a <em>configuration</em>: a
-collection of tasks together with a shared store.</p>
+<p>This chapter extends the dynamic semantics of Chapter&nbsp;<a href="dynamic.html">5</a> to several
+tasks evaluating at once. Each task evaluates its own expressions and statements
+by the rules of Chapter&nbsp;<a href="dynamic.html">5</a>, and all tasks share one store
+(Section&nbsp;<a href="dynamic.html#sec-5.2">5.2</a>). The rule that evaluation is sequential holds within each
+task, not across them.</p>
 
 <p>The static typing of the concurrent forms is unremarkable, and was already
-admitted by the grammar of Chapter&nbsp;<a href="syntax-core.html">2</a>. The interest here is all in the
-dynamics.</p>
+given by the grammar of Chapter&nbsp;<a href="syntax-core.html">2</a> and the classes of
+Appendix&nbsp;<a href="appendix-basis.html#sec-B.5">B.5</a>. The interest here is all in their run-time
+behaviour.</p>
 
 <h2 id="sec-6.1"><span class="secno">6.1</span>Tasks</h2>
 
-<p>The expression <code>spawn do</code> \(\mathit{block}\) <code>end</code>
-starts a new task that evaluates \(\mathit{block}\) concurrently with its
-creator, and immediately yields a <em>task handle</em>: a reference to an object
-of class <code>Task</code>, or of <code>Task[T]</code> when the block assigns a
-result of type \(T\). The creator does not wait; the two proceed in parallel.</p>
+<p>The expression <code>spawn do block end</code> starts a new task that
+executes <code>block</code> concurrently with the task that created it. It
+immediately yields a <em>task handle</em>: a reference to a new object of class
+<code>Task</code>, or of class <code>Task[T]</code> when the block assigns a
+<code>result</code> of type <code>T</code>. The creator does not wait; the two
+tasks proceed in parallel.</p>
 
-<div class="rule-block">
-<a id="rule-6.1"></a>\[ \frac{\ell \;\text{fresh} \quad t \;\text{a new task evaluating}\; \mathit{block}\;\text{in}\; E}{s, E \vdash \texttt{spawn}\;\texttt{do}\;\mathit{block}\;\texttt{end} \Rightarrow \ell,\; s + \{\ell \mapsto \mathsf{task}(t)\}} \tag{6.1} \]
-</div>
+<p>The new task runs with the bindings in force at the <code>spawn</code>, so
+it can read the variables and reach the objects that were in scope where it was
+created. Because the store is shared, a task and its creator can see each
+other&rsquo;s changes to objects. The language provides channels precisely so
+that such sharing need not be the means of communication.</p>
 
-<p>A task captures the bindings of its <code>spawn</code>, so it may read the
-variables and reach the objects in scope where it was created. Because the
-store is shared, a task and its creator may observe one another&rsquo;s writes
-to objects. The language provides channels precisely so that such sharing
-need not be the means of communication.</p>
+<p>A task handle supports the routines of the <code>Task</code> class
+(Appendix&nbsp;<a href="appendix-basis.html#sec-B.5">B.5</a>).</p>
 
-<p>A task handle supports the operations of the <code>Task</code> class
-(Appendix&nbsp;<a href="appendix-basis.html">B</a>). The chief one is <code>await</code>, which blocks the
-caller until the task has finished and then yields its result.
-<code>await(ms)</code> waits at most <code>ms</code> milliseconds and yields
-<code>nil</code> on timeout.</p>
+<ul>
+  <li><code>await</code> waits until the task has finished, then yields the
+  task&rsquo;s <code>result</code>.</li>
+  <li><code>await(ms)</code> waits at most <code>ms</code> milliseconds. It
+  yields the result if the task finishes in time, and <code>nil</code>
+  otherwise.</li>
+  <li><code>is_done</code> reports, without waiting, whether the task has
+  finished.</li>
+  <li><code>cancel</code> asks for the task to be cancelled, and reports
+  whether the request took effect before the task finished.
+  <code>is_cancelled</code> reports whether it was cancelled.</li>
+  <li>The class routines <code>await_any</code> and <code>await_all</code>
+  wait on an array of tasks. <code>await_any</code> yields the result of
+  whichever task finishes first, and <code>await_all</code> yields an array of
+  all their results, in the order of the tasks.</li>
+</ul>
 
-<p>The predicate <code>is_done</code> reports completion without blocking.
-<code>cancel</code> requests cancellation and reports whether it took effect
-before completion. The class methods <code>await_any</code> and
-<code>await_all</code> wait on a collection of tasks.</p>
+<pre><code>let t: Task[Integer] := spawn do
+  sleep(100)
+  result := 7
+end
+print(t.is_done)
+print(t.await)
+print(t.is_done)</code></pre>
 
-<div class="rule-block">
-<a id="rule-6.2"></a>\[ \frac{s(\ell) = \mathsf{task}(t) \quad t \;\text{has completed with result}\; v\; \text{in}\; s}{s, E \vdash \ell.\texttt{await} \Rightarrow v,\, s} \tag{6.2} \]
-</div>
+<p>The <code>spawn</code> returns at once, so the first <code>print</code> shows
+<code>false</code>. <code>await</code> then waits for the task and prints
+<code>7</code>, after which <code>is_done</code> is <code>true</code>.</p>
 
-<p>Rule (<a href="#rule-6.2">6.2</a>) has a premise that a <em>scheduler</em> must eventually make true:
-the awaiting task makes no progress until the awaited task completes. The
-Definition does not prescribe a scheduling policy. It only requires that a
-task which can make progress is not forever denied it.</p>
+<p>A task that waits makes no progress until whatever it waits for happens.
+This Definition does not prescribe how tasks are scheduled. It requires only
+that a task which is able to make progress is not denied it for ever.</p>
 
 <h2 id="sec-6.2"><span class="secno">6.2</span>Channels</h2>
 
-<p>A <em>channel</em> is a typed conduit between tasks, an instance of
-<code>Channel[T]</code>. By default it is <em>unbuffered</em> (synchronous):
-a <code>send</code> blocks until a <code>receive</code> is ready to take the
-value, and the two <em>rendezvous</em> &mdash; the value passes from sender
-to receiver in a single step.</p>
+<p>A <em>channel</em> is a typed conduit between tasks: an object of class
+<code>Channel[T]</code>, which carries values of type <code>T</code>.</p>
 
-<p>A channel created <code>with_capacity(n)</code> is <em>buffered</em>: up
-to \(n\) values may be held. A <code>send</code> blocks only when the buffer
-is full, and a <code>receive</code> only when it is empty.</p>
+<ul>
+  <li>A channel made by <code>create Channel[T]</code> is
+  <em>unbuffered</em>. A <code>send</code> waits until another task is ready to
+  <code>receive</code>, and a <code>receive</code> waits until another task is
+  ready to <code>send</code>. The two then <em>meet</em>: the value passes
+  from sender to receiver in a single step, and both tasks continue.</li>
+  <li>A channel made by <code>create Channel[T].with_capacity(n)</code> is
+  <em>buffered</em>, and holds up to <code>n</code> values in the order they
+  were sent. A <code>send</code> adds its value to the buffer, waiting only if
+  the buffer is full. A <code>receive</code> removes and yields the oldest
+  value, waiting only if the buffer is empty.</li>
+</ul>
 
-<div class="rule-block">
-<a id="rule-6.3"></a>\[ \frac{\ell \;\text{fresh}}{s, E \vdash \texttt{create}\;\texttt{Channel}[T] \Rightarrow \ell,\; s + \{\ell \mapsto \mathsf{chan}(T, 0, \langle\,\rangle)\}} \tag{6.3} \]
+<figure id="fig-6.1">
+<div style="overflow-x:auto;">
+<svg viewBox="0 0 600 300" role="img" aria-labelledby="fig-6.1-title" style="display:block;width:100%;max-width:600px;min-width:520px;margin:0 auto;">
+<title id="fig-6.1-title">Two sequence diagrams. On an unbuffered channel the sender waits at send until the receiver reaches receive, and the value passes directly between them. On a buffered channel of capacity 2 the first two sends complete at once, and the third waits until the receiver takes a value.</title>
+<style>
+  .ch-box { fill: var(--paper2); stroke: var(--rule2); stroke-width: 1; }
+  .ch-life { stroke: var(--rule2); stroke-width: 1; stroke-dasharray: 3 3; }
+  .ch-wait { fill: var(--accent); opacity: 0.85; }
+  .ch-msg { stroke: var(--ink-mid); stroke-width: 1.2; fill: none; }
+  .ch-head { fill: var(--ink-mid); }
+  .ch-h { fill: var(--ink); font-family: var(--font-ui); font-size: 13px; font-weight: 600; }
+  .ch-t { fill: var(--ink); font-family: var(--font-ui); font-size: 12px; }
+  .ch-m { fill: var(--ink); font-family: var(--font-mono); font-size: 12px; }
+  .ch-s { fill: var(--ink-faint); font-family: var(--font-mono); font-size: 11px; }
+  .ch-w { fill: var(--accent); font-family: var(--font-ui); font-size: 11px; }
+</style>
+<defs>
+  <marker id="ch-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="ch-head" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs>
+
+<!-- unbuffered -->
+<text class="ch-h" x="20" y="22">Unbuffered</text>
+<rect class="ch-box" x="30" y="36" width="100" height="26" rx="4"/>
+<text class="ch-t" x="80" y="53" text-anchor="middle">sender</text>
+<rect class="ch-box" x="170" y="36" width="100" height="26" rx="4"/>
+<text class="ch-t" x="220" y="53" text-anchor="middle">receiver</text>
+<line class="ch-life" x1="80" y1="62" x2="80" y2="290"/>
+<line class="ch-life" x1="220" y1="62" x2="220" y2="290"/>
+<text class="ch-m" x="88" y="98">send(99)</text>
+<rect class="ch-wait" x="76" y="104" width="8" height="76" rx="2"/>
+<text class="ch-w" x="90" y="146">waits</text>
+<text class="ch-m" x="228" y="176">receive</text>
+<line class="ch-msg" x1="84" y1="186" x2="215" y2="186" marker-end="url(#ch-a)"/>
+<text class="ch-m" x="150" y="181" text-anchor="middle">99</text>
+<text class="ch-s" x="88" y="212">continues</text>
+<text class="ch-s" x="228" y="212">yields 99</text>
+
+<!-- buffered -->
+<line x1="300" y1="10" x2="300" y2="290" class="ch-life"/>
+<text class="ch-h" x="320" y="22">Buffered, capacity 2</text>
+<rect class="ch-box" x="315" y="36" width="80" height="26" rx="4"/>
+<text class="ch-t" x="355" y="53" text-anchor="middle">sender</text>
+<rect class="ch-box" x="415" y="36" width="80" height="26" rx="4"/>
+<text class="ch-t" x="455" y="53" text-anchor="middle">channel</text>
+<rect class="ch-box" x="515" y="36" width="80" height="26" rx="4"/>
+<text class="ch-t" x="555" y="53" text-anchor="middle">receiver</text>
+<line class="ch-life" x1="355" y1="62" x2="355" y2="290"/>
+<line class="ch-life" x1="455" y1="62" x2="455" y2="290"/>
+<line class="ch-life" x1="555" y1="62" x2="555" y2="290"/>
+
+<line class="ch-msg" x1="355" y1="94" x2="450" y2="94" marker-end="url(#ch-a)"/>
+<text class="ch-m" x="402" y="89" text-anchor="middle">send(1)</text>
+<text class="ch-s" x="461" y="98">[1]</text>
+<line class="ch-msg" x1="355" y1="124" x2="450" y2="124" marker-end="url(#ch-a)"/>
+<text class="ch-m" x="402" y="119" text-anchor="middle">send(2)</text>
+<text class="ch-s" x="461" y="128">[1, 2]</text>
+<text class="ch-m" x="402" y="149" text-anchor="middle">send(3)</text>
+<rect class="ch-wait" x="351" y="154" width="8" height="70" rx="2"/>
+<text class="ch-w" x="363" y="194">waits</text>
+<line class="ch-msg" x1="455" y1="214" x2="550" y2="214" marker-end="url(#ch-a)"/>
+<text class="ch-m" x="503" y="209" text-anchor="middle">receive: 1</text>
+<text class="ch-s" x="461" y="232">[2]</text>
+<line class="ch-msg" x1="359" y1="250" x2="450" y2="250" marker-end="url(#ch-a)"/>
+<text class="ch-m" x="402" y="245" text-anchor="middle">3</text>
+<text class="ch-s" x="461" y="268">[2, 3]</text>
+</svg>
 </div>
+<figcaption>Figure 6.1. On an unbuffered channel, the sender waits at
+<code>send</code> until the receiver reaches <code>receive</code>, and the value
+passes directly between them. On a buffered channel, a <code>send</code> waits
+only while the buffer is full. The channel&rsquo;s contents are shown in
+brackets.</figcaption>
+</figure>
 
-<p>We write a channel object \(\mathsf{chan}(T, c, q)\) with element type \(T\),
-capacity \(c\), and pending queue \(q\). The synchronous rendezvous is the
-simultaneous progress of a blocked sender and a blocked receiver:</p>
+<pre><code>let r: Channel[Integer] := create Channel[Integer]
+let sender: Task := spawn do
+  r.send(99)
+  print("sender resumed")
+end
+sleep(100)
+print("receiving")
+print(r.receive)
+sender.await</code></pre>
 
-<div class="rule-block">
-<a id="rule-6.4"></a>\[ \frac{s(\ell) = \mathsf{chan}(T, 0, \langle\,\rangle) \quad t_1\;\text{at}\;\ell.\texttt{send}(v) \quad t_2\;\text{at}\;\ell.\texttt{receive}}{t_1\;\text{proceeds};\quad t_2\;\text{yields}\;v;\quad s\;\text{unchanged}} \tag{6.4} \]
-</div>
+<p>The sender reaches <code>send</code> first and waits there. Only when the main
+task reaches <code>receive</code> do the two meet. The program prints
+<code>"receiving"</code>, then <code>99</code>, then <code>"sender
+resumed"</code>.</p>
 
-<p>For a buffered channel, <code>send</code> appends to \(q\) when
-\(|q| &lt; c\), and otherwise blocks. <code>receive</code> removes the head
-of \(q\) when \(q\) is non-empty, and otherwise blocks.</p>
+<p>Each operation also has variants that do not wait, or wait only for a
+limited time.</p>
 
-<p>The non-blocking variants <code>try_send</code> and <code>try_receive</code>
-never block: they perform the operation if it can proceed immediately, and
-otherwise report failure (<code>false</code>, or <code>nil</code> for a
-receive). The timed variants <code>send(v, ms)</code> and
-<code>receive(ms)</code> block for at most the given interval.</p>
+<ul>
+  <li><code>try_send(v)</code> sends <code>v</code> if that can be done at once,
+  and yields <code>true</code>; otherwise it yields <code>false</code>.
+  <code>try_receive</code> receives a value if one is available at once, and
+  otherwise yields <code>nil</code>. On an unbuffered channel, these succeed only
+  if another task is already waiting at the matching operation.</li>
+  <li><code>send(v, ms)</code> and <code>receive(ms)</code> wait at most
+  <code>ms</code> milliseconds. If the operation cannot complete in that time,
+  <code>send</code> yields <code>false</code> and <code>receive</code> yields
+  <code>nil</code>.</li>
+</ul>
 
-<p>A channel may be <code>close</code>d. After closing, no further value may
-be sent, and a <code>send</code> on a closed channel is an error. Values
-already buffered may still be received; once they are exhausted,
-<code>receive</code> on a closed channel completes rather than blocking.</p>
+<p>A channel may be closed with <code>close</code>. After that:</p>
 
-<p>The predicates <code>is_closed</code>, <code>size</code>, and
-<code>capacity</code> report a channel&rsquo;s state.</p>
+<ul>
+  <li>no further value may be sent: <code>send</code> and <code>try_send</code>
+  raise an exception;</li>
+  <li>values already in the buffer can still be received;</li>
+  <li>once the buffer is empty, <code>receive</code> raises an exception rather
+  than waiting, and <code>try_receive</code> yields <code>nil</code>.</li>
+</ul>
+
+<p>The routines <code>is_closed</code>, <code>size</code> and
+<code>capacity</code> report a channel&rsquo;s state. An unbuffered channel has
+capacity <code>0</code>.</p>
 
 <h2 id="sec-6.3"><span class="secno">6.3</span>Selective Communication</h2>
 
-<p>The <code>select</code> statement waits on several communications at once and
-proceeds with whichever becomes ready first. Each clause names a channel
-operation or a task completion; an optional <code>timeout</code> clause fires
-after an interval; an optional <code>else</code> clause makes the
-<code>select</code> non-blocking.</p>
+<p>The <code>select</code> statement waits on several communications at once,
+and proceeds with whichever becomes ready first. Each clause names a channel
+operation or a task&rsquo;s completion. An optional <code>timeout</code> clause
+gives up after an interval, and an optional <code>else</code> clause makes the
+<code>select</code> not wait at all.</p>
 
 <pre><code>select
   when jobs.receive as job then ...
+  when results.send(value) then ...
   when worker.await as value then ...
   timeout 1000 then ...
   else ...
 end</code></pre>
 
-<p>Operationally, <code>select</code> probes its clauses. A channel-receive
-clause is ready when <code>try_receive</code> would succeed, and a
-channel-send clause is ready when <code>try_send</code> would. A task clause
-<code>when</code> \(t\)<code>.await</code> is ready exactly when
-<code>is_done</code> holds of \(t\).</p>
-
-<p>The statement chooses a ready clause, binds its <code>as</code> variable
-to the value obtained, and runs that clause&rsquo;s block.</p>
+<p>A clause is <em>ready</em> when its operation could complete at once:</p>
 
 <ul>
-  <li>If <strong>several</strong> clauses are ready, one is chosen; the
-  Definition does not fix which, only that a ready clause is taken.</li>
-  <li>If <strong>none</strong> is ready and an <code>else</code> clause is
-  present, the <code>else</code> block runs at once.</li>
+  <li>a <code>receive</code> clause, when <code>try_receive</code> would
+  succeed;</li>
+  <li>a <code>send</code> clause, when <code>try_send</code> would succeed;</li>
+  <li>an <code>await</code> clause, when the task has finished
+  (<code>is_done</code> holds).</li>
+</ul>
+
+<p>The statement takes a ready clause, performs its operation, binds the
+clause&rsquo;s <code>as</code> variable to the value obtained, and runs the
+clause&rsquo;s block. Which clause it takes depends on what is ready:</p>
+
+<ul>
+  <li>If <strong>several</strong> clauses are ready, one of them is taken. This
+  Definition does not say which, only that a ready clause is taken.</li>
+  <li>If <strong>none</strong> is ready and there is an <code>else</code>
+  clause, the <code>else</code> block runs at once.</li>
   <li>If <strong>none</strong> is ready and there is a <code>timeout</code>
-  clause, the statement waits, taking a clause that becomes ready within the
-  interval, or running the <code>timeout</code> block when the interval
-  elapses.</li>
-  <li>If <strong>none</strong> is ready and there is neither <code>else</code>
-  nor <code>timeout</code>, the statement blocks until some clause becomes
-  ready.</li>
+  clause, the statement waits. It takes the first clause that becomes ready
+  within the interval, or runs the <code>timeout</code> block when the interval
+  ends.</li>
+  <li>If <strong>none</strong> is ready and there is neither an
+  <code>else</code> nor a <code>timeout</code>, the statement waits until some
+  clause becomes ready.</li>
 </ul>
 
 <div class="note">
-  <span class="note-label">Task clauses fire only on completion</span>
-  A <code>when t.await</code> clause does not itself wait: it is ready only if
-  \(t\) has <em>already</em> completed, and it then yields \(t\)&rsquo;s result
-  without blocking. To wait for a task within a <code>select</code>, give the
-  statement a <code>timeout</code> or combine it with channels; a bare task
-  clause is a non-blocking test of completion.
+  <span class="note-label">An <code>await</code> clause is ready only on completion</span>
+  A <code>when t.await</code> clause never waits on its own account: it is ready
+  only once <code>t</code> has finished, and then yields <code>t</code>&rsquo;s
+  result at once. With an <code>else</code> clause, it is therefore a test of
+  whether the task has finished. Without <code>else</code> or
+  <code>timeout</code>, the <code>select</code> as a whole waits, and the clause
+  is taken when the task finishes, unless another clause becomes ready
+  first.
 </div>
 
 <h2 id="sec-6.4"><span class="secno">6.4</span>The Model and Its Realisations</h2>
 
-<p>The semantics above is given in the rendezvous style of CSP, and is the
-authoritative meaning of the concurrent forms. Each back end realises it on
-a different substrate, and a programmer should know where the realisations
-differ.</p>
+<p>The semantics above is given in the style of CSP, in which communicating
+tasks meet at a channel, and it is the authoritative meaning of the concurrent
+forms. Each back end realises it in a different way, and a programmer should
+know where the realisations differ.</p>
 
 <ul>
-  <li>On the <strong>JVM</strong>, tasks are scheduled onto platform threads and
-  channels are concurrent queues with the blocking discipline of
-  Section&nbsp;<a href="#sec-6.2">6.2</a>; evaluation is genuinely parallel.</li>
-  <li>On a backend like <strong>JavaScript</strong>, where the host is
-  single-threaded, tasks may be lowered to asynchronous computations and
-  channels to promise-mediated queues. The Nex <em>source</em> is unchanged:
+  <li>On the <strong>JVM</strong>, tasks run on platform threads, and channels
+  are concurrent queues with the waiting rules of Section&nbsp;<a href="#sec-6.2">6.2</a>. Tasks
+  really do run in parallel.</li>
+  <li>On a back end such as <strong>JavaScript</strong>, where the host has a
+  single thread, tasks may become asynchronous computations and channels
+  promise-based queues. The Nex <em>source</em> is unchanged:
   <code>spawn</code> becomes asynchronous task code, and <code>await</code>,
-  <code>send</code>, and <code>receive</code> lower to <code>await</code> on
-  a promise. The blocking of Section&nbsp;<a href="#sec-6.2">6.2</a> becomes suspension of the
-  awaiting computation, and apparent parallelism is interleaving.</li>
+  <code>send</code> and <code>receive</code> become waits on a promise. Waiting
+  in the sense of Section&nbsp;<a href="#sec-6.2">6.2</a> becomes suspension of the waiting computation,
+  and apparent parallelism is interleaving.</li>
 </ul>
 
-<p>In both realisations, the observable behaviour of a well-synchronised
-program agrees with the rendezvous semantics &mdash; "well-synchronised"
-meaning one that communicates through channels rather than through shared
-mutable objects.</p>
+<p>In both realisations, a well-synchronised program behaves as the semantics
+above says. A <em>well-synchronised</em> program is one whose tasks communicate
+through channels rather than through shared mutable objects.</p>
 
-<p>Programs that instead race on shared objects are outside the guarantees
-of this chapter, and the Definition assigns them no determinate meaning.</p>
+<p>Programs whose tasks instead race to read and change shared objects are
+outside the guarantees of this chapter, and this Definition gives them no
+determinate meaning.</p>
