@@ -140,9 +140,9 @@ Two scalar values are identical exactly when they are equal, which is why
 <ul>
   <li><strong>The bindings</strong> map each name in scope to a value. A
   variable, parameter or field is bound to the value it currently holds. Within
-  a routine, the bindings also give the current object, which is the value of
-  <code>this</code>, and, if the routine has a return type, the variable
-  <code>result</code>.</li>
+  a method or constructor, the bindings also give the current object, which is
+  the value of <code>this</code>. Within a routine that has a return type, they
+  also give the variable <code>result</code>.</li>
   <li><strong>The store</strong> holds every object. A reference points to an
   object in the store, and changing an object means changing the store. An
   assignment to a field changes only the object that holds the field directly.
@@ -183,8 +183,8 @@ where it departs from them.</p>
 value it is bound to. A name refers to its nearest enclosing binding
 (Section&nbsp;<a href="#sec-5.8">5.8</a>, on scope).</p>
 
-<p><code>this</code> produces the current object. Inside the body of a routine,
-<code>this</code> always refers to the part of the object that belongs to the
+<p><code>this</code> produces the current object. Inside the body of a method or
+constructor, <code>this</code> always refers to the part of the object that belongs to the
 class whose text contains the body (Section&nbsp;<a href="#sec-5.4">5.4</a>).</p>
 
 <p><code>super</code> and the name of an ancestor produce something different,
@@ -244,7 +244,7 @@ division by zero is deliberate, and holds on every back end.</p>
 
 <p>Equality comes in two kinds. <em>Value</em> equality, <code>=</code>,
 compares contents: two collections are equal when their elements are equal, and
-two objects are equal according to the <code>equals</code> routine of their
+two objects are equal according to the <code>equals</code> method of their
 class, which a user class may override. <em>Identity</em> equality,
 <code>==</code>, compares references: two objects are identical exactly when
 they are the same object. On scalars the two kinds agree. The operands of the
@@ -254,13 +254,13 @@ types must be related by conformance (Section&nbsp;<a href="static.html#sec-4.4"
 <code>65</code> is a compile-time error, not a comparison that yields
 <code>false</code>.</p>
 
-<p>An arithmetic operator can also be bound to a routine by an
+<p>An arithmetic operator can also be bound to a method by an
 <code>alias</code> clause (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>). The operator is then the call: once
 both operands are evaluated, <code>a - b</code> is evaluated as the call
 <code>a.minus(b)</code> by the steps of Section&nbsp;<a href="#sec-5.4">5.4</a>. The class of the left
-operand&rsquo;s object selects the routine, the routine&rsquo;s contract is
+operand&rsquo;s object selects the method, the method&rsquo;s contract is
 checked, and its <code>rescue</code> clause handles a failure in its body. An
-operator is never a way around a routine&rsquo;s contract.</p>
+operator is never a way around a method&rsquo;s contract.</p>
 
 <pre><code>let owed: Money := create Money.make(100, "USD")
 let paid: Money := create Money.make(30, "EUR")
@@ -314,47 +314,47 @@ steps. Figure&nbsp;5.2 shows the same steps, with every way a call can end.</p>
   type, never an optional one (Sections&nbsp;<a href="static.html#sec-4.1">4.1</a> and&nbsp;<a href="static.html#sec-4.4">4.4</a>), so the result is a
   reference to an object, never <code>nil</code>.</li>
   <li>The arguments are evaluated from left to right.</li>
-  <li>A routine is selected: the routine named <code>m</code> with
+  <li>A method is selected: the method named <code>m</code> with
   <code>n</code> parameters that the <em>object&rsquo;s</em> class declares
   or inherits. It is the class of the object that counts, not the static type
   of <code>e</code>. This is <em>dynamic dispatch</em>, and it is how an
-  overriding routine in a subclass takes effect. Because the number of
+  overriding method in a subclass takes effect. Because the number of
   arguments takes part in the selection, this step also resolves overloading
   by arity (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>).</li>
-  <li>If the routine has a postcondition, the values its <code>old</code>
+  <li>If the method has a postcondition, the values its <code>old</code>
   expressions will need are recorded (Section&nbsp;<a href="#sec-5.6">5.6</a>). Then a new set of
-  bindings is made for the routine&rsquo;s body. Each parameter is bound to the
+  bindings is made for the method&rsquo;s body. Each parameter is bound to the
   value of its argument, and <code>this</code> is bound to the object the
-  routine belongs to (see <em>Which object <code>this</code> names</em>,
+  method belongs to (see <em>Which object <code>this</code> names</em>,
   below).</li>
   <li>If the call is qualified (see below), the class invariant is checked
   (Section&nbsp;<a href="#sec-5.6">5.6</a>).</li>
-  <li>The routine&rsquo;s precondition is checked.</li>
+  <li>The method&rsquo;s precondition is checked.</li>
   <li>The body is run.</li>
-  <li>The routine&rsquo;s postcondition is checked.</li>
+  <li>The method&rsquo;s postcondition is checked.</li>
   <li>If the call is qualified, the class invariant is checked again.</li>
   <li>The call completes, and its value is the final value of
-  <code>result</code>. A routine that declares no return type yields the
+  <code>result</code>. A method that declares no return type yields the
   void value instead.</li>
 </ol>
 
 <p>If any of these steps raises an exception, the call raises the same
 exception and the remaining steps are skipped. An exception in step&nbsp;1 or
-step&nbsp;2 therefore means that no routine is entered, and an argument after
+step&nbsp;2 therefore means that no method is entered, and an argument after
 the one that raised is never evaluated. A failed check in step&nbsp;5, 6, 8
 or&nbsp;9 raises a contract violation.</p>
 
 <p>A call is <em>qualified</em> when it is written with a receiver expression,
 as <code>e.m(e1, &hellip;, en)</code> is. This includes a call on
 <code>this</code>, such as <code>this.m()</code>, and an operator bound to a
-routine by an <code>alias</code> clause, since <code>a - b</code> is the call
+method by an <code>alias</code> clause, since <code>a - b</code> is the call
 <code>a.minus(b)</code> (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>). A call written without a receiver is
 <em>unqualified</em>: a bare call <code>m(&hellip;)</code>, a call that names an
 ancestor, and a call through <code>super</code>. Unqualified calls skip
-steps&nbsp;5 and&nbsp;9, so a routine may call other routines of its own class
+steps&nbsp;5 and&nbsp;9, so a method may call other methods of its own class
 while the invariant is temporarily broken.</p>
 
-<p>Step&nbsp;7 works differently when the routine has a
+<p>Step&nbsp;7 works differently when the method has a
 <code>rescue</code> clause. If the body raises an exception, the clause is run
 with <code>exception</code> bound to it, and how the clause finishes decides
 what happens next.</p>
@@ -372,7 +372,7 @@ what happens next.</p>
 
 <p>A <code>rescue</code> clause handles only exceptions raised by the body. A
 failed invariant, precondition or postcondition is not caught by the
-routine&rsquo;s own <code>rescue</code> clause; it passes to the caller.</p>
+method&rsquo;s own <code>rescue</code> clause; it passes to the caller.</p>
 
 <p>A call that raises an exception does not undo anything. Assignments the body
 made to fields before the exception remain in place.</p>
@@ -404,7 +404,7 @@ made to fields before the exception remain in place.</p>
 <rect class="cf-box" x="10" y="80" width="290" height="44" rx="5"/>
 <text class="cf-t" x="155" y="107" text-anchor="middle">2  Evaluate the arguments, left to right</text>
 <rect class="cf-box" x="10" y="150" width="290" height="44" rx="5"/>
-<text class="cf-t" x="155" y="169" text-anchor="middle">3  Select the routine</text>
+<text class="cf-t" x="155" y="169" text-anchor="middle">3  Select the method</text>
 <text class="cf-s" x="155" y="185" text-anchor="middle">by the object’s class and the argument count</text>
 <rect class="cf-box" x="10" y="220" width="290" height="44" rx="5"/>
 <text class="cf-t" x="155" y="247" text-anchor="middle">4  Record <tspan class="cf-m">old</tspan> values; bind the parameters</text>
@@ -492,14 +492,14 @@ let sh: Shape := create Square.make(3.0)
 print(sh.area())</code></pre>
 
 <p>The variable <code>sh</code> has static type <code>Shape</code>, but the
-object it refers to is a <code>Square</code>. Step&nbsp;3 selects the routine
+object it refers to is a <code>Square</code>. Step&nbsp;3 selects the method
 by the class of the object, so <code>Square</code>&rsquo;s <code>area</code>
 runs and the value printed is <code>9.0</code>, not <code>0.0</code>.</p>
 
 <h4>What the body can see</h4>
 
 <p>The bindings made in step&nbsp;4 extend the bindings in force where the
-routine was <em>defined</em>, not those of the caller. The body can therefore
+method was <em>defined</em>, not those of the caller. The body can therefore
 see the fields of its object and its own parameters, but none of the
 caller&rsquo;s local variables.</p>
 
@@ -515,12 +515,12 @@ field is found (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>).</p>
 
 <div class="note">
   <span class="note-label">No argument check is needed at run time</span>
-  An overriding routine may widen a parameter type but never narrow it, and a
+  An overriding method may widen a parameter type but never narrow it, and a
   function type conforms to another only if its parameter types are wider
-  (Section&nbsp;<a href="static.html#sec-4.3">4.3</a>). So whichever routine step&nbsp;3 selects, every argument
+  (Section&nbsp;<a href="static.html#sec-4.3">4.3</a>). So whichever method step&nbsp;3 selects, every argument
   that passed the static check is acceptable to it, and a call makes no check
   on argument types when it runs. Nex enforces this statically, rather than
-  following Eiffel, which lets an overriding routine narrow a parameter and
+  following Eiffel, which lets an overriding method narrow a parameter and
   must then check arguments at run time.
 </div>
 
@@ -531,7 +531,7 @@ same steps without a receiver. Step&nbsp;1 is skipped, step&nbsp;3 selects the
 function by name alone (free functions cannot be overloaded), no
 <code>this</code> is bound, and there is no invariant to check. A bare call
 written inside a class is a call on <code>this</code> if the current class has
-a routine of that name, and a free-function call otherwise
+a method of that name, and a free-function call otherwise
 (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>). A bare call on <code>this</code> is unqualified, so it
 checks no invariant. Applying a closure is evaluated likewise, with the bindings
 the closure captured taking the place of the bindings of a routine&rsquo;s
@@ -547,8 +547,8 @@ ordinary call in the following steps.</p>
 
 <ul>
   <li><strong>Step&nbsp;1.</strong> There is no receiver expression to evaluate.</li>
-  <li><strong>Step&nbsp;3.</strong> The routine is selected from <code>P</code>:
-  the routine named <code>m</code> with <code>n</code> parameters that
+  <li><strong>Step&nbsp;3.</strong> The method is selected from <code>P</code>:
+  the method named <code>m</code> with <code>n</code> parameters that
   <code>P</code> declares or inherits. The class of the current object plays no
   part, so there is no dynamic dispatch.</li>
   <li><strong>Step&nbsp;4.</strong> <code>this</code> is bound to
@@ -610,7 +610,7 @@ class is.</p>
 <p>The named ancestor may also be an imported host interface or class
 (Section&nbsp;<a href="syntax-modules.html#sec-3.6">3.6</a>), when the current class extends it under the conditions of
 Section&nbsp;<a href="static.html#sec-4.9">4.9</a>. Step&nbsp;3 then selects the host&rsquo;s own implementation of
-<code>m</code> rather than a Nex routine. As in the ordinary case, the routine
+<code>m</code> rather than a Nex method. As in the ordinary case, the method
 is fixed by the named class, so if the current class overrides <code>m</code>
 itself, a call through <code>super</code> still reaches the host&rsquo;s
 implementation and never recurses back into the override. A member that the
@@ -638,7 +638,7 @@ the following steps.</p>
   the new object, and each parameter to the value of its argument.</li>
   <li>The constructor&rsquo;s precondition is checked.</li>
   <li>The constructor&rsquo;s body is run. A <code>rescue</code> clause on the
-  constructor handles an exception raised by the body as a routine&rsquo;s does
+  constructor handles an exception raised by the body as a method&rsquo;s does
   (Section&nbsp;<a href="#sec-5.4">5.4</a>).</li>
   <li>The constructor&rsquo;s postcondition is checked.</li>
   <li>The class invariant, including the invariants <code>A</code> inherits, is
@@ -762,9 +762,9 @@ is caught by a <code>rescue</code> clause in the same way (Section&nbsp;<a href=
   (Section&nbsp;<a href="#sec-5.4">5.4</a>): on entry, before the precondition, and on exit, after
   the postcondition. The invariant checked is the receiver&rsquo;s, which
   includes the invariants its class inherits (see <em>Inherited contracts</em>,
-  below). An unqualified call checks no invariant. Inside a routine, the
+  below). An unqualified call checks no invariant. Inside a method, the
   invariant may therefore be broken for a while, even across calls to other
-  routines of the same class, provided it holds again when the qualified call
+  methods of the same class, provided it holds again when the qualified call
   returns. Creating an object checks the invariant once, when the constructor
   returns (Section&nbsp;<a href="#sec-5.5">5.5</a>).</li>
 </ul>
@@ -798,11 +798,11 @@ cause.</p>
 
 <h4>Inherited contracts</h4>
 
-<p>A routine that overrides an inherited one also inherits its contract, and a
+<p>A method that overrides an inherited one also inherits its contract, and a
 class inherits the invariants of its ancestors. The checks of a call use the
-<em>effective</em> contract of the routine selected in step&nbsp;3. It combines the
-contracts of every version of that routine, that is, every routine with the same
-name and number of parameters in the routine&rsquo;s class and in its
+<em>effective</em> contract of the method selected in step&nbsp;3. It combines the
+contracts of every version of that method, that is, every method with the same
+name and number of parameters in the method&rsquo;s class and in its
 ancestors.</p>
 
 <ul>
@@ -811,12 +811,12 @@ ancestors.</p>
   holds when all of its assertions are true. A version with no
   <code>require</code> clause has a precondition that always holds, so if any
   version has none, the effective precondition always holds too. An overriding
-  routine can therefore weaken what its callers must establish, but never
+  method can therefore weaken what its callers must establish, but never
   strengthen it.</li>
   <li><strong>Postcondition.</strong> The effective postcondition holds only if
   the postconditions of <em>all</em> versions hold. The ancestors&rsquo;
-  assertions are checked first, then the routine&rsquo;s own. An overriding
-  routine can therefore add to what it guarantees, but never take anything
+  assertions are checked first, then the method&rsquo;s own. An overriding
+  method can therefore add to what it guarantees, but never take anything
   away.</li>
   <li><strong>Invariant.</strong> A class&rsquo;s effective invariant holds only
   if its own invariant and the invariants of all its ancestors hold. The
@@ -1076,7 +1076,7 @@ the loop ends, and <code>15</code> is printed.</p>
 <code>across e as x do body end</code> are derived forms, translated in
 Appendix&nbsp;<a href="appendix-derived.html">C</a>. The first becomes a loop over a counter. The second becomes
 a loop driven by the <code>start</code>, <code>item</code>, <code>next</code>
-and <code>at_end</code> routines of the <code>Cursor</code> class
+and <code>at_end</code> methods of the <code>Cursor</code> class
 (Appendix&nbsp;<a href="appendix-basis.html">B</a>).</p>
 
 <h4>Dispatch statements</h4>

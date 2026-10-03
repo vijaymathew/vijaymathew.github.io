@@ -88,7 +88,7 @@ in scope at that point, and what each one means. It has three parts.</p>
   environment records the class&rsquo;s <em>signature</em>: its generic
   parameters and their constraints, its modifiers (<code>deferred</code>,
   <code>sealed</code>), its parents, the fields it declares with their types,
-  and the parameter and return types of its routines and constructors.</li>
+  and the parameter and return types of its methods and constructors.</li>
   <li><strong>The variables in scope</strong>, with their types: the
   parameters and local variables of the enclosing routine or block, and the
   fields of the current object.</li>
@@ -99,7 +99,7 @@ in scope at that point, and what each one means. It has three parts.</p>
 <p>A declaration of a variable adds it to the environment for the rest of its
 scope, and shadows any variable of the same name in an enclosing scope.</p>
 
-<p>The fields and routines <em>of</em> a class are those it declares itself
+<p>The fields and methods <em>of</em> a class are those it declares itself
 together with those it inherits from its parents. A class&rsquo;s own
 declaration of a member overrides any inherited member of the same name.</p>
 
@@ -209,10 +209,10 @@ and the three <em>fixed-width integer types</em> <code>Byte</code>,
 <code>Integer16</code> and <code>Integer32</code>. (<code>Integer64</code> is
 another name for <code>Integer</code>, not a further type.) None of them conforms
 to another. Even <code>Integer</code> does not conform to <code>Real</code>.
-Numeric conversions are explicit, and are made by routines of the numeric
+Numeric conversions are explicit, and are made by methods of the numeric
 classes (<code>to_byte</code>, <code>to_integer16</code>,
 <code>to_integer32</code>, <code>to_integer</code>, <code>to_real</code>;
-Appendix&nbsp;<a href="appendix-basis.html">B</a>). Each routine that narrows checks that its result is in
+Appendix&nbsp;<a href="appendix-basis.html">B</a>). Each method that narrows checks that its result is in
 range.</p>
 
 <p>In particular, a numeric constant is never converted to fit its context. The
@@ -279,7 +279,7 @@ does not hold.</p>
   conformances, which must then be caught by a separate whole-program analysis.
   Nex instead rejects the unsafe direction at the point of conformance, with an
   error at the offending value. The same rule governs overriding
-  (Section&nbsp;<a href="#sec-4.9">4.9</a>): an overriding routine may <em>widen</em> a parameter type and
+  (Section&nbsp;<a href="#sec-4.9">4.9</a>): an overriding method may <em>widen</em> a parameter type and
   <em>narrow</em> its return type, but not the reverse. It also matches the
   Design by Contract principle the language follows elsewhere: an heir may
   weaken what it demands and strengthen what it guarantees.
@@ -333,7 +333,7 @@ in scope only within a routine that declares one (Section&nbsp;<a href="syntax-c
 
 <ul>
   <li><strong><code>this</code></strong> is in scope within the body of a
-  routine, and has the type of the current class.</li>
+  method or constructor, and has the type of the current class.</li>
   <li><strong><code>super</code></strong> is in scope there too, provided the
   current class inherits exactly one class. Its type is that class. In a class
   that has no <code>inherit</code> clause, or names more than one parent
@@ -349,9 +349,9 @@ in scope only within a routine that declares one (Section&nbsp;<a href="syntax-c
 <p>Naming an ancestor in this way works as follows for each kind of member.</p>
 
 <ul>
-  <li><strong>Routines.</strong> <code>B.describe</code> is checked like a call
+  <li><strong>Methods.</strong> <code>B.describe</code> is checked like a call
   on a receiver of type <code>B</code> (see <em>Member access and calls</em>,
-  below). It finds a routine that <code>B</code> declares or inherits.</li>
+  below). It finds a method that <code>B</code> declares or inherits.</li>
   <li><strong>Constructors.</strong> The same form written before a
   constructor&rsquo;s name, <code>Shape.make(&hellip;)</code>, does not create an
   object. It delegates to that ancestor&rsquo;s constructor (see <em>Object
@@ -391,14 +391,14 @@ class doing the writing is <code>B</code> itself.</p>
   and yield <code>Boolean</code>.</li>
 </ul>
 
-<p>An infix operator stands for a routine of its left operand&rsquo;s class, and
+<p>An infix operator stands for a method of its left operand&rsquo;s class, and
 a class may make this literally true for itself. A class binds an arithmetic
-operator to a one-argument routine with an <code>alias</code> clause
+operator to a one-argument method with an <code>alias</code> clause
 (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>), declared in the class or in one of its ancestors. When the
 left operand of that operator is <em>not</em> numeric, the operator is checked
 as the call it abbreviates: the right operand&rsquo;s type must conform to the
-routine&rsquo;s parameter type, and the type of the expression is the
-routine&rsquo;s return type.</p>
+method&rsquo;s parameter type, and the type of the expression is the
+method&rsquo;s return type.</p>
 
 <p>The numeric rule is tried first, so an alias can never displace built-in
 arithmetic. If neither rule applies, the expression is a compile-time error.</p>
@@ -423,7 +423,7 @@ generic parameters replaced by <code>T1</code> to <code>Tk</code>
 <ul>
   <li>the type of <code>e</code> is a class type, say
   <code>A[T1, &hellip;, Tk]</code>;</li>
-  <li><code>A</code> has a routine named <code>m</code> with <code>n</code>
+  <li><code>A</code> has a method named <code>m</code> with <code>n</code>
   parameters, declared or inherited, that is accessible at the point of the call;
   and</li>
   <li>the type of each argument <code>ei</code> conforms to the type of the
@@ -431,8 +431,8 @@ generic parameters replaced by <code>T1</code> to <code>Tk</code>
   replaced by <code>T1</code> to <code>Tk</code>.</li>
 </ul>
 
-<p>The type of the call is the routine&rsquo;s return type, with the same
-replacement, or the void type if the routine declares no return type.</p>
+<p>The type of the call is the method&rsquo;s return type, with the same
+replacement, or the void type if the method declares no return type.</p>
 
 <p>A member is <em>accessible</em> unless it is declared in a
 <code>private</code> feature section of <code>A</code> and the access is written
@@ -448,7 +448,7 @@ end
 let c := create Counter.make()
 print(c.bump(5))</code></pre>
 
-<p>The receiver <code>c</code> has type <code>Counter</code>. The routine
+<p>The receiver <code>c</code> has type <code>Counter</code>. The method
 <code>bump</code> takes one <code>Integer</code> and returns one, and the
 argument <code>5</code> conforms to <code>Integer</code>, so the call
 <code>c.bump(5)</code> is accepted and has type <code>Integer</code>. It
@@ -456,13 +456,13 @@ evaluates to <code>5</code>. An argument of the wrong type, or the wrong number
 of arguments, is a compile-time error.</p>
 
 <p>A bare call <code>m(e1, &hellip;, en)</code> is checked as a call on
-<code>this</code> if <code>m</code> is a routine of the current class, and
+<code>this</code> if <code>m</code> is a method of the current class, and
 otherwise as a call of the free function <code>m</code>
 (Section&nbsp;<a href="#sec-4.8">4.8</a>).</p>
 
 <div class="note">
   <span class="note-label">Overloading by number of arguments</span>
-  A class may declare several routines with the same name if they take different
+  A class may declare several methods with the same name if they take different
   numbers of parameters. A call selects among them by the number of arguments it
   passes. There is no overloading by parameter <em>type</em>, and free functions
   may not be overloaded at all.
@@ -510,7 +510,7 @@ It is accepted if:</p>
 </ul>
 
 <p>The second condition is stricter than for an ordinary call, which accepts a
-routine found further up the ancestry. A constructor&rsquo;s job is to initialise
+method found further up the ancestry. A constructor&rsquo;s job is to initialise
 the fields declared alongside it. Delegating to a constructor two levels up would
 skip whatever the intermediate ancestor&rsquo;s constructor sets up for its own
 fields.</p>
@@ -661,7 +661,7 @@ if:</p>
 object it refers to at run time, and whether or not a receiver is written. The
 bare form is just <code>this.f := e</code> with the receiver left out. So a class
 may assign a field of <em>another</em> object of its own class,
-<code>other.f := e</code>, from within one of its routines. But it can never
+<code>other.f := e</code>, from within one of its methods. But it can never
 assign a field it only inherits, from a constructor or anywhere else, under any
 spelling.</p>
 
@@ -672,12 +672,12 @@ variable, by the rule for assignment above.</p>
 <p>Inheriting a field therefore gives a class no way to assign it directly, only
 to read it. A subclass constructor that needs to initialise an inherited field
 has two options: delegate to a constructor of the declaring class
-(Section&nbsp;<a href="#sec-4.4">4.4</a>), or call a routine that the declaring class provides for the
+(Section&nbsp;<a href="#sec-4.4">4.4</a>), or call a method that the declaring class provides for the
 purpose. These are the same options any other code outside that class has.</p>
 
 <p>This is why the derived forms of Appendix&nbsp;<a href="appendix-derived.html">C</a>, such as the variant
 constructors generated for an <code>enum union</code>, route every such
-assignment through a routine the parent declares. An ordinary routine dispatches
+assignment through a method the parent declares. An ordinary method dispatches
 normally and allocates nothing, so it is the natural way to provide this, without
 resorting to constructor delegation for something that is not really about
 construction.</p>
@@ -792,7 +792,7 @@ the value conforms to <code>S</code>. Otherwise it yields <code>false</code>, wi
 <code>x</code> bound to <code>nil</code>. Because two different numeric types are
 related by conformance in neither direction (Section&nbsp;<a href="#sec-4.3">4.3</a>),
 <code>convert</code> never turns an <code>Integer</code> into a <code>Byte</code>
-or a <code>Real</code>; the conversion routines do that.</p>
+or a <code>Real</code>; the conversion methods do that.</p>
 
 <h2 id="sec-4.6"><span class="secno">4.6</span>Contract Formation</h2>
 
@@ -863,15 +863,15 @@ constraint is constrained by <code>Any</code>.</p>
 <p>A generic class type <code>A[T1, &hellip;, Tn]</code> is <em>well formed</em>
 if <code>A</code> has <code>n</code> generic parameters and each
 <code>Ti</code> conforms to the constraint of the corresponding parameter. Using a
-type that is not well formed is a compile-time error. The fields and routine
+type that is not well formed is a compile-time error. The fields and method
 signatures of <code>A[T1, &hellip;, Tn]</code> are those of <code>A</code>, with
 each <code>Ti</code> in place of the corresponding parameter throughout.</p>
 
 <p>A constraint is not only a test on the type argument; it is also what the
 body of the generic class may rely on. Within the class, a value whose type is a
 parameter constrained by <code>K</code> has the members of <code>K</code>: its
-fields may be read and its routines called, and each call is checked against
-<code>K</code>&rsquo;s signature. A routine that is deferred in <code>K</code> may
+fields may be read and its methods called, and each call is checked against
+<code>K</code>&rsquo;s signature. A method that is deferred in <code>K</code> may
 be called on such a value, even though no implementation is known statically: the
 class of the actual object supplies one (Section&nbsp;<a href="dynamic.html#sec-5.4">5.4</a>). An unconstrained
 parameter has no members beyond those of <code>Any</code>.</p>
@@ -906,7 +906,7 @@ only within the routine.</p>
 
 <p>Because elaboration substitutes type arguments rather than erasing them,
 <code>Array[Integer]</code> and <code>Array[String]</code> are different types,
-with different field and routine signatures. Neither conforms to the other
+with different field and method signatures. Neither conforms to the other
 (Section&nbsp;<a href="#sec-4.3">4.3</a>).</p>
 
 <h2 id="sec-4.8"><span class="secno">4.8</span>Free Functions and the Static World</h2>
@@ -917,9 +917,9 @@ This alone is what allows mutual recursion among them: a function&rsquo;s
 signature need not be announced before it is called.</p>
 
 <p>A bare call <code>m(e1, &hellip;, en)</code>, where <code>m</code> is not a
-routine of the current class, is checked against the signature of the free
+method of the current class, is checked against the signature of the free
 function <code>m</code>, wherever in the program <code>m</code> is defined. The
-conditions are those of a routine call (Section&nbsp;<a href="#sec-4.4">4.4</a>): the number of arguments
+conditions are those of a method call (Section&nbsp;<a href="#sec-4.4">4.4</a>): the number of arguments
 must match, and each argument&rsquo;s type must conform to its parameter&rsquo;s.
 The type of the call is the function&rsquo;s return type.</p>
 
@@ -929,7 +929,7 @@ point where a reader most wants to see it, and the later definition of
 <code>m</code> must then match it exactly. It is a check on the declaration, not
 a requirement for calling <code>m</code> before its definition.</p>
 
-<p>Free functions, unlike routines of a class, cannot be overloaded: each free
+<p>Free functions, unlike methods of a class, cannot be overloaded: each free
 function name must be unique. It is a compile-time error to define a free
 function twice, or to define one whose signature disagrees with its
 <code>declare function</code>. The error names the function.</p>
@@ -944,7 +944,7 @@ function with the same bare name.</p>
   <li>A function declared in the current unit takes precedence, as a class
   does. It shadows any interned function with the same bare name, and is never
   part of an ambiguity.</li>
-  <li>Otherwise, a bare name <code>m</code> that is not a routine of the current
+  <li>Otherwise, a bare name <code>m</code> that is not a method of the current
   class names a function only if at most one interned unit declares a function
   called <code>m</code>. If more than one does, <code>m</code> is an
   <em>ambiguous reference</em>, and it is a compile-time error to call
@@ -980,17 +980,17 @@ static world. A class that breaks one of them is a compile-time error.</p>
   <li><strong>Ambiguous member resolution.</strong>
   <p>Two parents named in one class&rsquo;s <code>inherit</code> clause, or two
   ancestors reached through them, may share a common ancestor. A member that
-  ancestor declares (a field, routine or constructor) can then be reached by more
+  ancestor declares (a field, method or constructor) can then be reached by more
   than one path. This is not itself an error.</p>
   <p>An unqualified reference to such a member is resolved through the first
   parent named in <code>inherit</code>, searching that parent&rsquo;s own
   ancestors depth-first before the next parent is tried at all.</p>
   <p>A member reached along another path can still be used deliberately, by
-  naming the ancestor that declares it (Section&nbsp;<a href="#sec-4.4">4.4</a>): a call, for a routine
+  naming the ancestor that declares it (Section&nbsp;<a href="#sec-4.4">4.4</a>): a call, for a method
   or constructor, and a read, for a field. Assignment is the exception. No
   ancestor name allows a class to assign a field it could not already assign
   (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Field assignment</em>), so a particular path&rsquo;s copy
-  of a field can only be set or changed through a routine of the ancestor that
+  of a field can only be set or changed through a method of the ancestor that
   declares it.</p>
   <p>Put precisely, the <em>home</em> of a member <code>x</code> in a class
   <code>B</code> is the path of parent names that leads from <code>B</code> to the
@@ -1028,7 +1028,7 @@ static world. A class that breaks one of them is a compile-time error.</p>
   (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Field assignment</em>).</p>
   <p>The only ways a subclass constructor can attach an inherited field are to
   delegate, directly or in turn, to a constructor of the declaring class
-  (Section&nbsp;<a href="#sec-4.4">4.4</a>), or to call a routine that the declaring class provides for
+  (Section&nbsp;<a href="#sec-4.4">4.4</a>), or to call a method that the declaring class provides for
   the purpose. So a class that inherits fields needing attachment must route each
   of its own constructors through one or the other.</p></li>
   <li><strong>Repeated inheritance and shared ancestors.</strong> When a common
@@ -1038,29 +1038,29 @@ static world. A class that breaks one of them is a compile-time error.</p>
   reaches it along that path. A write to one path&rsquo;s copy is never seen
   through another&rsquo;s (Section&nbsp;<a href="dynamic.html#sec-5.1">5.1</a>).</li>
   <li><strong>Conformant overriding.</strong>
-  <p>When a class <code>A</code> inherits <code>B</code> and redefines a routine
+  <p>When a class <code>A</code> inherits <code>B</code> and redefines a method
   <code>m</code> of <code>B</code>, the signature of <code>A</code>&rsquo;s
   <code>m</code> must conform to that of <code>B</code>&rsquo;s, as function types
   do (Section&nbsp;<a href="#sec-4.3">4.3</a>): each parameter type may be <em>widened</em> but not
   narrowed, and the return type may be <em>narrowed</em> but not widened. A field
   of <code>B</code> may not be redeclared with a type that does not conform to its
   original one.</p>
-  <p>This is checked at the override: a routine that narrows a parameter type or
-  widens its return type is rejected there, and the error names the routine and
+  <p>This is checked at the override: a method that narrows a parameter type or
+  widens its return type is rejected there, and the error names the method and
   the offending position.</p></li>
   <li><strong>Complete deferral.</strong> A class that is not deferred must
-  supply a body for every routine declared <code>deferred</code> in any of its
-  ancestors. A class with an unimplemented deferred routine is itself deferred,
+  supply a body for every method declared <code>deferred</code> in any of its
+  ancestors. A class with an unimplemented deferred method is itself deferred,
   and may not be instantiated.</li>
   <li><strong>Host-type conformance.</strong>
   <p>When a parent named in <code>inherit</code> is an imported host interface or
-  class rather than a Nex class, the inheriting class must supply a routine for
-  every member the host type declares without an implementation. The routine is
+  class rather than a Nex class, the inheriting class must supply a method for
+  every member the host type declares without an implementation. The method is
   matched by name and number of parameters against the host type&rsquo;s own
   declaration, spelt exactly as the host spells it. No correspondence between
   Nex&rsquo;s naming conventions and the host&rsquo;s is assumed.</p>
   <p>This is the host-facing counterpart of <em>Complete deferral</em>, and is
-  checked the same way: a class that lacks such a routine is rejected, and the
+  checked the same way: a class that lacks such a method is rejected, and the
   error names the missing member.</p></li>
   <li><strong>Single host-class extension.</strong>
   <p>Among all of a class&rsquo;s ancestors, at most one may be a concrete
