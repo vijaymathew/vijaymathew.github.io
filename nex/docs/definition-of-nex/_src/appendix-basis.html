@@ -187,7 +187,7 @@ the value <strong>raises</strong>, and one to a wider type always succeeds. A va
 fixed-width type is equal only to a value of its own type with the same number.</p>
 
 <p>Arithmetic on these types is arithmetic on <code>Integer</code>: each operand is taken as the
-<code>Integer</code> of the same value and the result is an <code>Integer</code> (Section&nbsp;<a href="dynamic.html#sec-5.4">5.4</a>),
+<code>Integer</code> of the same value and the result is an <code>Integer</code> (Section&nbsp;<a href="dynamic.html#sec-5.3">5.3</a>),
 so it is subject to the checked-arithmetic rules above and cannot overflow the narrow type.
 Their ordering and equality operators apply to two values of the same type.</p>
 
@@ -295,7 +295,7 @@ with the original.</p>
 <tr><td></td><td><code>await(ms)</code></td><td>timed await; <code>nil</code> on timeout</td></tr>
 <tr><td></td><td><code>is_done</code>, <code>is_cancelled</code></td><td>completion and cancellation state</td></tr>
 <tr><td></td><td><code>cancel</code></td><td>request cancellation</td></tr>
-<tr><td></td><td><code>await_any</code>, <code>await_all</code></td><td>(class methods) wait on a collection of tasks</td></tr>
+<tr><td></td><td><code>await_any</code>, <code>await_all</code></td><td>(free functions, <code>await_all(ts)</code>) wait on an array of tasks</td></tr>
 <tr><td><code>Channel[T]</code></td><td><code>send(v)</code>, <code>receive</code></td><td>blocking communication (Section&nbsp;<a href="concurrency.html#sec-6.2">6.2</a>)</td></tr>
 <tr><td></td><td><code>try_send</code>, <code>try_receive</code></td><td>non-blocking variants used by <code>select</code></td></tr>
 <tr><td></td><td><code>with_capacity(n)</code></td><td>(constructor) a buffered channel</td></tr>
@@ -317,7 +317,8 @@ effect, and the principal observable behaviour of many programs.</p>
 <p>The <code>Console</code> class provides finer output control, including
 <code>new_line</code>. A line break in output may be written as the
 <code>\n</code> escape in a double-quoted string (Section&nbsp;<a href="syntax-core.html#sec-2.2">2.2</a>), or
-produced with <code>Console.new_line</code> or the character constant
+produced with the <code>new_line</code> method of a console object
+(<code>create Console</code>) or the character constant
 <code>#newline</code>.</p>
 
 <p>The <code>Process</code> class provides a further host effect.
@@ -330,8 +331,67 @@ instead builds a child operating-system process, configured before
 its own environment, standard streams, and lifecycle (<code>wait</code>,
 <code>terminate</code>).</p>
 
-<p>The exception values raised by the language itself &mdash; on a
+<p>The exceptions the language raises itself &mdash; on a
 <code>nil</code> dereference, a failed contract, a failed runtime argument
-check, an out-of-range collection access &mdash; are also part of the
-environment. They are the values a <code>rescue</code> block receives in
+check, an out-of-range collection access &mdash; are instances of the
+classes of &sect;<a href="#sec-B.7">B.7</a>. They are the values a <code>rescue</code> block receives in
 <code>exception</code> (Section&nbsp;<a href="dynamic.html#sec-5.7">5.7</a>).</p>
+
+<h2 id="sec-B.7"><span class="secno">B.7</span>Built-in Exceptions</h2>
+
+<p>When the language itself raises an exception, the value a
+<code>rescue</code> block receives in <code>exception</code> is an object of
+one of the classes below, chosen by the kind of failure. A value raised with
+<code>raise</code> is not wrapped: <code>raise "transient"</code> still hands
+the handler the string <code>"transient"</code>
+(Section&nbsp;<a href="dynamic.html#sec-5.7">5.7</a>).</p>
+
+<p>Every class inherits <code>Exception</code>, whose <code>message</code> is
+the text the failure is reported with, and whose <code>to_string</code> is that
+message, so printing an exception or joining it to a string reads as the report
+does.</p>
+
+<div class="grammar">
+<table>
+<tr><td><strong>Class</strong></td><td><strong>Parent</strong></td><td><strong>Raised by</strong></td></tr>
+<tr><td><code>Exception</code></td><td><code>Any</code></td><td>&mdash; the root; <code>message: String</code></td></tr>
+<tr><td><code>Contract_Violation</code></td><td><code>Exception</code></td><td>&mdash; a failed assertion; <code>label: ?String</code></td></tr>
+<tr><td><code>Precondition_Violation</code></td><td><code>Contract_Violation</code></td><td>a <code>require</code> clause</td></tr>
+<tr><td><code>Postcondition_Violation</code></td><td><code>Contract_Violation</code></td><td>an <code>ensure</code> clause</td></tr>
+<tr><td><code>Invariant_Violation</code></td><td><code>Contract_Violation</code></td><td>a class invariant</td></tr>
+<tr><td><code>Loop_Invariant_Violation</code></td><td><code>Contract_Violation</code></td><td>a loop invariant</td></tr>
+<tr><td><code>Variant_Violation</code></td><td><code>Contract_Violation</code></td><td>a loop variant that is negative or does not decrease</td></tr>
+<tr><td><code>Assertion_Violation</code></td><td><code>Contract_Violation</code></td><td>an <code>assert</code></td></tr>
+<tr><td><code>Refinement_Violation</code></td><td><code>Contract_Violation</code></td><td>a refinement predicate at a narrowing site (&sect;<a href="dynamic.html#sec-5.6">5.6</a>)</td></tr>
+<tr><td><code>Division_by_Zero</code></td><td><code>Exception</code></td><td>integer <code>/</code> or <code>%</code> by zero</td></tr>
+<tr><td><code>Arithmetic_Overflow</code></td><td><code>Exception</code></td><td>an <code>Integer</code> result outside the 64-bit range; <code>abs</code> of a fixed-width minimum</td></tr>
+<tr><td><code>Void_Access</code></td><td><code>Exception</code></td><td>a call or field access on <code>nil</code></td></tr>
+<tr><td><code>Index_Out_Of_Bounds</code></td><td><code>Exception</code></td><td>a collection or string position outside its range</td></tr>
+<tr><td><code>Conversion_Error</code></td><td><code>Exception</code></td><td>a narrowing conversion out of range, a string that is not a number, bytes that are not UTF-8</td></tr>
+<tr><td><code>No_Matching_Clause</code></td><td><code>Exception</code></td><td>a <code>match</code> with no <code>else</code> that no clause matches</td></tr>
+<tr><td><code>Channel_Closed</code></td><td><code>Exception</code></td><td>a send on, or a receive from a drained, closed channel (&sect;<a href="concurrency.html#sec-6.2">6.2</a>)</td></tr>
+<tr><td><code>Host_Exception</code></td><td><code>Exception</code></td><td>any other failure the host platform raises; <code>host_class: String</code> names it</td></tr>
+</table>
+</div>
+
+<p>A contract violation&rsquo;s <code>label</code> is the failed
+assertion&rsquo;s label: <code>pos</code> for <code>require pos: x &gt; 0</code>.
+It is <code>nil</code> for a bare <code>assert</code>, whose message names its
+source line instead. For a refinement it is the refinement&rsquo;s name, or the
+field&rsquo;s when the violation is at a field assignment.</p>
+
+<pre><code>do
+  account.withdraw(500.0)
+rescue
+  if convert exception to v: Precondition_Violation then
+    print("refused: " + v.message)        -- refused: Precondition violation: enough
+  else
+    raise exception
+  end
+end</code></pre>
+
+<p>A program may inherit <code>Exception</code> for its own failures, as in
+<code>class Parse_Error inherit Exception</code>, delegating to its constructor
+<code>make(message)</code>, and raise them with <code>raise</code>; they are
+then caught and told apart in the same way. <code>raise</code> itself still
+accepts any value.</p>

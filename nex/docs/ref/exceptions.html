@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exception Classes — Nex Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../site.css">
+  <script src="../../site.js"></script>
+<link rel="icon" href="../../assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../assets/icons/nex-180.png">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="../../../nex.html"><img src="../../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-light="../../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-dark="../../assets/logo/nex-logo-concept-7-orbit-n-dark.svg" alt="">nex</a>
+    <div class="nav-links">
+      <a href="../../tutorial.html">Tutorial</a>
+      <a href="../../syntax.html">Syntax</a>
+      <a href="../../../nex.html#learn">Learn</a>
+      <a href="../../../nex.html#install">Install</a>
+      <a class="gh" href="https://github.com/vijaymathew/nex" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <button class="toggle" id="theme" aria-label="Toggle dark mode" title="Toggle theme">🌙</button>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="page-head">
+    <span class="eyebrow">// reference</span>
+    <h1>Exception Classes</h1>
+  </header>
+
+  <div class="doc">
+    <aside class="side">
+      <div class="ref-search">
+        <input id="ref-q" type="search" placeholder="Search the reference…" aria-label="Search the reference" autocomplete="off">
+        <div class="ref-results" id="ref-results"></div>
+      </div>
+      <details class="toc" open>
+        <summary>Nex Reference</summary>
+        <ul><li><a href="index.html">Contents</a></li><li><a href="functions.html">Built-in Functions</a></li><li><a href="foundational-classes.html">Foundational Classes</a></li><li><a href="scalar-types.html">Scalar Types</a></li><li><a href="collection-types.html">Collection Types</a></li><li><a href="cursor-types.html">Cursor Types</a></li><li><a href="system-classes.html">System Classes</a></li><li><a href="exceptions.html" class="on">Exception Classes</a></li><li><a href="libraries.html">Library Index</a></li><li><a href="data.html">Data Libraries</a></li><li><a href="io.html">IO Libraries</a></li><li><a href="text.html">Text Libraries</a></li><li><a href="time.html">Time Libraries</a></li><li><a href="networking.html">Networking Libraries</a></li></ul>
+      </details>
+      <details class="toc" open>
+        <summary>On this page</summary>
+        <ul>
+  <li><a href="#loading">Loading</a></li>
+  <li><a href="#hierarchy">Hierarchy</a></li>
+  <li><a href="#exception"><code>Exception</code></a>
+  <ul>
+  <li><a href="#construction">Construction</a></li>
+  <li><a href="#features">Features</a></li>
+  </ul></li>
+  <li><a href="#contract_violation"><code>Contract_Violation</code></a>
+  <ul>
+  <li><a href="#construction-1">Construction</a></li>
+  <li><a href="#features-1">Features</a></li>
+  <li><a href="#subclasses">Subclasses</a></li>
+  </ul></li>
+  <li><a href="#other-built-in-exceptions">Other built-in exceptions</a></li>
+  <li><a href="#host_exception"><code>Host_Exception</code></a>
+  <ul>
+  <li><a href="#construction-2">Construction</a></li>
+  <li><a href="#features-2">Features</a></li>
+  </ul></li>
+  <li><a href="#handling-exceptions">Handling exceptions</a></li>
+  <li><a href="#defining-your-own">Defining your own</a></li>
+  <li><a href="#notes">Notes</a></li>
+  </ul>
+      </details>
+    </aside>
+
+    <main>
+      <div class="prose">
+<p>When the language itself raises an exception — a failed contract,
+integer division by zero, an index out of range, and so on — the value a
+<code>rescue</code> block receives in <code>exception</code> is an
+object of one of the classes below, chosen by the kind of failure. A
+handler can therefore tell failures apart with <code>convert</code> or
+<code>match</code> instead of reading a message.</p>
+<p>A value raised with <code>raise</code> is <strong>not</strong>
+wrapped: <code>raise "transient"</code> still hands the handler the
+string <code>"transient"</code>, and <code>raise 42</code> the integer
+<code>42</code>.</p>
+<p>These classes are defined in <code>lib/lang/exception.nex</code>
+(<a href="../definition-of-nex/appendix-basis.html#sec-B.7">Definition of Nex, Appendix B.7</a>).</p>
+<section id="loading" class="level2">
+<h2 class="anchored" data-anchor-id="loading">Loading</h2>
+<p>A program that has a <code>rescue</code> anywhere, or that names one
+of these classes, gets the library automatically, as if it had
+written:</p>
+<pre class="nex"><code>intern lang/Exception</code></pre>
+<p>Writing that <code>intern</code> yourself also works.</p>
+<p>A program that declares a class of its own with one of these names
+does not get the library. Its handlers then receive the failure's
+message as a <code>String</code>, as they did before the classes
+existed.</p>
+</section>
+<section id="hierarchy" class="level2">
+<h2 class="anchored" data-anchor-id="hierarchy">Hierarchy</h2>
+<pre class="text"><code>Exception
+├── Contract_Violation
+│   ├── Precondition_Violation
+│   ├── Postcondition_Violation
+│   ├── Invariant_Violation
+│   ├── Loop_Invariant_Violation
+│   ├── Variant_Violation
+│   ├── Assertion_Violation
+│   └── Refinement_Violation
+├── Division_by_Zero
+├── Arithmetic_Overflow
+├── Void_Access
+├── Index_Out_Of_Bounds
+├── Conversion_Error
+├── No_Matching_Clause
+├── Channel_Closed
+└── Host_Exception</code></pre>
+</section>
+<section id="exception" class="level2">
+<h2 class="anchored" data-anchor-id="exception"><code>Exception</code></h2>
+<p>The root of the built-in exceptions. A program may inherit it for its
+own failures (see <a href="#defining-your-own">Defining your
+own</a>).</p>
+<section id="construction" class="level3">
+<h3 class="anchored" data-anchor-id="construction">Construction</h3>
+<pre class="nex"><code>create Exception.make(&quot;something went wrong&quot;)</code></pre>
+</section>
+<section id="features" class="level3">
+<h3 class="anchored" data-anchor-id="features">Features</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>message</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>The text the failure is reported with.</td>
+</tr>
+<tr class="even">
+<td><code>to_string</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>The message. Printing an exception, or joining it to a string with
+<code>+</code>, reads as the report does.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="contract_violation" class="level2">
+<h2 class="anchored" data-anchor-id="contract_violation"><code>Contract_Violation</code></h2>
+<p>A failed assertion. Inherits <code>Exception</code>.</p>
+<section id="construction-1" class="level3">
+<h3 class="anchored" data-anchor-id="construction-1">Construction</h3>
+<pre class="nex"><code>create Contract_Violation.make(&quot;Precondition violation: pos&quot;)
+create Contract_Violation.with_label(&quot;Precondition violation: pos&quot;, &quot;pos&quot;)</code></pre>
+<p>The subclasses below inherit both constructors.</p>
+</section>
+<section id="features-1" class="level3">
+<h3 class="anchored" data-anchor-id="features-1">Features</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>label</code></td>
+<td>none</td>
+<td><code>?String</code></td>
+<td>The failed assertion's label — <code>pos</code> for
+<code>require pos: x &gt; 0</code>. <code>nil</code> for a bare
+<code>assert</code>, whose message names its source line instead. For a
+refinement, the refinement's name, or the field's when the violation is
+at a field assignment.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="subclasses" class="level3">
+<h3 class="anchored" data-anchor-id="subclasses">Subclasses</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Class</th>
+<th>Raised by</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Precondition_Violation</code></td>
+<td>a <code>require</code> clause</td>
+</tr>
+<tr class="even">
+<td><code>Postcondition_Violation</code></td>
+<td>an <code>ensure</code> clause</td>
+</tr>
+<tr class="odd">
+<td><code>Invariant_Violation</code></td>
+<td>a class invariant</td>
+</tr>
+<tr class="even">
+<td><code>Loop_Invariant_Violation</code></td>
+<td>a loop invariant</td>
+</tr>
+<tr class="odd">
+<td><code>Variant_Violation</code></td>
+<td>a loop variant that is negative or does not decrease
+(<code>label</code> is <code>nil</code>)</td>
+</tr>
+<tr class="even">
+<td><code>Assertion_Violation</code></td>
+<td>an <code>assert</code></td>
+</tr>
+<tr class="odd">
+<td><code>Refinement_Violation</code></td>
+<td>a refinement type's predicate at a narrowing site (a typed
+<code>let</code>, parameter, return, or field assignment)</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="other-built-in-exceptions" class="level2">
+<h2 class="anchored" data-anchor-id="other-built-in-exceptions">Other built-in exceptions</h2>
+<p>Each inherits <code>Exception</code> and adds no features of its own,
+except <code>Host_Exception</code>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33.3%">
+<col style="width: 33.3%">
+<col style="width: 33.3%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Class</th>
+<th>Raised by</th>
+<th>Example message</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Division_by_Zero</code></td>
+<td>integer <code>/</code> or <code>%</code> by zero</td>
+<td><code>Division by zero</code></td>
+</tr>
+<tr class="even">
+<td><code>Arithmetic_Overflow</code></td>
+<td>an <code>Integer</code> result outside the 64-bit range;
+<code>abs</code> of a fixed-width minimum</td>
+<td><code>Arithmetic overflow</code></td>
+</tr>
+<tr class="odd">
+<td><code>Void_Access</code></td>
+<td>a call or field access on <code>nil</code></td>
+<td><code>Used a value that is void (nil)</code></td>
+</tr>
+<tr class="even">
+<td><code>Index_Out_Of_Bounds</code></td>
+<td>an <code>Array</code> or <code>String</code> position outside its
+range (<code>get</code>, <code>char_at</code>, …)</td>
+<td><code>Index 5 out of bounds for length 1</code></td>
+</tr>
+<tr class="odd">
+<td><code>Conversion_Error</code></td>
+<td>a conversion out of a fixed-width type's range
+(<code>to_byte</code>, <code>to_integer16</code>, …), a string that is
+not a number (<code>to_integer</code>, <code>to_real</code>), bytes that
+are not UTF-8 (<code>String.from_bytes</code>)</td>
+<td><code>Byte value must be in range 0..255, got 300</code></td>
+</tr>
+<tr class="even">
+<td><code>No_Matching_Clause</code></td>
+<td>a <code>match</code> with no <code>else</code> that no clause
+matches</td>
+<td><code>No matching clause in match</code></td>
+</tr>
+<tr class="odd">
+<td><code>Channel_Closed</code></td>
+<td>a send on a closed channel, or a receive from a closed, drained
+one</td>
+<td><code>Cannot send on a closed channel</code></td>
+</tr>
+<tr class="even">
+<td><code>Host_Exception</code></td>
+<td>any other failure the host platform raises</td>
+<td>e.g. <code>java.lang.StackOverflowError</code></td>
+</tr>
+</tbody>
+</table>
+<p>A missing <code>Map</code> key is a
+<code>Precondition_Violation</code> with the label
+<code>key_must_exist</code>, since <code>Map.get</code> states it as a
+precondition.</p>
+</section>
+<section id="host_exception" class="level2">
+<h2 class="anchored" data-anchor-id="host_exception"><code>Host_Exception</code></h2>
+<p>A failure raised by the host platform (the JVM) that has no more
+specific class. Inherits <code>Exception</code>.</p>
+<section id="construction-2" class="level3">
+<h3 class="anchored" data-anchor-id="construction-2">Construction</h3>
+<pre class="nex"><code>create Host_Exception.with_host(&quot;boom&quot;, &quot;java.lang.IllegalStateException&quot;)</code></pre>
+</section>
+<section id="features-2" class="level3">
+<h3 class="anchored" data-anchor-id="features-2">Features</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>host_class</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>The host's own name for the failure, e.g.
+<code>java.lang.StackOverflowError</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="handling-exceptions" class="level2">
+<h2 class="anchored" data-anchor-id="handling-exceptions">Handling exceptions</h2>
+<p>Test for a class with <code>convert</code>:</p>
+<pre class="nex"><code>do
+  account.withdraw(500.0)
+rescue
+  if convert exception to v: Precondition_Violation then
+    print(&quot;refused: &quot; + v.message)     -- refused: Precondition violation: enough
+  else
+    raise exception                    -- not ours: pass it on
+  end
+end</code></pre>
+<p>Or dispatch with <code>match</code> (<code>exception</code> has type
+<code>Any</code>, so give an <code>else</code>):</p>
+<pre class="nex"><code>do
+  print(totals.get(i) / count)
+rescue
+  match exception of
+    Division_by_Zero then print(&quot;no items&quot;)
+    Index_Out_Of_Bounds as e then print(&quot;bad index: &quot; + e.message)
+  else
+    raise exception
+  end
+end</code></pre>
+<p>A contract violation's label says which assertion failed:</p>
+<pre class="nex"><code>rescue
+  if convert exception to c: Contract_Violation then
+    if ?c.label as l then print(&quot;failed: &quot; + l) end
+  end</code></pre>
+<p>Re-raising a caught exception with <code>raise exception</code>
+reports its message if nothing else catches it.</p>
+</section>
+<section id="defining-your-own" class="level2">
+<h2 class="anchored" data-anchor-id="defining-your-own">Defining your own</h2>
+<p>Inherit <code>Exception</code>, delegate to its constructor, and
+raise an instance:</p>
+<pre class="nex"><code>class Parse_Error
+inherit Exception
+create
+  make(m: String) do
+    Exception.make(m)
+  end
+end
+
+do
+  raise create Parse_Error.make(&quot;unexpected token&quot;)
+rescue
+  if convert exception to p: Parse_Error then
+    print(&quot;parse failed: &quot; + p.message)
+  end
+end</code></pre>
+<p>An uncaught one is reported through its <code>to_string</code>:
+<code>Error: unexpected token</code>.</p>
+</section>
+<section id="notes" class="level2">
+<h2 class="anchored" data-anchor-id="notes">Notes</h2>
+<ul>
+<li><code>print(exception)</code> for a built-in failure prints the
+message without quotes, because <code>exception</code> is an object, not
+a string.</li>
+<li><code>exception</code> is typed <code>Any</code> in a
+<code>rescue</code> block, since <code>raise</code> accepts any value;
+narrow it with <code>convert</code> or <code>match</code> to reach
+<code>message</code>, <code>label</code> or
+<code>host_class</code>.</li>
+<li>On the tree-walking interpreter (<code>--interpret</code>),
+unbounded recursion stops the interpreter itself rather than raising a
+catchable <code>Host_Exception</code>.</li>
+</ul>
+</section>
+
+      </div>
+      <div class="next-cards"><a class="next-card" href="system-classes.html"><small>← previous</small><b>System Classes</b></a><a class="next-card" href="libraries.html"><small>next →</small><b>Library Index</b></a></div>
+    </main>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span class="mono">nex</span>
+    <a href="https://github.com/vijaymathew/nex">GitHub</a>
+    <a href="../../tutorial.html">Tutorial</a>
+    <a href="../../syntax.html">Syntax</a>
+    <span class="r">by <a href="../../../index.html">Vijay Mathew</a></span>
+  </div>
+</footer>
+
+<script src="ref.js"></script>
+</body>
+</html>

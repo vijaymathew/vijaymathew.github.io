@@ -758,8 +758,11 @@ construction</em> condition of Section&nbsp;<a href="static.html#sec-4.9">4.9</a
 <p>Contracts are checked while the program runs. To <em>check</em> an assertion
 is to evaluate its expression. If the value is <code>true</code>, evaluation
 continues. If it is <code>false</code>, a <em>contract violation</em> is raised:
-an exception that carries the assertion&rsquo;s label and its source position,
-so that the report can say which condition failed, and on which line. When a
+an instance of the <code>Contract_Violation</code> class for that kind of
+assertion (Appendix&nbsp;<a href="appendix-basis.html#sec-B.7">B.7</a>), whose <code>label</code> is the assertion&rsquo;s
+label and whose message names it &mdash; or, for a bare <code>assert</code>,
+which has no label, names its source line &mdash; so that the report can say
+which condition failed. When a
 clause contains several assertions, they are checked in the order written, and
 the first that is <code>false</code> is the one reported.</p>
 
@@ -958,7 +961,12 @@ the same way for a <code>nil</code> dereference, a failed contract
 (Section&nbsp;<a href="#sec-5.6">5.6</a>), arithmetic overflow and integer division by zero
 (Section&nbsp;<a href="#sec-5.3">5.3</a>), a failed runtime argument check, a failed
 <code>convert</code> in a context that requires success, and a
-<code>match</code> that no clause matches (Section&nbsp;<a href="#sec-5.8">5.8</a>).</p>
+<code>match</code> that no clause matches (Section&nbsp;<a href="#sec-5.8">5.8</a>).
+Such an exception is an object of one of the classes of
+Appendix&nbsp;<a href="appendix-basis.html#sec-B.7">B.7</a>, chosen by the kind of failure, so a handler can tell
+failures apart with <code>convert</code> or <code>match</code> rather than by
+reading a message. A value raised with <code>raise</code> is not wrapped: the
+handler receives exactly that value.</p>
 
 <p>A scoped block <code>do b1 rescue b2 end</code> is executed in the following
 steps.</p>
@@ -1106,6 +1114,21 @@ a loop driven by the <code>start</code>, <code>item</code>, <code>next</code>
 and <code>at_end</code> methods of the <code>Cursor</code> class
 (Appendix&nbsp;<a href="appendix-basis.html">B</a>).</p>
 
+<p>Any of the three loops may end with a <code>rescue</code> clause,
+written before its closing <code>end</code>. It guards the body, not the
+loop as a whole. If an execution of the body raises an exception, the clause
+runs with <code>exception</code> bound to it, and how the clause finishes
+decides what happens next. If it executes <code>retry</code>, the body runs
+again from its first statement, for the same iteration: the
+<code>from</code> block, the condition, and the counter or cursor of
+<code>repeat</code> and <code>across</code> are not touched. If it completes
+normally, the loop ends, as though its condition had become
+<code>true</code>. If it raises, the loop raises the same exception. The
+clause is a derived form: the body becomes a scoped block
+<code>do body rescue handler end</code> (Section&nbsp;<a href="#sec-5.7">5.7</a>), and a
+fresh flag that the handler sets is added to the loop&rsquo;s condition
+with <code>or</code>.</p>
+
 <h4>Dispatch statements</h4>
 
 <p>The <code>case</code> statement evaluates its subject once, then compares
@@ -1116,7 +1139,7 @@ executes the <code>else</code> clause, or does nothing if there is none.</p>
 <p>The <code>match</code> statement evaluates its subject once, then tries its
 clauses in order. A clause matches when the class of the subject&rsquo;s object
 conforms to the class the clause names and any field patterns it has match the
-object&rsquo;s fields (Section&nbsp;<a href="syntax-core.html#sec-2.7">2.7</a>). The clause&rsquo;s variables are then
+object&rsquo;s fields (Section&nbsp;<a href="syntax-core.html#sec-2.8">2.8</a>). The clause&rsquo;s variables are then
 bound, and its guard, if any, is evaluated; if the guard is <code>false</code>,
 the next clause is tried. The statement executes the first clause that matches
 with a true guard. If no clause matches, it executes the <code>else</code>
