@@ -116,8 +116,81 @@ end</code></pre>
 </ul>
 <p>This distinction keeps designs dependable. If you use exceptions for contract failures, callers can become sloppy because the interface no longer states clear obligations.</p>
 </section>
-<section class="level2" data-number="22.6" id="recovery-should-be-specific">
-<h2 class="anchored" data-anchor-id="recovery-should-be-specific" data-number="22.6"> Recovery Should Be Specific</h2>
+<section class="level2" data-number="22.6" id="built-in-exceptions">
+<h2 class="anchored" data-anchor-id="built-in-exceptions" data-number="22.6"> Built-in Exceptions</h2>
+<p>When your own code raises, <code>exception</code> is exactly the value you raised which could be a string, a number, or any object. When the language itself raises in way of a failed contract, a division by zero, or an index out of range, <code>exception</code> is an object of a class that names the kind of failure:</p>
+<pre><code>nex&gt; do
+       print(10 / 0)
+     rescue
+       print(exception)
+     end
+Division by zero</code></pre>
+<p>Printing the exception, or joining it to a string with <code>+</code>, gives its message. To act on the <em>kind</em> of failure, test for its class with <code>convert</code>:</p>
+<pre><code>nex&gt; do
+       print(10 / 0)
+     rescue
+       if convert exception to e: Division_by_Zero then
+         print("cannot divide: " + e.message)
+       end
+     end
+"cannot divide: Division by zero"</code></pre>
+<p>Contract violations arrive the same way. A failed <code>require</code> is a <code>Precondition_Violation</code>, a failed <code>ensure</code> a <code>Postcondition_Violation</code>, a broken invariant an <code>Invariant_Violation</code>, and a failed <code>assert</code> an <code>Assertion_Violation</code>. Each carries the failed assertion&rsquo;s <code>label</code>:</p>
+<pre><code>nex&gt; function half(n: Integer): Integer
+     require
+       even: n % 2 = 0
+     do
+       result := n / 2
+     end
+
+nex&gt; do
+       print(half(7))
+     rescue
+       if convert exception to v: Precondition_Violation then
+         print("refused: " + v.message)
+       end
+     end
+"refused: Precondition violation: even"</code></pre>
+<p>Being able to catch a contract violation does not change the advice of the previous section. A violation is a bug in the caller, not a condition to recover from; catch one only at a boundary where the program must keep running &mdash; to report the failure and carry on with the next request, say &mdash; never to paper over the call that broke the contract.</p>
+<p>When several kinds of failure are possible, <code>match</code> on the exception. Since <code>exception</code> can hold any value, give the <code>match</code> an <code>else</code>, and re-raise what you do not handle:</p>
+<pre><code>nex&gt; let scores := [90, 85]
+
+nex&gt; do
+       print(scores.get(5))
+     rescue
+       match exception of
+         Division_by_Zero then print("nothing to divide by")
+         Index_Out_Of_Bounds as e then print("no such score: " + e.message)
+       else
+         raise exception
+       end
+     end
+"no such score: Index 5 out of bounds for length 2"</code></pre>
+<p>All of these classes inherit <code>Exception</code>, whose <code>message</code> is the text the failure is reported with. The others are <code>Arithmetic_Overflow</code>, <code>Conversion_Error</code> (for example <code>"x".to_integer</code>), <code>Void_Access</code>, <code>No_Matching_Clause</code>, <code>Channel_Closed</code>, and <code>Host_Exception</code> for anything the platform raises that has no more specific class. The <a href="../ref/exceptions.html">reference</a> lists them all.</p>
+<p>Your own failures can be classes too. Inherit <code>Exception</code>, and the caller can tell them apart in exactly the same way:</p>
+<pre><code>nex&gt; class Config_Error
+     inherit Exception
+     create
+       make(m: String) do
+         Exception.make(m)
+       end
+     end
+
+nex&gt; do
+       raise create Config_Error.make("missing setting: port")
+     rescue
+       if convert exception to c: Config_Error then
+         print("config problem: " + c.message)
+       else
+         raise exception
+       end
+     end
+"config problem: missing setting: port"</code></pre>
+<p>Raised and not caught, such an exception is reported by its message, just like a built-in one:</p>
+<pre><code>nex&gt; raise create Config_Error.make("missing setting: port")
+Error: missing setting: port</code></pre>
+</section>
+<section class="level2" data-number="22.7" id="recovery-should-be-specific">
+<h2 class="anchored" data-anchor-id="recovery-should-be-specific" data-number="22.7"> Recovery Should Be Specific</h2>
 <p>A rescue block should handle the failure in a way that makes sense for the surrounding routine, not merely note that something went wrong.</p>
 <p>Poor rescue:</p>
 <pre><code>rescue
@@ -142,8 +215,8 @@ end</code></pre>
 </ul>
 <p>Anything else tends to hide bugs.</p>
 </section>
-<section class="level2" data-number="22.7" id="a-retry-loop-with-limits">
-<h2 class="anchored" data-anchor-id="a-retry-loop-with-limits" data-number="22.7"> A Retry Loop with Limits</h2>
+<section class="level2" data-number="22.8" id="a-retry-loop-with-limits">
+<h2 class="anchored" data-anchor-id="a-retry-loop-with-limits" data-number="22.8"> A Retry Loop with Limits</h2>
 <p>Unbounded retry is dangerous. Give it a stopping rule.</p>
 <pre><code>nex&gt; function connect_with_retry(): String
      do
@@ -164,8 +237,8 @@ end</code></pre>
      end</code></pre>
 <p>This routine retries twice, then gives up. The rescue logic is controlled and explicit.</p>
 </section>
-<section class="level2" data-number="22.8" id="a-worked-example-parsing-a-positive-integer">
-<h2 class="anchored" data-anchor-id="a-worked-example-parsing-a-positive-integer" data-number="22.8"> A Worked Example: Parsing a Positive Integer</h2>
+<section class="level2" data-number="22.9" id="a-worked-example-parsing-a-positive-integer">
+<h2 class="anchored" data-anchor-id="a-worked-example-parsing-a-positive-integer" data-number="22.9"> A Worked Example: Parsing a Positive Integer</h2>
 <p>Here is a small example that separates routine obligations from environmental uncertainty:</p>
 <pre><code>nex&gt; function parse_positive(text: String): Integer
      require
@@ -186,8 +259,8 @@ end</code></pre>
 </ul>
 <p>That balance is not arbitrary. It reflects the routine’s role in the design. If the caller is expected to pass non-empty strings, make it a contract. If the content may legitimately fail to parse, raise or handle an exception.</p>
 </section>
-<section class="level2" data-number="22.9" id="typed-error-results">
-<h2 class="anchored" data-anchor-id="typed-error-results" data-number="22.9"> Typed Error Results</h2>
+<section class="level2" data-number="22.10" id="typed-error-results">
+<h2 class="anchored" data-anchor-id="typed-error-results" data-number="22.10"> Typed Error Results</h2>
 <p><code>raise</code> and <code>rescue</code> are the right tool for truly exceptional conditions, such as a missing file. But sometimes a routine naturally has two outcomes, both expected: a parse may succeed or it may fail; a lookup may find the key or it may not. Expressing these as exceptions forces the caller to use a rescue block for what is really an ordinary control flow decision.</p>
 <p>Sealed classes and the <code>match</code> statement provide an alternative that keeps the failure path explicit in the type signature. Define a sealed result type with one variant for each outcome:</p>
 <pre><code>sealed deferred class Parse_Result
@@ -223,7 +296,7 @@ match outcome of
   Parse_Error as err then
     print("failed: " + err.reason)
 end</code></pre>
-<p>Compared to string-based exceptions, this approach gives the caller a typed handle on the error — <code>err.reason</code> is a <code>String</code> field, not an opaque exception value — and moves the handling obligation from runtime to compile time.</p>
+<p>Compared to raising an exception, this approach puts the failure in the routine&rsquo;s signature: a caller cannot receive a <code>Parse_Result</code> without being made to decide what an error means. An exception, even a typed one, is noticed only when it is raised, and a missing <code>rescue</code> shows up at run time. A forgotten <code>match</code> branch shows up at compile time.</p>
 <p>Use <code>raise</code>/<code>rescue</code> for conditions that are unexpected during correct operation. Use sealed result types when both success and failure are normal outcomes that every caller must actively decide how to handle.</p>
 <h3 class="anchored" data-anchor-id="standard-result-and-option">The standard <code>Result</code> and <code>Option</code></h3>
 <p>A success-or-failure type is common enough that you rarely need to write your own. The standard library ships a generic <code>Result</code> — load it with <code>intern</code>:</p>
@@ -256,20 +329,21 @@ match found of
 end</code></pre>
 <p>Use the hand-written sealed type from the previous section when the variants need their own methods or contracts. Use the standard <code>Result</code> and <code>Option</code> when plain success/failure or presence/absence is all you need. Both are documented in Appendix&nbsp;C.</p>
 </section>
-<section class="level2" data-number="22.10" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="22.10"> Summary</h2>
+<section class="level2" data-number="22.11" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="22.11"> Summary</h2>
 <ul>
 <li>Exceptions are for failures that can occur during otherwise valid execution</li>
 <li><code>raise</code> signals an exception; <code>rescue</code> handles it; <code>retry</code> tries the protected block again</li>
 <li>Contract violations and exceptions are different kinds of failure and should not be confused</li>
+<li>A failure the language raises itself reaches <code>rescue</code> as an object of a built-in exception class; test for one with <code>convert</code> or <code>match</code>, and inherit <code>Exception</code> for failures of your own</li>
 <li>A rescue block should handle the failure meaningfully, not merely hide the error</li>
 <li>Retry should usually have a clear stopping condition</li>
 <li>Good error handling preserves meaning rather than blurring it</li>
 <li>Use sealed result types with <code>match</code> when both success and failure are ordinary outcomes — the typechecker enforces that every variant is handled</li>
 </ul>
 </section>
-<section class="level2" data-number="22.11" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="22.11"> Exercises</h2>
+<section class="level2" data-number="22.12" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="22.12"> Exercises</h2>
 <p><strong>1.</strong> Write a <code>do ... rescue ... end</code> block that raises <code>"too small"</code> until a counter reaches 5, then prints <code>"ok"</code>. Use <code>retry</code>.</p>
 <p><strong>2.</strong> Define a function <code>safe_reciprocal(x: Real): Real</code> that raises an exception when <code>x = 0.0</code>. Then wrap a call in a rescue block that prints a fallback message.</p>
 <p><strong>3.</strong> Rewrite a routine of your own choosing so that it distinguishes clearly between a contract violation and an exception-producing environmental failure.</p>
