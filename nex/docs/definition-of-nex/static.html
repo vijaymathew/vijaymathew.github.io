@@ -721,9 +721,14 @@ nothing, and an <code>and</code> condition narrows nothing in the
 <p>Narrowing also applies within the condition itself. The right operand of an
 <code>and</code> is checked with the narrowings of its left operand in effect,
 so in <code>if x /= nil and x.v &gt; 0 then</code> the access <code>x.v</code>
-is accepted. This holds only in the condition of an <code>if</code> or
-<code>when</code>. Elsewhere an <code>and</code> narrows nothing, so
-<code>print(x /= nil and x.v &gt; 0)</code> is a compile-time error. The
+is accepted. This holds for every <code>and</code>, wherever it appears:
+in a <code>require</code>, <code>ensure</code> or <code>invariant</code>
+clause, an <code>assert</code>, an assignment or an argument, so
+<code>print(x /= nil and x.v &gt; 0)</code> is accepted too. It is sound
+because <code>and</code> evaluates its right operand only when the left is
+true (Section&nbsp;<a href="dynamic.html#sec-5.3">5.3</a>). The narrowing ends
+with the <code>and</code>: after <code>let ok := x /= nil and x.v &gt; 0</code>,
+<code>x</code> still has type <code>?T</code>. The
 conditional expression <code>when</code> narrows its branches in the same way as
 <code>if</code> (Section&nbsp;<a href="#sec-4.4">4.4</a>).</p>
 
@@ -931,7 +936,14 @@ the argument. A leading <code>?</code> on the parameter itself, as in
 <code>[?G]</code>, is accepted and changes none of this.</p>
 
 <p>A generic routine is checked in the same way, with its type parameters in scope
-only within the routine.</p>
+only within the routine. A call may write the routine&rsquo;s type arguments,
+as in <code>total_area[Circle](xs)</code>. Its parameters are then those of that
+instance, and each argument must conform to its parameter there: an
+<code>Array[Shape]</code> is not an argument for <code>total_area[Circle]</code>,
+since <code>Array[Shape]</code> does not conform to <code>Array[Circle]</code>. A call
+that writes no type arguments has them inferred from the types of its
+arguments, and each inferred argument must conform to the constraint of its
+parameter.</p>
 
 <p>Because elaboration substitutes type arguments rather than erasing them,
 <code>Array[Integer]</code> and <code>Array[String]</code> are different types,

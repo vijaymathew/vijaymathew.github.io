@@ -184,8 +184,12 @@ value it is bound to. A name refers to its nearest enclosing binding
 (Section&nbsp;<a href="#sec-5.8">5.8</a>, on scope).</p>
 
 <p><code>this</code> produces the current object. Inside the body of a method or
-constructor, <code>this</code> always refers to the part of the object that belongs to the
-class whose text contains the body (Section&nbsp;<a href="#sec-5.4">5.4</a>).</p>
+constructor, member access through <code>this</code> &mdash; a field read
+<code>this.f</code>, a call <code>this.m(&hellip;)</code>, and likewise a bare
+field name or bare call &mdash; refers to the part of the object that belongs to
+the class whose text contains the body (Section&nbsp;<a href="#sec-5.4">5.4</a>). Used as a value
+(stored, passed, returned or compared), <code>this</code> is the whole object,
+so a heir&rsquo;s overrides apply to calls made on it.</p>
 
 <p><code>super</code> and the name of an ancestor produce something different,
 because each inherited part of an object is a nested object of its own
@@ -505,13 +509,51 @@ caller&rsquo;s local variables.</p>
 
 <h4>Which object <code>this</code> names</h4>
 
-<p>If the object&rsquo;s own class declares or overrides <code>m</code>,
+<p>For a call on any receiver other than the current object, if the
+object&rsquo;s own class declares or overrides <code>m</code>,
 <code>this</code> is the receiver itself. If instead the class inherits
 <code>m</code>, the body is text written in the ancestor that declares it, and
 <code>this</code> always names the class its text belongs to
 (Section&nbsp;<a href="#sec-5.3">5.3</a>). In that case <code>this</code> is that ancestor&rsquo;s nested
 object within the receiver (Section&nbsp;<a href="#sec-5.1">5.1</a>), found the same way an inherited
-field is found (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>).</p>
+field is found (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>): along the first path.</p>
+
+<h4>Calls on the current object</h4>
+
+<p>A bare call <code>m(&hellip;)</code> or a call <code>this.m(&hellip;)</code>
+is a call on the current object <code>o</code>, made by text that may belong to
+one of <code>o</code>&rsquo;s ancestors. Let <code>A</code> be the class whose
+text contains the call, and <code>p</code> the path from the class of
+<code>o</code> to the part of <code>o</code> that this text is running on (empty
+when it is <code>o</code>&rsquo;s own class&rsquo;s text). Step&nbsp;3 then
+selects the method as follows.</p>
+
+<ul>
+  <li>Among the classes along <code>p</code>, from the class of <code>o</code>
+  down to, but not including, <code>A</code>, the outermost one that itself
+  declares <code>m</code> (an override, not merely an inherited method)
+  supplies it, and <code>this</code> is bound to that class&rsquo;s part of
+  <code>o</code>. An override in a subclass therefore takes effect in the code
+  it inherits.</li>
+  <li>If none of them declares <code>m</code>, the call stays on
+  <code>p</code>: the method is the one <code>A</code> declares or inherits,
+  and <code>this</code> is bound within the part of <code>o</code> that
+  belongs to <code>A</code>, to the nested object of the class that declares
+  it. A method of a shared ancestor (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>) called this way acts
+  on the copy of its fields along <code>p</code>, never on another path&rsquo;s
+  copy.</li>
+  <li>If that method is deferred, the method is selected from the class of
+  <code>o</code>, as for a call on any other receiver.</li>
+</ul>
+
+<p>In the example of Section&nbsp;<a href="#sec-5.1">5.1</a>, suppose <code>Right</code> also had a
+method <code>bump_right() do bump() end</code>. Then
+<code>b.bump_right()</code> increments the copy of <code>count</code> in
+<code>Right</code>&rsquo;s nested object: neither <code>Both</code> nor
+<code>Right</code> declares <code>bump</code>, so it runs on the
+<code>Counter</code> nested in <code>Right</code>. Had <code>Both</code>
+overridden <code>bump</code>, its override would run instead, for
+<code>bump_left</code> and <code>bump_right</code> alike.</p>
 
 <div class="note">
   <span class="note-label">No argument check is needed at run time</span>

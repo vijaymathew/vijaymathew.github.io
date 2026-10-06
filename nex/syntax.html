@@ -211,24 +211,71 @@ end
   <details class="syntax-item" id="functions">
     <summary>Functions</summary>
     <div class="syntax-body prose">
-<pre><code>function greet(name: String)
-do
+<pre><code>function greet(name: String) do
   print("Hello, " + name + "!")
 end
 
 greet("Bob")</code></pre>
 <p>A function that gives back a value:</p>
-<pre><code>function double(n: Integer): Integer
-do
+<pre><code>function double(n: Integer): Integer do
   result := n * 2
 end
 
 print(double(5))                 -- 10</code></pre>
 <p><code>result</code> is reserved for the value a routine returns. It cannot be declared as
-anything else &mdash; a <code>let</code>, a parameter, a field, an <code>across</code> or <code>match</code> variable &mdash;
+anything else — a <code>let</code>, a parameter, a field, an <code>across</code> or <code>match</code> variable —
 because the declaration would hide the return value and the routine would
 silently return the default. Assign it with <code>result := ...</code>; choose another name
 for everything else.</p>
+<p>A routine returns whatever <code>result</code> holds when it exits — the last assignment
+that ran, or whatever was done to it in place (<code>result.add(x)</code>). Only an explicit
+<code>result := ...</code> sets it: a trailing expression is <strong>not</strong> the return value.
+Because such an expression would be computed and silently thrown away, the
+typechecker rejects a routine body (function, method, <code>fn</code>, constructor or
+<code>spawn</code> body) that ends in one:</p>
+<pre><code>function twice(n: Integer): Integer do
+  n * 2
+end
+-- Type error: Discarded value: `n * 2` is computed and thrown away.
+--   A routine returns only what `result` holds; did you mean `result := n * 2`?</code></pre>
+<p>"Ends in" includes the last statement of each branch of a trailing <code>if</code>, <code>case</code>,
+<code>match</code> or <code>do ... end</code>. Only value-only expressions count — literals, names,
+operators, <code>when</code>, collection literals, <code>fn</code> values. A trailing call is fine,
+since it may be made for its effect (<code>items.remove(x)</code>), and so is a paren-less
+call of one of the class's own routines. Top-level statements are not a routine
+body, so a script or the REPL can still end in an expression (the REPL shows its
+value).</p>
+<p><code>result</code> starts at its return type's zero value, so a routine that never assigns
+it returns that value:</p>
+<table>
+<thead>
+<tr>
+<th>Return type</th>
+<th>Zero value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Integer</code> (and the other integer types), <code>Real</code></td>
+<td><code>0</code>, <code>0.0</code></td>
+</tr>
+<tr>
+<td><code>Boolean</code>, <code>Char</code></td>
+<td><code>false</code>, <code>#nul</code></td>
+</tr>
+<tr>
+<td><code>Array[T]</code>, <code>Map[K, V]</code>, <code>Set[T]</code></td>
+<td><code>[]</code>, <code>{}</code>, <code>#{}</code> (a fresh empty collection)</td>
+</tr>
+<tr>
+<td>any detachable type <code>?T</code></td>
+<td><code>nil</code></td>
+</tr>
+</tbody>
+</table>
+<p>Any other return type — <code>String</code>, or an attached class type — has no zero value,
+so the typechecker rejects a routine that does not assign <code>result</code> on every path
+that returns.</p>
 <p>Every function in a program is checked against every other function's
 signature regardless of which is written first, so mutually recursive
 functions need no forward declaration at all:</p>
@@ -248,18 +295,26 @@ function is_odd(n: Integer): Boolean do
   end
 end</code></pre>
 <p><code>declare function</code> is available separately, to pin a function's signature
-explicitly at a point before its real definition &mdash; useful for documentation,
-or when the definition is far away &mdash; and the later definition is checked
+explicitly at a point before its real definition — useful for documentation,
+or when the definition is far away — and the later definition is checked
 against it exactly:</p>
 <pre><code>declare function is_even(n: Integer): Boolean
 declare function is_odd(n: Integer): Boolean
 
 function is_even(n: Integer): Boolean do
-  if n = 0 then result := true else result := is_odd(n - 1) end
+  if n = 0 then
+    result := true
+  else
+    result := is_odd(n - 1)
+  end
 end
 
 function is_odd(n: Integer): Boolean do
-  if n = 0 then result := false else result := is_even(n - 1) end
+  if n = 0 then
+    result := false
+  else
+    result := is_even(n - 1)
+  end
 end</code></pre>
 <p>Mutual recursion between <code>let</code>-bound closures works the same way: consecutive
 closure-literal <code>let</code>s in one block are elaborated together, so any of them
@@ -273,21 +328,21 @@ end</code></pre>
 <p>This works for a whole file (as bare top-level statements) and for a single,
 multi-statement REPL input (wrap the statements in <code>do ... end</code> to submit
 them to the REPL as one input, since the REPL otherwise treats each complete
-statement as its own separate input) &mdash; including two or more closures that
+statement as its own separate input) — including two or more closures that
 merely <em>share</em> a captured, mutated variable without calling each other at
 all (<code>let total := 0 / let add := fn(x) do total := total + x end / let peek
 := fn(): Integer do result := total end</code>). It does <strong>not</strong> currently work
-across separate REPL inputs &mdash; defining both closures
+across separate REPL inputs — defining both closures
 in one input and then calling one from a later, separate input fails (a
 limitation of the interactive session bridging interpreted and compiled
 state, not of the language). A single self-recursive or self-mutating
 closure (e.g. a counter) is unaffected either way; the gap is specific to
 two or more closures that reference each other or share mutated state,
 split across separate inputs. If you need that, use <code>function</code> (with
-<code>declare function</code> if needed) instead of <code>let</code> &mdash; named functions are not
+<code>declare function</code> if needed) instead of <code>let</code> — named functions are not
 affected.</p>
-<p><strong>No default arguments.</strong> Nex has no default parameter values. A call
-must pass exactly as many arguments as the function (or method) declares.</p>
+<p><strong>No default arguments.</strong> Nex has no default parameter values. A call must pass exactly as many
+arguments as the function (or method) declares.</p>
 <p>Free functions cannot be overloaded either: each function name must be
 unique, so you cannot define two <code>greet</code> functions that differ only in the
 number of parameters. If you need variants, give them distinct names.</p>
@@ -626,7 +681,7 @@ let rest: Money := owed - paid          -- calls minus, checks same_currency</co
 <p><code>alias</code> is a <strong>soft keyword</strong>: it carries this meaning only in the position above, and stays available as an ordinary name anywhere else.</p>
 <pre><code>let alias := "vj"          -- still a perfectly good variable
 print(u.alias)              -- and a perfectly good field</code></pre>
-<p><code>union</code> is a keyword too, but narrower than <code>alias</code>: it still works as a member name (<code>Set.union</code>), but not as a general identifier &mdash; <code>let union := 5</code> does not parse. <code>where</code> is not restricted at all; it is recognized only inside a refinement type's <code>where n: &lt;expr&gt;</code> clause (see <a href="#refinement-types">Refinement Types</a>) and is an ordinary identifier everywhere else, including <code>let where := 5</code>.</p>
+<p><code>union</code> is a keyword too, but narrower than <code>alias</code>: it still works as a <strong>member name</strong> (<code>Set.union</code>), but not as a general identifier &mdash; <code>let union := 5</code> does not parse. <code>where</code> is not restricted at all; it is recognized only inside a refinement type's <code>where n: &lt;expr&gt;</code> clause (see <a href="#refinement-types">Refinement Types</a>) and is an ordinary identifier everywhere else, including <code>let where := 5</code>.</p>
 <p>A class whose values are compared with <code>=</code> &mdash; including in a postcondition like <code>ensure reduced: balance = old balance - amount</code> &mdash; should also override <code>equals</code> (and <code>hash</code>), or <code>=</code> compares object identity rather than value.</p>
     </div>
   </details>
@@ -692,46 +747,98 @@ print(Origin.POINT == Origin.POINT)   -- true: the one canonical value</code></p
     <div class="syntax-body prose">
 <p>Tell Nex what must be true before, after, and always:</p>
 <pre><code>class Wallet
-feature
-  money: Real
+  feature
+    money: Real
 
-  spend(amount: Real)
-  require                    -- must be true BEFORE
-    enough: amount <= money
-  do
-    money := money - amount
-  ensure                     -- must be true AFTER
-    less: money = old money - amount
-  end
+    spend(amount: Real)
+      require                    -- must be true BEFORE
+        enough: amount &lt;= money
+      do
+        money := money - amount
+      ensure                     -- must be true AFTER
+        less: money = old money - amount
+      end
 
-invariant                      -- must ALWAYS be true
-  not_negative: money >= 0.0
+  invariant                      -- must ALWAYS be true
+    not_negative: money &gt;= 0.0
 end</code></pre>
-<p>The invariant is checked when an object is created and on exit from every <em>qualified</em> call: <code>w.spend(1.0)</code>, or <code>this.spend(1.0)</code>. An unqualified call (<code>spend(1.0)</code>), <code>super.spend(1.0)</code> or <code>Parent.spend(1.0)</code> is part of the routine that makes it, so it is not checked. A routine may break the invariant for a moment and call a helper, as long as the invariant holds again by the time the routine returns:</p>
+<p>The invariant is checked when an object is created and on exit from every
+<em>qualified</em> call: <code>w.spend(1.0)</code>, or <code>this.spend(1.0)</code>. An unqualified call
+(<code>spend(1.0)</code>), <code>super.spend(1.0)</code> or <code>Parent.spend(1.0)</code> is part of the
+routine that makes it, so it is not checked. A routine may break the
+invariant for a moment and call a helper, as long as the invariant holds
+again by the time the routine returns:</p>
 <pre><code>class Pair
-feature
-  a: Integer
-  b: Integer
+  feature
+    a: Integer
+    b: Integer
 
-  bump do
-    a := a + 1      -- invariant broken here...
-    log             -- ...so this call is unqualified, and not checked
-    b := b + 1      -- ...and restored before bump returns
-  end
+    bump do
+      a := a + 1      -- invariant broken here...
+      log             -- ...so this call is unqualified, and not checked
+      b := b + 1      -- ...and restored before bump returns
+    end
 
-  log do print(a.to_string + " " + b.to_string) end
-invariant
-  same: a = b
+    log do print(a.to_string + " " + b.to_string) end
+  invariant
+    same: a = b
 end</code></pre>
-<p>A call made from inside a closure counts as qualified, since the closure may run long after the routine that made it has returned.</p>
-<p><code>require</code>, <code>ensure</code>, and <code>invariant</code> speak about a routine's boundaries or a class. <code>assert</code> states what must be true at one point <em>inside</em> a body:</p>
-<pre><code>assert enough_left: money >= 0.0   -- named: the failure reports the name
-assert money >= 0.0                -- bare: the failure reports the line
+<p>A call made from inside a closure counts as qualified, since the closure may
+run long after the routine that made it has returned.</p>
+<p><code>require</code>, <code>ensure</code>, and <code>invariant</code> speak about a routine's boundaries or a
+class. <code>assert</code> states what must be true at one point <em>inside</em> a body:</p>
+<pre><code>assert enough_left: money &gt;= 0.0   -- named: the failure reports the name
+assert money &gt;= 0.0                -- bare: the failure reports the line
 
 assert                             -- several at once, like require
-  not_negative: money >= 0.0
-  under_limit: money <= 10000.0</code></pre>
-<p>A failed <code>assert</code> raises the same contract violation as a failed <code>require</code> or <code>ensure</code>. Assertions always run; there is no mode that strips them.</p>
+  not_negative: money &gt;= 0.0
+  under_limit: money &lt;= 10000.0</code></pre>
+<p>A failed <code>assert</code> raises the same contract violation as a failed <code>require</code> or
+<code>ensure</code>. Assertions always run; there is no mode that strips them.</p>
+<p><strong>Contracts and inheritance.</strong> An override inherits every ancestor's contract. Its own <code>require</code> is OR-ed with
+the inherited precondition, so it can only accept <em>more</em> calls. Its own <code>ensure</code>
+is AND-ed with the inherited postcondition, so it can only promise <em>more</em>. An
+override with no <code>require</code> keeps the precondition it inherits.</p>
+<p>A call that breaks such a combined precondition has broken every alternative,
+so the violation names the failing assertion of each, ancestor first:
+<code>Precondition violation: positive or is_neg_one</code>. Postconditions and class
+invariants are AND-ed, so a violation names the one assertion that failed,
+wherever it was declared.</p>
+<p>A deferred routine can state the contract that every implementation inherits.
+Put <code>require</code> before <code>deferred</code> and <code>ensure</code> after it. An <code>ensure</code> is closed by
+<code>end</code>:</p>
+<pre><code>deferred class Shape
+  feature
+    scale(x: Integer): Integer
+      require
+        positive: x &gt; 0
+      deferred
+      ensure
+        bigger: result &gt; x
+      end
+
+    area(): Real deferred ensure non_negative: result &gt;= 0.0 end
+end</code></pre>
+<p>A routine's first declaration with no <code>require</code> accepts every call. Since an
+override can only widen that, a <code>require</code> added further down could never be
+checked, and the type checker rejects it. The precondition belongs on the
+first declaration, which may be a deferred one:</p>
+<pre><code>class Parent
+  feature
+    f(x: Integer) do ... end
+end
+
+class Child
+  inherit Parent
+  feature
+    f(x: Integer)
+      require positive: x &gt; 0   -- error: Parent.f accepts every call
+      do ... end
+end</code></pre>
+<p>Inherited assertions are checked under the override's own parameter names, so
+an implementation may rename its parameters. It may not take a name that the
+inherited contract already uses for something else, such as a field: that
+name would then mean the parameter.</p>
     </div>
   </details>
 
@@ -867,15 +974,30 @@ end</code></pre>
     <div class="syntax-body prose">
 <pre><code>?&lt;expr&gt; as &lt;name&gt;</code></pre>
 <ul>
-<li><code>&lt;expr&gt;</code> must have a detachable (<code>?T</code>) type. Returns <code>true</code> if <code>&lt;expr&gt;</code> is non-<code>nil</code>, else <code>false</code>.</li>
-<li>On success, <code>&lt;name&gt;</code> is bound to <code>&lt;expr&gt;</code>'s attached (non-detachable) value for the branch this guards.</li>
-<li>Unlike <code>x /= nil</code>, <code>&lt;expr&gt;</code> can be any expression, not just a bare identifier &mdash; a dotted chain (<code>?p.age as a</code>) or a safe-navigation read (<code>?p?.age as a</code>) narrows directly, no intermediate <code>let</code> needed.</li>
-<li>Chains of <code>and</code> are each narrowed in turn, so a later conjunct can use an earlier one's binding:</li>
+<li><code>&lt;expr&gt;</code> must have a detachable (<code>?T</code>) type. Returns <code>true</code> if <code>&lt;expr&gt;</code> is
+  non-<code>nil</code>, else <code>false</code>.</li>
+<li>On success, <code>&lt;name&gt;</code> is bound to <code>&lt;expr&gt;</code>'s attached (non-detachable) value
+  for the branch this guards.</li>
+<li>Unlike <code>x /= nil</code>, <code>&lt;expr&gt;</code> can be any expression, not just a bare
+  identifier — a dotted chain (<code>?p.age as a</code>) or a safe-navigation read
+  (<code>?p?.age as a</code>) narrows directly, no intermediate <code>let</code> needed.</li>
+<li>Chains of <code>and</code> are each narrowed in turn, so a later conjunct can use an
+  earlier one's binding:</li>
 </ul>
 <pre><code>if ?p.age as a and ?q.age as b then
   print(when a &lt; b then "p is younger" else "p is not younger" end)
 end</code></pre>
-<p>The same goes for <code>x /= nil</code>: after <code>if x /= nil and y /= nil then</code>, both <code>x</code> and <code>y</code> are attached in the branch.</p>
+<p>The same goes for <code>x /= nil</code>: after <code>if x /= nil and y /= nil then</code>, both <code>x</code>
+and <code>y</code> are attached in the branch.</p>
+<p>The right side of an <code>and</code> sees the left side's narrowing wherever the <code>and</code>
+appears, not only in an <code>if</code>, since it runs only when the left side held. So a
+contract can guard its own access:</p>
+<pre><code>f(b: ?Box): Integer
+  require
+    big: b /= nil and b.n &gt; 10
+  do ... end</code></pre>
+<p>The narrowing ends with the <code>and</code>: after <code>let ok := b /= nil and b.n &gt; 10</code>, <code>b</code>
+is still <code>?Box</code>. An <code>or</code> narrows nothing.</p>
     </div>
   </details>
 
