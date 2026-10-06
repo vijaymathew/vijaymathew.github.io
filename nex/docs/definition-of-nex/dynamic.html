@@ -837,12 +837,15 @@ ancestors.</p>
 
 <ul>
   <li><strong>Precondition.</strong> The effective precondition holds if the
-  precondition of <em>any</em> version holds. A version&rsquo;s precondition
-  holds when all of its assertions are true. A version with no
-  <code>require</code> clause has a precondition that always holds, so if any
-  version has none, the effective precondition always holds too. An overriding
+  precondition of <em>any</em> version that states one holds. A
+  version&rsquo;s precondition holds when all of its assertions are true. A
+  <em>first declaration</em>, a version that overrides nothing, with no
+  <code>require</code> clause admits every call, so if any first declaration
+  has none, the effective precondition always holds. Any other version with no
+  <code>require</code> clause contributes nothing: a method that overrides
+  without stating a precondition keeps the one it inherits. An overriding
   method can therefore weaken what its callers must establish, but never
-  strengthen it.</li>
+  strengthen it (Section&nbsp;<a href="static.html#sec-4.9">4.9</a>, <em>Attainable preconditions</em>).</li>
   <li><strong>Postcondition.</strong> The effective postcondition holds only if
   the postconditions of <em>all</em> versions hold. The ancestors&rsquo;
   assertions are checked first, then the method&rsquo;s own. An overriding
@@ -853,6 +856,13 @@ ancestors.</p>
   ancestors&rsquo; assertions are checked first. An ancestor reached through more
   than one parent is checked once.</li>
 </ul>
+
+<p>A deferred method is a version like any other. It never runs, but its
+contract is part of the effective contract of every implementation. Each
+version&rsquo;s assertions are evaluated with <em>that version&rsquo;s</em>
+parameters bound to the call&rsquo;s arguments, by position, so an inherited
+assertion reads the arguments it was written against even when the selected
+method names its parameters differently.</p>
 
 <p>When the effective precondition combines more than one version and fails, no
 single assertion is to blame, so the violation names the combined precondition
@@ -890,6 +900,40 @@ h.f(13)</code></pre>
 <code>small</code> and <code>h.f(12)</code> satisfies <code>even</code>, so both
 run. The call <code>h.f(13)</code> satisfies neither, and raises a precondition
 violation.</p>
+
+<p>A contract stated on a deferred method binds every implementation:</p>
+
+<pre><code>deferred class Shape
+feature
+  scale(x: Integer): Integer
+  require
+    positive: x &gt; 0
+  deferred
+  ensure
+    bigger: result &gt; x
+  end
+end
+
+class Doubler
+  inherit Shape
+  create make() do end
+feature
+  scale(n: Integer): Integer
+  do
+    result := n * 2
+  end
+end
+
+let s: Shape := create Doubler.make()
+print(s.scale(3))
+print(s.scale(0))</code></pre>
+
+<p><code>Doubler</code>&rsquo;s <code>scale</code> states no precondition and
+is not a first declaration, so its effective precondition is
+<code>positive</code>, read with <code>n</code> for <code>x</code>; its
+effective postcondition is <code>bigger</code>. The first call prints
+<code>6</code>. The second raises <code>Precondition violation:
+positive</code>.</p>
 
 <div class="note">
   <span class="note-label">What <code>old</code> captures</span>

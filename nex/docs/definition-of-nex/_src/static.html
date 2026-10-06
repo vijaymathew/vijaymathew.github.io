@@ -799,6 +799,13 @@ scope.</p>
   label, is elaborated exactly as the named form is.</li>
 </ul>
 
+<p>The contract of a deferred method is elaborated in the same way, against
+its own signature: its precondition sees its parameters and the fields of the
+current object, and its postcondition sees these together with
+<code>result</code>, when the method declares a return type, and
+<code>old</code> expressions. A postcondition that reads <code>result</code>
+requires a return type here as anywhere else.</p>
+
 <p>The label of an assertion has no effect on its type. It is carried into the
 dynamic semantics only to name the condition in a violation report.</p>
 
@@ -1043,10 +1050,34 @@ static world. A class that breaks one of them is a compile-time error.</p>
   <p>This is checked at the override: a method that narrows a parameter type or
   widens its return type is rejected there, and the error names the method and
   the offending position.</p></li>
+  <li><strong>Attainable preconditions.</strong>
+  <p>Call a version of a method (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>, <em>Inherited
+  contracts</em>) a <em>first declaration</em> when it overrides nothing: no
+  ancestor of its class declares a method of the same name and number of
+  parameters. A first declaration with no <code>require</code> clause admits
+  every call, and an override can only widen what its ancestors admit. So a
+  method may not have a <code>require</code> clause if any first declaration it
+  inherits, along any path through its ancestors, has none: that precondition
+  could never be checked. The error names the first declaration. The
+  precondition belongs there instead, and a deferred first declaration may
+  carry one (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>).</p>
+  <p>A version that is not a first declaration and has no <code>require</code>
+  clause adds no precondition of its own; it neither admits every call nor
+  prevents its heirs from widening.</p></li>
+  <li><strong>Inherited contracts and parameter names.</strong>
+  <p>The assertions an override inherits are read under its own parameter
+  names, matched by position (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>), so an override may
+  rename its parameters. It may not give a parameter a name that an inherited
+  assertion already uses for something other than the parameter at that
+  position, such as a field: the name would then denote the parameter. A name
+  bound inside the assertion, by a parameter of an anonymous function, is not
+  affected.</p></li>
   <li><strong>Complete deferral.</strong> A class that is not deferred must
   supply a body for every method declared <code>deferred</code> in any of its
   ancestors. A class with an unimplemented deferred method is itself deferred,
-  and may not be instantiated.</li>
+  and may not be instantiated. Only a method declared <code>deferred</code> is
+  unimplemented: an empty body, <code>do end</code>, implements the method, in
+  a deferred class as in any other, and heirs may inherit it.</li>
   <li><strong>Host-type conformance.</strong>
   <p>When a parent named in <code>inherit</code> is an imported host interface or
   class rather than a Nex class, the inheriting class must supply a method for

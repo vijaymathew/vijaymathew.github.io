@@ -238,7 +238,7 @@ clause.</p>
 <table>
 <tr><td class="nt">method</td><td class="op">::=</td><td><span class="nt">id</span> &langle;<span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span>&rangle; &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">alias</span>&rangle; &langle;<span class="nt">note</span>&rangle;</td></tr>
 <tr><td></td><td></td><td>&nbsp;&nbsp;&langle;<span class="nt">require</span>&rangle; <span class="lit">do</span> <span class="nt">block</span> &langle;<span class="nt">ensure</span>&rangle; &langle;<span class="nt">rescue</span>&rangle; <span class="lit">end</span></td></tr>
-<tr><td></td><td class="op">|</td><td><span class="nt">id</span> <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">alias</span>&rangle; &langle;<span class="nt">note</span>&rangle; &langle;<span class="lit">deferred</span>&rangle;</td><td class="cmt">&mdash; deferred signature</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">id</span> <span class="lit">(</span> &langle;<span class="nt">params</span>&rangle; <span class="lit">)</span> &langle;<span class="lit">:</span> <span class="nt">ty</span>&rangle; &langle;<span class="nt">alias</span>&rangle; &langle;<span class="nt">note</span>&rangle; &langle;&langle;<span class="nt">require</span>&rangle; <span class="lit">deferred</span> &langle;<span class="nt">ensure</span> <span class="lit">end</span>&rangle;&rangle;</td><td class="cmt">&mdash; deferred signature</td></tr>
 <tr><td class="nt">alias</td><td class="op">::=</td><td><span class="lit">alias</span> <span class="nt">opsym</span></td><td class="cmt">&mdash; binds an operator to this method</td></tr>
 <tr><td class="nt">opsym</td><td class="op">::=</td><td><span class="lit">"+"</span> <span class="op">|</span> <span class="lit">"-"</span> <span class="op">|</span> <span class="lit">"*"</span> <span class="op">|</span> <span class="lit">"/"</span> <span class="op">|</span> <span class="lit">"%"</span> <span class="op">|</span> <span class="lit">"^"</span></td><td class="cmt">&mdash; a closed set</td></tr>
 <tr><td class="nt">createsec</td><td class="op">::=</td><td><span class="lit">create</span> <span class="nt">constructor</span><sup>+</sup></td></tr>
@@ -333,7 +333,15 @@ parameter, or routine <code>alias</code>.</p>
   The second form of <code>method</code> above &mdash; a signature followed
   by <code>deferred</code> and no <code>do</code>&hellip;<code>end</code>
   &mdash; declares a method whose implementation is supplied by heirs. It
-  may appear only in a deferred class. The <code>declare function</code> form
+  may appear only in a deferred class. It may still state the contract every
+  implementation inherits (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>): a <code>require</code> clause
+  before <code>deferred</code>, and an <code>ensure</code> clause after it,
+  closed by <code>end</code>. The <code>end</code> is needed because nothing
+  else would mark where the postcondition stops: a following field
+  <code>count: Integer</code> has the form of one more assertion. The keyword
+  <code>deferred</code> already ends a precondition. A method with an empty
+  body, <code>do end</code>, is not deferred: it is an implementation that
+  does nothing. The <code>declare function</code> form
   plays the analogous role for free functions: it announces a signature whose
   definition follows later. Mutual recursion among free functions needs no
   such announcement, since every function in a program is elaborated against
@@ -534,8 +542,9 @@ grammar production.</p>
   (Section&nbsp;<a href="static.html#sec-4.9">4.9</a> explains why this is required rather than merely advised).</li>
   <li>A field declared <code>once</code> must give an explicit type; the
   inferred-type form of <code>field</code> may not be marked <code>once</code>.</li>
-  <li>A deferred method signature, and the <code>declare function</code> form,
-  may not carry <code>require</code>, <code>ensure</code>, or a body.</li>
+  <li>A deferred method signature may not carry a body. The
+  <code>declare function</code> form may not carry <code>require</code>,
+  <code>ensure</code>, or a body.</li>
   <li>A class may not inherit from itself, directly or through a cycle of
   parents; the inheritance relation must be a partial order (Section&nbsp;<a href="static.html#sec-4.5">4.5</a>).</li>
   <li>The body of a constructor named in a <code>create</code> section may assign
