@@ -30,16 +30,17 @@
 <section id="extending-nex-with-libraries" class="level2" data-number="4.1">
 <h2 data-number="4.1" class="anchored" data-anchor-id="extending-nex-with-libraries"><span class="header-section-number">4.1</span> Extending Nex with Libraries</h2>
 <p>The preferred extension mechanism for Nex is not “add another core keyword.” It is “write a Nex library and load it with <code>intern</code>.” This is a crucial design choice. It keeps the language kernel small and pushes growth into ordinary source-level abstractions — the same kind the user writes.</p>
-<p>Library loading is implemented in the interpreter through a straightforward pipeline. The <code>intern</code> form is parsed into an AST node, the file path is resolved, the library source is parsed, the classes defined there are registered, and an optional alias is bound. The interpreter searches for interned files in sensible locations: the current source directory, the current working directory, and user-level dependency locations.</p>
-<p>The relevant interpreter functions are <code>intern-search-roots</code>, <code>find-intern-file</code>, and <code>process-intern</code>. Together they implement the concrete flow:</p>
+<p>Library loading is static, and shared by every path that needs it. The <code>intern</code> form is parsed into an AST node; <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/intern.clj"><code>src/nex/intern.clj</code></a> then locates the file, parses it, and collects the classes, free functions, imports and type aliases it brings into scope, recursively. That namespace evaluates nothing, so the typechecker, the JVM compiler (whole-file and REPL) and the interpreter all use it, and the compiled path never has to load the interpreter to resolve a library. It searches for interned files in sensible locations: the current source directory, the original working directory, and user-level dependency locations.</p>
+<p>The relevant functions are <code>find-intern-file</code> and <code>resolve-interned-classes</code> with its siblings for functions, imports and aliases in <code>nex.intern</code>, and <code>process-intern</code> in the interpreter, which runs the same resolution when a program is interpreted. Together they implement the concrete flow:</p>
 <ol type="1">
 <li>determine search roots relative to the current source file and process environment</li>
-<li>derive candidate filenames from the requested class name</li>
+<li>derive candidate filenames from the requested class name, including a path prefix such as <code>units/Money</code></li>
 <li>find the first matching <code>.nex</code> file</li>
-<li>parse it</li>
-<li>evaluate the resulting AST in the current context</li>
+<li>parse it, and resolve its own interns in turn</li>
+<li>stamp what it declares with namespace-qualified names</li>
 <li>bind the loaded class name or alias</li>
 </ol>
+<p>The qualified names keep two libraries that declare the same class name apart. Such a bare name is <em>ambiguous</em>, and the typechecker rejects it where it is used, while the qualified form (<code>finance/Account</code>) still resolves. The walker also adds <em>implied</em> interns: a program that calls a builtin implemented by a library, such as the HTTP builtins and <code>net/Http_Client</code>, gets that library without writing the <code>intern</code> itself.</p>
 <p>This is a small mechanism, but it is the whole of Nex’s current library model. Its smallness is a virtue: it is simple enough to understand completely and flexible enough to support the libraries that already exist.</p>
 <section id="what-libraries-cover" class="level3" data-number="4.1.1">
 <h3 data-number="4.1.1" class="anchored" data-anchor-id="what-libraries-cover"><span class="header-section-number">4.1.1</span> What Libraries Cover</h3>

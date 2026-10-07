@@ -41,23 +41,23 @@
 <li>classes and their definitions</li>
 <li>proven non-<code>nil</code> facts that hold in the current control-flow scope</li>
 </ul>
-<p>The environment is created with <code>make-type-env</code> and manipulated through a small set of named operations: <code>env-add-var</code>, <code>env-lookup-var</code>, <code>env-add-method</code>, <code>env-lookup-method</code>, <code>env-add-class</code>, and <code>env-mark-non-nil</code>. Because nearly all of the checker’s knowledge lives in this one explicit structure, the pass is straightforward to inspect and debug. There is no hidden compiler state to account for.</p>
+<p>The environment is created with <code>make-type-env</code> and manipulated through a small set of named operations: <code>env-add-var</code>, <code>env-lookup-var</code>, <code>env-add-method</code>, <code>env-lookup-method</code>, <code>env-add-class</code>, <code>env-mark-non-nil</code>, and its counterpart <code>env-kill-non-nil!</code>, which withdraws a non-<code>nil</code> fact when an assignment invalidates it (Section&nbsp;3.2.3). Because nearly all of the checker’s knowledge lives in this one explicit structure, the pass is straightforward to inspect and debug. There is no hidden compiler state to account for.</p>
 </section>
 <section id="the-main-typechecking-flow" class="level3" data-number="3.1.2">
 <h3 data-number="3.1.2" class="anchored" data-anchor-id="the-main-typechecking-flow"><span class="header-section-number">3.1.2</span> The Main Typechecking Flow</h3>
 <p>The best entry point into the typechecker is <code>check-program</code>. Its control flow is clear and worth reading directly:</p>
 <ol type="1">
-<li>create a fresh type environment</li>
-<li>reject duplicate free-function definitions and <code>declare function</code> signatures that disagree with their later definition</li>
+<li>create a fresh type environment, and record which bare class and function names are ambiguous because more than one interned module defines them</li>
+<li>reject duplicate free-function definitions, free functions that reuse a built-in function&rsquo;s name, and <code>declare function</code> signatures that disagree with their later definition</li>
 <li>register imported Java classes as placeholder class names</li>
 <li>register built-in methods and built-in classes</li>
 <li>register declared type aliases</li>
-<li>collect class information for all declared classes</li>
+<li>register top-level functions as callable values</li>
+<li>collect class information: first every interned class under its qualified name, then the rest of the program, each in an order that lets class constants see what they depend on</li>
 <li>validate that every referenced type is actually defined</li>
 <li>inject any pre-existing variable types, such as REPL bindings</li>
-<li>register top-level functions as callable values</li>
 <li>register top-level <code>let</code> globals and enforce the def-before-use watermark described in Section 3.2.6</li>
-<li>check class bodies</li>
+<li>check class bodies, interned classes first</li>
 <li>check top-level statements in source order</li>
 </ol>
 <p>The ordering is not arbitrary. Built-ins are registered <em>before</em> class collection, not after — deliberately, so that a user class can override a built-in placeholder name such as <code>Task</code> or <code>Channel</code> during collection rather than colliding with it. Class information is collected before class bodies are checked so that forward references resolve correctly, and the undefined-type validation pass that follows collection catches a bad reference in one place rather than letting it surface piecemeal as body-checking proceeds. Top-level statements are checked last, preserving the source-order feel of the language while ensuring all declarations — including the top-level globals registered just before class bodies are checked — are already in scope when they are needed.</p>
@@ -74,7 +74,7 @@
 <li><strong>class checking</strong> — validating fields, constructors, methods, inheritance, and invariants</li>
 <li><strong>built-in registration</strong> — giving core types such as <code>Array</code>, <code>Map</code>, <code>Set</code>, <code>Task</code>, and <code>Channel</code> their method signatures</li>
 </ul>
-<p>Three features have richer semantics than ordinary method calls and deserve closer attention.</p>
+<p>Three features have richer semantics than ordinary method calls and deserve closer attention. Inheritance, which adds conformance obligations of its own, is covered in Section&nbsp;3.2.7.</p>
 <section id="spawn-typing" class="level3" data-number="3.2.1">
 <h3 data-number="3.2.1" class="anchored" data-anchor-id="spawn-typing"><span class="header-section-number">3.2.1</span> Spawn Typing</h3>
 <p><code>spawn</code> is handled by a dedicated path rather than by pretending it is a normal function call. The checker creates a nested environment, introduces a synthetic <code>result</code> binding, and tracks assignments to that binding to infer the task’s element type. A spawn body that assigns no result produces <code>Task</code>; one that assigns a consistent type produces <code>Task[T]</code>; one with inconsistent assignments is rejected. This precision would not be achievable if <code>spawn</code> were treated as an ordinary expression.</p>
@@ -86,7 +86,16 @@
 <section id="nil-and-detachability" class="level3" data-number="3.2.3">
 <h3 data-number="3.2.3" class="anchored" data-anchor-id="nil-and-detachability"><span class="header-section-number">3.2.3</span> Nil and Detachability</h3>
 <p>The checker tracks proven non-<code>nil</code> facts in the type environment. This gives it limited but useful flow-sensitive behaviour: after certain checks, a variable may be treated as safely non-detachable within a particular branch. The implementation records locally justified facts in the environment and uses them where appropriate. It does not attempt global dataflow analysis or theorem proving — the goal is precision where it is achievable without obscurity.</p>
-<p>The plain <code>x /= nil</code> form only ever proves a fact about a bare identifier, and only one fact per guard — <code>and</code>-ing two of them together does not compose. <code>?&lt;expr&gt; as &lt;name&gt;</code> (documented in <a href="https://github.com/vijaymathew/nex/blob/main/docs/md/SYNTAX.md"><code>docs/md/SYNTAX.md</code></a>) exists to cover the cases that leaves out: <code>&lt;expr&gt;</code> can be any expression, including a dotted chain the identifier-only check can’t name at all, and a chain of <code>and</code>s narrows each conjunct as the checker walks left to right. It still follows this section’s own rule — no dataflow analysis, just a locally justified fact recorded in the environment at the point the guard is proven.</p>
+<p>The plain <code>x /= nil</code> form proves a fact about a bare identifier that names a local variable or a parameter. A chain of such guards joined by <code>and</code> proves each of them, and the right operand of every <code>and</code> is checked with its left operand&rsquo;s facts in effect. <code>?&lt;expr&gt; as &lt;name&gt;</code> (documented in <a href="https://github.com/vijaymathew/nex/blob/main/docs/md/SYNTAX.md"><code>docs/md/SYNTAX.md</code></a>) covers what that leaves out: <code>&lt;expr&gt;</code> can be any expression, including a dotted chain or a field, and the fact it proves is about a fresh local <code>&lt;name&gt;</code> bound to the attached value.</p>
+<p>A field is never narrowed by <code>x /= nil</code>. Any call between the test and the use may set it back to <code>nil</code>, and so may another task, so the checker ignores non-<code>nil</code> facts for names that resolve to fields (the environment records which bound names are fields) and asks for <code>?f as g</code> instead.</p>
+<p>A fact about a local lasts only while nothing can have made the variable <code>nil</code> again. These rules keep it honest without any whole-program analysis:</p>
+<ul>
+<li>An assignment of a value that may be <code>nil</code> calls <code>env-kill-non-nil!</code>, which removes the fact from the current scope and every enclosing one up to the scope that declares the variable. The branches of an <code>if</code> or <code>match</code> are checked from a snapshot of the facts, so an assignment in one branch does not affect its siblings; afterwards only the facts that survive every branch remain.</li>
+<li>Before a loop body is checked, facts about every variable the body assigns are removed, since the next iteration sees those assignments.</li>
+<li>Each routine body is pre-scanned once for the names it assigns, and the names a closure or <code>spawn</code> body assigns while capturing them. A captured variable that some closure writes is never narrowed. A closure body is checked behind a barrier that hides outer facts about any variable the routine reassigns, since the closure may run after that assignment.</li>
+<li>A fact counts only up to the scope that binds the variable, so it never applies to a same-named variable declared in a nested block.</li>
+</ul>
+<p>The pre-scan is the only part that looks beyond the statement being checked, and it stays inside one routine: the rules are still locally justified, just no longer naively so.</p>
 </section>
 <section id="type-aliases-and-function-types" class="level3" data-number="3.2.4">
 <h3 data-number="3.2.4" class="anchored" data-anchor-id="type-aliases-and-function-types"><span class="header-section-number">3.2.4</span> Type Aliases and Function Types</h3>
@@ -106,6 +115,12 @@
 <p>A top-level <code>let</code> is not confined to the statements that follow it in source order. Its value is also readable from any function or class body that runs later — a program global, in effect. That reach is checked, not assumed. The checker computes a <em>watermark</em>: the position of the first top-level statement able to transfer control into user code, by calling a free function or constructing a user-defined class. A global read anywhere in a function or class body must have its own <code>let</code> positioned before that watermark; one whose only definition sits at or after it is rejected at compile time with a message naming the global and the line where user code is first entered. A parameter, field, or nested <code>let</code> that shares a global's name shadows it exactly as it would inside an ordinary block, so reading the shadowing local does not count as reading the global.</p>
 <p>The check closes a real gap rather than a theoretical one. Without it, a function compiled against a global that is only initialized <em>after</em> that function is first reachable would type-check cleanly and then read an uninitialized value the first time it actually ran. The watermark turns that into a compile-time error at the point the ordering is actually violated, rather than a runtime surprise once the program is deployed.</p>
 </section>
+<section id="overrides-and-inherited-contracts" class="level3" data-number="3.2.7">
+<h3 data-number="3.2.7" class="anchored" data-anchor-id="overrides-and-inherited-contracts"><span class="header-section-number">3.2.7</span> Overrides and Inherited Contracts</h3>
+<p>An override is checked where it is declared, in <code>check-override-conformance</code>. Parameters are contravariant and the return type is covariant: an override may widen a parameter and narrow its return, never the reverse. The same rule governs function values, so a <code>Function(a: Animal)</code> is accepted where a <code>Function(a: Dog)</code> is wanted but not the other way round.</p>
+<p>Three details keep the rule from leaking. The override is compared with the routine inherited along <em>every</em> <code>inherit</code> clause, not just the first. The routines of the built-in protocols count as inherited, so <code>equals(other: Point)</code> is rejected against <code>Any</code>&rsquo;s <code>equals(other: Any)</code>, as is a narrowed <code>compare</code> in an heir of <code>Comparable</code>. And because <code>Any</code> is otherwise a wildcard in conformance, a separate test (<code>narrows-any?</code>) refuses a parameter or return that would narrow <code>Any</code> implicitly, including into a generic parameter of the heir.</p>
+<p>Inherited contracts are checked here too: an override&rsquo;s <code>require</code> is rejected if a first declaration it inherits has none (that precondition could never be checked), and inherited assertions are read under the override&rsquo;s own parameter names. Class invariants are elaborated in the class&rsquo;s own environment and must be <code>Boolean</code>, like every other assertion.</p>
+</section>
 </section>
 <section id="conservative-by-design" class="level2" data-number="3.3">
 <h2 data-number="3.3" class="anchored" data-anchor-id="conservative-by-design"><span class="header-section-number">3.3</span> Conservative by Design</h2>
@@ -115,7 +130,7 @@
 </section>
 <section id="why-compile-at-all" class="level2" data-number="3.4">
 <h2 data-number="3.4" class="anchored" data-anchor-id="why-compile-at-all"><span class="header-section-number">3.4</span> Why Compile at All</h2>
-<p>Nex has two ways to run a program: the tree-walking interpreter and the JVM bytecode compiler. The interpreter is the semantic baseline; the compiler exists for deployment, producing standalone <code>.class</code> files and shaded jars that run without a Nex process in the loop. The compiler entry point is:</p>
+<p>Nex has two ways to run a program: the JVM bytecode compiler and the tree-walking interpreter. The compiler is the normal path: <code>nex program.nex</code> and the REPL both run compiled code, and the file compiler produces standalone <code>.class</code> files and shaded jars that run without a Nex process in the loop. The interpreter runs on request (<code>--interpret</code>) and under the debugger (Section&nbsp;2.11). The compiler entry point is:</p>
 <ul>
 <li><a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/file.clj"><code>src/nex/compiler/jvm/file.clj</code></a></li>
 </ul>
@@ -127,7 +142,7 @@
 <li>emit bytecode and the runtime artifacts the target needs</li>
 </ol>
 <p>Type-checking before generation is the right default. A compiler should not silently produce bytecode for a program that Nex itself considers ill-typed.</p>
-<p>Keeping the interpreter and the compiler in agreement imposes a useful discipline. Any feature added to Nex must make sense in two settings — interpreted and compiled to JVM bytecode — and the interpreter is the authority the compiler is measured against. If you add or change a language feature, you should expect to touch the grammar, the walker, the typechecker, the interpreter, and the backend. This is not duplication for its own sake. It is how Nex keeps semantics explicit across the whole system.</p>
+<p>Keeping the interpreter and the compiler in agreement imposes a useful discipline. Any feature added to Nex must make sense in two settings — interpreted and compiled to JVM bytecode — and both are measured against <em>The Definition of Nex</em>, not against each other. If you add or change a language feature, you should expect to touch the grammar, the walker, the typechecker, the interpreter, and the backend. This is not duplication for its own sake. It is how Nex keeps semantics explicit across the whole system.</p>
 </section>
 <section id="the-jvm-bytecode-compiler" class="level2" data-number="3.5">
 <h2 data-number="3.5" class="anchored" data-anchor-id="the-jvm-bytecode-compiler"><span class="header-section-number">3.5</span> The JVM Bytecode Compiler</h2>
@@ -144,7 +159,7 @@
 <section id="the-interpreter-and-the-compiler-as-two-views" class="level2" data-number="3.6">
 <h2 data-number="3.6" class="anchored" data-anchor-id="the-interpreter-and-the-compiler-as-two-views"><span class="header-section-number">3.6</span> The Interpreter and the Compiler as Two Views</h2>
 <p>A backend is not only an output mechanism. It is also a semantic document.</p>
-<p>Reading the interpreter and the JVM compiler side by side is instructive precisely where they diverge. Where both take the same path, the feature is straightforwardly language-level. Where they diverge — concurrency being the clearest example, with the interpreter using JVM blocking primitives and the compiler emitting the same behaviour in bytecode — the divergence reveals something real about Nex: the language semantics live in the interpreter, and the compiler is measured by how faithfully it reproduces them. When the two disagree, the interpreter wins.</p>
+<p>Reading the interpreter and the JVM compiler side by side is instructive precisely where they diverge. Where both take the same path, the feature is straightforwardly language-level. Where they diverge — concurrency being the clearest example, with the interpreter using JVM blocking primitives and the compiler emitting the same behaviour in bytecode — the divergence reveals something real about Nex: the semantics are not owned by either path. They live in <em>The Definition of Nex</em>, and each implementation is measured by how faithfully it reproduces them. When the two disagree, the Definition decides which one is wrong.</p>
 <p>The larger architectural point is that parsing and typechecking are shared while code generation diverges only where the targets genuinely differ. One syntax, one AST, one static model, multiple execution strategies. That separation is what a language implementation should aim for, and Nex largely achieves it.</p>
 
 

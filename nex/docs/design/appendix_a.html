@@ -46,7 +46,7 @@
 <pre class="text"><code>Nex: 42
 
 Bytecode shape:
-  LDC 42</code></pre>
+  LDC 42L                 -- Integer is a 64-bit long</code></pre>
 <pre class="text"><code>Nex: true
 
 Bytecode shape:
@@ -64,17 +64,17 @@ Bytecode shape:
   x + 1
 
 Bytecode shape:
-  LDC 10
-  ISTORE &lt;slot-x&gt;
-  ILOAD &lt;slot-x&gt;
-  ICONST_1
-  IADD</code></pre>
+  LDC 10L
+  LSTORE &lt;slot-x&gt;
+  LLOAD &lt;slot-x&gt;
+  LDC 1L
+  INVOKESTATIC java/lang/Math.addExact (JJ)J</code></pre>
 <p>The actual load and store opcodes vary with the lowered JVM type:</p>
 <ul>
-<li><code>ILOAD</code> / <code>ISTORE</code> for <code>Integer</code>, <code>Boolean</code>, and <code>Char</code></li>
+<li><code>ILOAD</code> / <code>ISTORE</code> for <code>Boolean</code> and <code>Char</code></li>
 <li><code>LLOAD</code> / <code>LSTORE</code> for <code>Integer</code></li>
 <li><code>DLOAD</code> / <code>DSTORE</code> for <code>Real</code></li>
-<li><code>ALOAD</code> / <code>ASTORE</code> for object-typed values</li>
+<li><code>ALOAD</code> / <code>ASTORE</code> for object-typed values, including the fixed-width integers: a <code>Byte</code> is a boxed <code>java.lang.Short</code>, and <code>Integer16</code> and <code>Integer32</code> are wrapper objects, so their runtime type survives inside collections and <code>Any</code></li>
 </ul>
 <p>The relevant emitter paths are the <code>:local</code> and <code>:set-local</code> branches in <a href="https://github.com/vijaymathew/nex/blob/main/src/nex/compiler/jvm/emit.clj"><code>emit.clj</code></a>.</p>
 </section>
@@ -118,8 +118,9 @@ Bytecode shape:
   &lt;coerce to operand type&gt;
   &lt;emit y&gt;
   &lt;coerce to operand type&gt;
-  IADD | LADD | DADD</code></pre>
-<p>The same pattern applies to <code>-</code>, <code>*</code>, <code>/</code>, and <code>%</code>, with the opcode chosen from the lowered JVM type.</p>
+  INVOKESTATIC java/lang/Math.addExact (JJ)J    -- Integer operands
+  DADD                                          -- Real operands</code></pre>
+<p><code>Integer</code> arithmetic is checked: <code>+</code>, <code>-</code> and <code>*</code> call <code>Math.addExact</code>, <code>subtractExact</code> and <code>multiplyExact</code>, so an overflow raises instead of wrapping. <code>/</code> and <code>%</code> on integers go through runtime helpers (<code>op:div-long</code>, <code>op:mod-long</code>) that raise on a zero divisor and give <code>%</code> its truncated sign. <code>Real</code> arithmetic uses the plain <code>DADD</code>, <code>DSUB</code>, <code>DMUL</code> and <code>DDIV</code> opcodes. Arithmetic on the fixed-width integer types unwraps its operands to <code>long</code> first, and its result is an <code>Integer</code>.</p>
 </section>
 <section id="comparisons" class="level3" data-number="A.4.2">
 <h3 data-number="A.4.2" class="anchored" data-anchor-id="comparisons"><span class="header-section-number">A.4.2</span> Comparisons</h3>
@@ -140,14 +141,21 @@ end:</code></pre>
 <pre class="text"><code>Bytecode shape:
   &lt;emit x&gt;
   &lt;emit y&gt;
-  LCMP | DCMPL
+  LCMP | DCMPG | DCMPL
   IFLT | IFGT | IFEQ ...
   ICONST_0
   GOTO end
 true:
   ICONST_1
 end:</code></pre>
-<p>Object comparison is deliberately narrower. The compiled path currently supports only <code>=</code> and <code>/=</code> on object operands, which become <code>IF_ACMPEQ</code> and <code>IF_ACMPNE</code> style branches over references.</p>
+<p>For doubles the compare instruction is chosen per operator, <code>DCMPG</code> for <code>&lt;</code> and <code>&lt;=</code> and <code>DCMPL</code> for <code>&gt;</code> and <code>&gt;=</code>, so that every ordering against <code>NaN</code> is false.</p>
+<p>Comparisons on object operands are runtime calls, not reference branches, because their meaning is Nex&rsquo;s rather than the JVM&rsquo;s:</p>
+<ul>
+<li><code>=</code> and <code>/=</code> call <code>value-equals</code>, which runs a class&rsquo;s <code>equals</code> override and otherwise compares structurally;</li>
+<li><code>==</code> and <code>!=</code> call <code>identity-equals</code>, reference identity except that numbers compare by value;</li>
+<li><code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and <code>&gt;=</code> call <code>runtime-compare-values</code>, which uses the operands&rsquo; <code>compare</code>.</li>
+</ul>
+<p>A bare <code>IF_ACMPEQ</code> is emitted only for reference checks the compiler makes for itself, never for a comparison written in Nex.</p>
 </section>
 <section id="short-circuit-boolean-operators" class="level3" data-number="A.4.3">
 <h3 data-number="A.4.3" class="anchored" data-anchor-id="short-circuit-boolean-operators"><span class="header-section-number">A.4.3</span> Short-Circuit Boolean Operators</h3>

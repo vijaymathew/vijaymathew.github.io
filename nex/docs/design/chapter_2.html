@@ -25,8 +25,8 @@
 <h1 class="opener-title">Parsing, ASTs, and Interpretation</h1>
 </div>
 <article class="prose">
-<p>The front half of the Nex implementation is conventional in broad outline and deliberately simple in detail. Source text becomes a parse tree, the parse tree becomes a cleaner AST, and that AST is handed to an interpreter that evaluates it directly. There is no intermediate representation, no optimisation pass, no compilation to bytecode before meaning is assigned. The interpreter is the semantics.</p>
-<p>That simplicity is a design choice, not a limitation. A tree-walking interpreter is slower than a compiler and unsuitable for production JVM deployment, but it has one property that matters enormously for a language under active development: the connection between the AST and the executed behaviour is immediate and inspectable. If you want to know what a piece of Nex means, you read the interpreter. What it does is what the language does.</p>
+<p>The front half of the Nex implementation is conventional in broad outline and deliberately simple in detail. Source text becomes a parse tree, the parse tree becomes a cleaner AST, and that AST is handed either to the JVM compiler (Chapter 3), which is how programs normally run, or to an interpreter that evaluates it directly, with no intermediate representation, no optimisation pass, and no compilation to bytecode. This chapter covers the shared front end and that interpreter.</p>
+<p>The interpreter&rsquo;s simplicity is a design choice, not a limitation. A tree-walking interpreter is slower than a compiler and unsuitable for production JVM deployment, but it has one property that matters for a language under active development: the connection between the AST and the executed behaviour is immediate and inspectable. That is why the debugger runs on it, and why <code>nex --interpret</code> still offers it. It is no longer, though, the definition of what Nex means (Section&nbsp;2.11).</p>
 <p>The relevant files are:</p>
 <ul>
 <li><a href="https://github.com/vijaymathew/nex/blob/main/grammar/nexlang.g4"><code>grammar/nexlang.g4</code></a> — the ANTLR grammar</li>
@@ -100,7 +100,7 @@
 <h2 data-number="2.4" class="anchored" data-anchor-id="the-ast-as-plain-data"><span class="header-section-number">2.4</span> The AST as Plain Data</h2>
 <p>The AST is represented entirely in plain Clojure data: maps, vectors, strings, keywords, and numbers. This is not incidental — it is one of the strongest architectural decisions in the implementation.</p>
 <p>Because the AST is plain data, it can be inspected at the REPL without a special pretty-printer. Tests can construct or compare pieces of it without building a parser. Transformations stay explicit because there is no object graph to traverse imperatively. Later phases remain decoupled from parser internals because they receive ordinary data structures, not opaque parse-tree objects.</p>
-<p>It also means feature debugging is unusually direct. When something is wrong, you can inspect the AST produced for a piece of source and ask three separate questions: did the grammar accept the right structure? Did the walker preserve the right meaning? Is the bug actually in the interpreter or generator? Plain data makes those questions answerable without a debugger.</p>
+<p>It also means feature debugging is unusually direct. When something is wrong, you can inspect the AST produced for a piece of source and ask three separate questions: did the grammar accept the right structure? Did the walker preserve the right meaning? Is the bug actually in the interpreter or the compiler? Plain data makes those questions answerable without a debugger.</p>
 </section>
 <section id="the-program-node" class="level2" data-number="2.5">
 <h2 data-number="2.5" class="anchored" data-anchor-id="the-program-node"><span class="header-section-number">2.5</span> The <code>:program</code> Node</h2>
@@ -153,7 +153,7 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 <ol type="1">
 <li>creates the global environment</li>
 <li>creates the mutable registries used during evaluation</li>
-<li>registers the built-in base classes — <code>Any</code>, <code>Function</code>, <code>Cursor</code>, <code>Comparable</code>, <code>Hashable</code>, and the scalar types</li>
+<li>registers the built-in base classes — <code>Any</code>, <code>Function</code>, <code>Cursor</code>, <code>Comparable</code>, <code>Hashable</code>, and the scalar types — whose definitions come from <code>nex.bootstrap</code>, shared with the compiled runtime</li>
 </ol>
 <p>A fresh context is therefore not empty in the ordinary sense. It already knows the built-in world of Nex. This is a useful point to keep in mind when debugging: many things that look like user-visible classes are bootstrapped in <code>make-context</code> before any user program loads.</p>
 </section>
@@ -203,10 +203,10 @@ declare type Matrix      = Array[Array[Real]]</code></pre>
 <p>It is the kind of machinery that is easy to overlook when discussing a language in the abstract, but it is what makes a contract violation message say <em>which</em> condition failed on <em>which</em> line rather than simply crashing. Nex’s contract system only delivers its diagnostic value if the runtime can locate failures precisely. The source-tracking infrastructure is what makes that possible.</p>
 </section>
 <section id="the-interpreter-as-semantic-baseline" class="level2" data-number="2.11">
-<h2 data-number="2.11" class="anchored" data-anchor-id="the-interpreter-as-semantic-baseline"><span class="header-section-number">2.11</span> The Interpreter as Semantic Baseline</h2>
-<p>The interpreter is the semantic baseline for Nex. Even when Nex is compiled to JVM bytecode, the interpreter remains the authoritative statement of what the language means. The compiler is correct when it produces behaviour that matches the interpreter. When they diverge, the interpreter wins.</p>
-<p>This has a practical consequence for contributors: if you are unsure what a feature should do, make it work correctly in the interpreter first. The generators should follow the interpreter, not define their own semantics independently. A generator that is easier to write by taking a shortcut from the intended semantics is a generator that is wrong.</p>
-<p>The interpreter’s clarity is therefore not just an aesthetic property. It is the guarantee that the rest of the implementation has something reliable to follow.</p>
+<h2 data-number="2.11" class="anchored" data-anchor-id="the-interpreter-as-semantic-baseline"><span class="header-section-number">2.11</span> Where the Semantics Live</h2>
+<p>The interpreter was once the semantic baseline for Nex: the compiler was correct when it matched the interpreter, and when they diverged, the interpreter won. That is no longer the arrangement. The authoritative statement of what Nex means is <em>The Definition of Nex</em>, and both execution paths are measured against it. A differential audit that runs the same programs through both and compares their output is tracked in <code>docs/md/BACKEND_ALIGNMENT.md</code>, and every divergence it finds is settled by the Definition, not by either implementation.</p>
+<p>In practice the compiled JVM backend is the reference execution path. <code>nex program.nex</code> runs compiled and never loads the interpreter; a construct outside the compiled subset is an error naming it, not a silent switch to the interpreter. The interpreter runs only when asked for (<code>--interpret</code>), in the debugger, in a few narrow REPL cases (Section&nbsp;5.3.3), and as a fallback when the JVM itself reports a <code>LinkageError</code>, which is a backend defect rather than the program&rsquo;s behaviour.</p>
+<p>The practical consequence for contributors: if you are unsure what a feature should do, read the Definition, then make both paths agree with it. An implementation that is easier to write by taking a shortcut from the specified semantics is wrong, whichever implementation it is.</p>
 
 
 </section>

@@ -56,10 +56,10 @@
 <ul>
 <li>which constructs lower directly to IR and bytecode,</li>
 <li>which constructs stay compiled but route through runtime helpers,</li>
-<li>where the compiler deliberately deopts to the interpreter,</li>
-<li>and what invariants the mixed-mode design depends on.</li>
+<li>where the REPL still falls back to the interpreter,</li>
+<li>and what invariants that remaining mixed mode depends on.</li>
 </ul>
-<p>The remaining deopt surface is real and intentional. That does not make the backend experimental. It means the implementation prefers semantic fidelity over forced compilation when a boundary is not yet worth specializing. The compiled backend is the default REPL path and the file compiler produces runnable jars; mixed-mode execution is part of the mature design, not evidence that the target is provisional.</p>
+<p>The compiled backend is the reference execution path (Section&nbsp;2.11). Whole-file runs and compiled jars never load the interpreter: a construct outside the compiled subset is a compile-time error that names it, and the only automatic fallback is a JVM <code>LinkageError</code>, a backend defect, after which the program runs interpreted with a warning. The REPL keeps a narrow deopt path (Section&nbsp;5.3.3). It is real and intentional, but it is the exception, not part of the normal execution model.</p>
 </section>
 <section id="compilation-pipeline" class="level2" data-number="5.2">
 <h2 data-number="5.2" class="anchored" data-anchor-id="compilation-pipeline"><span class="header-section-number">5.2</span> Compilation Pipeline</h2>
@@ -157,11 +157,11 @@
 <li>compiled session -&gt; interpreter, when the system deopts,</li>
 <li>interpreter -&gt; compiled session, after interpreter evaluation succeeds.</li>
 </ul>
-<p>This is why the compiled REPL can be the default without pretending the interpreter no longer exists.</p>
+<p>This sync exists only for the REPL&rsquo;s narrow deopt path (Section&nbsp;5.3.3). The compiled runtime itself does not depend on the interpreter: interpreter-made objects are recognised by shape, and the operations that need Nex code from the interpreter go through an adapter installed by <code>nex.compiler.jvm.interp-bridge</code>, which only the compiled REPL loads.</p>
 </section>
 <section id="deoptreopt-model" class="level3" data-number="5.3.3">
 <h3 data-number="5.3.3" class="anchored" data-anchor-id="deoptreopt-model"><span class="header-section-number">5.3.3</span> Deopt/Reopt Model</h3>
-<p>The compiler does not attempt to compile every AST shape. If an input is outside the supported compiled subset, or hits a deliberately conservative fallback boundary, the REPL:</p>
+<p>In the REPL, a cell that is a plain statement or expression may fall back to the interpreter when it hits a known compiled-backend gap. A cell that declares a class or function does not: it would leave an interpreted definition behind for every later cell, so its compile failure is reported instead (except for a <code>LinkageError</code>, or a redeclaration that keeps the earlier definition). When a fallback does happen, the REPL prints a warning naming the reason, and:</p>
 <ol type="1">
 <li>materializes interpreter state from the compiled session,</li>
 <li>runs the input through the interpreter,</li>
@@ -170,9 +170,9 @@
 </ol>
 <p>The correct way to think about the REPL now is:</p>
 <ul>
-<li>compiled by default and used in ordinary work,</li>
-<li>interpreter as a correctness-preserving fallback,</li>
-<li>not “compiled unless we forgot to implement it.”</li>
+<li>compiled, always, for definitions,</li>
+<li>interpreter as a narrow, visible fallback for some statement cells,</li>
+<li>not &ldquo;compiled unless we forgot to implement it.&rdquo;</li>
 </ul>
 </section>
 </section>
@@ -182,10 +182,9 @@
 <h3 data-number="5.4.1" class="anchored" data-anchor-id="literals"><span class="header-section-number">5.4.1</span> Literals</h3>
 <p>Primitive literals lower directly:</p>
 <ul>
-<li>integers,</li>
-<li>integer64,</li>
+<li>integers (<code>Integer</code> is 64-bit, a JVM <code>long</code>),</li>
+<li>bytes (<code>12u8</code>), a boxed <code>java.lang.Short</code> so the type survives inside collections and <code>Any</code>,</li>
 <li>reals,</li>
-<li>decimals,</li>
 <li>booleans,</li>
 <li>chars,</li>
 <li>strings,</li>
@@ -268,15 +267,12 @@
 </section>
 <section id="anonymous-functions" class="level3" data-number="5.6.2">
 <h3 data-number="5.6.2" class="anchored" data-anchor-id="anonymous-functions"><span class="header-section-number">5.6.2</span> Anonymous Functions</h3>
-<p>Anonymous functions without captures lower to synthetic compiled classes.</p>
+<p>Every anonymous function lowers to a synthetic compiled class, whether or not it captures anything.</p>
 </section>
 <section id="captured-closures" class="level3" data-number="5.6.3">
 <h3 data-number="5.6.3" class="anchored" data-anchor-id="captured-closures"><span class="header-section-number">5.6.3</span> Captured Closures</h3>
-<p>Captured closures are supported too, but not with the same representation. They use runtime-backed closure objects with captured environment snapshots. This is a deliberate split:</p>
-<ul>
-<li>no-capture anonymous functions can be emitted cleanly as compiled classes,</li>
-<li>captured closures are more stable when represented as runtime-backed Nex closure objects.</li>
-</ul>
+<p>A closure that captures outer variables compiles the same way. Its class gets one field per captured variable, filled by a capture constructor with the value each variable holds when the closure is created. That snapshot is correct for a variable nothing reassigns, but not for one that two closures, or a closure and its enclosing scope, both read and write. Lowering therefore rewrites such a variable before it is captured: a local that is reassigned and referenced inside some nested closure holds a <code>Closure_Mut_Box[T]</code>, a one-field object, and its reads and writes become reads and writes of that field. Every closure that captures it then shares the one box.</p>
+<p>Closures used to run on the interpreter through runtime-backed closure objects. Compiling them removed the last place a whole-file run depended on the interpreter, and made closure calls substantially faster.</p>
 </section>
 <section id="function-object-invocation" class="level3" data-number="5.6.4">
 <h3 data-number="5.6.4" class="anchored" data-anchor-id="function-object-invocation"><span class="header-section-number">5.6.4</span> Function-Object Invocation</h3>
@@ -301,14 +297,15 @@
 <section id="multiple-inheritance" class="level3" data-number="5.7.4">
 <h3 data-number="5.7.4" class="anchored" data-anchor-id="multiple-inheritance"><span class="header-section-number">5.7.4</span> Multiple Inheritance</h3>
 <p>Nex multiple inheritance is <strong>not</strong> implemented through JVM class inheritance.</p>
-<p>Instead, the backend mirrors the Java generator strategy:</p>
+<p>Instead, the backend uses composition:</p>
 <ul>
-<li>user classes extend <code>Object</code>,</li>
+<li>user classes extend <code>Object</code> (or the concrete Java class a Nex class inherits, Section&nbsp;4.2.1),</li>
 <li>direct parents are represented as composition fields,</li>
 <li>inherited methods are exposed through generated delegation methods,</li>
 <li>inherited constructor behavior is exposed through generated shims.</li>
 </ul>
-<p>This is one of the most important design decisions in the backend. It keeps Nex semantics aligned with the language rather than with the JVM’s single-inheritance object model.</p>
+<p>This is one of the most important design decisions in the backend. It keeps Nex semantics aligned with the language rather than with the JVM&rsquo;s single-inheritance object model.</p>
+<p>It also gives repeated inheritance its meaning directly. When a class reaches a common ancestor along two paths, each path&rsquo;s composition field holds its own copy of that ancestor, so its fields are not shared. A call made by inherited code runs the override nearest the object along that code&rsquo;s own path, and otherwise stays on the path (<em>The Definition of Nex</em>, Section&nbsp;5.4).</p>
 </section>
 <section id="super" class="level3" data-number="5.7.5">
 <h3 data-number="5.7.5" class="anchored" data-anchor-id="super"><span class="header-section-number">5.7.5</span> <code>super</code></h3>
@@ -421,14 +418,12 @@
 </section>
 <section id="fallback-boundaries" class="level2" data-number="5.12">
 <h2 data-number="5.12" class="anchored" data-anchor-id="fallback-boundaries"><span class="header-section-number">5.12</span> Fallback Boundaries</h2>
-<p>The compiled backend is the default REPL path, but the fallback surface still matters.</p>
-<p>The remaining deopt cases are not “all advanced features,” and they are not a sign that the backend is still a side path. They are mostly:</p>
+<p>Outside the REPL there is no fallback surface: a whole-file run or a compiled jar either compiles or reports the construct it cannot compile. The one exception is a <code>LinkageError</code> from the JVM, which is treated as a backend defect and rerun interpreted with a warning.</p>
+<p>Inside the REPL, the remaining interpreter routes are:</p>
 <ul>
-<li>AST shapes outside the compiled eligibility gate,</li>
-<li>debugger-enabled REPL evaluation,</li>
-<li>known conservative mixed-mode boundaries,</li>
-<li>unresolved or unsupported receiver/call shapes,</li>
-<li>a small number of deliberately interpreter-routed cases where semantic fidelity is better preserved that way.</li>
+<li>debugger-enabled evaluation, which always uses the interpreter,</li>
+<li>plain statement or expression cells that hit a known compiled-backend gap (Section&nbsp;5.3.3),</li>
+<li>a few deliberately interpreter-routed shapes, such as some wrapped expressions and REPL type aliases.</li>
 </ul>
 <p>Two design rules are important here:</p>
 <ol type="1">
@@ -475,16 +470,15 @@
 end</code></pre>
 <p>Lowered strategy:</p>
 <ul>
-<li>captured closure does not become a plain no-capture function class</li>
-<li>captured environment is represented through a runtime-backed closure object</li>
+<li>the closure becomes a synthetic class with a capture field for <code>x</code></li>
+<li>if <code>x</code> were reassigned and captured, it would first be rewritten to live in a <code>Closure_Mut_Box</code></li>
 </ul>
 <p>Emitted strategy:</p>
 <ul>
-<li>compiled code allocates the closure through a runtime helper</li>
+<li>compiled code constructs the closure class, passing the current value of <code>x</code> to its capture constructor</li>
 </ul>
 <p>Runtime involvement:</p>
 <ul>
-<li>closure capture storage</li>
 <li>function-object invocation path</li>
 </ul>
 </section>

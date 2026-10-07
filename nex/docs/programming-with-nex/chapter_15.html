@@ -296,7 +296,11 @@ nex&gt; across week as day do
 </section>
 <section class="level2" data-number="16.9" id="a-worked-example-a-generic-result-type">
 <h2 class="anchored" data-anchor-id="a-worked-example-a-generic-result-type" data-number="16.9"> A Worked Example: A Generic Result Type</h2>
-<p>A common pattern in robust code is a result type that holds either a successful value or an error description — without raising an exception. Here the success value varies, while the error is always a <code>String</code>, so a one-parameter generic is enough:</p>
+<p>A common pattern in robust code is a result type that holds either a successful value or an error description — without raising an exception. Here the success value varies, while the error is always a <code>String</code>, so a one-parameter generic is enough. Its <code>value</code> and <code>error</code> are detachable fields, and that needs one new construct. A <code>/= nil</code> check narrows a local variable or a parameter, but not a field: any call, or another task, could set the field back to <code>nil</code> between the check and the use. To use a detachable field, bind it to a local with the <em>object test</em> <code>?expr as name</code>. It is true when <code>expr</code> is not <code>nil</code>, and in the <code>then</code> branch <code>name</code> holds that value with the attached type:</p>
+<pre><code>if ?value as v then
+  print(v.to_string)   -- v is a V, not a ?V
+end</code></pre>
+<p>Nothing but this branch can assign <code>v</code>, so it stays attached even if the field is reset in the meantime. Here is the whole class:</p>
 <pre><code>nex&gt; class Result [V]
      create
        success(val: V) do
@@ -318,13 +322,13 @@ nex&gt; across week as day do
        end
        to_string(): String do
          if ok then
-           if value /= nil then
-             result := "Success: " + value.to_string
+           if ?value as v then
+             result := "Success: " + v.to_string
            else
              result := "Error"
            end
-         elseif error /= nil then
-           result := "Error: " + error
+         elseif ?error as e then
+           result := "Error: " + e
          else
            result := "Error"
          end

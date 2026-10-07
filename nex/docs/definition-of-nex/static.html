@@ -700,8 +700,8 @@ condition may <em>narrow</em> the types of some variables within a branch. In th
 <code>then</code> branch:</p>
 
 <ul>
-  <li>after <code>x /= nil</code>, where <code>x</code> is a variable of type
-  <code>?T</code>, <code>x</code> has type <code>T</code>;</li>
+  <li>after <code>x /= nil</code>, where <code>x</code> is a local variable or
+  parameter of type <code>?T</code>, <code>x</code> has type <code>T</code>;</li>
   <li>after <code>convert e to x: S</code>, <code>x</code> has type
   <code>S</code> rather than <code>?S</code>;</li>
   <li>after <code>? e as x</code>, where <code>e</code> has type <code>?T</code>,
@@ -711,8 +711,8 @@ condition may <em>narrow</em> the types of some variables within a branch. In th
 </ul>
 
 <p>In the <code>else</code> branch, after <code>x = nil</code>, where
-<code>x</code> has type <code>?T</code>, <code>x</code> has type
-<code>T</code>.</p>
+<code>x</code> is a local variable or parameter of type <code>?T</code>,
+<code>x</code> has type <code>T</code>.</p>
 
 <p>No other condition narrows anything. In particular, <code>or</code> narrows
 nothing, and an <code>and</code> condition narrows nothing in the
@@ -752,6 +752,36 @@ print(when x = nil then 0 else x.value end)</code></pre>
 the <code>if</code>, and in the <code>else</code> branch of the <code>when</code>,
 it has type <code>Point</code>, so <code>x.value</code> is accepted. The program
 prints <code>3</code> twice.</p>
+
+<p>A nil test never narrows a <em>field</em>. Between the test and the use, any
+call may set the field to <code>nil</code> again, and so may another task
+(Chapter&nbsp;<a href="concurrency.html">6</a>). A detachable field is used through
+<code>? f as y</code>, which binds its attached value to a new local
+<code>y</code>; no later assignment to the field affects <code>y</code>.</p>
+
+<p>A narrowing of a local variable or parameter <code>x</code> lasts only while
+nothing can have made <code>x</code> <code>nil</code> again:</p>
+
+<ul>
+  <li>An assignment to <code>x</code> of <code>nil</code>, or of a value of an
+  optional type, ends it for the rest of the narrowed branch, including after any
+  nested block that contains the assignment. An assignment of a value of a
+  non-optional type leaves it in effect. An assignment in one branch of an
+  <code>if</code>, or in one clause of a <code>match</code>, does not affect the
+  other branches or clauses.</li>
+  <li>A loop body that assigns <code>x</code> ends a narrowing made before the
+  loop, throughout the loop: the body runs again after the assignment.</li>
+  <li>A variable that is assigned inside an anonymous function or a
+  <code>spawn</code> body is never narrowed, unless it belongs to that body (a
+  parameter of the function, or a variable it declares): any call may run the
+  function, and a task runs alongside the code that spawned it.</li>
+  <li>Inside an anonymous function or a <code>spawn</code> body, a narrowing
+  made outside it applies only to a variable that no assignment in the
+  enclosing routine targets, since the body may run after such an
+  assignment.</li>
+  <li>A narrowing applies to the variable that was tested, not to one with the
+  same name declared in a nested block.</li>
+</ul>
 
 <h4>Blocks and scope</h4>
 
@@ -1086,6 +1116,24 @@ static world. A class that breaks one of them is a compile-time error.</p>
   narrowed, and the return type may be <em>narrowed</em> but not widened. A field
   of <code>B</code> may not be redeclared with a type that does not conform to its
   original one.</p>
+  <p>The rule applies to every method <code>m</code> redefines:</p>
+  <ul>
+    <li>With several parents, <code>m</code> must conform to the version
+    inherited along each <code>inherit</code> clause, not only the first.</li>
+    <li>The methods of the basis classes count as inherited too. Every class
+    inherits <code>Any</code>&rsquo;s <code>equals(other: Any)</code>, so
+    <code>equals(other: Point)</code> narrows a parameter and is rejected; the
+    same holds for <code>compare</code> in an heir of <code>Comparable</code>
+    (Appendix&nbsp;<a href="appendix-basis.html">B</a>). Such a method keeps the
+    <code>Any</code> parameter and narrows inside its body, with
+    <code>convert</code> or <code>match</code>.</li>
+    <li>After the inherited signature is restated in the heir&rsquo;s terms
+    (Section&nbsp;<a href="#sec-4.3">4.3</a>), a type parameter of the heir is a type like any
+    other: it conforms only to itself, to its constraint and to what that
+    conforms to. So <code>class Stack[E] inherit Container[E]</code> may not
+    redefine <code>store(x: E)</code> as <code>store(x: Integer)</code>, and no
+    method may redefine <code>take(x: Any)</code> as <code>take(x: E)</code>.</li>
+  </ul>
   <p>This is checked at the override: a method that narrows a parameter type or
   widens its return type is rejected there, and the error names the method and
   the offending position.</p></li>
