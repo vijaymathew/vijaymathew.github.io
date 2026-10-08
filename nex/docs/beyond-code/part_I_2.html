@@ -29,7 +29,7 @@
   </div>
   <div class="prose">
 <p>A specification describes how a system is supposed to behave. An observation describes how it actually behaves. These are rarely the same thing, and the gap between them is where most software failures live.</p>
-<p>The previous chapter established that problems have structure, and that misidentifying the structure leads to systematically wrong solutions. This chapter asks a prior question: how do we discover the actual structure of a problem before we have committed to a design? The answer is observation — disciplined, skeptical attention to the real environment the system must inhabit.</p>
+<p>The previous chapter established that problems have structure, and that misidentifying the structure leads to systematically wrong solutions. This chapter asks a prior question: how do we discover the actual structure of a problem before we have committed to a design? The answer is observation — disciplined, skeptical attention to the real environment the system must inhabit. Observation begins before anything is built. The building the robot will navigate, the questions users actually ask, and the number of objects the simulation must handle can all be studied directly. It continues once a first version exists — a prototype, a pilot, or the system being replaced — because a running system meets conditions its designers did not anticipate. The examples in this chapter draw on both kinds of observation.</p>
 <section class="level2" data-number="3.1" id="models-and-their-limits">
 <h2 class="anchored" data-anchor-id="models-and-their-limits" data-number="3.1"> Models and Their Limits</h2>
 <p>Every software system embeds a model of the world it operates in — the delivery robot’s model of the building, say, or the knowledge engine’s model of what users want. These models are not incidental — they support everything built on top of them. Every algorithm in the system depends on them.</p>
@@ -44,7 +44,8 @@
 <p>Users also ask questions that do not name what they mean at all: <em>“Why does my program keep growing?”</em> This is not a malformed query. It is a reasonable description of an experience, offered by someone who does not yet know the technical vocabulary for the phenomenon they are observing.</p>
 <p>A system designed for well-formed inputs will fail both of these users. The design failure is not in the retrieval mechanism — it is in the assumption that input arrives already interpreted. Real users bring incomplete information, wrong vocabulary, and implicit context. A model that excludes this is a model of a system that does not need to exist, because its users do not exist either.</p>
 <div class="note-exercise">
-<p><strong>Exercise 2.1.</strong> A calendar application allows users to schedule meetings. Describe three ways a real user’s behavior might violate the assumptions embedded in a naive design. For each, state the hidden assumption explicitly.</p>
+<p><strong>Quick Exercise</strong></p>
+<p>A calendar application allows users to schedule meetings. Describe three ways a real user’s behavior might violate the assumptions embedded in a naive design. For each, state the hidden assumption explicitly.</p>
 </div>
 </section>
 <section class="level2" data-number="3.3" id="constraints-are-not-obstacles">
@@ -57,17 +58,45 @@
 <section class="level2" data-number="3.4" id="hidden-assumptions">
 <h2 class="anchored" data-anchor-id="hidden-assumptions" data-number="3.4"> Hidden Assumptions</h2>
 <p>The most dangerous element of any model is what it assumes without stating. A hidden assumption is a condition the system requires in order to function correctly, which is neither documented nor tested, and which therefore fails silently when violated.</p>
-<p>The delivery robot assumes its map is current. The knowledge engine assumes that documents in its collection are authoritative. The virtual world assumes that no two objects occupy the same position at the start of a frame. Each of these assumptions is reasonable under normal conditions. Each produces a failure mode that is difficult to diagnose, because the failure does not point to the assumption — it points to the code that depended on it.</p>
+<p>Each of the three systems carries one:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%"/>
+<col style="width: 70%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>System</th>
+<th>Hidden assumption</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Delivery robot</td>
+<td>Its map is current.</td>
+</tr>
+<tr class="even">
+<td>Knowledge engine</td>
+<td>Documents in its collection are authoritative.</td>
+</tr>
+<tr class="odd">
+<td>Virtual world</td>
+<td>No two objects occupy the same position at the start of a frame.</td>
+</tr>
+</tbody>
+</table>
+<p>Each of these assumptions is reasonable under normal conditions. Each produces a failure mode that is difficult to diagnose, because the failure does not point to the assumption — it points to the code that depended on it.</p>
 <p>When the robot reaches a hallway that no longer exists, it does not report “map out of date.” It reports, if it reports anything coherent at all, that it cannot find a valid path. The assumption has been violated, but the violation is invisible to the system, which has no representation of map currency and therefore no way to detect its absence.</p>
 <p>Observation surfaces hidden assumptions because observation confronts the model with the world: an hour of watching the robot navigate a changing building exposes the assumption about the map. The assumptions do not reveal themselves in code review or specification analysis; they reveal themselves when the system meets conditions it was not built to handle.</p>
 <div class="note-exercise">
-<p><strong>Exercise 2.2.</strong> Identify two hidden assumptions in the following specification: <em>“The payment system processes transactions in the order they are received.”</em> For each assumption, describe the failure mode that results when it is violated.</p>
+<p><strong>Quick Exercise</strong></p>
+<p>Identify two hidden assumptions in the following specification: <em>“The payment system processes transactions in the order they are received.”</em> For each assumption, describe the failure mode that results when it is violated.</p>
 </div>
 </section>
 <section class="level2" data-number="3.5" id="from-observation-to-question">
 <h2 class="anchored" data-anchor-id="from-observation-to-question" data-number="3.5"> From Observation to Question</h2>
 <p>Observation produces raw material — a collection of behaviors, failures, and anomalies. Before this can inform a design, it must be transformed into questions precise enough to analyze.</p>
-<p>This transformation is not automatic. The observations produced by watching a real system are messy and particular: the robot got stuck in corridor B3 on Tuesday afternoon; a user searching for “memory leak” clicked none of the top five results; two objects in the simulation passed through each other during a high-velocity collision. These are facts, but they are not yet questions. A question names a structural condition, not an instance of it.</p>
+<p>This transformation is not automatic. The observations produced by watching a running system — even an early, rough one — are messy and particular: the robot got stuck in corridor B3 on Tuesday afternoon; a user searching for “memory leak” clicked none of the top five results; two objects in the simulation passed through each other during a high-velocity collision. These are facts, but they are not yet questions. A question names a structural condition, not an instance of it.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%"/>
@@ -97,7 +126,8 @@
 <p>The question is not a restatement of the observation. It identifies the structural condition the observation is evidence of, and names what a solution must address. A team that asks <em>“How do we fix the B3 incident?”</em> will produce a patch. A team that asks <em>“What information does the robot need to detect impassable paths?”</em> will produce a design.</p>
 <p>A well-formed engineering question has three properties. First, it is general enough to cover the class of cases the observation belongs to, not just the instance observed. Second, it is specific enough to admit a definite answer — or at least to make clear what evidence would constitute progress toward one. Third, it is stated in terms of the system’s behavior and structure, not in terms of the symptom that motivated it.</p>
 <div class="note-exercise">
-<p><strong>Exercise 2.3.</strong> The following are observations from a real system. For each, write a well-formed engineering question that names the structural condition the observation is evidence of.</p>
+<p><strong>Quick Exercise</strong></p>
+<p>The following are observations from a real system. For each, write a well-formed engineering question that names the structural condition the observation is evidence of.</p>
 <ol type="1">
 <li><em>“The app crashes when two users edit the same document simultaneously.”</em></li>
 <li><em>“The recommendation engine stops suggesting new items after a user has been active for several months.”</em></li>
@@ -109,7 +139,18 @@
 <h2 class="anchored" data-anchor-id="what-observation-cannot-do" data-number="3.6"> What Observation Cannot Do</h2>
 <p>Observation is not sufficient on its own. A system can be observed indefinitely without producing a design, because observation produces evidence but not explanations. The gap between them requires a model — a proposed account of the structure that produces the observed behavior.</p>
 <p>This is why observation and modeling must proceed together. An observation without a model is an anomaly without a cause. A model without observation is a hypothesis without evidence. The engineering process alternates between them: observe behavior, form a hypothesis about structure, derive predictions, test the predictions against further observation, revise the model.</p>
-<p>Our three systems will each undergo this process. In each case, careful observation will reveal that the naive model is inadequate, and the revised model will suggest a design that the naive model could not have produced.</p>
+<p>Our three systems will each undergo this process, and more than once. In each case, careful observation will reveal that the naive model is inadequate, and the revised model will suggest a design that the naive model could not have produced. That design, once built, becomes the next thing to observe.</p>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Every system embeds a model of its world; observation reveals what the model discards and whether that matters.</li>
+<li>Users are participants, not sources of well-formed input: they bring incomplete information, wrong vocabulary, and implicit context.</li>
+<li>Constraints are part of the problem's structure, not obstacles to add once the design is done.</li>
+<li>Hidden assumptions fail silently; the failure points to the code that depended on the assumption, not to the assumption itself.</li>
+<li>An observation becomes useful when it is restated as a question that names a structural condition, not an instance of it.</li>
+<li>Observation and modeling proceed together: evidence without a model explains nothing, and a model without evidence proves nothing.</li>
+</ul>
+</div>
 <p>The next chapter formalizes what a model must contain: a precise statement of the problem, the constraints that bound it, and the assumptions it makes explicit. That formalization is what converts the output of observation into something an algorithm can be built against.</p>
 </section>
 

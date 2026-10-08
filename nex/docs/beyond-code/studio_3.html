@@ -29,20 +29,14 @@
   </div>
   <div class="prose">
 <p>Refactoring <a class="xref" href="studio_2.html" title="Studio 2: The Model Redesign">Studio 2</a> models for scale without losing correctness.</p>
-<div class="note-studio">
-<p><strong>Studio Focus</strong> This studio chapter is hands-on: implement, verify behavior, and document tradeoffs as you iterate.</p>
-</div>
 <section class="level2" id="the-situation">
 <h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
-<p><a class="xref" href="studio_2.html" title="Studio 2: The Model Redesign">Studio 2</a> gave us explicit entities, relationships, and invariants.</p>
-<p>Now volume has grown to thousands of tasks, documents, links, and world objects. The model is still correct, but some operations are too slow because access paths are still scan-heavy.</p>
-<p>Symptoms observed:</p>
+<p><a class="xref" href="studio_2.html" title="Studio 2: The Model Redesign">Studio 2</a> gave us explicit entities, relationships, and invariants, and the models are still correct. What has changed is volume: thousands of delivery tasks, documents, links, and world objects. Looking up a task’s status, checking that a link points at a real document, and finding the object to move all scan a list from the start, so their cost grows with every item we add. The fix belongs in how we reach the objects, not in the objects themselves. The symptoms:</p>
 <ul>
 <li>latency spikes on common lookups</li>
-<li>repeated linear scans in hot paths</li>
+<li>repeated linear scans in hot paths (the operations that run most often)</li>
 <li>update loops that do unnecessary work</li>
 </ul>
-<p>This studio is a direct continuation of Studio 2: same core model classes, new access structures and algorithm choices.</p>
 </section>
 <section class="level2" id="engineering-brief">
 <h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
@@ -50,7 +44,7 @@
 <p>Required outcomes:</p>
 <ul>
 <li>identify one bottleneck operation per domain</li>
-<li>show a before/after refactor using Studio 2 classes</li>
+<li>show a before-and-after refactor using Studio 2 classes</li>
 <li>measure operation-count improvement</li>
 <li>preserve behavior contracts and invariants</li>
 </ul>
@@ -58,7 +52,7 @@
 <ul>
 <li>optimize access paths, not domain meaning</li>
 <li>use explicit failure statuses (<code>NOT_FOUND</code>, <code>NO_MATCH</code>, etc.)</li>
-<li>keep model classes intact; add indexing/organization layers around them</li>
+<li>keep model classes intact; add indexing and organization layers around them</li>
 </ul>
 </section>
 <section class="level2" id="implementation-in-nex">
@@ -277,7 +271,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="knowledge-refactor-link-validation-document-lookup">
-<h3 class="anchored" data-anchor-id="knowledge-refactor-link-validation-document-lookup">Knowledge Refactor: Link Validation + Document Lookup</h3>
+<h3 class="anchored" data-anchor-id="knowledge-refactor-link-validation-document-lookup">Knowledge Refactor: Link Validation and Document Lookup</h3>
 <p>Before: for each <code>Doc_Link</code>, document existence check scans document list.</p>
 <p>After: use document index by <code>doc_id</code> and validate links against indexed lookups.</p>
 <pre class="nex"><code>class Knowledge_Model_V2
@@ -463,7 +457,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="studio-driver-beforeafter-on-studio-2-models">
-<h3 class="anchored" data-anchor-id="studio-driver-beforeafter-on-studio-2-models">Studio Driver (Before/After on Studio 2 Models)</h3>
+<h3 class="anchored" data-anchor-id="studio-driver-beforeafter-on-studio-2-models">Studio Driver (Before and After on Studio 2 Models)</h3>
 <pre class="nex"><code>class App
 feature
   run() do
@@ -576,7 +570,7 @@ end</code></pre>
 <section class="level3" id="level-2-three-domain-refactor">
 <h3 class="anchored" data-anchor-id="level-2-three-domain-refactor">Level 2 — Three-Domain Refactor</h3>
 <ul>
-<li>implement before/after for delivery, knowledge, and world</li>
+<li>implement before-and-after versions for delivery, knowledge, and world</li>
 <li>keep model classes unchanged</li>
 <li>document where indexes are derived from model identity</li>
 </ul>
@@ -587,7 +581,7 @@ end</code></pre>
 <li>for one domain, compare two refactors:
 <ul>
 <li>index-heavy approach</li>
-<li>batch/partition approach</li>
+<li>batch or partition approach</li>
 </ul></li>
 <li>state when each approach wins</li>
 </ul>
@@ -619,12 +613,12 @@ end</code></pre>
 </section>
 <section class="level2" id="exit-criteria">
 <h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
-<p>You are ready for <a class="xref" href="index.html#part-v" title="Part V: Algorithms That Power Systems">Part V</a> if:</p>
+<p>We are ready for <a class="xref" href="index.html#part-v" title="Part V: Algorithms That Power Systems">Part V</a> if:</p>
 <ul>
-<li>you can optimize access paths without changing domain meaning</li>
-<li>you can preserve model contracts while changing data organization</li>
-<li>you can justify changes with measured evidence, not intuition</li>
-<li>you can explain when the next redesign will be necessary</li>
+<li>we can optimize access paths without changing domain meaning</li>
+<li>we can preserve model contracts while changing data organization</li>
+<li>we can justify changes with measured evidence, not intuition</li>
+<li>we can explain when the next redesign will be necessary</li>
 </ul>
 </section>
 

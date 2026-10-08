@@ -29,21 +29,15 @@
   </div>
   <div class="prose">
 <p>Evolving the reliable <a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> system into a long-lived platform.</p>
-<div class="note-studio">
-<p><strong>Studio Focus</strong> This studio chapter is hands-on: implement, verify behavior, and document tradeoffs as you iterate.</p>
-</div>
 <section class="level2" id="the-situation">
 <h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
-<p><a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> made the architecture reliable: retries, idempotency, fallback behavior, and reproducible regression checks.</p>
-<p>Now the challenge is not reliability alone. It is sustained evolution under new requirements and changing policies.</p>
-<p>Typical pressure points:</p>
+<p><a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> made the systems reliable: bounded retries, idempotent dispatch, safe fallbacks, and regression checks. Now the requirements are changing underneath them. Delivery priority must take a risk score into account, the knowledge engine must accept a user’s intent alongside the query, and the virtual world needs a new movement rule — all without breaking the clients and data that depend on today’s behavior. The challenge is no longer keeping the system working; it is changing it while it keeps working. The pressure points:</p>
 <ul>
 <li>new business rules that must coexist with legacy behavior</li>
 <li>API evolution without breaking existing consumers</li>
 <li>data migrations that must be reversible</li>
 <li>feature rollout risk in production environments</li>
 </ul>
-<p>Studio 6 is the logical next step: evolve safely without losing reliability or architectural clarity.</p>
 </section>
 <section class="level2" id="engineering-brief">
 <h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
@@ -54,12 +48,12 @@
 <li>support compatibility mode for old clients</li>
 <li>add explicit migration path and rollback trigger</li>
 <li>preserve reliability checks from Studio 5</li>
-<li>define evolution governance (deprecation, sunset, ownership)</li>
+<li>define evolution governance: when old behavior is deprecated, the date it is removed (its sunset), and who owns each decision</li>
 </ul>
 <p>Implementation guidance:</p>
 <ul>
 <li>use additive changes before breaking replacements</li>
-<li>isolate v1/v2 differences behind strategy or adapter extension point</li>
+<li>isolate v1 and v2 differences behind a strategy or adapter extension point</li>
 <li>treat migration as code, not informal operations notes</li>
 <li>gate rollout with measurable signals and exit criteria</li>
 </ul>
@@ -106,7 +100,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="delivery-evolution-policy-v1---v2">
-<h3 class="anchored" data-anchor-id="delivery-evolution-policy-v1---v2">Delivery Evolution (Policy V1 -&gt; V2)</h3>
+<h3 class="anchored" data-anchor-id="delivery-evolution-policy-v1---v2">Delivery Evolution (Policy V1 to V2)</h3>
 <p>Continuation from <a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> delivery reliability flow.</p>
 <pre class="nex"><code>class Delivery_Policy_V1
 feature
@@ -187,7 +181,7 @@ end</code></pre>
 </section>
 <section class="level3" id="knowledge-evolution-compatibility-adapter">
 <h3 class="anchored" data-anchor-id="knowledge-evolution-compatibility-adapter">Knowledge Evolution (Compatibility Adapter)</h3>
-<p>Continuation from Studio 5 safe query + fallback logic.</p>
+<p>Continuation from Studio 5 safe query and fallback logic.</p>
 <pre class="nex"><code>class Knowledge_Query_V1
 feature
   run(query: String): String
@@ -367,7 +361,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="migration-runner-rollback-trigger">
-<h3 class="anchored" data-anchor-id="migration-runner-rollback-trigger">Migration Runner + Rollback Trigger</h3>
+<h3 class="anchored" data-anchor-id="migration-runner-rollback-trigger">Migration Runner and Rollback Trigger</h3>
 <pre class="nex"><code>class Migration_Runner
 create
   make(initial_count: Integer) do
@@ -434,7 +428,7 @@ end</code></pre>
 <ul>
 <li>v2 behavior can be rolled out without breaking v1 clients</li>
 <li>compatibility mode supports gradual client migration</li>
-<li>migration continues only when canary checks pass</li>
+<li>migration continues only when canary checks pass (checks run on a small share of traffic before full rollout)</li>
 <li>rollback condition is explicit and executable</li>
 </ul>
 </section>
@@ -454,14 +448,14 @@ end</code></pre>
 <ul>
 <li>add v2 behavior for delivery, knowledge, and world</li>
 <li>define one shared rollout policy</li>
-<li>show canary/rollback behavior with run logs</li>
+<li>show canary and rollback behavior with run logs</li>
 </ul>
 </section>
 <section class="level3" id="level-3-future-proofing-drill">
 <h3 class="anchored" data-anchor-id="level-3-future-proofing-drill">Level 3 — Future-Proofing Drill</h3>
 <ul>
 <li>simulate two additional future changes</li>
-<li>evaluate if current extension points absorb them cleanly</li>
+<li>evaluate whether current extension points absorb them cleanly</li>
 <li>define deprecation timeline and ownership</li>
 </ul>
 </section>
@@ -479,16 +473,16 @@ end</code></pre>
 <section class="level2" id="deliverables">
 <h2 class="anchored" data-anchor-id="deliverables">Deliverables</h2>
 <ul>
-<li>versioning plan (v1/v2 behavior map)</li>
-<li>compatibility matrix (client version vs service mode)</li>
-<li>migration + rollback playbook with gate conditions</li>
+<li>versioning plan (a map of v1 and v2 behavior)</li>
+<li>compatibility matrix (client version against service mode)</li>
+<li>migration and rollback playbook with gate conditions</li>
 <li>updated Nex code and evolution run logs</li>
 <li>deprecation roadmap with dates and owners</li>
 </ul>
 </section>
 <section class="level2" id="exit-criteria">
 <h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
-<p>You are ready for <a class="xref" href="index.html#part-ix" title="Part IX: Programming in the Age of AI">Part IX</a> if:</p>
+<p>We are ready for <a class="xref" href="index.html#part-ix" title="Part IX: Programming in the Age of AI">Part IX</a> if:</p>
 <ul>
 <li>critical services evolve through versioned extension points, not rewrites</li>
 <li>compatibility behavior is explicit and tested</li>
