@@ -29,21 +29,15 @@
   </div>
   <div class="prose">
 <p>Evolving <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> optimizations into stable component architecture.</p>
-<div class="note-studio">
-<p><strong>Studio Focus</strong> This studio chapter is hands-on: implement, verify behavior, and document tradeoffs as you iterate.</p>
-</div>
 <section class="level2" id="the-situation">
 <h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
-<p><a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> improved performance by adding indexes and targeted access paths over the <a class="xref" href="studio_2.html" title="Studio 2: The Model Redesign">Studio 2</a> model classes.</p>
-<p>Now a new problem appears: architecture fragility.</p>
-<p>Typical symptoms:</p>
+<p><a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> made the common lookups fast by adding indexes around the <a class="xref" href="studio_2.html" title="Studio 2: The Model Redesign">Studio 2</a> classes. The speed came at a price. The delivery workflow now calls <code>Delivery_Task_Store_V3</code> directly, so it knows how tasks are stored as well as what they mean, and the same coupling repeats in the knowledge and world code. Swapping a store, or testing a workflow without one, now means touching code that has nothing to do with the change. The symptoms:</p>
 <ul>
 <li>orchestration logic mixed with storage details</li>
 <li>duplicate workflow rules across modules</li>
 <li>direct dependency on concrete classes everywhere</li>
 <li>difficult integration testing due to tight coupling</li>
 </ul>
-<p>Studio 4 is the natural next step: keep Studio 3 behavior gains, but move to explicit architectural boundaries.</p>
 </section>
 <section class="level2" id="engineering-brief">
 <h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
@@ -60,7 +54,7 @@
 <ul>
 <li>start from existing V3 code paths</li>
 <li>create extension points first, then move logic behind them</li>
-<li>prove behavior parity with before/after run checks</li>
+<li>prove behavior parity with before-and-after run checks</li>
 </ul>
 </section>
 <section class="level2" id="implementation-in-nex">
@@ -75,7 +69,7 @@
 </ul>
 <section class="level3" id="shared-ports-interfaces-by-contract">
 <h3 class="anchored" data-anchor-id="shared-ports-interfaces-by-contract">Shared Ports (Interfaces By Contract)</h3>
-<p>These ports abstract over concrete V3 storage/index implementations from <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a>.</p>
+<p>These ports abstract over concrete V3 storage and index implementations from <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a>.</p>
 <pre class="nex"><code>class Task_Query_Port
 feature
   status_of(task_id: String): String
@@ -188,7 +182,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="knowledge-refactor-port-validator-service">
-<h3 class="anchored" data-anchor-id="knowledge-refactor-port-validator-service">Knowledge Refactor (Port + Validator Service)</h3>
+<h3 class="anchored" data-anchor-id="knowledge-refactor-port-validator-service">Knowledge Refactor (Port and Validator Service)</h3>
 <pre class="nex"><code>class Doc_Index_V3
 create
   make(dk1: String, dk2: String, dk3: String) do
@@ -258,7 +252,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="world-refactor-port-use-case-service">
-<h3 class="anchored" data-anchor-id="world-refactor-port-use-case-service">World Refactor (Port + Use Case Service)</h3>
+<h3 class="anchored" data-anchor-id="world-refactor-port-use-case-service">World Refactor (Port and Use Case Service)</h3>
 <pre class="nex"><code>class World_Model_V3
 create
   make(wk1: String, wx1: Integer) do
@@ -377,16 +371,16 @@ end</code></pre>
 <h3 class="anchored" data-anchor-id="level-1-one-architectural-extension-point">Level 1 — One Architectural Extension Point</h3>
 <ul>
 <li>pick one <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> optimized path</li>
-<li>introduce a port + adapter boundary</li>
+<li>introduce a port-and-adapter boundary</li>
 <li>prove behavior parity on nominal and edge cases</li>
 </ul>
 </section>
 <section class="level3" id="level-2-three-domain-architecture-pass">
 <h3 class="anchored" data-anchor-id="level-2-three-domain-architecture-pass">Level 2 — Three-Domain Architecture Pass</h3>
 <ul>
-<li>apply port/adapter + service orchestration pattern to delivery, knowledge, and world</li>
+<li>apply the port-and-adapter pattern, with service orchestration, to delivery, knowledge, and world</li>
 <li>remove at least one direct concrete dependency per domain</li>
-<li>document dependency direction before/after</li>
+<li>document dependency direction before and after</li>
 </ul>
 </section>
 <section class="level3" id="level-3-alternative-architecture-experiment">
@@ -394,7 +388,7 @@ end</code></pre>
 <ul>
 <li>compare two styles:
 <ul>
-<li>port/adapter with thin services</li>
+<li>ports and adapters with thin services</li>
 <li>feature modules with internal adapters</li>
 </ul></li>
 <li>evaluate maintainability and migration cost</li>
@@ -415,17 +409,17 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="deliverables">Deliverables</h2>
 <ul>
 <li>architecture diagram with components and dependency direction</li>
-<li>refactored Nex code using ports/adapters over <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> V3 logic</li>
-<li>behavior-parity run log (before/after outputs)</li>
-<li>short ADR-style note with chosen architecture and rejected alternative</li>
+<li>refactored Nex code using ports and adapters over <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> V3 logic</li>
+<li>behavior-parity run log (before-and-after outputs)</li>
+<li>short architecture decision record (ADR): a note stating the chosen architecture, the alternative we rejected, and why</li>
 </ul>
 </section>
 <section class="level2" id="exit-criteria">
 <h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
-<p>You are ready for <a class="xref" href="index.html#part-vii" title="Part VII: Making Software Trustworthy">Part VII</a> if:</p>
+<p>We are ready for <a class="xref" href="index.html#part-vii" title="Part VII: Making Software Trustworthy">Part VII</a> if:</p>
 <ul>
 <li>key use cases depend on ports, not concrete storage classes</li>
-<li>orchestration logic is separated from storage/index details</li>
+<li>orchestration logic is separated from storage and index details</li>
 <li>cross-component contracts are explicit and testable</li>
 <li>behavior parity with <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> is demonstrated</li>
 </ul>

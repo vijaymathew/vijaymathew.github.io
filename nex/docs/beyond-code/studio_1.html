@@ -30,21 +30,21 @@
   <div class="prose">
 <p>Building the smallest working versions of all three systems.</p>
 <div class="note-studio">
-<p><strong>Studio Focus</strong> This studio chapter is hands-on: implement, verify behavior, and document tradeoffs as you iterate.</p>
+<p><strong>Studio Focus</strong> This studio chapter is hands-on: implement, verify behavior, and document tradeoffs as we iterate.</p>
 </div>
 <section class="level2" id="the-situation">
 <h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
-<p>The team has finished <a class="xref" href="index.html#part-i" title="Part I: Seeing The Problem">Part I</a> and has problem statements, example scenarios, and edge-case notes. Now they must ship a tiny end-to-end version of each system to test whether the problem framing is actually usable.</p>
+<p>We have finished <a class="xref" href="index.html#part-i" title="Part I: Seeing The Problem">Part I</a> and have problem statements, example scenarios, and edge-case notes. Now we must ship a tiny end-to-end version of each system to test whether the problem framing is actually usable.</p>
 <p>Systems in scope:</p>
 <ul>
-<li>delivery scheduler (single robot, tiny map)</li>
-<li>note organizer (small collection, simple lookup)</li>
+<li>delivery robot (single robot, tiny map)</li>
+<li>knowledge engine (small document collection, simple lookup)</li>
 <li>virtual world (few entities, deterministic update loop)</li>
 </ul>
 </section>
 <section class="level2" id="engineering-brief">
 <h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
-<p>Build minimal vertical slices that run from input to output.</p>
+<p>Build a minimal vertical slice of each system: a thin version that runs all the way from input to output, with only enough logic at each step to work end to end.</p>
 <p>Required outcomes:</p>
 <ul>
 <li>define a minimal model for each system</li>
@@ -64,7 +64,7 @@
 <p>Suggested file split:</p>
 <ul>
 <li><code>delivery_tiny.nex</code></li>
-<li><code>notes_tiny.nex</code></li>
+<li><code>knowledge_tiny.nex</code></li>
 <li><code>world_tiny.nex</code></li>
 <li><code>studio_1_main.nex</code></li>
 </ul>
@@ -93,18 +93,18 @@ feature
   end
 end</code></pre>
 </section>
-<section class="level4" id="notes-tiny-simple-lookup">
-<h4 class="anchored" data-anchor-id="notes-tiny-simple-lookup">Notes Tiny (simple lookup)</h4>
-<pre class="nex"><code>class Notes_Tiny
+<section class="level4" id="knowledge-tiny-simple-lookup">
+<h4 class="anchored" data-anchor-id="knowledge-tiny-simple-lookup">Knowledge Tiny (simple lookup)</h4>
+<pre class="nex"><code>class Knowledge_Tiny
 feature
   find_by_tag(tag: String): String
   require
     tag_non_empty: tag /= ""
   do
     if tag = "algorithms" then
-      result := "note_001"
+      result := "doc_001"
     elseif tag = "graphs" then
-      result := "note_002"
+      result := "doc_002"
     else
       result := "NOT_FOUND"
     end
@@ -135,19 +135,19 @@ feature
 end</code></pre>
 </section>
 <section class="level4" id="studio-driver-nominal-edge-inputs">
-<h4 class="anchored" data-anchor-id="studio-driver-nominal-edge-inputs">Studio Driver (nominal + edge inputs)</h4>
+<h4 class="anchored" data-anchor-id="studio-driver-nominal-edge-inputs">Studio Driver (nominal and edge inputs)</h4>
 <pre class="nex"><code>class App
 feature
   run() do
     let d: Delivery_Tiny := create Delivery_Tiny
-    let n: Notes_Tiny := create Notes_Tiny
+    let n: Knowledge_Tiny := create Knowledge_Tiny
     let w: World_Tiny := create World_Tiny
 
     -- Nominal
 
     -- expected: "B"
     print(d.next_stop("A", "C"))
-    -- expected: "note_001"
+    -- expected: "doc_001"
     print(n.find_by_tag("algorithms"))
     -- expected: 5
     print(w.step(3, 2, 10))
@@ -166,10 +166,10 @@ feature
     print(w.step(1, -5, 10))
   end
 end</code></pre>
-<p>You can evolve this starter in three directions:</p>
+<p>We can evolve this starter in three directions:</p>
 <ul>
 <li>add a richer map model for delivery</li>
-<li>replace fixed tag matching with indexed note structures</li>
+<li>replace fixed tag matching with indexed document structures</li>
 <li>extend world updates to multiple entities per tick</li>
 </ul>
 </section>
@@ -215,6 +215,16 @@ end</code></pre>
 <li>runnable Nex code for all tiny systems</li>
 <li>short design notes (inputs, outputs, guarantees)</li>
 <li>edge-case checklist with observed behavior</li>
+</ul>
+</section>
+<section class="level2" id="exit-criteria">
+<h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
+<p>We are ready for <a class="xref" href="index.html#part-ii" title="Part II: Modeling the World">Part II</a> if:</p>
+<ul>
+<li>each tiny system runs end to end on nominal and edge inputs</li>
+<li>every core operation has at least one explicit contract</li>
+<li>we can name the assumptions each system makes, and which one breaks first as the system grows</li>
+<li>the problem statement has been updated with what the build revealed was missing</li>
 </ul>
 </section>
 

@@ -29,21 +29,15 @@
   </div>
   <div class="prose">
 <p>Hardening the <a class="xref" href="studio_4.html" title="Studio 4: The Architecture Refactor">Studio 4</a> architecture for failure, recovery, and operational trust.</p>
-<div class="note-studio">
-<p><strong>Studio Focus</strong> This studio chapter is hands-on: implement, verify behavior, and document tradeoffs as you iterate.</p>
-</div>
 <section class="level2" id="the-situation">
 <h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
-<p><a class="xref" href="studio_4.html" title="Studio 4: The Architecture Refactor">Studio 4</a> gave us clear architectural extension points: ports, adapters, and services.</p>
-<p>Now reliability work becomes practical because failure handling can be localized at those extension points.</p>
-<p>Current symptoms:</p>
+<p><a class="xref" href="studio_4.html" title="Studio 4: The Architecture Refactor">Studio 4</a> gave us clear boundaries: ports, adapters, and the services that orchestrate them. That matters now, because the systems have started to fail in ways the earlier studios never tested. A dispatch request times out and is retried, and the robot receives the same task twice; a knowledge query fails and returns nothing; an extreme movement pushes a world object past its bounds. Each of these failures happens at a boundary, and the ports give us a single place to handle it. The symptoms:</p>
 <ul>
 <li>intermittent failures at integration boundaries</li>
 <li>retries that duplicate side effects</li>
 <li>hard-to-reproduce incidents</li>
 <li>regressions after urgent patches</li>
 </ul>
-<p>Studio 5 is the logical continuation: keep Studio 4 architecture, add reliability guarantees around it.</p>
 </section>
 <section class="level2" id="engineering-brief">
 <h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
@@ -58,7 +52,7 @@
 </ul>
 <p>Implementation guidance:</p>
 <ul>
-<li>enforce reliability at service/port boundaries</li>
+<li>enforce reliability at service and port boundaries</li>
 <li>keep domain invariants intact under failure paths</li>
 <li>separate transient failures from permanent failures</li>
 <li>make each retry policy explicit and testable</li>
@@ -112,7 +106,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="delivery-reliability-retry-idempotent-dispatch">
-<h3 class="anchored" data-anchor-id="delivery-reliability-retry-idempotent-dispatch">Delivery Reliability: Retry + Idempotent Dispatch</h3>
+<h3 class="anchored" data-anchor-id="delivery-reliability-retry-idempotent-dispatch">Delivery Reliability: Retry and Idempotent Dispatch</h3>
 <p>Continuation from <a class="xref" href="studio_4.html" title="Studio 4: The Architecture Refactor">Studio 4</a> <code>Delivery_Workflow</code> idea.</p>
 <pre class="nex"><code>class Delivery_Port
 create
@@ -200,7 +194,7 @@ end</code></pre>
 </section>
 <section class="level3" id="knowledge-reliability-safe-query-fallback">
 <h3 class="anchored" data-anchor-id="knowledge-reliability-safe-query-fallback">Knowledge Reliability: Safe Query Fallback</h3>
-<p>Continuation from Studio 4 query/validation services.</p>
+<p>Continuation from Studio 4 query and validation services.</p>
 <pre class="nex"><code>class Knowledge_Port
 create
   make(query_available: Boolean) do
@@ -253,7 +247,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="world-reliability-guarded-update-recovery-status">
-<h3 class="anchored" data-anchor-id="world-reliability-guarded-update-recovery-status">World Reliability: Guarded Update + Recovery Status</h3>
+<h3 class="anchored" data-anchor-id="world-reliability-guarded-update-recovery-status">World Reliability: Guarded Update and Recovery Status</h3>
 <p>Continuation from Studio 4 world update service.</p>
 <pre class="nex"><code>class World_Port
 create
@@ -305,7 +299,7 @@ feature
 end</code></pre>
 </section>
 <section class="level3" id="reliability-driver-regression-checks">
-<h3 class="anchored" data-anchor-id="reliability-driver-regression-checks">Reliability Driver + Regression Checks</h3>
+<h3 class="anchored" data-anchor-id="reliability-driver-regression-checks">Reliability Driver and Regression Checks</h3>
 <pre class="nex"><code>class App
 feature
   run() do
@@ -383,7 +377,7 @@ end</code></pre>
 <ul>
 <li>implement one reliability mechanism per domain:
 <ul>
-<li>delivery: retry/idempotency</li>
+<li>delivery: retry and idempotency</li>
 <li>knowledge: degraded fallback</li>
 <li>world: invariant-preserving recovery</li>
 </ul></li>
@@ -406,8 +400,8 @@ end</code></pre>
 <ul>
 <li>Which reliability mechanism produced the largest stability gain?</li>
 <li>Which failures should not be retried?</li>
-<li>Which fallback behavior is acceptable vs dangerous?</li>
-<li>Which diagnostics made root-cause fastest?</li>
+<li>Which fallback behavior is acceptable, and which is dangerous?</li>
+<li>Which diagnostics found the root cause fastest?</li>
 </ul>
 </section>
 <section class="level2" id="deliverables">
@@ -415,13 +409,13 @@ end</code></pre>
 <ul>
 <li>reliability policy sheet (retry, idempotency, fallback, non-retryable failures)</li>
 <li>refactored Nex reliability services and run outputs</li>
-<li>incident playbook with reproduction + fix + regression tests</li>
-<li>release gate checklist for reliability sign-off</li>
+<li>incident playbook with reproduction steps, fix, and regression tests</li>
+<li>release gate checklist: the reliability conditions that must hold before a change ships</li>
 </ul>
 </section>
 <section class="level2" id="exit-criteria">
 <h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
-<p>You are ready for <a class="xref" href="index.html#part-viii" title="Part VIII: Systems That Grow">Part VIII</a> if:</p>
+<p>We are ready for <a class="xref" href="index.html#part-viii" title="Part VIII: Systems That Grow">Part VIII</a> if:</p>
 <ul>
 <li>key operations have explicit failure semantics</li>
 <li>retry logic is bounded and test-backed</li>
