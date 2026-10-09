@@ -66,67 +66,64 @@
 </section>
 <section class="level2" data-number="21.5" id="a-sort-operation-in-code">
 <h2 class="anchored" data-anchor-id="a-sort-operation-in-code" data-number="21.5"> A Sort Operation in Code</h2>
-<pre class="nex"><code>class Task_View
+<pre class="nex"><code>class Delivery_Task
 create
-  make(id: String, priority: Integer, arrival: Integer) do
-    this.id := id
+  make(task_id: String, priority: Integer, 
+       arrival: Integer) do
+    this.task_id := task_id
     this.priority := priority
     this.arrival := arrival
   end
 feature
-  id: String
+  task_id: String
   priority: Integer
   arrival: Integer
 invariant
-  id_present: id /= ""
+  id_present: task_id /= ""
   arrival_non_negative: arrival &gt;= 0
 end
 
-class Sort_Example
-create
-  make(t1: Task_View, t2: Task_View, t3: Task_View) do
-    this.t1 := t1
-    this.t2 := t2
-    this.t3 := t3
-  end
+class Priority_Sort
 feature
-  t1: Task_View
-  t2: Task_View
-  t3: Task_View
+  -- The complete comparison rule: lower priority 
+  -- value first, earlier arrival breaks ties.
+  comes_before(a, b: Delivery_Task): Boolean do
+    result := a.priority &lt; b.priority
+              or (a.priority = b.priority 
+                  and a.arrival &lt; b.arrival)
+  end
 
-  sorted_ids_by_priority(): String
+  is_ordered(tasks: Array[Delivery_Task]): Boolean do
+    result := true
+    from let i := 1 until i &gt;= tasks.length do
+      if comes_before(tasks.get(i), tasks.get(i - 1)) then
+        result := false
+      end
+      i := i + 1
+    end
+  end
+
+  sorted(tasks: Array[Delivery_Task]): Array[Delivery_Task]
   do
-    -- Teaching-sized fixed comparison network 
-    -- for three items.
-    let a: Task_View := t1
-    let b: Task_View := t2
-    let c: Task_View := t3
-
-    if a.priority &gt; b.priority then
-      let tmp: Task_View := a
-      a := b
-      b := tmp
+    -- Insertion sort: place each task after every
+    -- task that does not come after it.
+    result := []
+    across tasks as t do
+      let pos: Integer := result.length
+      from until pos = 0 
+                 or not comes_before(t, result.get(pos - 1)) do
+        pos := pos - 1
+      end
+      result.add_at(pos, t)
     end
-
-    if b.priority &gt; c.priority then
-      let tmp2: Task_View := b
-      b := c
-      c := tmp2
-    end
-
-    if a.priority &gt; b.priority then
-      let tmp3: Task_View := a
-      a := b
-      b := tmp3
-    end
-
-    result := a.id + " -&gt; " + b.id + " -&gt; " + c.id
   ensure
-    non_empty: result /= ""
+    same_size: result.length = tasks.length
+    ordered: is_ordered(result)
   end
 end</code></pre>
-<p><code>Task_View</code> carries an <code>arrival</code> field alongside the priority score. In the sketch, <code>arrival</code> is present in the invariant but not yet used in the sorting logic — a deliberate choice that makes the gap between the current implementation and the full requirement visible. The sort orders tasks by priority but does not yet break ties by arrival order. Adding stability means modifying the comparisons to include <code>arrival</code> as a secondary key when <code>priority</code> values are equal. The postcondition <code>non_empty</code> is weak — a stronger postcondition would assert the ordering invariant directly. For a production implementation, that stronger assertion is worth writing and testing explicitly.</p>
-<p>The three-swap comparison network is a sorting network for exactly three elements: it correctly sorts any combination of three values using exactly three comparisons. It is not a general sorting algorithm — it does not scale beyond three elements — but for a teaching sketch of fixed size it has the virtue of making every comparison explicit. A reader can trace the execution for any input and verify that the output is correctly ordered. That traceability is what makes it useful here.</p>
+<p><code>Delivery_Task</code> carries an <code>arrival</code> field alongside the priority score, and <code>comes_before</code> uses both: priority first, arrival to break ties. That is the whole comparison rule from Steps 1 and 2, written as one function so that it can be tested on its own and applied everywhere the order matters. Because arrival is part of the key, ties are broken by the data rather than by whatever order the caller happened to supply the tasks in. The postconditions on <code>sorted</code> are the correctness checks from Step 4, stated in the code rather than left to a test plan: the output holds as many tasks as the input, and <code>is_ordered</code> confirms that no task comes before the one preceding it.</p>
+<p><code>sorted</code> is an insertion sort. It builds the output one task at a time, placing each task after every task that does not come after it. It is O(N²) in the worst case — the simple baseline Step 3 calls for, and adequate for a small number of tasks. A task moves left only past tasks that strictly come after it, so two tasks with identical keys keep their input order: the sort is stable even beyond the tie-break. When the scale transition in Step 5 arrives, the body can be replaced by the standard library’s stable sort, and <code>comes_before</code> and both postconditions stay exactly as they are.</p>
+
 </section>
 <section class="level2" data-number="21.6" id="stability-as-reproducibility">
 <h2 class="anchored" data-anchor-id="stability-as-reproducibility" data-number="21.6"> Stability as Reproducibility</h2>

@@ -109,8 +109,14 @@ feature
   ensure
     non_empty: result /= ""
   end
+invariant
+  linked: root.left_key = left.key 
+          and root.right_key = right.key
+  ordered: left.key &lt; root.key 
+           and root.key &lt; right.key
 end</code></pre>
 <p><code>Topic_Node</code> carries two invariants worth examining. <code>label_present</code> ensures that every node in the tree has a non-empty label — a node with no label is a structural placeholder masquerading as an element that carries content, and the invariant rejects it. <code>no_self_child</code> ensures that a node does not list itself as a child — the minimal check against a trivially cyclic structure that would cause any traversal to loop.</p>
+<p><code>Topic_Tree</code> adds the invariant the search depends on. <code>ordered</code> is the ordering rule from Step 5: the left child’s key is smaller than the root’s and the right child’s key is larger. <code>linked</code> ties the child keys the root records to the nodes the tree actually holds, so the structure the search walks and the structure the root describes cannot drift apart. A tree assembled with its children swapped is rejected at construction rather than discovered later as a search that cannot find elements that are present.</p>
 <p><code>find_label</code> demonstrates the branching search that trees make possible. The comparison at each level directs the search toward the relevant subtree. In this three-node sketch, the depth is fixed at two and the cost is constant. In a full implementation over a balanced tree with a million nodes, the same logic would require at most twenty comparisons. A linear scan over a million elements would require up to a million. The invariant is what makes that difference real: without the ordering rule, the branching decision at each node is meaningless, and the search degenerates to a scan.</p>
 </section>
 <section class="level2" data-number="18.5" id="balance-and-its-consequences">

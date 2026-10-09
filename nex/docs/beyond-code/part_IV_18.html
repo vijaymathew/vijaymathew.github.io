@@ -63,52 +63,89 @@
 <h2 class="anchored" data-anchor-id="a-graph-in-code" data-number="19.4"> A Graph in Code</h2>
 <pre class="nex"><code>class Route_Graph
 feature
-  -- Teaching-sized adjacency for four nodes.
-  a_to_b: Boolean
-  b_to_c: Boolean
-  c_to_d: Boolean
-  a_to_d: Boolean
+  -- Adjacency: location -&gt; locations reachable in one hop.
+  edges: Map[String, Array[String]]
 
   has_edge(from_node, to_node: String): Boolean
   require
     non_empty_nodes: from_node /= "" 
                      and to_node /= ""
   do
-    if from_node = "A" and to_node = "B" then
-      result := a_to_b
-    elseif from_node = "B" and to_node = "C" then
-      result := b_to_c
-    elseif from_node = "C" and to_node = "D" then
-      result := c_to_d
-    elseif from_node = "A" and to_node = "D" then
-      result := a_to_d
-    else
-      result := false
-    end
-  ensure
-    bool_result: result = true or result = false
+    result := edges.contains_key(from_node)
+              and edges.get(from_node).contains(to_node)
   end
 
-  route_a_to_d(): String
+  block(from_node, to_node: String)
+  require
+    edge_exists: has_edge(from_node, to_node)
   do
-    if has_edge("A", "D") then
-      result := "A-&gt;D"
-    elseif has_edge("A", "B") and has_edge("B", "C") 
-           and has_edge("C", "D") then
-      result := "A-&gt;B-&gt;C-&gt;D"
+    let out := edges.get(from_node)
+    out.remove(out.index_of(to_node))
+  ensure
+    removed: not has_edge(from_node, to_node)
+  end
+
+  uses_only_edges(path: String): Boolean do
+    let hops := path.split("-&gt;")
+    result := true
+    from let i := 0 until i + 1 &gt;= hops.length do
+      if not has_edge(hops.get(i), hops.get(i + 1)) then
+        result := false
+      end
+      i := i + 1
+    end
+  end
+
+  route(start, goal: String): String
+  require
+    non_empty_nodes: start /= "" and goal /= ""
+  do
+    if not edges.contains_key(start) 
+       or not edges.contains_key(goal) then
+      result := "INVALID_INPUT"
     else
-      result := "UNREACHABLE"
+      -- Breadth-first: frontier is consumed in order.
+      let came_from: Map[String, String] := {}
+      came_from.put(start, "")
+      let frontier: Array[String] := [start]
+      from let i := 0
+      until i &gt;= frontier.length 
+            or came_from.contains_key(goal) do
+        across edges.get(frontier.get(i)) as next do
+          if not came_from.contains_key(next) then
+            came_from.put(next, frontier.get(i))
+            frontier.add(next)
+          end
+        end
+        i := i + 1
+      end
+      if came_from.contains_key(goal) then
+        result := goal
+        from let prev := came_from.get(goal) 
+        until prev = "" do
+          result := prev + "-&gt;" + result
+          prev := came_from.get(prev)
+        end
+      else
+        result := "UNREACHABLE"
+      end
     end
   ensure
     declared_result:
-      result = "A-&gt;D" or
-      result = "A-&gt;B-&gt;C-&gt;D" or
-      result = "UNREACHABLE"
+      result = "INVALID_INPUT" or
+      result = "UNREACHABLE" or
+      (result.starts_with(start) 
+       and uses_only_edges(result))
+  end
+
+create
+  make(edges: Map[String, Array[String]]) do
+    this.edges := edges
   end
 end</code></pre>
-<p><code>Route_Graph</code> is minimal — four nodes, four possible edges, represented as boolean fields. What it demonstrates is the separation of concerns that a graph model requires. <code>has_edge</code> is the primitive operation: given two node identifiers, does the edge between them exist? It knows nothing about routes. <code>route_a_to_d</code> composes <code>has_edge</code> calls to determine which paths are available and returns the first valid one it finds, or <code>UNREACHABLE</code> if none exists.</p>
-<p>The postcondition on <code>route_a_to_d</code> — three explicitly declared possible return values — is the contract that <code>route_a_to_d</code> makes with its callers. Every path it might return is valid according to <code>has_edge</code>: the direct route is guarded by <code>has_edge("A", "D")</code>, the long route by three consecutive edge checks. The algorithm cannot return a route that includes an edge which <code>has_edge</code> would reject. The contract is enforced by the structure of the code rather than by a runtime check that might be forgotten.</p>
-<p>In a full implementation, the boolean fields would be replaced by an adjacency list, and <code>route_a_to_d</code> would be replaced by a BFS traversal over that list. The contracts would remain the same. This is the value of specifying the contract at the boundary rather than inside the implementation: when the implementation changes, the contract does not need to change with it.</p>
+<p><code>Route_Graph</code> keeps its adjacency structure explicit, as Step 5 asks: <code>edges</code> maps each location to the locations reachable from it in one hop. What the sketch demonstrates is the separation of concerns that a graph model requires. <code>has_edge</code> is the primitive operation: given two node identifiers, does the edge between them exist? It knows nothing about routes. <code>block</code> is how a path stops being traversable, and it does what Step 1 prescribes: the edge is removed from the adjacency structure, not marked with a flag that every traversal must remember to check. <code>route</code> is the breadth-first search from Step 3. It consumes the frontier in the order nodes were discovered, records in <code>came_from</code> the node each one was reached from, and walks that record backward from the goal to rebuild the path.</p>
+<p>The postcondition on <code>route</code> is the contract from Step 2. The result is <code>INVALID_INPUT</code>, <code>UNREACHABLE</code>, or a path that begins at the start and in which every hop is an edge <code>has_edge</code> accepts. The traversal only ever follows edges present in <code>edges</code>, so the path it builds satisfies <code>uses_only_edges</code> by construction; the postcondition makes that claim checkable rather than leaving it as an argument about the code. Blocking an edge and asking again shows the contract at work: with <code>A → D</code> removed, the same call returns the longer route, and with <code>B → C</code> removed as well it returns <code>UNREACHABLE</code>.</p>
+<p>The cycle guard from Step 4 is the <code>came_from</code> map: a node is added to the frontier only the first time it is reached, so a cycle in the graph cannot send the traversal around it again. If the objective later changes from fewest hops to lowest cost, <code>route</code> becomes Dijkstra’s algorithm over weighted edges, and its contract stays the same. This is the value of specifying the contract at the boundary rather than inside the implementation: when the implementation changes, the contract does not need to change with it.</p>
 </section>
 <section class="level2" data-number="19.5" id="graphs-that-change-every-tick">
 <h2 class="anchored" data-anchor-id="graphs-that-change-every-tick" data-number="19.5"> Graphs That Change Every Tick</h2>

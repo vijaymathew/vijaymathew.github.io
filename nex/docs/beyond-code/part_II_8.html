@@ -106,24 +106,41 @@ feature
   from_id: String
   to_id: String
   link_type: String
+  confidence: Real
 
-  is_structurally_valid(): Boolean do
-    result := from_id /= "" and to_id /= ""
-              and link_type /= ""
+  is_inferred: Boolean do
+    result := confidence &lt; 1.0
   end
 
 create
-  make(from_id, to_id, link_type: String) do
+  asserted(from_id, to_id, link_type: String) do
     this.from_id := from_id
     this.to_id := to_id
     this.link_type := link_type
+    confidence := 1.0
+  end
+
+  inferred(from_id, to_id, link_type: String,
+           confidence: Real)
+  require
+    below_certainty: confidence &lt; 1.0
+  do
+    this.from_id := from_id
+    this.to_id := to_id
+    this.link_type := link_type
+    this.confidence := confidence
   end
 invariant
   endpoints_present: from_id /= "" and to_id /= ""
   non_self_reference: from_id /= to_id
-  link_type_present: link_type /= ""
+  known_link_type:
+    link_type = "references" or
+    link_type = "related" or
+    link_type = "contradicts"
+  confidence_in_range:
+    confidence &gt; 0.0 and confidence &lt;= 1.0
 end</code></pre>
-<p>This is minimal by design. It captures the invariants every link must satisfy and exposes a validation operation whose contract is explicit. The underlying document objects are referenced by identifier rather than by direct containment, which means the link’s validity depends on those documents existing in the broader model, not just in this class. That dependency belongs in the integration-level invariants we write when assembling the full model.</p>
+<p>This is minimal by design. It captures the invariants every link must satisfy, including the controlled set of link types, and it carries the metadata that made the link worth modeling as an entity in the first place: a confidence score. A link a user asserts is created with full confidence; a link the system infers must declare a lower one, and <code>is_inferred</code> lets a traversal tell the two apart. The underlying document objects are referenced by identifier rather than by direct containment, which means the link’s validity depends on those documents existing in the broader model, not just in this class. That dependency belongs in the integration-level invariants we write when assembling the full model.</p>
 <p>The same structure generalizes: <code>Path</code> in the delivery network is a relationship entity between locations; typed interaction edges in the virtual world are relationship entities between object types.</p>
 </section>
 <section class="level2" data-number="9.6" id="where-relationship-modeling-goes-wrong">

@@ -137,19 +137,15 @@ end
 
 class Delivery_Reliability_Service
 create
-  make(
-    port: Delivery_Port,
-    log: Reliability_Log,
-    last_dispatched_task: String
-  ) do
+  make(port: Delivery_Port, log: Reliability_Log) do
     this.port := port
     this.log := log
-    this.last_dispatched_task := last_dispatched_task
+    dispatched := #{}
   end
 feature
   port: Delivery_Port
   log: Reliability_Log
-  last_dispatched_task: String
+  dispatched: Set[String]   -- every task already sent
 
   dispatch_with_retry(task_id: String, 
                       max_attempts: Integer): Op_Result
@@ -157,9 +153,9 @@ feature
     id_present: task_id /= ""
     max_attempts_valid: max_attempts &gt;= 1
   do
-    -- Idempotency guard: repeated same task 
-    -- dispatch request.
-    if last_dispatched_task = task_id then
+    -- Idempotency guard: a task that was already 
+    -- sent is never sent again.
+    if dispatched.contains(task_id) then
       result := create Op_Result.make(
         "IDEMPOTENT_OK",
         "ALREADY_SENT",
@@ -170,14 +166,16 @@ feature
       let final_status: String := "TRANSIENT_FAILURE"
 
       from
-      until a &gt; max_attempts or final_status = "SENT" do
+      until a &gt; max_attempts 
+            or final_status = "SENT" 
+            or final_status = "PERMANENT_FAILURE" do
         final_status := port.send_dispatch(task_id, a)
         log.record("delivery_attempt=" + a)
         a := a + 1
       end
 
       if final_status = "SENT" then
-        last_dispatched_task := task_id
+        dispatched.add(task_id)
         result := create Op_Result.make("OK", "SENT", a - 1)
       else
         result := 
@@ -309,7 +307,7 @@ feature
     -- Delivery reliability run
     let dp: Delivery_Port := create Delivery_Port.make(2)
     let dr: Delivery_Reliability_Service
-      := create Delivery_Reliability_Service.make(dp, l, "NONE")
+      := create Delivery_Reliability_Service.make(dp, l)
 
     let d1: Op_Result := dr.dispatch_with_retry("T-7", 3)
     print("Delivery result: " + d1.status + ", attempts=" + d1.attempts)
@@ -321,6 +319,9 @@ feature
       ", value=" + d2.value
     )
 
+    let d3: Op_Result := dr.dispatch_with_retry("T-8", 3)
+    let d4: Op_Result := dr.dispatch_with_retry("T-7", 3)
+    print("Delivery T-7 after T-8: " + d4.status)
     -- Knowledge reliability run
     let kp: Knowledge_Port := create Knowledge_Port.make(false)
     let kr: Knowledge_Reliability_Service
@@ -345,6 +346,8 @@ feature
     if d1.status = "OK" and
        d1.attempts = 3 and
        d2.status = "IDEMPOTENT_OK" and
+       d3.status = "OK" and
+       d4.status = "IDEMPOTENT_OK" and
        k1.status = "DEGRADED" and
        wp.x = 10 then
       print("RELIABILITY_CHECK:PASS")

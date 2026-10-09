@@ -75,41 +75,66 @@ feature
   status: String
   discovered: String
 invariant
-  status_present: status /= ""
+  valid_status:
+    status = "OK" or
+    status = "ISOLATED" or
+    status = "INVALID_START"
 end
 
 class Graph_Explorer
 feature
-  -- Teaching-sized adjacency representation.
-  a_to_b: Boolean
-  a_to_c: Boolean
-  b_to_d: Boolean
-  c_to_d: Boolean
+  -- Document -&gt; documents it links to, in a fixed order.
+  links: Map[String, Array[String]]
 
-  bfs_from_a_depth2(): Explore_Result
+  explore(start: String, max_depth: Integer): Explore_Result
+  require
+    start_present: start /= ""
+    depth_valid: max_depth &gt;= 0
   do
-    if not a_to_b and not a_to_c then
-      result := create Explore_Result.make("ISOLATED", "A")
-    elseif a_to_b and b_to_d then
-      result := create Explore_Result.make("OK", "A,B,D")
-    elseif a_to_c and c_to_d then
-      result := create Explore_Result.make("OK", "A,C,D")
-    elseif a_to_b then
-      result := create Explore_Result.make("OK", "A,B")
-    elseif a_to_c then
-      result := create Explore_Result.make("OK", "A,C")
+    if not links.contains_key(start) then
+      result := create Explore_Result.make("INVALID_START", "")
+    elseif links.get(start).is_empty then
+      result := create Explore_Result.make("ISOLATED", start)
     else
-      result := create Explore_Result.make("ISOLATED", "A")
+      -- depth doubles as the visited set; order is 
+      -- both the BFS queue and the discovery order.
+      let depth: Map[String, Integer] := {}
+      depth.put(start, 0)
+      let order: Array[String] := [start]
+      from let i := 0 until i &gt;= order.length do
+        let doc := order.get(i)
+        if depth.get(doc) &lt; max_depth then
+          across links.try_get(doc, []) as next do
+            if not depth.contains_key(next) then
+              depth.put(next, depth.get(doc) + 1)
+              order.add(next)
+            end
+          end
+        end
+        i := i + 1
+      end
+      let discovered := start
+      from let k := 1 until k &gt;= order.length do
+        discovered := discovered + "," + order.get(k)
+        k := k + 1
+      end
+      result := create Explore_Result.make("OK", discovered)
     end
   ensure
     declared_status:
       result.status = "OK" or
-      result.status = "ISOLATED"
+      result.status = "ISOLATED" or
+      result.status = "INVALID_START"
+  end
+
+create
+  make(links: Map[String, Array[String]]) do
+    this.links := links
   end
 end</code></pre>
-<p>The structure of <code>bfs_from_a_depth2</code> encodes the five design decisions from the worked path. The cases are organized by what edges exist, reflecting the depth-layer structure of BFS: direct neighbors of A first, then their neighbors. The <code>ISOLATED</code> case handles the failure mode of a start node with no outgoing edges. The postcondition guarantees that the result status is always one of the two declared values — the traversal never returns an undeclared state.</p>
-<p>The adjacency fields — <code>a_to_b</code>, <code>a_to_c</code>, <code>b_to_d</code>, <code>c_to_d</code> — are the explicit representation of the graph’s structure. The traversal consults them directly rather than inferring connectivity from the traversal’s own control flow. This is the same separation established in <a class="xref" href="part_IV_18.html">Graphs — Networks of Everything</a>: the graph structure and the traversal algorithm are distinct, and the traversal’s correctness depends only on what the adjacency structure reports, not on how it is implemented.</p>
-<p>What the sketch does not show — and cannot, at this size — is the visited set and the queue that BFS requires in a general implementation. In a full implementation over an arbitrary graph, both are essential. The sketch’s fixed size and hardcoded structure mean the cases are enumerable; in production, the structure must be traversed programmatically, and the safety controls are what prevent the traversal from becoming incorrect when the graph grows.</p>
+<p>The structure of <code>explore</code> encodes the five design decisions from the worked path. The depth limit from Step 1 is a parameter, and a document is expanded only while its depth is below the limit, so documents at depth three are discovered by nothing when the limit is two. The traversal from Step 2 is breadth-first: <code>order</code> serves as the queue, consumed from the front, so every document at depth one is discovered before any document at depth two. The duplicate policy from Step 3 is the <code>depth</code> map, which doubles as the visited set — a document reached a second time, by a longer path or around a cycle, is already in it and is ignored. Because <code>order</code> records documents in the order they were first reached, it is also the output from Step 4, and because each document’s links are visited in the order the map stores them, that output is deterministic. The two failure outcomes from Step 5, <code>INVALID_START</code> and <code>ISOLATED</code>, are checked before the traversal begins.</p>
+<p>The adjacency map <code>links</code> is the explicit representation of the graph’s structure. The traversal consults it directly rather than inferring connectivity from its own control flow. This is the same separation established in <a class="xref" href="part_IV_18.html">Graphs — Networks of Everything</a>: the graph structure and the traversal algorithm are distinct, and the traversal’s correctness depends only on what the adjacency structure reports, not on how it is stored.</p>
+<p>With links <code>A → B</code>, <code>A → C</code>, <code>B → D</code>, and <code>C → D</code>, exploring from <code>A</code> to depth two yields <code>A,B,C,D</code>: both depth-one documents before the depth-two document, and <code>D</code> once, although two paths reach it. To depth one, the same call yields <code>A,B,C</code>. Those two results are worth turning into tests, because they are exactly the properties the requirement states — layer order and no duplicates — and a traversal that violated either would still return a plausible-looking list.</p>
 </section>
 <section class="level2" data-number="22.6" id="the-question-decides-the-traversal">
 <h2 class="anchored" data-anchor-id="the-question-decides-the-traversal" data-number="22.6"> The Question Decides the Traversal</h2>

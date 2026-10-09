@@ -75,47 +75,41 @@ invariant
 end
 
 class Task_Search
+create
+  make(tasks: Array[Delivery_Task]) do
+    this.tasks := tasks
+  end
 feature
-  id1: String
-  st1: String
-  id2: String
-  st2: String
-  id3: String
-  st3: String
-  id4: String
-  st4: String
+  tasks: Array[Delivery_Task]
 
   linear_find(task_id: String): Search_Result
   require
     id_present: task_id /= ""
   do
     let final_status: String := "NOT_FOUND"
-    let steps: Integer := 1
-    if task_id = id1 then
-      final_status := st1
-    elseif task_id = id2 then
-      steps := 2
-      final_status := st2
-    elseif task_id = id3 then
-      steps := 3
-      final_status := st3
-    elseif task_id = id4 then
-      steps := 4
-      final_status := st4
-    else
-      steps := 4
+    let steps: Integer := 0
+    from let i := 0
+    until i &gt;= tasks.length 
+          or final_status /= "NOT_FOUND" do
+      steps := steps + 1
+      if tasks.get(i).task_id = task_id then
+        final_status := tasks.get(i).status
+      end
+      i := i + 1
     end
     result := create Search_Result.make(
       final_status,
       steps
     )
   ensure
-    bounded_steps: result.steps &gt;= 1 
-                   and result.steps &lt;= 4
+    bounded_steps: result.steps &lt;= tasks.length
+    miss_checks_every_task: 
+      result.status /= "NOT_FOUND" 
+      or result.steps = tasks.length
   end
 end</code></pre>
 <p><code>Search_Result</code> carries two fields and two invariants. The <code>status</code> field holds either the found task’s status or <code>NOT_FOUND</code>. The <code>steps</code> field counts how many comparisons the search required. The invariants enforce that both fields are always in a valid state: <code>status</code> is never empty, and <code>steps</code> is never negative.</p>
-<p><code>linear_find</code> initializes the result to <code>NOT_FOUND</code> before beginning the search. This initialization is not an optimization — it is the guarantee that the miss case is handled correctly regardless of which branch the control flow takes. If none of the four comparisons produce a match, the result is already correct without any additional code in the else branch. The postcondition confirms that the number of steps is bounded between one and four — a measurable statement about the algorithm’s behavior on this particular collection size that a test can verify directly.</p>
+<p><code>Task_Search</code> scans an array of the <code>Delivery_Task</code> records from <a class="xref" href="part_IV_15.html" title="Chapter 15: Lists and Sequences">Lists and Sequences</a>, in the order they are stored. <code>linear_find</code> initializes the status to <code>NOT_FOUND</code> before the scan begins. This initialization is not an optimization — it is the guarantee that the miss case is handled correctly however the loop ends. If no task matches, the loop runs to the end of the array and the status is already correct, with no code written for the miss at all. The postconditions turn the cost into measurable statements that a test can verify directly: the step count never exceeds the number of tasks, and a miss costs exactly one comparison per task.</p>
 <p>The <code>steps</code> field deserves particular attention. A search algorithm that returns only a result status produces a black box: the caller knows what was found, but has no information about how hard the search was. An algorithm that also returns a step count makes its cost observable and testable. For the worked design path above, this observability is what makes it possible to detect when linear search is becoming a bottleneck: the steps count grows with the collection size, and when it grows large enough to affect latency, the upgrade trigger fires.</p>
 </section>
 <section class="level2" data-number="20.5" id="two-levels-of-search">

@@ -71,7 +71,7 @@
 </section>
 <section class="level2" data-number="10.5" id="a-data-model-in-code">
 <h2 class="anchored" data-anchor-id="a-data-model-in-code" data-number="10.5"> A Data Model in Code</h2>
-<p>The model for this requirement is not a single task. Every operation in Step 3, and the one-active-task-per-robot rule from Step 2, is about the set of tasks and who holds them. The task itself still matters, so we start there. This is the <code>Delivery_Task</code> entity from <a class="xref" href="part_II_7.html" title="Chapter 7: Entities — The Things That Exist">Chapter 7</a>, extended with the fields Step 4 asks for, a <code>priority</code> and an assigned <code>robot_id</code>, and with two transitions: <code>assign</code>, which moves a pending task into transit with a robot, and <code>release</code>, which returns an in-transit task to pending and clears its robot.</p>
+<p>The model for this requirement is not a single task. Every operation in Step 3, and the one-active-task-per-robot rule from Step 2, is about the set of tasks and who holds them. The task itself still matters, so we start there. This is the <code>Delivery_Task</code> entity from <a class="xref" href="part_II_7.html" title="Chapter 7: Entities — The Things That Exist">Chapter 7</a>, extended with the fields Step 4 asks for, a <code>priority</code> and an <code>assigned_robot_id</code>, and with two transitions: <code>assign</code>, which moves a pending or failed task into transit with a robot, and <code>mark_failed</code>, which moves an in-transit task to <code>FAILED</code> and clears its robot. A failed task is not lost; it is waiting to be assigned again.</p>
 <pre class="nex"><code>class Delivery_Task
 feature
   task_id: String
@@ -79,28 +79,28 @@ feature
   destination: String
   priority: Integer
   status: String
-  robot_id: String
+  assigned_robot_id: String
 
   assign(robot_id: String)
   require
     robot_given: robot_id /= ""
-    assignable: status = "PENDING"
+    assignable: status = "PENDING" or status = "FAILED"
   do
-    this.robot_id := robot_id
+    assigned_robot_id := robot_id
     status := "IN_TRANSIT"
   ensure
     in_transit: status = "IN_TRANSIT"
-                and this.robot_id = robot_id
+                and assigned_robot_id = robot_id
   end
 
-  release
+  mark_failed
   require
     in_transit: status = "IN_TRANSIT"
   do
-    robot_id := ""
-    status := "PENDING"
+    assigned_robot_id := ""
+    status := "FAILED"
   ensure
-    pending_again: status = "PENDING" and robot_id = ""
+    failed: status = "FAILED" and assigned_robot_id = ""
   end
 
 create
@@ -111,7 +111,7 @@ create
     this.destination := destination
     this.priority := priority
     status := "PENDING"
-    robot_id := ""
+    assigned_robot_id := ""
   end
 invariant
   id_present: task_id /= ""
@@ -122,24 +122,24 @@ invariant
     status = "PENDING" or status = "IN_TRANSIT"
     or status = "DELIVERED" or status = "FAILED"
   in_transit_has_robot:
-    status /= "IN_TRANSIT" or robot_id /= ""
+    status /= "IN_TRANSIT" or assigned_robot_id /= ""
 end</code></pre>
 <p>The set of tasks needs an owner, and that owner is where the operational queries live. The sketch below calls it a <code>Dispatch_Board</code>.</p>
 <pre class="nex"><code>class Dispatch_Board
 feature
-  pending: Array[Delivery_Task]
+  available: Array[Delivery_Task]
   active: Map[String, Delivery_Task]   -- robot_id -&gt; its active task
 
   is_busy(robot_id: String): Boolean do
     result := active.contains_key(robot_id)
   end
 
-  next_pending: Delivery_Task
+  next_available: Delivery_Task
   require
-    work_available: not pending.is_empty
+    work_available: not available.is_empty
   do
-    result := pending.get(0)
-    across pending as t do
+    result := available.get(0)
+    across available as t do
       if t.priority &gt; result.priority then result := t end
     end
   end
@@ -148,16 +148,16 @@ feature
   require
     new_work: t.status = "PENDING"
   do
-    pending.add(t)
+    available.add(t)
   end
 
   dispatch(robot_id: String)
   require
     robot_free: not is_busy(robot_id)
-    work_available: not pending.is_empty
+    work_available: not available.is_empty
   do
-    let t := next_pending
-    pending.remove(pending.index_of(t))
+    let t := next_available
+    available.remove(available.index_of(t))
     t.assign(robot_id)
     active.put(robot_id, t)
   ensure
@@ -170,8 +170,8 @@ feature
   do
     let t := active.get(robot_id)
     active.remove(robot_id)
-    t.release
-    pending.add(t)
+    t.mark_failed
+    available.add(t)
   ensure
     robot_cleared: not is_busy(robot_id)
   end
@@ -179,21 +179,23 @@ feature
   index_consistent: Boolean do
     result := true
     across active as e do
-      if e.value.robot_id /= e.key then result := false end
+      if e.value.assigned_robot_id /= e.key then
+        result := false
+      end
     end
   end
 
 create
   make do
-    pending := []
+    available := []
     active := {}
   end
 invariant
   index_consistent: index_consistent
 end</code></pre>
-<p>This sketch is worth reading against the six steps above. Each query from Step 3 is a feature of the board: <code>is_busy</code> finds whether a robot holds an active task, <code>next_pending</code> finds the highest-priority task available for assignment, and <code>robot_failed</code> takes a failed robot’s task back and makes it available again. Step 4 shows up in the choice of structure. Keying <code>active</code> by robot identifier turns “find the active task for this robot” into a lookup rather than a scan, and because a map key holds exactly one value, the one-active-task-per-robot cardinality is enforced by the structure itself. Step 5 is split between two places: the task’s own invariant guarantees that a task in transit has a robot, while the board’s preconditions guarantee that a busy robot cannot be dispatched again and that only a robot actually holding a task can be reported as failed.</p>
-<p>The sketch also makes one tradeoff from the previous section visible. The robot assignment is stored twice, once as the task’s <code>robot_id</code> and once as the key in <code>active</code>. That duplication is what makes the read path cheap; <code>index_consistent</code> is what it costs, an invariant that exists only to keep the two copies in agreement.</p>
-<p>What the sketch does not address is the storage backend or how <code>next_pending</code> is computed at scale. The linear scan is correct, and replacing it with a priority queue later changes the implementation without changing the model. The same holds for Step 6: when cooperative delivery arrives, <code>active</code> can map a task to several robots without disturbing the operations built on it. The model’s job is to define what is true; the implementation’s job is to enforce and compute it efficiently.</p>
+<p>This sketch is worth reading against the six steps above. Each query from Step 3 is a feature of the board: <code>is_busy</code> finds whether a robot holds an active task, <code>next_available</code> finds the highest-priority task waiting for a robot, whether new or failed, and <code>robot_failed</code> takes a failed robot’s task back, marks it failed, and makes it available for reassignment. Step 4 shows up in the choice of structure. Keying <code>active</code> by robot identifier turns “find the active task for this robot” into a lookup rather than a scan, and because a map key holds exactly one value, the one-active-task-per-robot cardinality is enforced by the structure itself. Step 5 is split between two places: the task’s own invariant guarantees that a task in transit has a robot, while the board’s preconditions guarantee that a busy robot cannot be dispatched again and that only a robot actually holding a task can be reported as failed.</p>
+<p>The sketch also makes one tradeoff from the previous section visible. The robot assignment is stored twice, once as the task’s <code>assigned_robot_id</code> and once as the key in <code>active</code>. That duplication is what makes the read path cheap; <code>index_consistent</code> is what it costs, an invariant that exists only to keep the two copies in agreement.</p>
+<p>What the sketch does not address is the storage backend or how <code>next_available</code> is computed at scale. The linear scan is correct, and replacing it with a priority queue later changes the implementation without changing the model. The same holds for Step 6: when cooperative delivery arrives, <code>active</code> can map a task to several robots without disturbing the operations built on it. The model’s job is to define what is true; the implementation’s job is to enforce and compute it efficiently.</p>
 </section>
 <section class="level2" data-number="10.6" id="where-data-model-design-fails">
 <h2 class="anchored" data-anchor-id="where-data-model-design-fails" data-number="10.6"> Where Data Model Design Fails</h2>
