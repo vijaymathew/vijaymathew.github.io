@@ -62,7 +62,7 @@
 </blockquote>
 <p>This sentence is a starting point, not a specification. “Best” is undefined. “Quickly” is unmeasured. Before any algorithm can be chosen, several prior questions must be answered.</p>
 <p><strong>Step 1: Define valid input.</strong> The start and destination identifiers must refer to locations that exist in the map. The map itself must be internally consistent — no edges referencing locations absent from the node set. An algorithm given malformed input is not obligated to produce meaningful output, but the boundary between valid and invalid input must be stated explicitly, before the algorithm is written.</p>
-<p><strong>Step 2: Define the output contract.</strong> There are three possible outcomes, and each must be represented distinctly. An algorithm that returns an empty list for both “no path found” and “input was invalid” forces the caller to guess which situation applies. The output contract should be: <code>FOUND(path)</code> where every edge in the path is traversable, <code>UNREACHABLE</code> when the destination cannot be reached from the start, and <code>INVALID_INPUT</code> when the inputs do not satisfy the preconditions.</p>
+<p><strong>Step 2: Define the output contract.</strong> There are three possible outcomes, and each must be represented distinctly. An algorithm that returns an empty list for both “no path found” and “input was invalid” forces the caller to guess which situation applies. The output contract should be: <code>FOUND(path)</code> where every edge in the path is traversable, <code>UNREACHABLE</code> when the destination cannot be reached from the start, and <code>INVALID_INPUT</code> when the start or destination does not name a location in the map.</p>
 <p><strong>Step 3: Define the objective explicitly.</strong> For this version of the system, “best” means fewest hops. This is a decision, and it should be recorded as one. A later version might define “best” as minimum travel time or maximum reliability. Those are different objectives requiring different algorithms. The current objective is fewest hops, and the algorithm will be chosen to match it — not the other way around.</p>
 <p><strong>Step 4: Choose an algorithm that matches the objective.</strong> Fewest hops on an unweighted graph is exactly what breadth-first search computes. The match between objective and algorithm is not incidental — it is the reason BFS is the right choice here and would be the wrong choice if the objective were minimum weighted cost.</p>
 <p><strong>Step 5: Declare failure semantics.</strong> Unknown nodes produce <code>INVALID_INPUT</code>. A graph in which no path connects start to destination produces <code>UNREACHABLE</code>. These cases are handled intentionally. The algorithm does not fall through to undefined behavior when they occur.</p>
@@ -84,16 +84,26 @@ invariant
     status = "FOUND" or
     status = "UNREACHABLE" or
     status = "INVALID_INPUT"
+  path_only_when_found:
+    (status = "FOUND") = (path /= "")
 end
 
 class Route_Algorithm
 feature
+  is_known(loc: String): Boolean do
+    result := loc = "A" or loc = "B" 
+              or loc = "C" or loc = "D"
+  end
+
   compute(start_loc, dest_loc: String): Route_Result
   require
     inputs_present: start_loc /= "" 
                     and dest_loc /= ""
   do
-    if start_loc = dest_loc then
+    if not is_known(start_loc) 
+       or not is_known(dest_loc) then
+      result := create Route_Result.make("INVALID_INPUT", "")
+    elseif start_loc = dest_loc then
       result := create Route_Result.make("FOUND", start_loc)
     elseif start_loc = "A" and dest_loc = "C" then
       result := create Route_Result.make("FOUND", "A-&gt;B-&gt;C")
@@ -108,7 +118,7 @@ feature
   end
 end</code></pre>
 <p>This sketch is deliberately minimal — the hardcoded paths are a placeholder for a graph traversal that is not yet the point. What deserves attention is the structure surrounding the algorithm rather than its interior.</p>
-<p><code>Route_Result</code> carries an invariant that makes it impossible to construct a result with an undeclared status. The <code>compute</code> operation has a precondition that rejects empty inputs before any traversal begins. Its postcondition guarantees that whatever the interior of the algorithm does, the returned status will always be one of the three declared values. The contract is enforced at the boundary, independently of the implementation — which means it will continue to hold when the hardcoded cases are replaced by a real graph traversal, and will continue to hold again when that traversal is later replaced by a faster one.</p>
+<p><code>Route_Result</code> carries invariants that make it impossible to construct a result with an undeclared status, or a <code>FOUND</code> result without a path. The <code>compute</code> operation has a precondition that rejects empty inputs before any traversal begins, and it answers identifiers that are present but unknown with <code>INVALID_INPUT</code> rather than treating them as unreachable. Its postcondition guarantees that whatever the interior of the algorithm does, the returned status will always be one of the three declared values. The contract is enforced at the boundary, independently of the implementation — which means it will continue to hold when the hardcoded cases are replaced by a real graph traversal, and will continue to hold again when that traversal is later replaced by a faster one.</p>
 <p>This is the pattern: specify the contract first, implement the interior second, verify that the contract holds regardless of what the interior does.</p>
 </section>
 <section class="level2" data-number="12.5" id="where-algorithm-design-goes-wrong">

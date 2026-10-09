@@ -96,58 +96,32 @@ feature
 invariant
   index_valid: index &gt;= -1
   steps_non_negative: steps &gt;= 0
+  found_matches_index: found = (index &gt;= 0)
 end</code></pre>
 </section>
 <section class="level3" id="linear-search-with-step-counter">
 <h3 class="anchored" data-anchor-id="linear-search-with-step-counter">Linear Search With Step Counter</h3>
 <pre class="nex"><code>class Linear_Search_Algo
 feature
-  find(a1, a2, a3, a4, a5, a6, a7, a8, 
-       target: Integer): Search_Result
+  find(items: Array[Integer], target: Integer): Search_Result
   do
-    let found: Boolean := false
     let idx: Integer := -1
-    let steps: Integer := 1
-    if a1 = target then
-      found := true
-      idx := 0
-    elseif a2 = target then
-      steps := 2
-      found := true
-      idx := 1
-    elseif a3 = target then
-      steps := 3
-      found := true
-      idx := 2
-    elseif a4 = target then
-      steps := 4
-      found := true
-      idx := 3
-    elseif a5 = target then
-      steps := 5
-      found := true
-      idx := 4
-    elseif a6 = target then
-      steps := 6
-      found := true
-      idx := 5
-    elseif a7 = target then
-      steps := 7
-      found := true
-      idx := 6
-    elseif a8 = target then
-      steps := 8
-      found := true
-      idx := 7
-    else
-      steps := 9
+    let steps: Integer := 0
+    from let i := 0 
+    until i &gt;= items.length or idx &gt;= 0 do
+      steps := steps + 1
+      if items.get(i) = target then
+        idx := i
+      end
+      i := i + 1
     end
-
-    result := create Search_Result.make(found, idx, steps)
+    result := create Search_Result.make(idx &gt;= 0, idx, steps)
   ensure
-    steps_recorded: result.steps &gt;= 1
-    valid_index: result.index &gt;= -1 
-                 and result.index &lt;= 7
+    hit_is_correct: not result.found 
+                    or items.get(result.index) = target
+    bounded_steps: result.steps &lt;= items.length
+    miss_checks_every_item: result.found 
+                            or result.steps = items.length
   end
 end</code></pre>
 </section>
@@ -155,55 +129,53 @@ end</code></pre>
 <h3 class="anchored" data-anchor-id="binary-search-with-step-counter">Binary Search With Step Counter</h3>
 <pre class="nex"><code>class Binary_Search_Algo
 feature
-  find(a1, a2, a3, a4, a5, a6, a7, a8, target: Integer): Search_Result
+  is_sorted(items: Array[Integer]): Boolean do
+    result := true
+    from let i := 1 until i &gt;= items.length do
+      if items.get(i - 1) &gt; items.get(i) then
+        result := false
+      end
+      i := i + 1
+    end
+  end
+
+  -- How many times n can be halved before nothing is left:
+  -- the most probes a binary search over n items needs.
+  max_probes(n: Integer): Integer do
+    result := 0
+    from let k := n until k = 0 do
+      result := result + 1
+      k := k / 2
+    end
+  end
+
+  find(items: Array[Integer], target: Integer): Search_Result
   require
-    sorted_input:
-    a1 &lt;= a2 and a2 &lt;= a3 and a3 &lt;= a4 and
-    a4 &lt;= a5 and a5 &lt;= a6 and a6 &lt;= a7 
-      and a7 &lt;= a8
+    sorted_input: is_sorted(items)
   do
-  if a4 = target then
-  result := create Search_Result.make(true, 3, 1)
-  elseif target &lt; a4 then
-  if a2 = target then
-  result := create Search_Result.make(true, 1, 2)
-  elseif target &lt; a2 then
-  if a1 = target then
-  result := create Search_Result.make(true, 0, 3)
-  else
-  result := create Search_Result.make(false, -1, 3)
+    let lo: Integer := 0
+    let hi: Integer := items.length - 1
+    let idx: Integer := -1
+    let steps: Integer := 0
+    from until lo &gt; hi or idx &gt;= 0 do
+      let mid: Integer := (lo + hi) / 2
+      steps := steps + 1
+      if items.get(mid) = target then
+        idx := mid
+      elseif items.get(mid) &lt; target then
+        lo := mid + 1
+      else
+        hi := mid - 1
+      end
+    end
+    result := create Search_Result.make(idx &gt;= 0, idx, steps)
+  ensure
+    hit_is_correct: not result.found 
+                    or items.get(result.index) = target
+    logarithmic_steps: 
+      result.steps &lt;= max_probes(items.length)
   end
-  else
-  if a3 = target then
-  result := create Search_Result.make(true, 2, 3)
-  else
-  result := create Search_Result.make(false, -1, 3)
-  end
-  end
-  else
-  if a6 = target then
-  result := create Search_Result.make(true, 5, 2)
-  elseif target &lt; a6 then
-  if a5 = target then
-  result := create Search_Result.make(true, 4, 3)
-  else
-  result := create Search_Result.make(false, -1, 3)
-  end
-  else
-  if a7 = target then
-  result := create Search_Result.make(true, 6, 3)
-  elseif target &gt; a7 and a8 = target then
-  result := create Search_Result.make(true, 7, 4)
-  elseif target &gt; a7 then
-  result := create Search_Result.make(false, -1, 4)
-  else
-  result := create Search_Result.make(false, -1, 3)
-  end
-  end
-  end
-  end
-end
-</code></pre>
+end</code></pre>
 </section>
 <section class="level3" id="driver-compare-behaviors">
 <h3 class="anchored" data-anchor-id="driver-compare-behaviors">Driver: Compare Behaviors</h3>
@@ -214,17 +186,12 @@ feature
      := create Linear_Search_Algo
     let bin: Binary_Search_Algo 
      := create Binary_Search_Algo
-
-    let l_hit: Search_Result 
-     := lin.find(3, 7, 10, 14, 19, 21, 25, 30, 30)
-    let b_hit: Search_Result 
-     := bin.find(3, 7, 10, 14, 19, 21, 25, 30, 30)
-
-    let l_miss: Search_Result 
-     := lin.find(3, 7, 10, 14, 19, 21, 25, 30, 11)
-    let b_miss: Search_Result 
-     := bin.find(3, 7, 10, 14, 19, 21, 25, 30, 11)
-
+    let items: Array[Integer] 
+     := [3, 7, 10, 14, 19, 21, 25, 30]
+    let l_hit: Search_Result := lin.find(items, 30)
+    let b_hit: Search_Result := bin.find(items, 30)
+    let l_miss: Search_Result := lin.find(items, 11)
+    let b_miss: Search_Result := bin.find(items, 11)
     print("Linear hit steps: " + l_hit.steps)
     print("Binary hit steps: " + b_hit.steps)
     print("Linear miss steps: " + l_miss.steps)

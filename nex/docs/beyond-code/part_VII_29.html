@@ -55,7 +55,7 @@
 <p>The word “valid” is not self-defining. A valid route is a connected sequence of traversable edges from the start to the destination. The contract from <a class="xref" href="part_VII_27.html">Preconditions and Postconditions</a> made this precise: status is <code>FOUND</code>, <code>UNREACHABLE</code>, or <code>INVALID_INPUT</code>; a <code>FOUND</code> result’s path uses only existing edges; the path’s first node is the start and last node is the destination. The test portfolio explores whether the implementation satisfies this contract.</p>
 <p><strong>Nominal case.</strong> Start is <code>A</code>, destination is <code>C</code>, a path exists: <code>A→B→C</code>. Expected status: <code>FOUND</code>. Expected path: <code>"A-&gt;B-&gt;C"</code>. This is the case the routine was primarily designed for.</p>
 <p><strong>Trivial boundary.</strong> Start equals destination. Expected status: <code>FOUND</code>. Expected path: the start location alone. This is the smallest possible “found” case — a route of length zero.</p>
-<p><strong>Unknown inputs.</strong> Start is <code>"X"</code>, destination is <code>"Z"</code>, neither exists in the graph. Expected status: <code>INVALID_INPUT</code>. This tests the precondition boundary: what happens when the inputs do not satisfy the precondition.</p>
+<p><strong>Unknown inputs.</strong> Start is <code>"X"</code>, destination is <code>"Z"</code>, neither exists in the graph. Expected status: <code>INVALID_INPUT</code>. This tests the input-validation boundary: what happens when the identifiers are well-formed but name no location in the graph.</p>
 <p><strong>Disconnected graph.</strong> Start and destination both exist but are not connected. Expected status: <code>UNREACHABLE</code>. This tests the second failure mode.</p>
 <p><strong>Property check.</strong> For any input where the returned status is <code>FOUND</code>, the path must be non-empty and the first node must be the start location. This property should hold for every <code>FOUND</code> result, not just for specific inputs.</p>
 <p>Together, these five tests cover the three declared statuses, the boundaries between them, and a property that should hold globally. No single test could discover all the defects this portfolio can discover.</p>
@@ -64,11 +64,19 @@
 <h2 class="anchored" data-anchor-id="a-test-suite-in-code" data-number="30.4"> A Test Suite in Code</h2>
 <pre class="nex"><code>class Route_Planner
 feature
+  is_known(loc: String): Boolean do
+    result := loc = "A" or loc = "B" 
+              or loc = "C" or loc = "D"
+  end
+
   plan(start_loc, end_loc: String): String
   require
     inputs_present: start_loc /= "" and end_loc /= ""
   do
-    if start_loc = end_loc then
+    if not is_known(start_loc) 
+       or not is_known(end_loc) then
+      result := "INVALID_INPUT"
+    elseif start_loc = end_loc then
       result := start_loc
     elseif start_loc = "A" and end_loc = "C" then
       result := "A-&gt;B-&gt;C"
@@ -88,8 +96,10 @@ feature
     let t1: String := p.plan("A", "C")
     let t2: String := p.plan("C", "C")
     let t3: String := p.plan("X", "Z")
+    let t4: String := p.plan("A", "D")
     if t1 = "A-&gt;B-&gt;C" and t2 = "C" 
-       and t3 = "UNREACHABLE" then
+       and t3 = "INVALID_INPUT" 
+       and t4 = "UNREACHABLE" then
       result := "PASS"
     else
       result := "FAIL"
@@ -98,8 +108,8 @@ feature
     known_result: result = "PASS" or result = "FAIL"
   end
 end</code></pre>
-<p><code>Route_Planner_Tests.run_all</code> is minimal but candid about what it does: it calls the routine with three inputs and compares each result to a specific expected value. The oracle for each test is a specific expected string — <code>"A-&gt;B-&gt;C"</code>, <code>"C"</code>, <code>"UNREACHABLE"</code> — derived from the contract rather than from running the implementation.</p>
-<p>What this sketch does not show — and what a full test suite for a production route planner would require — is coverage of the <code>INVALID_INPUT</code> case and the property-based check that <code>FOUND</code> results always have non-empty paths. The three tests here provide evidence for the nominal case and two boundary cases. They do not provide evidence that the contract holds generally. A portfolio that adds the property check and the invalid-input case approaches the coverage that the contract’s three-outcome structure warrants.</p>
+<p><code>Route_Planner_Tests.run_all</code> is minimal but candid about what it does: it calls the routine with four inputs and compares each result to a specific expected value. The oracle for each test is a specific expected string — <code>"A-&gt;B-&gt;C"</code>, <code>"C"</code>, <code>"INVALID_INPUT"</code>, <code>"UNREACHABLE"</code> — derived from the contract rather than from running the implementation.</p>
+<p>What this sketch does not show — and what a full test suite for a production route planner would require — is the property-based check that <code>FOUND</code> results always have non-empty paths that begin at the start location. The four tests here provide evidence for the nominal case, the same-node boundary, and both failure statuses. They do not provide evidence that the contract holds generally. A portfolio that adds the property check approaches the coverage that the contract’s three-outcome structure warrants.</p>
 <p>The postcondition on <code>run_all</code> — <code>result = "PASS" or result = "FAIL"</code> — is the test framework’s own contract: the test runner always returns a declared outcome, never an undefined one. This matters because a test runner that crashes or returns an undeclared value on a test failure provides weaker evidence than one whose own behavior is defined.</p>
 </section>
 <section class="level2" data-number="30.5" id="testing-for-determinism-and-legal-transitions">

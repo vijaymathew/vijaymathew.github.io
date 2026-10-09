@@ -104,44 +104,47 @@ end</code></pre>
 <pre class="nex"><code>class Graph_Fixture
 create
   make_default() do
-    a_b := true
-    a_c := true
-    b_d := true
-    d_e := true
-    e_g := true
-    c_f := true
-    f_g := true
+    -- Teaching-sized directed graph. Neighbor order is
+    -- fixed, so both searches are deterministic.
+    edges := {
+      "A": ["B", "C"],
+      "B": ["D"],
+      "C": ["F"],
+      "D": ["E"],
+      "E": ["G"],
+      "F": ["G"],
+      "G": []
+    }
   ensure
-    initialized:
-      a_b and a_c and b_d and d_e and e_g and c_f and f_g
+    short_branch_open: has_edge("C", "F")
   end
 feature
-  -- Teaching-sized directed edges.
-  a_b: Boolean
-  a_c: Boolean
-  b_d: Boolean
-  d_e: Boolean
-  e_g: Boolean
-  c_f: Boolean
-  f_g: Boolean
+  edges: Map[String, Array[String]]
 
-  setup_default() do
-    a_b := true
-    a_c := true
-    b_d := true
-    d_e := true
-    e_g := true
-    c_f := true
-    f_g := true
-  ensure
-    initialized:
-      a_b and a_c and b_d and d_e and e_g and c_f and f_g
+  has_edge(from_node, to_node: String): Boolean do
+    result := edges.contains_key(from_node)
+              and edges.get(from_node).contains(to_node)
   end
 
   disable_short_branch() do
-    c_f := false
+    let out := edges.get("C")
+    if out.contains("F") then
+      out.remove(out.index_of("F"))
+    end
   ensure
-    disabled: not c_f
+    disabled: not has_edge("C", "F")
+  end
+
+  -- Rebuild the path to goal from the node each 
+  -- node was first reached from.
+  trace(came_from: Map[String, String], 
+        goal: String): String do
+    result := goal
+    from let prev := came_from.get(goal) 
+    until prev = "" do
+      result := prev + "-&gt;" + result
+      prev := came_from.get(prev)
+    end
   end
 end</code></pre>
 </section>
@@ -149,39 +152,48 @@ end</code></pre>
 <h3 class="anchored" data-anchor-id="dfs-style-competitor">DFS-Style Competitor</h3>
 <pre class="nex"><code>class DFS_Competitor
 feature
+  steps: Integer
+  came_from: Map[String, String]
+
   run(g: Graph_Fixture): Path_Run_Result
   do
-    -- Deterministic branch preference: A-&gt;B before A-&gt;C.
-    let steps: Integer := 1
-    if g.a_b and g.b_d and g.d_e and g.e_g then
+    steps := 0
+    came_from := {}
+    came_from.put("A", "")
+    if visit(g, "A", "G") then
+      let path := g.trace(came_from, "G")
       result := create Path_Run_Result.make(
-        "DFS",
-        "FOUND",
-        "A-&gt;B-&gt;D-&gt;E-&gt;G",
-        4,
-        steps
-      )
-    elseif g.a_c and g.c_f and g.f_g then
-      result := create Path_Run_Result.make(
-        "DFS",
-        "FOUND",
-        "A-&gt;C-&gt;F-&gt;G",
-        3,
-        steps
+        "DFS", "FOUND", path, 
+        path.split("-&gt;").length - 1, steps
       )
     else
       result := create Path_Run_Result.make(
-        "DFS",
-        "UNREACHABLE",
-        "",
-        0,
-        steps
+        "DFS", "UNREACHABLE", "", 0, steps
       )
     end
   ensure
     known_status:
       result.status = "FOUND" or
       result.status = "UNREACHABLE"
+  end
+
+  -- Go as deep as possible along the first unvisited
+  -- neighbor before trying the next one.
+  visit(g: Graph_Fixture, node, goal: String): Boolean
+  do
+    steps := steps + 1
+    if node = goal then
+      result := true
+    else
+      result := false
+      across g.edges.get(node) as next do
+        if not result 
+           and not came_from.contains_key(next) then
+          came_from.put(next, node)
+          result := visit(g, next, goal)
+        end
+      end
+    end
   end
 end</code></pre>
 </section>
@@ -191,31 +203,34 @@ end</code></pre>
 feature
   run(g: Graph_Fixture): Path_Run_Result
   do
-    -- Layer-aware logic returns minimum-hop route if available.
-    let steps: Integer := 1
-    if g.a_c and g.c_f and g.f_g then
+    -- Expand nodes in the order they were discovered,
+    -- so every node one hop out is expanded before any
+    -- node two hops out.
+    let steps: Integer := 0
+    let came_from: Map[String, String] := {}
+    came_from.put("A", "")
+    let frontier: Array[String] := ["A"]
+    from let i := 0
+    until i &gt;= frontier.length 
+          or came_from.contains_key("G") do
+      steps := steps + 1
+      across g.edges.get(frontier.get(i)) as next do
+        if not came_from.contains_key(next) then
+          came_from.put(next, frontier.get(i))
+          frontier.add(next)
+        end
+      end
+      i := i + 1
+    end
+    if came_from.contains_key("G") then
+      let path := g.trace(came_from, "G")
       result := create Path_Run_Result.make(
-        "BFS",
-        "FOUND",
-        "A-&gt;C-&gt;F-&gt;G",
-        3,
-        steps
-      )
-    elseif g.a_b and g.b_d and g.d_e and g.e_g then
-      result := create Path_Run_Result.make(
-        "BFS",
-        "FOUND",
-        "A-&gt;B-&gt;D-&gt;E-&gt;G",
-        4,
-        steps
+        "BFS", "FOUND", path, 
+        path.split("-&gt;").length - 1, steps
       )
     else
       result := create Path_Run_Result.make(
-        "BFS",
-        "UNREACHABLE",
-        "",
-        0,
-        steps
+        "BFS", "UNREACHABLE", "", 0, steps
       )
     end
   ensure
@@ -241,12 +256,14 @@ feature
     print(
       "DFS: " + r_dfs.status +
       " " + r_dfs.path +
-      " hops=" + r_dfs.hops
+      " hops=" + r_dfs.hops +
+      " steps=" + r_dfs.steps
     )
     print(
       "BFS: " + r_bfs.status +
       " " + r_bfs.path +
-      " hops=" + r_bfs.hops
+      " hops=" + r_bfs.hops +
+      " steps=" + r_bfs.steps
     )
 
     -- Adverse scenario: disable shorter branch.
@@ -257,12 +274,14 @@ feature
     print(
       "DFS adverse: " + r_dfs_2.status +
       " " + r_dfs_2.path +
-      " hops=" + r_dfs_2.hops
+      " hops=" + r_dfs_2.hops +
+      " steps=" + r_dfs_2.steps
     )
     print(
       "BFS adverse: " + r_bfs_2.status +
       " " + r_bfs_2.path +
-      " hops=" + r_bfs_2.hops
+      " hops=" + r_bfs_2.hops +
+      " steps=" + r_bfs_2.steps
     )
   end
 end</code></pre>

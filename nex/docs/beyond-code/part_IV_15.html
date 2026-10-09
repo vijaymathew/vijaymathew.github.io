@@ -54,17 +54,17 @@
 </section>
 <section class="level2" data-number="16.4" id="a-sequence-in-code">
 <h2 class="anchored" data-anchor-id="a-sequence-in-code" data-number="16.4"> A Sequence in Code</h2>
-<pre class="nex"><code>class Task
+<pre class="nex"><code>class Delivery_Task
 create
-  make(id: String, status: String) do
-    this.id := id
+  make(task_id, status: String) do
+    this.task_id := task_id
     this.status := status
   end
 feature
-  id: String
+  task_id: String
   status: String
 invariant
-  id_present: id /= ""
+  id_present: task_id /= ""
   valid_status:
     status = "PENDING" or
     status = "IN_TRANSIT" or
@@ -74,28 +74,31 @@ end
 
 class Task_Sequence
 create
-  make(t1: Task, t2: Task, t3: Task) do
-    this.t1 := t1
-    this.t2 := t2
-    this.t3 := t3
+  make do
+    tasks := []
   end
 feature
-  t1: Task
-  t2: Task
-  t3: Task
+  tasks: Array[Delivery_Task]
+
+  append(t: Delivery_Task)
+  do
+    tasks.add(t)
+  ensure
+    one_more: tasks.length = old tasks.length + 1
+    at_the_end: tasks.get(tasks.length - 1) = t
+  end
 
   find_by_id(task_id: String): String
   require
     id_present: task_id /= ""
   do
-    if t1.id = task_id then
-      result := t1.status
-    elseif t2.id = task_id then
-      result := t2.status
-    elseif t3.id = task_id then
-      result := t3.status
-    else
-      result := "NOT_FOUND"
+    result := "NOT_FOUND"
+    from let i := 0
+    until i &gt;= tasks.length or result /= "NOT_FOUND" do
+      if tasks.get(i).task_id = task_id then
+        result := tasks.get(i).status
+      end
+      i := i + 1
     end
   ensure
     declared_result:
@@ -108,13 +111,19 @@ feature
 
   ordered_ids(): String
   do
-    result := t1.id + " -&gt; " + t2.id 
-              + " -&gt; " + t3.id
+    result := ""
+    across tasks as t do
+      if result /= "" then
+        result := result + " -&gt; "
+      end
+      result := result + t.task_id
+    end
   ensure
-    non_empty: result /= ""
+    empty_only_when_no_tasks: 
+      (result = "") = tasks.is_empty
   end
 end</code></pre>
-<p><code>Task_Sequence</code> is a fixed-size sequence of three tasks — intentionally minimal, but structurally clear about what a list provides. <code>ordered_ids</code> reflects the list’s natural strength: it returns the elements in their defined order, and the cost of doing so is simply the cost of visiting each element once. <code>find_by_id</code> reflects the list’s natural weakness: it examines each task in turn until it finds a match or exhausts the sequence. For three tasks, this is trivial. For three thousand, the same structure and the same operation would examine up to three thousand tasks per lookup.</p>
+<p><code>Task_Sequence</code> wraps an array of tasks, kept in the order they were appended — intentionally minimal, but structurally clear about what a list provides. <code>append</code> states the list’s defining promise in its postcondition: the sequence grows by one, and the new task is at the end. <code>ordered_ids</code> reflects the list’s natural strength: it returns the elements in their defined order, and the cost of doing so is simply the cost of visiting each element once. <code>find_by_id</code> reflects the list’s natural weakness: it examines each task in turn until it finds a match or exhausts the sequence. For three tasks, this is trivial. For three thousand, the same operation examines up to three thousand tasks per lookup, and nothing in the structure offers a shortcut.</p>
 <p>The postcondition on <code>find_by_id</code> matters. It guarantees that the result is always one of five declared values — the four valid status strings or <code>NOT_FOUND</code> — and never an undefined or ambiguous return. This is the contract that makes <code>find_by_id</code> composable: callers can depend on the declared output without inspecting the implementation. When the implementation is later replaced by one that uses an index, the contract remains the same, and callers need not change.</p>
 </section>
 <section class="level2" data-number="16.5" id="when-order-is-a-correctness-requirement">

@@ -77,42 +77,89 @@ feature
   path: String
   total_cost: Integer
 invariant
-  status_present: status /= ""
+  valid_status: status = "FOUND" or status = "UNREACHABLE"
+  path_only_when_found: (status = "FOUND") = (path /= "")
   non_negative_cost: total_cost &gt;= 0
 end
 
-class Best_Path_Example
+class Best_Path
 feature
-  a_b: Integer
-  b_d: Integer
-  a_c: Integer
-  c_d: Integer
-  a_d: Integer
+  -- from -&gt; (to -&gt; edge cost)
+  costs: Map[String, Map[String, Integer]]
 
-  best_a_to_d(): Path_Result
+  all_costs_non_negative: Boolean do
+    result := true
+    across costs as row do
+      across row.value as edge do
+        if edge.value &lt; 0 then result := false end
+      end
+    end
+  end
+
+  best(start, goal: String): Path_Result
   require
-    non_negative_costs:
-      a_b &gt;= 0 and b_d &gt;= 0 and a_c &gt;= 0 and c_d &gt;= 0 and a_d &gt;= 0
+    nodes_known: costs.contains_key(start) 
+                 and costs.contains_key(goal)
+    non_negative_costs: all_costs_non_negative
   do
-    let abd: Integer := a_b + b_d
-    let acd: Integer := a_c + c_d
-
-    if a_d &lt;= abd and a_d &lt;= acd then
-      result := create Path_Result.make("FOUND", "A-&gt;D", a_d)
-    elseif abd &lt;= acd then
-      result := create Path_Result.make("FOUND", "A-&gt;B-&gt;D", abd)
+    let dist: Map[String, Integer] := {}
+    let came_from: Map[String, String] := {}
+    let settled: Set[String] := #{}
+    dist.put(start, 0)
+    came_from.put(start, "")
+    let current: String := start
+    from until current = "" or current = goal do
+      settled.add(current)
+      -- Relax: keep a new route only if strictly cheaper.
+      across costs.try_get(current, {}) as edge do
+        let d: Integer := dist.get(current) + edge.value
+        if not dist.contains_key(edge.key) 
+           or d &lt; dist.get(edge.key) then
+          dist.put(edge.key, d)
+          came_from.put(edge.key, current)
+        end
+      end
+      -- Settle the cheapest unsettled node next;
+      -- equal costs settle in identifier order.
+      current := ""
+      across dist as c do
+        if not settled.contains(c.key) 
+           and (current = "" 
+                or c.value &lt; dist.get(current)
+                or (c.value = dist.get(current) 
+                    and c.key &lt; current)) then
+          current := c.key
+        end
+      end
+    end
+    if current = goal then
+      let path: String := goal
+      from let prev := came_from.get(goal) 
+      until prev = "" do
+        path := prev + "-&gt;" + path
+        prev := came_from.get(prev)
+      end
+      result := create Path_Result.make(
+        "FOUND", path, dist.get(goal))
     else
-      result := create Path_Result.make("FOUND", "A-&gt;C-&gt;D", acd)
+      result := create Path_Result.make(
+        "UNREACHABLE", "", 0)
     end
   ensure
     known_status:
       result.status = "FOUND" or
       result.status = "UNREACHABLE"
   end
+
+create
+  make(costs: Map[String, Map[String, Integer]]) do
+    this.costs := costs
+  end
 end</code></pre>
-<p>The precondition on <code>best_a_to_d</code> asserts non-negativity for all five edge costs. This is not defensive programming — it is the statement of the assumption under which the algorithm is correct. A caller that provides a negative edge cost has violated the contract, and the algorithm’s guarantees no longer hold.</p>
-<p>The body computes the costs of the three candidate paths — <code>A→D</code> directly, <code>A→B→D</code>, and <code>A→C→D</code> — and selects the minimum. The comparisons encode the priority-driven selection logic in a form suitable for a fixed three-path graph: the path with the lowest total cost is selected, with ties broken in favor of the direct path and then the first intermediate path. In a full implementation over an arbitrary graph, these comparisons would be replaced by a priority queue that maintains the frontier and a relaxation step that updates known costs as new paths are discovered. The contract would remain exactly the same.</p>
-<p><code>Path_Result</code>’s invariant <code>non_negative_cost</code> is a consequence of the precondition: if all edge costs are non-negative and path cost is the sum of edge costs, no valid path can have a negative total cost. The invariant makes this consequence explicit and checkable independently of the algorithm that produced the result.</p>
+<p>The precondition <code>non_negative_costs</code> asserts non-negativity for every edge in the graph. This is not defensive programming — it is the statement of the assumption under which the algorithm is correct. A caller that provides a negative edge cost has violated the contract, and the call is rejected before the algorithm can return an answer that only looks optimal.</p>
+<p>The body is Dijkstra’s algorithm. <code>dist</code> holds the cheapest known cost to each node discovered so far, and <code>settled</code> holds the nodes whose cost is final. Each round settles the cheapest unsettled node and relaxes its outgoing edges, recording in <code>came_from</code> the node each route arrived from. When the goal is settled its cost cannot improve, because every remaining route starts at a cost at least as high and non-negative edges can only add to it — this is where the precondition earns its place. If the unsettled nodes run out first, the goal is not reachable, and the result is <code>UNREACHABLE</code>: a declared outcome, as Step 3 requires, rather than a path with zero edges or infinite cost. The tie-break from Step 5 is declared in two places in the code. A route replaces a known one only if it is strictly cheaper, so between equal-cost routes the first one found is kept, and nodes of equal cost are settled in identifier order. The same graph always produces the same path. Finding the cheapest unsettled node by scanning <code>dist</code> makes the whole search O(V²); at scale, a priority queue replaces the scan, and the contract stays exactly the same.</p>
+<p><code>Path_Result</code>’s invariants make the declared outcomes structural. <code>non_negative_cost</code> is a consequence of the precondition: if all edge costs are non-negative and a path’s cost is the sum of its edge costs, no valid path can have a negative total. <code>path_only_when_found</code> rules out the ambiguous result Step 3 warns against — a path attached to a failure, or a success with no path. Both are checkable independently of the algorithm that produced the result.</p>
+
 </section>
 <section class="level2" data-number="23.6" id="choosing-what-an-edge-costs">
 <h2 class="anchored" data-anchor-id="choosing-what-an-edge-costs" data-number="23.6"> Choosing What an Edge Costs</h2>

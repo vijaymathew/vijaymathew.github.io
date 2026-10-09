@@ -68,10 +68,11 @@ feature
   rank(query: String, candidates: Array[String]): Array[String]
   require
     query_present: query /= ""
-    has_candidates: candidates.size &gt; 0
-  do
+    has_candidates: candidates.length &gt; 0
+  deferred
   ensure
-    results_match_input_size: result.size = candidates.size
+    results_match_input_size: 
+      result.length = candidates.length
   end
 end
 
@@ -85,8 +86,8 @@ feature
   end
 end
 
--- Variant 2: Modern (ML-based)
-class Modern_Ranking
+-- Variant 2: Experimental (ML-based)
+class Experimental_Ranking
   inherit Ranking_Strategy
 feature
   rank(query: String, candidates: Array[String]): Array[String]
@@ -111,7 +112,7 @@ feature
   do
     result := ["DOC:A", "DOC:B"]
   ensure
-    has_candidates: result.size &gt; 0
+    has_candidates: result.length &gt; 0
   end
 
   execute_search(q: String): Array[String]
@@ -121,10 +122,10 @@ feature
     let initial_docs: Array[String] := fetch_from_index(q)
     result := strategy.rank(q, initial_docs)
   ensure
-    has_candidates: result.size &gt; 0
+    has_candidates: result.length &gt; 0
   end
 end</code></pre>
-<p>The <code>deferred</code> class <code>Ranking_Strategy</code> acts as the port. The <code>Search_Service</code> depends only on this abstraction. Whether the <code>strategy</code> is an instance of <code>Legacy_Ranking</code> or <code>Modern_Ranking</code> is a configuration detail. The search logic is protected from the volatility of the ranking algorithm.</p>
+<p>The <code>deferred</code> class <code>Ranking_Strategy</code> acts as the port. The <code>Search_Service</code> depends only on this abstraction. Whether the <code>strategy</code> is an instance of <code>Legacy_Ranking</code> or <code>Experimental_Ranking</code> is a configuration detail. The search logic is protected from the volatility of the ranking algorithm.</p>
 </section>
 <section class="level2" data-number="33.5" id="choosing-the-extension-point">
 <h2 class="anchored" data-anchor-id="choosing-the-extension-point" data-number="33.5"> Choosing the Extension Point</h2>

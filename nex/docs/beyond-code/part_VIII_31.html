@@ -59,7 +59,7 @@
 </section>
 <section class="level2" data-number="32.4" id="a-layered-design-in-code">
 <h2 class="anchored" data-anchor-id="a-layered-design-in-code" data-number="32.4"> A Layered Design in Code</h2>
-<pre class="nex"><code>class Task
+<pre class="nex"><code>class Delivery_Task
 create
   make(task_id: String, tier: String, status: String) do
     this.task_id := task_id
@@ -73,17 +73,21 @@ feature
 invariant
   id_present: task_id /= ""
   valid_tier: tier = "STANDARD" or tier = "PREMIUM"
+  valid_status:
+    status = "PENDING" or status = "IN_TRANSIT"
+    or status = "DELIVERED" or status = "FAILED"
 end
 
 class Reroute_Policy
 feature
-  should_reroute(t: Task): Boolean
+  should_reroute(t: Delivery_Task): Boolean
   require
     task_present: t.task_id /= ""
   do
     result := t.tier = "PREMIUM" and t.status = "IN_TRANSIT"
   ensure
-    bool_result: result = true or result = false
+    premium_only: not result or t.tier = "PREMIUM"
+    in_transit_only: not result or t.status = "IN_TRANSIT"
   end
 end
 
@@ -95,7 +99,7 @@ create
 feature
   policy: Reroute_Policy
 
-  process_reroute(t: Task): String
+  process_reroute(t: Delivery_Task): String
   require
     task_present: t.task_id /= ""
   do
@@ -110,9 +114,9 @@ feature
       result = "NO_REROUTE"
   end
 end</code></pre>
-<p><code>Task</code> and <code>Reroute_Policy</code> belong to the domain layer and <code>Dispatch_App_Service</code> to the application layer. The sketch has no infrastructure layer at all, and that absence is intentional. The domain and application layers contain the logic that determines what the system does. The infrastructure layer, when added, contains the code that executes it. The separation is visible in what each layer imports: <code>Dispatch_App_Service</code> depends on <code>Reroute_Policy</code> and <code>Task</code>; nothing here depends on a database or a message queue.</p>
+<p><code>Delivery_Task</code> and <code>Reroute_Policy</code> belong to the domain layer and <code>Dispatch_App_Service</code> to the application layer. The sketch has no infrastructure layer at all, and that absence is intentional. The domain and application layers contain the logic that determines what the system does. The infrastructure layer, when added, contains the code that executes it. The separation is visible in what each layer imports: <code>Dispatch_App_Service</code> depends on <code>Reroute_Policy</code> and <code>Delivery_Task</code>; nothing here depends on a database or a message queue.</p>
 <p><code>Reroute_Policy.should_reroute</code> encodes the eligibility rule: a task must be <code>PREMIUM</code> tier and <code>IN_TRANSIT</code> status to qualify for rerouting. When this rule changes — when a new tier is introduced, when rerouting becomes available to <code>STANDARD</code> tasks above a certain age — this is the single location that must change. The application service <code>process_reroute</code> does not encode the rule; it calls the policy and acts on the result. A developer reading <code>process_reroute</code> can understand the workflow without understanding the policy logic, and a developer changing the policy logic can do so without reading the workflow.</p>
-<p>The invariant on <code>Task</code> — <code>valid_tier: tier = "STANDARD" or tier = "PREMIUM"</code> — is a domain constraint. It asserts that the tier field always holds one of the two declared values. When a new tier is introduced, this invariant must be updated, which forces the developer to consider every piece of code that depends on the tier field being one of the current values. The invariant is a change-impact prompt as well as a correctness check.</p>
+<p>The tier invariant on <code>Delivery_Task</code> — <code>valid_tier: tier = "STANDARD" or tier = "PREMIUM"</code> — is a domain constraint. It asserts that the tier field always holds one of the two declared values. When a new tier is introduced, this invariant must be updated, which forces the developer to consider every piece of code that depends on the tier field being one of the current values. The invariant is a change-impact prompt as well as a correctness check.</p>
 </section>
 <section class="level2" data-number="32.5" id="decisions-that-leak-between-layers">
 <h2 class="anchored" data-anchor-id="decisions-that-leak-between-layers" data-number="32.5"> Decisions That Leak Between Layers</h2>

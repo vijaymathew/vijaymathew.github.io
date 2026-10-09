@@ -76,59 +76,47 @@ end
 
 class Doc_Index
 create
-  make(
-    k1: String,
-    v1: Doc_Record,
-    k2: String,
-    v2: Doc_Record,
-    k3: String,
-    v3: Doc_Record
-  ) do
-    this.k1 := k1
-    this.v1 := v1
-    this.k2 := k2
-    this.v2 := v2
-    this.k3 := k3
-    this.v3 := v3
+  make do
+    by_id := {}
   end
 feature
-  k1: String
-  v1: Doc_Record
-  k2: String
-  v2: Doc_Record
-  k3: String
-  v3: Doc_Record
+  by_id: Map[String, Doc_Record]
+
+  add(doc: Doc_Record)
+  require
+    new_id: not by_id.contains_key(doc.doc_id)
+  do
+    by_id.put(doc.doc_id, doc)
+  ensure
+    indexed: by_id.contains_key(doc.doc_id)
+  end
 
   contains(doc_id: String): Boolean
   require
     id_present: doc_id /= ""
   do
-    result := doc_id = k1 or doc_id = k2 
-              or doc_id = k3
-  ensure
-    bool_result: result = true or result = false
+    result := by_id.contains_key(doc_id)
   end
 
   fetch_title(doc_id: String): String
   require
     id_present: doc_id /= ""
   do
-    if doc_id = k1 then
-      result := v1.title
-    elseif doc_id = k2 then
-      result := v2.title
-    elseif doc_id = k3 then
-      result := v3.title
+    if by_id.contains_key(doc_id) then
+      result := by_id.get(doc_id).title
     else
       result := "NOT_FOUND"
     end
   ensure
-    non_empty: result /= ""
+    hit_returns_title: not contains(doc_id) 
+                       or result = by_id.get(doc_id).title
+    miss_is_declared: contains(doc_id) 
+                      or result = "NOT_FOUND"
   end
 end</code></pre>
-<p><code>Doc_Index</code> is a fixed-size map with three entries — minimal, but transparent about the structure’s properties. <code>contains</code> answers a membership question: is this identifier present among the known keys? It returns a boolean, not the associated value. <code>fetch_title</code> answers a retrieval question: given this identifier, what title is associated with it? It returns the title if the key is present and <code>"NOT_FOUND"</code> if it is not.</p>
-<p>The explicit <code>"NOT_FOUND"</code> return is not defensive programming — it is part of the contract. A caller of <code>fetch_title</code> must handle the case where the key is absent. If the operation returned an empty string for both “this document has an empty title” and “this document does not exist,” the caller would have no way to distinguish the two. Declaring a distinct miss behavior as part of the output contract is what makes the operation composable without forcing the caller to inspect the implementation.</p>
-<p>The precondition on both operations — <code>doc_id /= ""</code> — rejects the empty string as a key. An empty string is not a stable, unique identifier; it is the absence of a value masquerading as one. Rejecting it at the boundary prevents a class of errors that would otherwise produce confusing behavior deep in the lookup logic.</p>
+<p><code>Doc_Index</code> wraps a map from document identifier to record — minimal, but transparent about the structure’s properties. <code>add</code> is the single write path, and its precondition refuses a second record under an identifier already in use: the silent overwrite that a non-unique key produces is rejected at the boundary instead of surfacing later as a missing document. <code>contains</code> answers a membership question: is this identifier present among the known keys? It returns a boolean, not the associated value. <code>fetch_title</code> answers a retrieval question: given this identifier, what title is associated with it? It returns the title if the key is present and <code>"NOT_FOUND"</code> if it is not, and its two postconditions state exactly that, one for the hit and one for the miss.</p>
+<p>The explicit <code>"NOT_FOUND"</code> return is not defensive programming — it is part of the contract. A caller of <code>fetch_title</code> must handle the case where the key is absent. If the operation returned an ordinary-looking value on a miss — an empty string, say — the caller could interpret it only by knowing that <code>Doc_Record</code> forbids empty titles, a fact that belongs to another class and may not stay true. Declaring a distinct miss behavior as part of the output contract is what makes the operation composable without forcing the caller to inspect the implementation.</p>
+<p>The precondition on both lookups — <code>doc_id /= ""</code> — rejects the empty string as a key. An empty string is not a stable, unique identifier; it is the absence of a value masquerading as one. Rejecting it at the boundary prevents a class of errors that would otherwise produce confusing behavior deep in the lookup logic.</p>
 </section>
 <section class="level2" data-number="17.5" id="pairing-sets-with-maps">
 <h2 class="anchored" data-anchor-id="pairing-sets-with-maps" data-number="17.5"> Pairing Sets with Maps</h2>

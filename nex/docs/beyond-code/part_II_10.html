@@ -28,7 +28,7 @@
     <h1 class="opener-title">Modeling Change</h1>
   </div>
   <div class="prose">
-<p>The models built in Chapters <a class="xref" href="part_II_7.html" title="Chapter 7: Entities — The Things That Exist">7</a> through <a class="xref" href="part_II_9.html" title="Chapter 9: Designing a Good Data Model">9</a> describe a system at rest: what exists, and what must hold. This is necessary. It is not sufficient.</p>
+<p>The models built in Chapters <a class="xref" href="part_II_7.html" title="Chapter 7: Entities — The Things That Exist">7</a> through <a class="xref" href="part_II_9.html" title="Chapter 9: Designing a Good Data Model">9</a> describe a system at rest: what exists, and what must hold. This is the necessary foundation, but that alone is not sufficient.</p>
 <p>Real systems do not rest. Robots move, tasks are reassigned, documents are updated, objects collide. The system is in constant transition between states, and the most severe bugs in any real codebase are not errors in stored data — they are errors in how data moves from one state to another. Two updates race and both succeed. One step in a multi-step operation fails after the first step has already committed. Events arrive out of order and state reflects the order of arrival rather than the order of occurrence. A partial write leaves the system in a configuration no design ever intended.</p>
 <p>If a model does not describe change — not just what states are valid, but how the system may move between them — then correctness during transitions is accidental. The system works until it encounters a transition the model never considered, at which point it fails in a way no invariant will catch.</p>
 <section class="level2" data-number="11.1" id="states-and-transitions">
@@ -60,10 +60,36 @@
 </section>
 <section class="level2" data-number="11.4" id="a-transition-model-in-code">
 <h2 class="anchored" data-anchor-id="a-transition-model-in-code" data-number="11.4"> A Transition Model in Code</h2>
-<pre class="nex"><code>class Task_Transition
+<pre class="nex"><code>class Delivery_Task
 feature
+  task_id: String
   status: String
   assigned_robot_id: String
+  failure_reason: String
+
+  start(robot_id: String)
+  require
+    robot_present: robot_id /= ""
+    must_be_pending: status = "PENDING"
+  do
+    assigned_robot_id := robot_id
+    status := "IN_TRANSIT"
+  ensure
+    started: assigned_robot_id = robot_id
+             and status = "IN_TRANSIT"
+  end
+
+  mark_failed(reason: String)
+  require
+    reason_present: reason /= ""
+    must_be_in_transit: status = "IN_TRANSIT"
+  do
+    assigned_robot_id := ""
+    failure_reason := reason
+    status := "FAILED"
+  ensure
+    failed: status = "FAILED" and failure_reason = reason
+  end
 
   reassign(new_robot_id: String)
   require
@@ -72,6 +98,7 @@ feature
                         or status = "FAILED"
   do
     assigned_robot_id := new_robot_id
+    failure_reason := ""
     status := "IN_TRANSIT"
   ensure
     reassigned: assigned_robot_id = new_robot_id 
@@ -88,14 +115,23 @@ feature
   end
     
 create
-  pending do status := "PENDING" end
-  in_transit do status := "IN_TRANSIT" end
+  pending(task_id: String) do
+    this.task_id := task_id
+    status := "PENDING"
+    assigned_robot_id := ""
+    failure_reason := ""
+  end
 invariant
+  id_present: task_id /= ""
   valid_status:
     status = "PENDING" or status = "IN_TRANSIT" 
     or status = "DELIVERED" or status = "FAILED"
+  in_transit_has_robot:
+    status /= "IN_TRANSIT" or assigned_robot_id /= ""
+  failure_explained:
+    status /= "FAILED" or failure_reason /= ""
 end</code></pre>
-<p>The structure of this sketch mirrors the four elements of a complete transition model. The invariant defines the legal states. The two operations define legal transitions. Each operation’s <code>require</code> clause defines preconditions; each <code>ensure</code> clause defines postconditions. A call to <code>reassign</code> that violates its precondition does not execute — the contract is enforced before the operation begins, not discovered after it completes.</p>
+<p>The structure of this sketch mirrors the four elements of a complete transition model. The <code>valid_status</code> invariant defines the legal states. The four operations define the legal transitions, one for each edge of the graph above: <code>start</code> for <code>PENDING → IN_TRANSIT</code>, <code>mark_delivered</code> and <code>mark_failed</code> for the two ways out of <code>IN_TRANSIT</code>, and <code>reassign</code> for the way back from <code>FAILED</code>. (<code>reassign</code> also accepts a task still marked <code>IN_TRANSIT</code>, the case from Step 2 where the robot has failed but the task has not yet been marked.) Each operation’s <code>require</code> clause defines preconditions; each <code>ensure</code> clause defines postconditions. The other two invariants rule out the half-states from Step 4: a task in transit always has a robot, and a failed task always carries the reason it failed. A call to <code>reassign</code> that violates its precondition does not execute — the contract is enforced before the operation begins, not discovered after it completes.</p>
 <p>What is absent is also significant. There is no operation <code>mark_pending</code> that moves a delivered task back to the start. The absence is not an oversight; it is a design decision made explicit by the model. A developer reading this code understands not just what is permitted but, from what is missing, what is forbidden.</p>
 </section>
 <section class="level2" data-number="11.5" id="where-change-modeling-fails">

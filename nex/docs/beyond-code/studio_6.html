@@ -233,15 +233,18 @@ class Knowledge_Evolution_Service
 create
   make(
     v1: Knowledge_Query_V1,
+    v2: Knowledge_Query_V2,
     v1_on_v2: Knowledge_Compatibility_Adapter,
     config: Rollout_Config
   ) do
     this.v1 := v1
+    this.v2 := v2
     this.v1_on_v2 := v1_on_v2
     this.config := config
   end
 feature
   v1: Knowledge_Query_V1
+  v2: Knowledge_Query_V2
   v1_on_v2: Knowledge_Compatibility_Adapter
   config: Rollout_Config
 
@@ -252,7 +255,7 @@ feature
     if config.use_v2 and not config.compatibility_mode then
       result := create Evolution_Result.make(
         "OK",
-        "DOC:K-DEEP",
+        v2.run(query, "deep"),
         "V2_NATIVE"
       )
     elseif config.use_v2 then
@@ -403,7 +406,7 @@ feature
     let ka: Knowledge_Compatibility_Adapter
       := create Knowledge_Compatibility_Adapter.make(kv2)
     let ke: Knowledge_Evolution_Service
-      := create Knowledge_Evolution_Service.make(k1, ka, cfg)
+      := create Knowledge_Evolution_Service.make(k1, kv2, ka, cfg)
 
     let kr: Evolution_Result := ke.query("contracts")
     print("Knowledge: mode=" + kr.mode + " value=" + kr.value)

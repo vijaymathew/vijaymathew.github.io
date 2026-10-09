@@ -29,7 +29,7 @@
   </div>
   <div class="prose">
 <p>Chapters <a class="xref" href="part_II_7.html" title="Chapter 7: Entities — The Things That Exist">7</a> and <a class="xref" href="part_II_8.html" title="Chapter 8: Relationships — How Things Connect">8</a> gave us the two building blocks of a model: entities, which carry identity and state, and relationships, which encode the structure between them. A data model is what these pieces become when assembled into a coherent design — one that must hold together not just on paper, but under the pressure of real queries and real change.</p>
-<p>The goal is not the most abstract model or the most general one. It is the model that keeps the system correct, understandable, and evolvable as usage evolves. Those three properties push against each other, and resolving that conflict requires making explicit choices rather than deferring them.</p>
+<p>The goal is not the most abstract model or the most general one. It is the model that keeps the system correct, understandable, and evolvable as usage evolves. Those three properties are in conflict and have to be resolved by making explicit choices rather than deferring them.</p>
 <section class="level2" data-number="10.1" id="five-properties-of-a-good-model">
 <h2 class="anchored" data-anchor-id="five-properties-of-a-good-model" data-number="10.1"> Five Properties of a Good Model</h2>
 <p>A data model that serves a system well over time satisfies five properties.</p>
@@ -71,44 +71,131 @@
 </section>
 <section class="level2" data-number="10.5" id="a-data-model-in-code">
 <h2 class="anchored" data-anchor-id="a-data-model-in-code" data-number="10.5"> A Data Model in Code</h2>
-<pre class="nex"><code>class Delivery_Model
+<p>The model for this requirement is not a single task. Every operation in Step 3, and the one-active-task-per-robot rule from Step 2, is about the set of tasks and who holds them. The task itself still matters, so we start there. This is the <code>Delivery_Task</code> entity from <a class="xref" href="part_II_7.html" title="Chapter 7: Entities — The Things That Exist">Chapter 7</a>, extended with the fields Step 4 asks for, a <code>priority</code> and an <code>assigned_robot_id</code>, and with two transitions: <code>assign</code>, which moves a pending or failed task into transit with a robot, and <code>mark_failed</code>, which moves an in-transit task to <code>FAILED</code> and clears its robot. A failed task is not lost; it is waiting to be assigned again.</p>
+<pre class="nex"><code>class Delivery_Task
 feature
   task_id: String
-  assigned_robot_id: String
-  status: String
+  origin: String
+  destination: String
   priority: Integer
+  status: String
+  assigned_robot_id: String
 
-  can_reassign: Boolean do
-    result := status = "PENDING" 
-              or status = "FAILED"
-  end
-
-  mark_in_transit(robot_id: String)
+  assign(robot_id: String)
   require
-    has_robot: robot_id /= ""
-    legal_transition: can_reassign
+    robot_given: robot_id /= ""
+    assignable: status = "PENDING" or status = "FAILED"
   do
     assigned_robot_id := robot_id
     status := "IN_TRANSIT"
   ensure
-    transit_set: status = "IN_TRANSIT" 
-                 and assigned_robot_id = robot_id
+    in_transit: status = "IN_TRANSIT"
+                and assigned_robot_id = robot_id
+  end
+
+  mark_failed
+  require
+    in_transit: status = "IN_TRANSIT"
+  do
+    assigned_robot_id := ""
+    status := "FAILED"
+  ensure
+    failed: status = "FAILED" and assigned_robot_id = ""
   end
 
 create
-  pending(task_id: String) do
+  pending(task_id, origin, destination: String,
+          priority: Integer) do
     this.task_id := task_id
+    this.origin := origin
+    this.destination := destination
+    this.priority := priority
     status := "PENDING"
+    assigned_robot_id := ""
   end
 invariant
-  task_id_present: task_id /= ""
+  id_present: task_id /= ""
+  endpoints_present: origin /= ""
+                     and destination /= ""
   priority_non_negative: priority &gt;= 0
   valid_status:
-    status = "PENDING" or status = "IN_TRANSIT" 
+    status = "PENDING" or status = "IN_TRANSIT"
     or status = "DELIVERED" or status = "FAILED"
+  in_transit_has_robot:
+    status /= "IN_TRANSIT" or assigned_robot_id /= ""
 end</code></pre>
-<p>This sketch is worth reading against the six steps above. The status and priority fields answer Step 4. The three invariants answer Step 5. The <code>can_reassign</code> query answers the first part of Step 3 — it codifies the rule that only <code>PENDING</code> and <code>FAILED</code> tasks are available for reassignment, making that rule checkable before <code>mark_in_transit</code> is called. The precondition on <code>mark_in_transit</code> answers the second part: a transition into <code>IN_TRANSIT</code> requires both a valid robot identifier and a legal starting status.</p>
-<p>What the sketch does not address is the storage backend or the index layout. Those are implementation concerns. The model’s job is to define what is true; the implementation’s job is to enforce and compute it efficiently.</p>
+<p>The set of tasks needs an owner, and that owner is where the operational queries live. The sketch below calls it a <code>Dispatch_Board</code>.</p>
+<pre class="nex"><code>class Dispatch_Board
+feature
+  available: Array[Delivery_Task]
+  active: Map[String, Delivery_Task]   -- robot_id -&gt; its active task
+
+  is_busy(robot_id: String): Boolean do
+    result := active.contains_key(robot_id)
+  end
+
+  next_available: Delivery_Task
+  require
+    work_available: not available.is_empty
+  do
+    result := available.get(0)
+    across available as t do
+      if t.priority &gt; result.priority then result := t end
+    end
+  end
+
+  add(t: Delivery_Task)
+  require
+    new_work: t.status = "PENDING"
+  do
+    available.add(t)
+  end
+
+  dispatch(robot_id: String)
+  require
+    robot_free: not is_busy(robot_id)
+    work_available: not available.is_empty
+  do
+    let t := next_available
+    available.remove(available.index_of(t))
+    t.assign(robot_id)
+    active.put(robot_id, t)
+  ensure
+    robot_busy: is_busy(robot_id)
+  end
+
+  robot_failed(robot_id: String)
+  require
+    robot_busy: is_busy(robot_id)
+  do
+    let t := active.get(robot_id)
+    active.remove(robot_id)
+    t.mark_failed
+    available.add(t)
+  ensure
+    robot_cleared: not is_busy(robot_id)
+  end
+
+  index_consistent: Boolean do
+    result := true
+    across active as e do
+      if e.value.assigned_robot_id /= e.key then
+        result := false
+      end
+    end
+  end
+
+create
+  make do
+    available := []
+    active := {}
+  end
+invariant
+  index_consistent: index_consistent
+end</code></pre>
+<p>This sketch is worth reading against the six steps above. Each query from Step 3 is a feature of the board: <code>is_busy</code> finds whether a robot holds an active task, <code>next_available</code> finds the highest-priority task waiting for a robot, whether new or failed, and <code>robot_failed</code> takes a failed robot’s task back, marks it failed, and makes it available for reassignment. Step 4 shows up in the choice of structure. Keying <code>active</code> by robot identifier turns “find the active task for this robot” into a lookup rather than a scan, and because a map key holds exactly one value, the one-active-task-per-robot cardinality is enforced by the structure itself. Step 5 is split between two places: the task’s own invariant guarantees that a task in transit has a robot, while the board’s preconditions guarantee that a busy robot cannot be dispatched again and that only a robot actually holding a task can be reported as failed.</p>
+<p>The sketch also makes one tradeoff from the previous section visible. The robot assignment is stored twice, once as the task’s <code>assigned_robot_id</code> and once as the key in <code>active</code>. That duplication is what makes the read path cheap; <code>index_consistent</code> is what it costs, an invariant that exists only to keep the two copies in agreement.</p>
+<p>What the sketch does not address is the storage backend or how <code>next_available</code> is computed at scale. The linear scan is correct, and replacing it with a priority queue later changes the implementation without changing the model. The same holds for Step 6: when cooperative delivery arrives, <code>active</code> can map a task to several robots without disturbing the operations built on it. The model’s job is to define what is true; the implementation’s job is to enforce and compute it efficiently.</p>
 </section>
 <section class="level2" data-number="10.6" id="where-data-model-design-fails">
 <h2 class="anchored" data-anchor-id="where-data-model-design-fails" data-number="10.6"> Where Data Model Design Fails</h2>
