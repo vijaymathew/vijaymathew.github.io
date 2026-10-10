@@ -1,4 +1,4 @@
-/* Nex site behaviour: theme, code-block copy buttons and highlighting, TOC. */
+/* Nex site behaviour: theme, code-block copy buttons and highlighting, TOC, blog comments. */
 (function () {
   var root = document.documentElement;
 
@@ -42,14 +42,30 @@
       root.dataset.theme = t;
       try { localStorage.setItem('nex-theme', t); } catch (e) {}
       syncTheme();
+      var frame = document.querySelector('iframe.giscus-frame');
+      if (frame) frame.contentWindow.postMessage({ giscus: { setConfig: { theme: t } } }, 'https://giscus.app');
     };
+
+    // Blog comments: load giscus in the current theme (the toggle above keeps it in sync).
+    var comments = document.querySelector('.giscus[data-repo]');
+    if (comments) {
+      var gs = document.createElement('script');
+      gs.src = 'https://giscus.app/client.js'; gs.async = true; gs.crossOrigin = 'anonymous';
+      Object.keys(comments.dataset).forEach(function (k) {
+        gs.setAttribute('data-' + k.replace(/[A-Z]/g, function (c) { return '-' + c.toLowerCase(); }), comments.dataset[k]);
+      });
+      gs.setAttribute('data-theme', root.dataset.theme === 'dark' ? 'dark' : 'light');
+      comments.appendChild(gs);
+    }
 
     // Documentation pages: highlight + copy buttons on every code block.
     document.querySelectorAll('.prose pre').forEach(function (pre) {
       var code = pre.querySelector('code');
       if (!code) return;
       var text = code.textContent;
-      if (!/^dbg>|^\$ /.test(text)) code.innerHTML = highlight(text);
+      // Fenced blocks from Markdown carry a language-* class; only Nex is highlighted.
+      var lang = (code.className.match(/language-(\S+)/) || [])[1];
+      if ((!lang || lang === 'nex') && !/^dbg>|^\$ /.test(text)) code.innerHTML = highlight(text);
       var b = document.createElement('button');
       b.className = 'pre-copy'; b.type = 'button'; b.textContent = 'Copy';
       b.setAttribute('aria-label', 'Copy code');
