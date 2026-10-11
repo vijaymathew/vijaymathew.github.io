@@ -71,7 +71,7 @@ invariant
   ordered: low &lt;= high
 end</code></pre>
 
-<p>The one operation that matters is <code>merged_with</code>, and it has a property that makes the whole model work: merging only ever produces knowledge at least as sharp as what went in. Intersecting ranges can narrow the bounds or leave them, but never widen them. Information in this world is <em>monotone</em> — it accumulates and never retreats. That single discipline is what frees the network from caring about order: because merging is commutative and associative and only ever sharpens, the cell reaches the same final content no matter which fact arrives first, or how many times. Order-independence is not engineered; it falls out of a well-chosen merge.</p>
+<p>The one essential operation is <code>merged_with</code>, and it has a property that makes the whole model work: merging only ever produces knowledge at least as sharp as what went in. Intersecting ranges can narrow the bounds or leave them, but never widen them. Information in this world is <em>monotone</em> — it accumulates and never retreats. That single discipline is what frees the network from caring about order: because merging is commutative and associative and only ever sharpens, the cell reaches the same final content whichever fact arrives first, and however many times. Order-independence is not engineered; it falls out of a well-chosen merge.</p>
 </section>
 
 <section id="propagators" class="level2" data-number="12.3">
@@ -165,7 +165,7 @@ let quote: Cell := create Cell.make(unknown)
 let taxed: Sum := create Sum.make(goods, tax, subtotal)         -- subtotal = goods + tax
 let shipped: Sum := create Sum.make(subtotal, shipping, quote)  -- quote = subtotal + shipping
 
--- Each source adds a partial fact to the cell it knows about; order does not matter.
+-- Each source adds a partial fact to the cell it knows about, in any order.
 goods.add_content(floor_bounds)         -- the order floor raises the low end
 goods.add_content(promo_bounds)         -- a promotion lowers the high end
 goods.add_content(inventory_bounds)     -- limited stock caps the fulfillable amount
@@ -182,7 +182,7 @@ end</code></pre>
 
 <p><code>total_less</code> clamps a part's low bound at zero, since no part of a price can be negative. If the total's high bound drops below the least the other part can be, the clamped low ends up above the computed high. An example is a quote capped below the shipping charge. The <code>ordered</code> contract on <code>Price_Range</code> then fires. That is a real contradiction, and it is reported where it entered.</p>
 
-<p>This is additive design carried to its limit. A new source of pricing knowledge — a seasonal surcharge or a regional subsidy — is a new cell and one more <code>Sum</code> wired into the network. It is never an edit to the others; the network simply has one more way to learn. And because merging is monotone and order-free, it does not matter whether the surcharge is known at checkout or arrives a second later from a slow service: the cell integrates it whenever it comes and settles to the same answer. The engine computes with partial knowledge and keeps computing as knowledge fills in.</p>
+<p>This is additive design carried to its limit. A new source of pricing knowledge — a seasonal surcharge or a regional subsidy — is a new cell and one more <code>Sum</code> wired into the network. It is never an edit to the others; the network simply has one more way to learn. And because merging is monotone and order-free, it makes no difference whether the surcharge is known at checkout or arrives a second later from a slow service: the cell integrates it whenever it comes and settles to the same answer. The engine computes with partial knowledge and keeps computing as knowledge fills in.</p>
 </section>
 
 <section id="invariants-keep-it-honest" class="level2" data-number="12.5">
