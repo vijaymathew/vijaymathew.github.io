@@ -83,7 +83,7 @@ end</code></pre>
 <section id="stacking" class="level2" data-number="8.3">
 <h2 class="anchored" data-anchor-id="stacking"><span class="header-section-number">8.3</span> Stacking</h2>
 
-<p>Assembling the system is now a matter of nesting the strata, innermost last:</p>
+<p>Assembling the system now means nesting the strata, innermost last:</p>
 
 <pre><code>-- Read outside-in: log around metrics around the core.
 let pipeline: Handler :=
@@ -105,7 +105,7 @@ let outcome: Result[Placement, String] := pipeline.handle(draft)</code></pre>
 
 <p>Layering is additive in the same way combinators are: a new concern is a new class, inserted into the stack, with no edit to the base or to any sibling layer. Want request tracing? Write a <code>Tracing_Layer</code> and slot it in. Neither the core nor the other layers ever learn of it, and the type that flows through the stack never changes. This is the open-by-extension property we are building towards, achieved here without leaving the type system because every layer is a checked <code>Handler</code>.</p>
 
-<p>But layering introduces a subtlety combinators mostly avoid: <em>order matters</em>. The <code>Both</code> of <a href="chapter_7.html" title="Chapter 7: Combinators: Building by Composition">Chapter 7</a> is commutative — "domestic and over $100" means the same as "over $100 and domestic". A stack of layers usually is not. Put retry <em>outside</em> logging and you log once per attempt; put it <em>inside</em> and you log once per outcome. Put idempotency <em>inside</em> retry, between the retry and the charge, and every attempt carries the same key, so a retried charge goes through once; put it <em>outside</em> retry and the attempts reach the gateway unchecked, so a charge that timed out but succeeded may be taken twice. The strata are independent in <em>what</em> they do but coupled in the <em>order</em> they do it, and that order is a genuine design decision, not a detail. It is the price of the extra power: a wrapper that can act before <em>and</em> after the base is a wrapper whose position in the stack has consequences.</p>
+<p>But layering introduces a subtlety combinators mostly avoid: <em>order changes the outcome</em>. The <code>Both</code> of <a href="chapter_7.html" title="Chapter 7: Combinators: Building by Composition">Chapter 7</a> is commutative — "domestic and over $100" means the same as "over $100 and domestic". A stack of layers usually is not. Put retry <em>outside</em> logging and you log once per attempt; put it <em>inside</em> and you log once per outcome. Put idempotency <em>inside</em> retry, between the retry and the charge, and every attempt carries the same key, so a retried charge goes through once; put it <em>outside</em> retry and the attempts reach the gateway unchecked, so a charge that timed out but succeeded may be taken twice. The strata are independent in <em>what</em> they do but coupled in the <em>order</em> they do it, and that order is a genuine design decision, not a detail. It is the price of the extra power: a wrapper that can act before <em>and</em> after the base is a wrapper whose position in the stack has consequences.</p>
 </section>
 
 <section id="layers-and-contracts" class="level2" data-number="8.5">
