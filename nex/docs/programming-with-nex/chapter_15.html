@@ -145,12 +145,12 @@ nex&gt; nums.min
 nex&gt; nums.max
 8</code></pre>
 <p>Attempting <code>create Sorted_List[Array[Integer]].make</code> would be a type error at instantiation, because <code>Array[Integer]</code> does not implement <code>Comparable</code>.</p>
-<p>The built-in constraints available in Nex include: - <code>Comparable</code> — supports ordering (<code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>) - <code>Hashable</code> — can be used as a map key.</p>
+<p>The built-in constraint available in Nex is <code>Comparable</code>, which supports ordering (<code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>). Hashing needs no constraint: every value has <code>hash</code>, a feature of <code>Any</code>, so any type can be a map key.</p>
 </section>
 <section class="level2" data-number="16.5" id="constrained-multiple-parameters">
 <h2 class="anchored" data-anchor-id="constrained-multiple-parameters" data-number="16.5"> Constrained Multiple Parameters</h2>
 <p>Type constraints and multiple parameters combine naturally. Here's an implementation of a class that captures a mapping function <code>fn(K) = V</code>, but caches the result for each <code>K</code> so that the same computation never runs twice.</p>
-<pre><code>nex&gt; class Cache[K -> Hashable, V]
+<pre><code>nex&gt; class Cache[K, V]
      feature
        cached_results: Map[K, V]
        callback: Function(K): V
@@ -173,7 +173,7 @@ nex&gt; nums.max
       end
    end</code></pre>
 
-<p><code>K</code> must be <code>Hashable</code> because map keys require hashing. <code>V</code> is unconstrained — values can be any type. This mirrors the design of the built-in <code>Map</code> type, which is itself a generic class with exactly these constraints.</p>
+<p>Neither parameter needs a constraint. Map keys require hashing, but every value has <code>hash</code>, a feature of <code>Any</code>, so any type can be a key; and values can be any type. This mirrors the built-in <code>Map</code> type, which is itself a generic class over unconstrained <code>K</code> and <code>V</code>. A constraint combines with multiple parameters just as it does with one: <code>class Ranking[K -&gt; Comparable, V]</code> would require ordered keys while leaving <code>V</code> free.</p>
 <pre><code>nex&gt; let cache := create Cache[String, Integer].make(
                     fn(s: String): Integer do
                       result := s.to_integer * 10
@@ -234,7 +234,7 @@ true</code></pre>
 <li><code>Set[T]</code> has one element type parameter</li>
 <li><code>Map[K, V]</code> has two type parameters: one for keys and one for values</li>
 </ul>
-<p>The type arguments explain why the typechecker knows what operations are valid. <code>sort</code> works on <code>Array[Integer]</code> because <code>Integer</code> is <code>Comparable</code>. It would not work on an <code>Array[Map[String, Integer]]</code>, because maps are not comparable. Similarly, map keys require <code>K -&gt; Hashable</code>, which is why <code>Map[K, V]</code> constrains its key type.</p>
+<p>The type arguments explain why the typechecker knows what operations are valid. <code>sort</code> works on <code>Array[Integer]</code> because <code>Integer</code> is <code>Comparable</code>. It would not work on an <code>Array[Map[String, Integer]]</code>, because maps are not comparable. Map keys, by contrast, need no constraint: every value has <code>hash</code>, so <code>Map[K, V]</code> accepts any key type.</p>
 <p>The generic mechanism also explains why <code>across</code> can infer loop variable types automatically. If <code>numbers</code> has type <code>Array[Integer]</code>, the loop variable is inferred as <code>Integer</code>. If <code>seen</code> has type <code>Set[Integer]</code>, the loop variable is also inferred as <code>Integer</code>:</p>
 <pre><code>nex&gt; across seen as n do
        print(n + 10)
@@ -356,7 +356,7 @@ Error: division by zero</code></pre>
 <li>A generic class is parameterised by one or more type parameters declared in square brackets: <code>class Name [T]</code></li>
 <li>Type parameters are placeholders; concrete types are supplied at instantiation: <code>create Stack[Integer].make</code></li>
 <li>Multiple type parameters are separated by commas: <code>class Pair [F, S]</code></li>
-<li>Type constraints restrict which types can fill a parameter: <code>[G -&gt; Comparable]</code> requires <code>G</code> to implement <code>Comparable</code>; <code>[K -&gt; Hashable]</code> requires hashability for use as a map key</li>
+<li>Type constraints restrict which types can fill a parameter: <code>[G -&gt; Comparable]</code> requires <code>G</code> to implement <code>Comparable</code>; hashing needs no constraint, since every value has <code>hash</code></li>
 <li>A generic class can inherit from another generic class using the same type parameter: <code>class Bounded_Stack [G] inherit Stack[G]</code></li>
 <li>The built-in <code>Array[T]</code>, <code>Set[T]</code>, and <code>Map[K, V]</code> are generic classes; <code>Set</code> literals use <code>#{...}</code>, and understanding these collection types explains why element types are inferred and why operations work uniformly across types</li>
 <li>Any class becomes usable with <code>across</code> by giving it a <code>cursor</code> method that returns an object implementing the <code>Cursor</code> protocol — <code>start</code>, <code>item</code>, <code>next</code>, <code>at_end</code> — which is how the built-in collections work too; narrow the <code>Any</code> loop variable with <code>convert</code> when you need its concrete type</li>
