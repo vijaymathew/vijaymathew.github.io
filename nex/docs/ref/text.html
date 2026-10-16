@@ -48,57 +48,143 @@
       <details class="toc" open>
         <summary>On this page</summary>
         <ul>
-  <li><a href="#platform-scope">Platform Scope</a></li>
-  <li><a href="#load">Load</a></li>
-  <li><a href="#regex"><code>Regex</code></a></li>
+  <li><a href="#textregex"><code>text/Regex</code></a>
+  <ul>
+  <li><a href="#regex-loading">Loading</a></li>
+  <li><a href="#regex-support">Support</a></li>
+  <li><a href="#regex-construction">Construction</a></li>
+  <li><a href="#regex-flags">Flags</a></li>
+  <li><a href="#regex-methods">Methods</a></li>
+  <li><a href="#regex-example">Example</a></li>
+  <li><a href="#regex-notes">Notes</a></li>
+  </ul></li>
   </ul>
       </details>
     </aside>
 
     <main>
       <div class="prose">
-<p>This page documents text-processing libraries shipped under <code>lib/text</code>.</p>
-<p>These are library classes, not core built-in classes. Load them with <code>intern</code>.</p>
-<section id="platform-scope" class="level2">
-<h2 class="anchored" data-anchor-id="platform-scope">Platform Scope</h2>
-<ul>
-<li><code>text/Regex</code>: JVM interpreter, generated JVM</li>
-</ul>
-</section>
-<section id="load" class="level2">
-<h2 class="anchored" data-anchor-id="load">Load</h2>
+<p>This page documents the text-processing libraries shipped under <code>lib/text</code>. These are library classes, not core built-in classes. Load them with <code>intern</code>.</p>
+<section id="textregex" class="level2">
+<h2 class="anchored" data-anchor-id="textregex"><code>text/Regex</code></h2>
+<p><code>Regex</code> is a reusable regular-expression wrapper, shipped as a Nex library under <code>lib/text/regex.nex</code>. Patterns use Java regular-expression syntax and are validated when the <code>Regex</code> is created.</p>
+<section id="regex-loading" class="level3">
+<h3 class="anchored" data-anchor-id="regex-loading">Loading</h3>
 <pre class="nex"><code>intern text/Regex</code></pre>
 </section>
-<section id="regex" class="level2">
-<h2 class="anchored" data-anchor-id="regex"><code>Regex</code></h2>
-<p><code>Regex</code> is a reusable regular-expression wrapper.</p>
-<pre class="nex"><code>class Regex
-create
-  compile(pattern: String)
-  compile_with_flags(pattern: String, flags: String)
-feature
-  pattern: String
-  flags: String
-  matches(text: String): Boolean
-  find(text: String): ?String
-  find_all(text: String): Array[String]
-  replace(text: String, replacement: String): String
-  split(text: String): Array[String]
-  to_string(): String
-end</code></pre>
-<p>Supported flags: - <code>i</code> case-insensitive - <code>m</code> multiline</p>
-<p>Example:</p>
+<section id="regex-support" class="level3">
+<h3 class="anchored" data-anchor-id="regex-support">Support</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Target</th><th>Supported</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>JVM REPL / interpreter</td><td>Yes</td>
+</tr>
+<tr class="even">
+<td>Generated JVM code</td><td>Yes</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="regex-construction" class="level3">
+<h3 class="anchored" data-anchor-id="regex-construction">Construction</h3>
+<pre class="nex"><code>let words: Regex := create Regex.compile("[a-z]+")
+let any_case: Regex := create Regex.compile_with_flags("[a-z]+", "i")</code></pre><p>An invalid pattern raises a runtime error at construction, so a <code>Regex</code> value always holds a usable pattern.</p>
+</section>
+<section id="regex-flags" class="level3">
+<h3 class="anchored" data-anchor-id="regex-flags">Flags</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Flag</th><th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>i</code></td><td>Case-insensitive matching.</td>
+</tr>
+<tr class="even">
+<td><code>m</code></td><td>Multiline: <code>^</code> and <code>$</code> match at line boundaries, not only at the ends of the input.</td>
+</tr>
+</tbody>
+</table><p>Flags combine by concatenation, e.g. <code>"im"</code>. Other characters in the flags string are ignored.</p>
+</section>
+<section id="regex-methods" class="level3">
+<h3 class="anchored" data-anchor-id="regex-methods">Methods</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Method</th><th>Arguments</th><th>Returns</th><th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>compile</code></td><td><code>pattern: String</code></td><td><code>Regex</code></td><td>Create a regex with no flags.</td>
+</tr>
+<tr class="even">
+<td><code>compile_with_flags</code></td><td><code>pattern: String, flags: String</code></td><td><code>Regex</code></td><td>Create a regex with the given flags (see Flags).</td>
+</tr>
+<tr class="odd">
+<td><code>pattern</code></td><td>none</td><td><code>String</code></td><td>The source pattern (a field).</td>
+</tr>
+<tr class="even">
+<td><code>flags</code></td><td>none</td><td><code>String</code></td><td>The flags string, <code>""</code> when none (a field).</td>
+</tr>
+<tr class="odd">
+<td><code>matches</code></td><td><code>text: String</code></td><td><code>Boolean</code></td><td>True when the entire <code>text</code> matches the pattern (not just a substring).</td>
+</tr>
+<tr class="even">
+<td><code>find</code></td><td><code>text: String</code></td><td><code>?String</code></td><td>The first match anywhere in <code>text</code>, or <code>nil</code> when there is none.</td>
+</tr>
+<tr class="odd">
+<td><code>find_all</code></td><td><code>text: String</code></td><td><code>Array[String]</code></td><td>Every non-overlapping match, left to right.</td>
+</tr>
+<tr class="even">
+<td><code>replace</code></td><td><code>text: String, replacement: String</code></td><td><code>String</code></td><td>Replace every match with <code>replacement</code>; <code>$1</code>, <code>$2</code>, … refer to capture groups.</td>
+</tr>
+<tr class="odd">
+<td><code>split</code></td><td><code>text: String</code></td><td><code>Array[String]</code></td><td>Split <code>text</code> around matches of the pattern. Trailing empty strings are dropped.</td>
+</tr>
+<tr class="even">
+<td><code>to_string</code></td><td>none</td><td><code>String</code></td><td>The pattern in slash form, e.g. <code>"Regex(/[a-z]+/i)"</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="regex-example" class="level3">
+<h3 class="anchored" data-anchor-id="regex-example">Example</h3>
 <pre class="nex"><code>intern text/Regex
 
 let rx: Regex := create Regex.compile_with_flags("[a-z]+", "i")
-print(rx.matches("Nex"))
-print(rx.find("123 Nex 456"))
-print(rx.find_all("one two THREE"))
-print(rx.replace("v1 v2", "#"))
-print(rx.split("a,b,c"))</code></pre>
+print(rx.matches("Nex"))                  -- true
+print(rx.find("123 Nex 456"))             -- "Nex"
+print(rx.find_all("one two THREE"))       -- ["one", "two", "THREE"]
+print(rx.replace("v1 v2", "#"))           -- "#1 #2"
 
+let digits: Regex := create Regex.compile("[0-9]+")
+print(digits.matches("123abc"))           -- false (whole-string match)
+print(digits.find("no digits"))           -- nil
 
+let comma: Regex := create Regex.compile(",\\s*")
+print(comma.split("a, b,c"))              -- ["a", "b", "c"]
+
+let email: Regex := create Regex.compile("(\\w+)@(\\w+)")
+print(email.replace("ann@home", "$2:$1")) -- "home:ann"</code></pre>
 </section>
+<section id="regex-notes" class="level3">
+<h3 class="anchored" data-anchor-id="regex-notes">Notes</h3>
+<ul>
+<li><code>find()</code> and <code>find_all()</code> return the whole match, not individual capture groups.</li>
+<li>Backslashes must be doubled inside Nex string literals: the pattern <code>\s</code> is written <code>"\\s"</code>.</li>
+<li>Compile a <code>Regex</code> once and reuse it; each method call applies the stored pattern and flags.</li>
+</ul>
+</section>
+</section>
+
       </div>
       <div class="next-cards"><a class="next-card" href="io.html"><small>← previous</small><b>IO Libraries</b></a><a class="next-card" href="time.html"><small>next →</small><b>Time Libraries</b></a></div>
     </main>

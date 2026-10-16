@@ -509,7 +509,8 @@ c.input.record_key(Key.LEFT, true)           -- LEFT held</code></pre>
 </section>
 <section id="picture" class="level2">
 <h2 class="anchored" data-anchor-id="picture"><code>Picture</code></h2>
-<p>An image read from a PNG, JPEG, GIF or BMP file.</p>
+<p>An image in memory: read from a PNG, JPEG, GIF or BMP file, or made blank, then read and changed pixel by pixel, transformed, drawn with <code>Canvas.picture</code> and saved.</p>
+<p>Pixels are addressed by <code>(col, row)</code>, with <code>(0, 0)</code> at the <strong>top left</strong> and rows growing downward, as in the image file. This is unlike a Canvas's user coordinates. Every pixel can hold any color and alpha exactly, whatever format the picture was loaded from.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%" />
@@ -528,6 +529,16 @@ c.input.record_key(Key.LEFT, true)           -- LEFT held</code></pre>
 <td><code>load</code></td>
 <td><code>filename: String</code></td>
 <td>Read the image. A relative name is resolved against the directory <code>nex</code> was started from. Raises <code>Picture.load: no such file: ...</code> or <code>Picture.load: not a readable image: ...</code>.</td>
+</tr>
+<tr class="even">
+<td><code>make</code></td>
+<td><code>w, h: Integer</code></td>
+<td>A blank <code>w</code> by <code>h</code> picture, every pixel fully transparent.</td>
+</tr>
+<tr class="odd">
+<td><code>from_java</code></td>
+<td><code>raw: Any</code></td>
+<td>A copy of a <code>java.awt.image.BufferedImage</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -553,15 +564,121 @@ c.input.record_key(Key.LEFT, true)           -- LEFT held</code></pre>
 <tr class="even">
 <td><code>source</code></td>
 <td><code>String</code></td>
-<td>The file it was read from, as resolved.</td>
+<td>The file it was read from, as resolved; <code>""</code> for a picture made in memory.</td>
 </tr>
 <tr class="odd">
+<td><code>get(col, row: Integer)</code></td>
+<td><code>Color</code></td>
+<td>The pixel's color, alpha included.</td>
+</tr>
+<tr class="even">
+<td><code>set(col, row: Integer, color: Color)</code></td>
+<td>| Set the pixel, alpha included.</td>
+</tr>
+<tr class="odd">
+<td><code>get_rgb(col, row: Integer)</code></td>
+<td><code>Integer</code></td>
+<td>The pixel as <code>0xRRGGBB</code>, ignoring alpha.</td>
+</tr>
+<tr class="even">
+<td><code>set_rgb(col, row, rgb: Integer)</code></td>
+<td>| Set the pixel to the opaque color <code>rgb</code> (<code>0xRRGGBB</code>), so <code>0xFF0000</code> is red.</td>
+</tr>
+<tr class="odd">
+<td><code>get_argb(col, row: Integer)</code></td>
+<td><code>Integer</code></td>
+<td>The pixel as <code>0xAARRGGBB</code> (always non-negative); alpha <code>0x00</code> is transparent, <code>0xFF</code> opaque.</td>
+</tr>
+<tr class="even">
+<td><code>set_argb(col, row, argb: Integer)</code></td>
+<td>| Set the pixel from <code>0xAARRGGBB</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>fill(color: Color)</code></td>
+<td>| Set every pixel to <code>color</code>, alpha included.</td>
+</tr>
+<tr class="even">
+<td><code>cropped(col, row, w, h: Integer)</code></td>
+<td><code>Picture</code></td>
+<td>The <code>w</code> by <code>h</code> region whose top-left pixel is <code>(col, row)</code>; it must lie inside the picture.</td>
+</tr>
+<tr class="odd">
+<td><code>scaled(w, h: Integer)</code></td>
+<td><code>Picture</code></td>
+<td>Resized to <code>w</code> by <code>h</code> pixels, smoothly (bilinear) interpolated.</td>
+</tr>
+<tr class="even">
+<td><code>flipped_horizontally()</code></td>
+<td><code>Picture</code></td>
+<td>Mirror image, left and right swapped.</td>
+</tr>
+<tr class="odd">
+<td><code>flipped_vertically()</code></td>
+<td><code>Picture</code></td>
+<td>Upside down, top and bottom swapped.</td>
+</tr>
+<tr class="even">
+<td><code>rotated_left()</code></td>
+<td><code>Picture</code></td>
+<td>A quarter turn counterclockwise; width and height swap.</td>
+</tr>
+<tr class="odd">
+<td><code>rotated_right()</code></td>
+<td><code>Picture</code></td>
+<td>A quarter turn clockwise; width and height swap.</td>
+</tr>
+<tr class="even">
+<td><code>grayscale()</code></td>
+<td><code>Picture</code></td>
+<td>Shades of gray of the same brightness (ITU-R BT.601 luma: <code>0.299 R + 0.587 G + 0.114 B</code>), alpha kept.</td>
+</tr>
+<tr class="odd">
+<td><code>save(filename: String)</code></td>
+<td>| Write the picture; the format comes from the extension (<code>.png</code>, <code>.jpg</code>/<code>.jpeg</code>, <code>.gif</code>, <code>.bmp</code>). Only PNG keeps transparency; for JPEG, GIF and BMP the picture is laid over white first.</td>
+</tr>
+<tr class="even">
+<td><code>is_image_file_name(filename: String)</code></td>
+<td><code>Boolean</code></td>
+<td>Whether <code>save</code> understands the extension.</td>
+</tr>
+<tr class="odd">
+<td><code>clone</code></td>
+<td><code>Any</code></td>
+<td>An independent copy: changing its pixels leaves the original alone.</td>
+</tr>
+<tr class="even">
 <td><code>to_java()</code></td>
 <td><code>Any</code></td>
-<td>The underlying <code>java.awt.image.BufferedImage</code>, for use inside <code>with "java"</code>.</td>
+<td>The underlying <code>java.awt.image.BufferedImage</code> (<code>TYPE_INT_ARGB</code>), for use inside <code>with "java"</code>. It is shared, not copied.</td>
 </tr>
 </tbody>
 </table>
+<p>Pixel coordinates are checked: <code>col</code> must be in <code>0..width-1</code> and <code>row</code> in <code>0..height-1</code>, and <code>rgb</code>/<code>argb</code> must be in range, or the call fails its precondition. The transformations return a new picture and leave this one unchanged. Only <code>set</code>, <code>set_rgb</code>, <code>set_argb</code> and <code>fill</code> change a picture.</p>
+<pre class="nex"><code>intern graphics/Picture
+
+-- Red rises left to right, blue top to bottom.
+let p := create Picture.make(256, 256)
+from let row := 0 until row = 256 do
+  from let col := 0 until col = 256 do
+    p.set_rgb(col, row, col * 65536 + row)
+    col := col + 1
+  end
+  row := row + 1
+end
+p.save("gradient.png")
+
+-- Swap the red and blue channels of a photo.
+let photo := create Picture.load("photo.jpg")
+from let row := 0 until row = photo.height do
+  from let col := 0 until col = photo.width do
+    let c := photo.get(col, row)
+    photo.set(col, row, create Color.make_rgba(c.blue, c.green, c.red, c.alpha))
+    col := col + 1
+  end
+  row := row + 1
+end
+photo.grayscale().rotated_right().save("photo_gray.png")</code></pre>
+<p>A per-pixel loop is fine for small and medium images: on the compiled backend one <code>get</code> and one <code>set</code> per pixel over a 512x512 picture takes a second or two (<code>grayscale</code> is such a loop, so it costs about the same). <code>fill</code>, <code>cropped</code>, <code>scaled</code> and the flips and turns are done by Java2D in a single call, so they are much faster.</p>
 </section>
 <section id="color" class="level2">
 <h2 class="anchored" data-anchor-id="color"><code>Color</code></h2>
