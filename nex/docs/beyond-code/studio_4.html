@@ -240,6 +240,9 @@ feature
     )
     print(dw.dispatch_view("T-2"))   -- TASK_STATUS:IN_TRANSIT
     print(dw.dispatch_view("T-99"))  -- UNKNOWN_TASK
+    -- Parity: the port answers what the Studio 3 store answers.
+    print(dw.dispatch_view("T-2") 
+          = "TASK_STATUS:" + ds.find_status("T-2").value)  -- true
     -- Knowledge setup (Studio 2 documents, Studio 3 index)
     let km := create Knowledge_Model_V3.make([
       create Document.make("D-1", "Graphs"),
@@ -251,6 +254,11 @@ feature
     )
     print(lvs.validate("D-1", "D-3"))   -- VALID
     print(lvs.validate("D-9", "D-3"))   -- MISSING_FROM
+    -- Parity: same verdicts as the Studio 3 model.
+    print(lvs.validate("D-1", "D-3") = km.validate_link(
+      create Doc_Link.make("D-1", "D-3", "references")).value)  -- true
+    print(lvs.validate("D-9", "D-3") = km.validate_link(
+      create Doc_Link.make("D-9", "D-3", "references")).value)  -- true
     -- World setup (Studio 2 objects, Studio 3 index)
     let wm := create World_Model_V3.make([
       create World_Object.make("E-1", 8, 2)
@@ -260,8 +268,17 @@ feature
     )
     print(wss.advance("E-1"))  -- UPDATED
     print(wss.advance("E-9"))  -- NOT_FOUND
+    -- Parity: the same step on a twin object, straight
+    -- through the Studio 3 model, lands in the same place.
+    let twin := create World_Object.make("E-1", 8, 2)
+    create World_Model_V3.make([twin]).step_by_id("E-1", 10)
+    print(twin.x = wm.by_id.get("E-1").x)  -- true
   end
-end</code></pre>
+end
+
+-- Run the driver
+let app := create App
+app.run</code></pre>
 <p>Expected outcome:</p>
 <ul>
 <li>same core behavior as Studio 3 refactored paths</li>

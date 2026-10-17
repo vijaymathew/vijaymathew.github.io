@@ -61,7 +61,7 @@
 <p><strong>Step 1: Define the comparison key.</strong> The primary ordering criterion is priority score. What “ordered by priority” means — whether a high priority score means a task should come first or last — must be stated explicitly. For a delivery system where lower numbers represent higher urgency, “ordered by priority” means ascending order.</p>
 <p><strong>Step 2: Define tie-break behavior.</strong> Equal-priority tasks must preserve insertion order. This is a stability requirement: the sort must be stable so that tasks inserted earlier appear before tasks inserted later when their priority scores are equal. An unstable sort would satisfy the primary ordering criterion and violate the tie-break requirement.</p>
 <p><strong>Step 3: Choose a baseline sort.</strong> For an early implementation with a small number of tasks, a simple stable sort is appropriate. Simple does not mean incorrect — it means the implementation prioritizes clarity over optimization at a scale where the performance difference is still negligible.</p>
-<p><strong>Step 4: State the correctness checks.</strong> The output is non-decreasing by priority score: no task in the output appears after any task with a strictly lower priority score. Equal-priority tasks appear in the output in the same relative order as they appeared in the input. Both of these are mechanical properties that a test can verify on any input.</p>
+<p><strong>Step 4: State the correctness checks.</strong> The output is non-decreasing by priority score: no task in the output appears after any task with a strictly lower priority score. Equal-priority tasks appear in the output in the order they were inserted. Both of these are mechanical properties that a test can verify on any input.</p>
 <p><strong>Step 5: Define the scale transition.</strong> When the task collection grows large enough that the sort’s cost appears in latency measurements, the baseline sort should be replaced by an optimized stable sort — most likely the standard library’s stable sort. The output contract does not change; only the implementation does.</p>
 </section>
 <section class="level2" data-number="21.5" id="a-sort-operation-in-code">
@@ -77,7 +77,7 @@ create
 feature
   task_id: String
   priority: Integer
-  arrival: Integer
+  arrival: Integer   -- insertion sequence number
 invariant
   id_present: task_id /= ""
   arrival_non_negative: arrival &gt;= 0
@@ -123,7 +123,7 @@ feature
     ordered: is_ordered(result)
   end
 end</code></pre>
-<p><code>Delivery_Task</code> carries an <code>arrival</code> field alongside the priority score, and <code>comes_before</code> uses both: priority first, arrival to break ties. That is the whole comparison rule from Steps 1 and 2, written as one function so that it can be tested on its own and applied wherever tasks need ordering. Because arrival is part of the key, ties are broken by the data rather than by whatever order the caller happened to supply the tasks in. The postconditions on <code>sorted</code> are the correctness checks from Step 4, stated in the code rather than left to a test plan: the output holds as many tasks as the input, and <code>is_ordered</code> confirms that no task comes before the one preceding it.</p>
+<p><code>Delivery_Task</code> carries an <code>arrival</code> field alongside the priority score, and <code>comes_before</code> uses both: priority first, arrival to break ties. That is the whole comparison rule from Steps 1 and 2, written as one function so that it can be tested on its own and applied wherever tasks need ordering. <code>arrival</code> is the sequence number a task receives when it is inserted, so it records insertion order in the task itself. Because it is part of the key, ties are broken by that recorded order rather than by whatever order the caller happened to supply the tasks in. The postconditions on <code>sorted</code> are the correctness checks from Step 4, stated in the code rather than left to a test plan: the output holds as many tasks as the input, and <code>is_ordered</code> confirms that no task comes before the one preceding it — which, because <code>comes_before</code> includes <code>arrival</code>, checks the insertion-order tie-break as well as the priority order.</p>
 <p><code>sorted</code> is an insertion sort. It builds the output one task at a time, placing each task after every task that does not come after it. It is O(N²) in the worst case — the simple baseline Step 3 calls for, and adequate for a small number of tasks. A task moves left only past tasks that strictly come after it, so two tasks with identical keys keep their input order: the sort is stable even beyond the tie-break. When the scale transition in Step 5 arrives, the body can be replaced by the standard library’s stable sort, and <code>comes_before</code> and both postconditions stay exactly as they are.</p>
 
 </section>

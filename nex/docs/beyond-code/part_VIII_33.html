@@ -54,13 +54,13 @@
 <h2 class="anchored" data-anchor-id="from-problem-to-refactored-design" data-number="34.3"> From Problem to Refactored Design</h2>
 <p>Consider the requirement:</p>
 <blockquote class="blockquote">
-<p><em>“The Search Service has grown too large. It now handles both document retrieval and relevance ranking. We need to split these into two independent services.”</em></p>
+<p><em>“The knowledge service has grown too large. It now handles both document retrieval and relevance ranking. We need to split these into two independent services.”</em></p>
 </blockquote>
 <p>A naive approach might be to create two new classes and move code between them. A disciplined approach follows the incremental pattern:</p>
 <ol type="1">
-<li><strong>Baseline:</strong> We verify that the current <code>Search_Service.query()</code> produces known results for a set of test queries.</li>
-<li><strong>The Extension Point:</strong> We define a <code>Ranking_Service</code> class but keep it empty for now.</li>
-<li><strong>The Move:</strong> We move the ranking logic from <code>Search_Service</code> to <code>Ranking_Service.rank()</code>. The <code>Search_Service</code> now calls <code>Ranking_Service.rank()</code> instead of doing the work itself.</li>
+<li><strong>Baseline:</strong> We verify that the current <code>Legacy_Knowledge_Service.query()</code> produces known results for a set of test queries.</li>
+<li><strong>The Extension Point:</strong> We define <code>Retrieval_Service</code> and <code>Ranking_Service</code> classes but keep them empty for now.</li>
+<li><strong>The Move:</strong> We move the retrieval logic into <code>Retrieval_Service.retrieve()</code> and the ranking logic into <code>Ranking_Service.rank()</code>. The service, now <code>Refactored_Knowledge_Service</code>, calls the two in turn instead of doing the work itself.</li>
 <li><strong>Parity:</strong> We run the same queries as in step 1. If the results are identical, we have successfully refactored the logic without breaking the behavior.</li>
 </ol>
 <p>The outward contract of the search system — “given a query, return ranked results” — remains unchanged. The internal structure — “how those results are retrieved and ranked” — is now more modular and maintainable.</p>
@@ -75,11 +75,20 @@ feature
   require
     query_present: q /= ""
   do
-    -- Tangled retrieval and ranking logic
+    -- Retrieval: collect the documents that match the query
+    let candidates: Array[String] := ["DOC:GENERIC"]
     if q = "graphs" then
-      result := "DOC:G-1"
-    else
-      result := "DOC:GENERIC"
+      candidates := ["DOC:G-2", "DOC:G-1", "DOC:G-3"]
+    end
+    -- Ranking: keep the candidate with the highest relevance score
+    let scores: Map[String, Integer] := {"DOC:G-1": 9, "DOC:G-2": 7, "DOC:G-3": 4}
+    result := candidates.get(0)
+    let best := 0
+    across candidates as c do
+      if scores.contains_key(c) and scores.get(c) &gt; best then
+        best := scores.get(c)
+        result := c
+      end
     end
   ensure
     non_empty: result /= ""
@@ -89,25 +98,36 @@ end
 -- After Refactoring: Two focused services
 class Retrieval_Service
 feature
-  retrieve(q: String): String
+  retrieve(q: String): Array[String]
+  require
+    query_present: q /= ""
   do
+    result := ["DOC:GENERIC"]
     if q = "graphs" then
-      result := "CAND:G-1"
-    else
-      result := "CAND:GENERIC"
+      result := ["DOC:G-2", "DOC:G-1", "DOC:G-3"]
     end
+  ensure
+    has_candidates: result.length &gt; 0
   end
 end
 
 class Ranking_Service
 feature
-  rank(candidate: String): String
+  rank(candidates: Array[String]): String
+  require
+    has_candidates: candidates.length &gt; 0
   do
-    if candidate = "CAND:G-1" then
-      result := "DOC:G-1"
-    else
-      result := "DOC:GENERIC"
+    let scores: Map[String, Integer] := {"DOC:G-1": 9, "DOC:G-2": 7, "DOC:G-3": 4}
+    result := candidates.get(0)
+    let best := 0
+    across candidates as c do
+      if scores.contains_key(c) and scores.get(c) &gt; best then
+        best := scores.get(c)
+        result := c
+      end
     end
+  ensure
+    chosen_from_candidates: candidates.contains(result)
   end
 end
 
@@ -126,8 +146,8 @@ feature
   require
     query_present: q /= ""
   do
-    let c: String := retrieval.retrieve(q)
-    result := ranking.rank(c)
+    let candidates: Array[String] := retrieval.retrieve(q)
+    result := ranking.rank(candidates)
   ensure
     non_empty: result /= ""
   end

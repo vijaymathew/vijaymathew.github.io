@@ -79,6 +79,8 @@ end
 
 class Route_Interface
 feature
+  -- Fixture map: A -&gt; B -&gt; C. D is a known
+  -- location with no paths to or from it.
   is_known(loc: String): Boolean do
     result := loc = "A" or loc = "B" 
               or loc = "C" or loc = "D"
@@ -95,6 +97,12 @@ feature
     elseif start_loc = goal_loc then
       result := 
        create Route_Response.make("FOUND", start_loc)
+    elseif start_loc = "A" and goal_loc = "B" then
+      result := 
+       create Route_Response.make("FOUND", "A-&gt;B")
+    elseif start_loc = "B" and goal_loc = "C" then
+      result := 
+       create Route_Response.make("FOUND", "B-&gt;C")
     elseif start_loc = "A" and goal_loc = "C" then
       result := 
        create Route_Response.make("FOUND", "A-&gt;B-&gt;C")
@@ -138,7 +146,7 @@ feature
 end</code></pre>
 <p><code>Route_Response</code> carries invariants that constrain the status to one of three declared values and allow a path only when the status is <code>FOUND</code>. No code can construct a <code>Route_Response</code> with an undeclared status, or a path attached to a failure — the constraint is structural, not advisory. <code>Route_Interface.plan_route</code> has a precondition that rejects empty identifiers, answers unknown identifiers with <code>INVALID_INPUT</code>, and has a postcondition that asserts the output status is always one of the three declared values. Together, these define the complete contract.</p>
 <p><code>Route_Client</code> depends on nothing about <code>Route_Interface</code> except its contract. It does not know whether routes are computed by BFS or Dijkstra, or how the graph is stored. It knows the three possible statuses and what to do with each. This is the definition of a stable caller: one whose behavior is determined by the interface contract and nothing else.</p>
-<p>The postcondition on <code>Route_Client.request</code> — <code>result /= ""</code> — is weaker than the postconditions on the interface itself. This is correct: <code>request</code> is a consumer of the interface contract, and its own contract follows from what the interface guarantees. A stronger postcondition that asserted specific result strings would couple <code>request</code> to the exact status values of the interface, reducing the interface’s ability to change its status vocabulary in the future.</p>
+<p>The postcondition on <code>Route_Client.request</code> — <code>result /= ""</code> — is weaker than the postconditions on the interface itself. This is correct: <code>request</code> is a consumer of the interface contract, and its own contract follows from what the interface guarantees. The body of <code>request</code> does depend on the interface’s three status values — that is the contract it consumes. What the weak postcondition leaves open is <code>request</code>’s own reply vocabulary: <code>OK:</code>, <code>NO_ROUTE</code>, and <code>BAD_INPUT</code> are not promised to anyone, so they can change without breaking a caller. If callers come to branch on those replies, they become part of the contract, and the postcondition should list them the way <code>plan_route</code> lists its statuses.</p>
 </section>
 <section class="level2" data-number="27.5" id="one-interface-many-consumers">
 <h2 class="anchored" data-anchor-id="one-interface-many-consumers" data-number="27.5"> One Interface, Many Consumers</h2>

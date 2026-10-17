@@ -120,6 +120,7 @@ feature
   end
 end</code></pre>
 <p>A reviewer looking at this Nex implementation can immediately see the logic’s boundaries. They can see that the loop is bounded by <code>max_attempts</code>. They can see that it stops correctly on a <code>PERMANENT_FAILURE</code>. The <code>ensure</code> clause makes the expected outcomes explicit. The review task is transformed from “understanding the code” to “validating the contract.”</p>
+<p>The same reading shows what the proposal leaves out. Nothing records that a task has already been sent, so a retry after a lost response dispatches it a second time: the idempotency question is unanswered. And <code>send_task</code> holds no task state at all, so nothing keeps the task in a “DISPATCHING” state while the loop runs. Those two gaps are the review comments. The patch goes back with a request for an idempotency guard — a record of sent task identifiers checked before the first attempt — and for the state transitions to go through the task’s own operations.</p>
 </section>
 <section class="level2" data-number="35.5" id="what-the-reviewer-guards">
 <h2 class="anchored" data-anchor-id="what-the-reviewer-guards" data-number="35.5"> What the Reviewer Guards</h2>

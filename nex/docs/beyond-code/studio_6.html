@@ -369,9 +369,11 @@ end</code></pre>
 create
   make(initial_count: Integer) do
     this.migrated_count := initial_count
+    this.baseline_count := initial_count
   end
 feature
   migrated_count: Integer
+  baseline_count: Integer   -- where a rollback returns to
 
   run(canary_passed: Boolean): String
   do
@@ -379,10 +381,14 @@ feature
       migrated_count := migrated_count + 100
       result := "MIGRATION_CONTINUE"
     else
+      -- Undo every batch migrated since the baseline.
+      migrated_count := baseline_count
       result := "ROLLBACK"
     end
   ensure
     known_result: result = "MIGRATION_CONTINUE" or result = "ROLLBACK"
+    rolled_back: result /= "ROLLBACK" 
+                 or migrated_count = baseline_count
   end
 end
 
@@ -417,16 +423,28 @@ feature
     let we: World_Evolution_Service
       := create World_Evolution_Service.make(w1, w2, cfg)
 
-    let wr: Evolution_Result := we.step(8, 6, 10)
-    print("World: mode=" + wr.mode + " value=" + wr.value)
+    let wr: Evolution_Result := we.step(2, 6, 10)
+    print("World: mode=" + wr.mode + " value=" + wr.value)  -- X=5 (damped)
+
+    -- The same step with the flag off still runs V1.
+    let v1_cfg: Rollout_Config := create Rollout_Config.make(false, false)
+    let we_v1: World_Evolution_Service
+      := create World_Evolution_Service.make(w1, w2, v1_cfg)
+    let wr_v1: Evolution_Result := we_v1.step(2, 6, 10)
+    print("World: mode=" + wr_v1.mode + " value=" + wr_v1.value)  -- X=8
 
     -- Migration + rollback gate
     let m: Migration_Runner := create Migration_Runner.make(0)
     print("Migration gate: " + m.run(true))
     print("Migration count: " + m.migrated_count)
     print("Rollback gate: " + m.run(false))
+    print("Count after rollback: " + m.migrated_count)  -- 0
   end
-end</code></pre>
+end
+
+-- Run the driver
+let app := create App
+app.run</code></pre>
 <p>Expected outcomes:</p>
 <ul>
 <li>v2 behavior can be rolled out without breaking v1 clients</li>

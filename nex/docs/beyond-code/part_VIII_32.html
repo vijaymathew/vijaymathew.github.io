@@ -53,7 +53,7 @@
 <p>Without an extension point, the ranking logic is likely embedded in the search service. Switching algorithms means a code change and a risky deployment.</p>
 <p>With an extension point, we design for variation:</p>
 <ol type="1">
-<li><strong>Define the Port:</strong> We create a stable interface, <code>Ranking_Strategy</code>, with a single operation: <code>rank(results: List[Document])</code>.</li>
+<li><strong>Define the Port:</strong> We create a stable interface, <code>Ranking_Strategy</code>, with a single operation: <code>rank(query, candidates)</code>, which returns the same candidates in ranked order.</li>
 <li><strong>Implement the Variants:</strong> We create <code>Legacy_Ranking</code> and <code>Experimental_Ranking</code>, both adhering to the <code>Ranking_Strategy</code> contract.</li>
 <li><strong>Introduce the Switch:</strong> The search service is given an instance of <code>Ranking_Strategy</code> at runtime. Which implementation it gets is decided by a configuration setting or a feature flag.</li>
 </ol>
@@ -82,6 +82,7 @@ class Legacy_Ranking
 feature
   rank(query: String, candidates: Array[String]): Array[String]
   do
+    -- Keep the order the index returned.
     result := candidates
   end
 end
@@ -92,8 +93,13 @@ class Experimental_Ranking
 feature
   rank(query: String, candidates: Array[String]): Array[String]
   do
-    -- Complex ranking logic...
-    result := candidates -- placeholder
+    -- Stand-in for a learned model: favor the most
+    -- recently indexed documents, which come last.
+    result := []
+    from let i := candidates.length - 1 until i &lt; 0 do
+      result.add(candidates.get(i))
+      i := i - 1
+    end
   end
 end
 
@@ -125,7 +131,7 @@ feature
     has_candidates: result.length &gt; 0
   end
 end</code></pre>
-<p>The <code>deferred</code> class <code>Ranking_Strategy</code> acts as the port. The <code>Search_Service</code> depends only on this abstraction. Whether the <code>strategy</code> is an instance of <code>Legacy_Ranking</code> or <code>Experimental_Ranking</code> is a configuration detail. The search logic is protected from the volatility of the ranking algorithm.</p>
+<p>The <code>deferred</code> class <code>Ranking_Strategy</code> acts as the port. The <code>Search_Service</code> depends only on this abstraction. Whether the <code>strategy</code> is an instance of <code>Legacy_Ranking</code> or <code>Experimental_Ranking</code> is a configuration detail. Given the same candidates, <code>DOC:A</code> and <code>DOC:B</code>, the legacy strategy returns them in index order and the experimental one returns <code>DOC:B</code> first; <code>execute_search</code> is identical in both cases. The search logic is protected from the volatility of the ranking algorithm.</p>
 </section>
 <section class="level2" data-number="33.5" id="choosing-the-extension-point">
 <h2 class="anchored" data-anchor-id="choosing-the-extension-point" data-number="33.5"> Choosing the Extension Point</h2>

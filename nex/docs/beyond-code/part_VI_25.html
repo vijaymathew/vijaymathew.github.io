@@ -71,6 +71,15 @@ feature
   ensure
     now_ready: ready = true
   end
+
+  mark_busy()
+  require
+    was_ready: ready = true
+  do
+    ready := false
+  ensure
+    now_busy: ready = false
+  end
 invariant
   id_present: robot_id /= ""
 end
@@ -118,12 +127,14 @@ feature
       task.status = "FAILED"
   do
     task.assign(robot.robot_id)
+    robot.mark_busy
     result := "DISPATCHED"
   ensure
     known_result: result = "DISPATCHED"
+    robot_taken: robot.ready = false
   end
 end</code></pre>
-<p><code>Robot</code> and <code>Delivery_Task</code> enforce their own invariants and transitions, while <code>Dispatch_Service</code> enforces the workflow-level preconditions and delegates the domain-level operation to the task itself.</p>
+<p><code>Robot</code> and <code>Delivery_Task</code> enforce their own invariants and transitions, while <code>Dispatch_Service</code> enforces the workflow-level preconditions and delegates the domain-level operations to the objects themselves: the task moves itself into transit, and the robot marks itself busy, so a robot that has just been dispatched fails the <code>robot_ready</code> check if anyone tries to dispatch it again.</p>
 <p>The precondition on <code>Dispatch_Service.dispatch</code> — <code>robot.ready = true</code> and the task’s status condition — duplicates part of the task’s own precondition. This is not redundant. The coordinator’s precondition is checked before <code>task.assign</code> is called; the task’s precondition is checked when <code>task.assign</code> is called. The coordinator’s check is the gate that prevents the call from being made when preconditions are not met; the task’s check is the guarantee that its own invariants are always enforced, regardless of whether the coordinator checked first. Both are necessary, and they serve different purposes.</p>
 <p>What the sketch does not show is equally important. No code outside <code>Robot</code> sets <code>robot.ready</code> directly. No code outside <code>Delivery_Task</code> sets <code>task.status</code> directly. The objects’ internal fields are accessible to them through their own operations and to no one else. This constraint — that state changes flow through defined operations rather than through direct field assignment — is what makes the invariants enforceable. An invariant that can be bypassed by direct field mutation is an invariant in name only.</p>
 </section>

@@ -70,9 +70,10 @@
 feature
   tokenize(query: String): String
   require
-    query_present: query /= ""
+    query_present: query.trim /= ""
   do
-    result := query
+    -- Normalize: drop surrounding spaces, ignore case.
+    result := query.trim.to_lower
   ensure
     non_empty_tokens: result /= ""
   end
@@ -82,7 +83,7 @@ feature
     inputs_present: doc_text /= "" 
                     and tokens /= ""
   do
-    if doc_text = tokens then
+    if doc_text.to_lower.contains(tokens) then
       result := 100
     else
       result := 10
@@ -94,7 +95,7 @@ feature
   choose_top(doc1, doc2, query: String): String
   require
     docs_present: doc1 /= "" and doc2 /= "" 
-                  and query /= ""
+                  and query.trim /= ""
   do
     let t: String := tokenize(query)
     let s1: Integer := score(doc1, t)
@@ -109,7 +110,7 @@ feature
     from_inputs: result = doc1 or result = doc2
   end
 end</code></pre>
-<p><code>tokenize</code> and <code>score</code> are independent operations, each with its own contract. <code>choose_top</code> composes them: it calls <code>tokenize</code> to normalize the query, calls <code>score</code> twice to evaluate each candidate, and selects based on the scores. The postcondition on <code>choose_top</code> — <code>result = doc1 or result = doc2</code> — guarantees that the result comes from the inputs and not from some other source, which is a meaningful guarantee even in this simplified sketch.</p>
+<p>The sketch is a two-candidate cut of the pipeline above. <code>tokenize</code> and <code>score</code> are simplified versions of <code>tokenize_query</code> and <code>score_candidate</code>, <code>choose_top</code> does the work of <code>rank_candidates</code> for two candidates, and <code>filter_by_threshold</code> is left out. <code>tokenize</code> and <code>score</code> are independent operations, each with its own contract. <code>choose_top</code> composes them: it calls <code>tokenize</code> to normalize the query, calls <code>score</code> twice to evaluate each candidate, and selects based on the scores. The postcondition on <code>choose_top</code> — <code>result = doc1 or result = doc2</code> — guarantees that the result comes from the inputs and not from some other source, which is a meaningful guarantee even in this simplified sketch.</p>
 <p>Notice that <code>choose_top</code> does not know how tokenization works or how scoring is computed. It knows only what each operation guarantees. This is what makes composition safe: each piece can be reasoned about through its contract, and a piece that satisfies its contract can be replaced by any other piece that satisfies the same contract.</p>
 </section>
 <section class="level2" data-number="13.5" id="where-decomposition-goes-wrong">

@@ -161,16 +161,6 @@ feature
   from_doc_id: String
   to_doc_id: String
   link_type: String
-
-  is_valid(): Boolean do
-    result :=
-      from_doc_id /= "" and
-      to_doc_id /= "" and
-      from_doc_id /= to_doc_id and
-      (link_type = "references" 
-       or link_type = "related" 
-       or link_type = "contradicts")
-  end
 create
   make(f: String, t: String, lt: String) do
     from_doc_id := f
@@ -181,6 +171,10 @@ invariant
   endpoints_present: from_doc_id /= "" 
                      and to_doc_id /= ""
   no_self_link: from_doc_id /= to_doc_id
+  known_link_type:
+    link_type = "references" or
+    link_type = "related" or
+    link_type = "contradicts"
 end</code></pre>
 </section>
 <section class="level3" id="virtual-world-model-v2">
@@ -234,15 +228,21 @@ feature
     -- Knowledge
     let l: Doc_Link := 
       create Doc_Link.make("D1", "D2", "references")
-    print(l.is_valid)            -- true
+    -- The invariant rejects an unknown type or a self-link
+    -- at construction, so any link that exists is valid.
+    print(l.link_type)           -- references
 
     -- World
     let w: World_Object := 
-      create World_Object.make("0-1", 9, 4)
+      create World_Object.make("O-1", 9, 4)
     w.step(10)
     print(w.x)                   -- 10 (clamped)
   end
-end</code></pre>
+end
+
+-- Run the driver
+let app := create App
+app.run</code></pre>
 </section>
 </section>
 <section class="level2" id="studio-challenges">
