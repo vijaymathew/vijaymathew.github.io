@@ -35,7 +35,7 @@ That plays the F# two and a half octaves above middle C, quietly. Nothing compla
 
 The second problem is distance. Suppose a melody is stored as integers and we transpose it up an octave by adding 12. A note at 120 becomes 132. Nothing notices until rendering, when `add_note` rejects it, far from the line that made the mistake. The error names `add_note`, not the transposition.
 
-Both problems have the same cure: give the idea its own class. A `Pitch` cannot be passed where a velocity is expected, and a `Pitch` that would leave the MIDI range refuses to exist. The check moves from the edge of the program to the moment the mistake is made.
+Both problems have the same cure: give the idea its own class. A `Pitch` cannot be passed where a velocity is expected, and a `Pitch` that would leave the MIDI range cannot be created. The check moves from the edge of the program to the moment the mistake is made.
 
 ## Pitch: a value that cannot be wrong
 
@@ -128,7 +128,7 @@ end
 
 A few things are worth slowing down for.
 
-**The invariant and the precondition say the same thing, on purpose.** The invariant is the class's promise: no `Pitch` anywhere in the program is outside 0..127. The precondition on `from_midi` is the caller's side of that bargain: don't ask for one that is. If a caller breaks the rule, the error blames the caller, at the call:
+**The invariant and the precondition say the same thing, on purpose.** The invariant is the class's promise: no `Pitch` anywhere in the program is outside 0..127. The precondition on `from_midi` is the caller's side of that bargain: don't ask for one that is. If a caller breaks the rule, the error blames the caller, right at the call site:
 
 ```nex
 > create Pitch.from_midi(128)
@@ -239,7 +239,7 @@ end
 
 `plus` is bound to `+` with `alias`, so `Interval.OCTAVE + Interval.PERFECT_FIFTH` reads like music theory and is still exactly a call to `plus`, precondition and all.
 
-If you look carefully at `simple` you may notice a problem: when we ask whether a note belongs to a chord, we care about the interval from the root folded into one octave. The body `semitones % 12` looks right, and for upward intervals it is. Try a downward one:
+If you look carefully at `simple` you might see a problem: when we ask whether a note belongs to a chord, we care about the interval from the root folded into one octave. The body `semitones % 12` looks right, and for upward intervals it is. Try a downward one:
 
 ```nex
 > let tenth := create Interval.of(16)
@@ -307,7 +307,7 @@ It is tempting to write a command instead, one that changes the pitch in place:
   end
 ```
 
-The contract is fine; `old midi` is exactly the right tool for a command. Nex rejects the class anyway, because `midi` is a `once` field. This a deliberate design choice. If pitches could change, then a `Phrase` holding the same `Pitch` object in two places would have both notes move when you transpose one. Values that cannot change can be shared freely, and that will make every collection class later in the series simpler. We will have appropriate use for `old` later when we implement `Phrase` and `Voice` which are things that do change.
+The contract is fine; `old midi` is exactly the right tool for a command. Nex rejects the class anyway, because `midi` is a `once` field. This is a deliberate design choice. If pitches could change, then a `Phrase` holding the same `Pitch` object in two places would have both notes move when you transpose one. Values that cannot change can be shared freely, and that will make every collection class later in the series simpler. We will have appropriate use for `old` later when we implement `Phrase` and `Voice` which are things that do change.
 
 ## Making it sound
 

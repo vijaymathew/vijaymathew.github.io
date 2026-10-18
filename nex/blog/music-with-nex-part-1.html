@@ -69,7 +69,7 @@ score.add_note(0, 60, 90, 0, 4)            -- channel, pitch, velocity, start, l
 </code></pre>
 <p>That plays the F# two and a half octaves above middle C, quietly. Nothing complains, because 90 is a perfectly good pitch and 60 an equally good velocity.</p>
 <p>The second problem is distance. Suppose a melody is stored as integers and we transpose it up an octave by adding 12. A note at 120 becomes 132. Nothing notices until rendering, when <code>add_note</code> rejects it, far from the line that made the mistake. The error names <code>add_note</code>, not the transposition.</p>
-<p>Both problems have the same cure: give the idea its own class. A <code>Pitch</code> cannot be passed where a velocity is expected, and a <code>Pitch</code> that would leave the MIDI range refuses to exist. The check moves from the edge of the program to the moment the mistake is made.</p>
+<p>Both problems have the same cure: give the idea its own class. A <code>Pitch</code> cannot be passed where a velocity is expected, and a <code>Pitch</code> that would leave the MIDI range cannot be created. The check moves from the edge of the program to the moment the mistake is made.</p>
 <h2 id="pitch-a-value-that-cannot-be-wrong">Pitch: a value that cannot be wrong</h2>
 <p>A pitch is a value, like a number or a colour. Two middle Cs are the same pitch, and a pitch never changes once it exists. Here is the whole class. Read the contracts first; then the bodies.</p>
 <pre><code class="language-nex">class Pitch
@@ -156,7 +156,7 @@ invariant
 end
 </code></pre>
 <p>A few things are worth slowing down for.</p>
-<p><strong>The invariant and the precondition say the same thing, on purpose.</strong> The invariant is the class&rsquo;s promise: no <code>Pitch</code> anywhere in the program is outside 0..127. The precondition on <code>from_midi</code> is the caller&rsquo;s side of that bargain: don&rsquo;t ask for one that is. If a caller breaks the rule, the error blames the caller, at the call:</p>
+<p><strong>The invariant and the precondition say the same thing, on purpose.</strong> The invariant is the class&rsquo;s promise: no <code>Pitch</code> anywhere in the program is outside 0..127. The precondition on <code>from_midi</code> is the caller&rsquo;s side of that bargain: don&rsquo;t ask for one that is. If a caller breaks the rule, the error blames the caller, right at the call site:</p>
 <pre><code class="language-nex">&gt; create Pitch.from_midi(128)
 Error: Precondition violation: in_midi_range
 </code></pre>
@@ -253,7 +253,7 @@ feature
 end
 </code></pre>
 <p><code>plus</code> is bound to <code>+</code> with <code>alias</code>, so <code>Interval.OCTAVE + Interval.PERFECT_FIFTH</code> reads like music theory and is still exactly a call to <code>plus</code>, precondition and all.</p>
-<p>If you look carefully at <code>simple</code> you may notice a problem: when we ask whether a note belongs to a chord, we care about the interval from the root folded into one octave. The body <code>semitones % 12</code> looks right, and for upward intervals it is. Try a downward one:</p>
+<p>If you look carefully at <code>simple</code> you might see a problem: when we ask whether a note belongs to a chord, we care about the interval from the root folded into one octave. The body <code>semitones % 12</code> looks right, and for upward intervals it is. Try a downward one:</p>
 <pre><code class="language-nex">&gt; let tenth := create Interval.of(16)
 &gt; tenth.simple
 Interval(4)
@@ -302,7 +302,7 @@ Error: Precondition violation: stays_in_range
     moved_by: midi = old midi + by.semitones
   end
 </code></pre>
-<p>The contract is fine; <code>old midi</code> is exactly the right tool for a command. Nex rejects the class anyway, because <code>midi</code> is a <code>once</code> field. This a deliberate design choice. If pitches could change, then a <code>Phrase</code> holding the same <code>Pitch</code> object in two places would have both notes move when you transpose one. Values that cannot change can be shared freely, and that will make every collection class later in the series simpler. We will have appropriate use for <code>old</code> later when we implement <code>Phrase</code> and <code>Voice</code> which are things that do change.</p>
+<p>The contract is fine; <code>old midi</code> is exactly the right tool for a command. Nex rejects the class anyway, because <code>midi</code> is a <code>once</code> field. This is a deliberate design choice. If pitches could change, then a <code>Phrase</code> holding the same <code>Pitch</code> object in two places would have both notes move when you transpose one. Values that cannot change can be shared freely, and that will make every collection class later in the series simpler. We will have appropriate use for <code>old</code> later when we implement <code>Phrase</code> and <code>Voice</code> which are things that do change.</p>
 <h2 id="making-it-sound">Making it sound</h2>
 <p>A major scale is a pattern of steps: whole, whole, half, whole, whole, whole, half. In our terms that is a list of intervals, and building the scale is a walk from the tonic:</p>
 <pre><code class="language-nex">let whole := Interval.MAJOR_SECOND

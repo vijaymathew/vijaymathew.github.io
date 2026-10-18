@@ -33,7 +33,7 @@ score.add_note(0, 60, 90, 0, 4)            -- channel, pitch, velocity, start, l
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;That plays the F# two and a half octaves above middle C, quietly. Nothing complains, because 90 is a perfectly good pitch and 60 an equally good velocity.&lt;/p&gt;
 &lt;p&gt;The second problem is distance. Suppose a melody is stored as integers and we transpose it up an octave by adding 12. A note at 120 becomes 132. Nothing notices until rendering, when &lt;code&gt;add_note&lt;/code&gt; rejects it, far from the line that made the mistake. The error names &lt;code&gt;add_note&lt;/code&gt;, not the transposition.&lt;/p&gt;
-&lt;p&gt;Both problems have the same cure: give the idea its own class. A &lt;code&gt;Pitch&lt;/code&gt; cannot be passed where a velocity is expected, and a &lt;code&gt;Pitch&lt;/code&gt; that would leave the MIDI range refuses to exist. The check moves from the edge of the program to the moment the mistake is made.&lt;/p&gt;
+&lt;p&gt;Both problems have the same cure: give the idea its own class. A &lt;code&gt;Pitch&lt;/code&gt; cannot be passed where a velocity is expected, and a &lt;code&gt;Pitch&lt;/code&gt; that would leave the MIDI range cannot be created. The check moves from the edge of the program to the moment the mistake is made.&lt;/p&gt;
 &lt;h2 id=&quot;pitch-a-value-that-cannot-be-wrong&quot;&gt;Pitch: a value that cannot be wrong&lt;/h2&gt;
 &lt;p&gt;A pitch is a value, like a number or a colour. Two middle Cs are the same pitch, and a pitch never changes once it exists. Here is the whole class. Read the contracts first; then the bodies.&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Pitch
@@ -120,7 +120,7 @@ invariant
 end
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;A few things are worth slowing down for.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;The invariant and the precondition say the same thing, on purpose.&lt;/strong&gt; The invariant is the class&amp;rsquo;s promise: no &lt;code&gt;Pitch&lt;/code&gt; anywhere in the program is outside 0..127. The precondition on &lt;code&gt;from_midi&lt;/code&gt; is the caller&amp;rsquo;s side of that bargain: don&amp;rsquo;t ask for one that is. If a caller breaks the rule, the error blames the caller, at the call:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The invariant and the precondition say the same thing, on purpose.&lt;/strong&gt; The invariant is the class&amp;rsquo;s promise: no &lt;code&gt;Pitch&lt;/code&gt; anywhere in the program is outside 0..127. The precondition on &lt;code&gt;from_midi&lt;/code&gt; is the caller&amp;rsquo;s side of that bargain: don&amp;rsquo;t ask for one that is. If a caller breaks the rule, the error blames the caller, right at the call site:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;&amp;gt; create Pitch.from_midi(128)
 Error: Precondition violation: in_midi_range
 &lt;/code&gt;&lt;/pre&gt;
@@ -217,7 +217,7 @@ feature
 end
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;code&gt;plus&lt;/code&gt; is bound to &lt;code&gt;+&lt;/code&gt; with &lt;code&gt;alias&lt;/code&gt;, so &lt;code&gt;Interval.OCTAVE + Interval.PERFECT_FIFTH&lt;/code&gt; reads like music theory and is still exactly a call to &lt;code&gt;plus&lt;/code&gt;, precondition and all.&lt;/p&gt;
-&lt;p&gt;If you look carefully at &lt;code&gt;simple&lt;/code&gt; you may notice a problem: when we ask whether a note belongs to a chord, we care about the interval from the root folded into one octave. The body &lt;code&gt;semitones % 12&lt;/code&gt; looks right, and for upward intervals it is. Try a downward one:&lt;/p&gt;
+&lt;p&gt;If you look carefully at &lt;code&gt;simple&lt;/code&gt; you might see a problem: when we ask whether a note belongs to a chord, we care about the interval from the root folded into one octave. The body &lt;code&gt;semitones % 12&lt;/code&gt; looks right, and for upward intervals it is. Try a downward one:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;&amp;gt; let tenth := create Interval.of(16)
 &amp;gt; tenth.simple
 Interval(4)
@@ -266,7 +266,7 @@ Error: Precondition violation: stays_in_range
     moved_by: midi = old midi + by.semitones
   end
 &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;The contract is fine; &lt;code&gt;old midi&lt;/code&gt; is exactly the right tool for a command. Nex rejects the class anyway, because &lt;code&gt;midi&lt;/code&gt; is a &lt;code&gt;once&lt;/code&gt; field. This a deliberate design choice. If pitches could change, then a &lt;code&gt;Phrase&lt;/code&gt; holding the same &lt;code&gt;Pitch&lt;/code&gt; object in two places would have both notes move when you transpose one. Values that cannot change can be shared freely, and that will make every collection class later in the series simpler. We will have appropriate use for &lt;code&gt;old&lt;/code&gt; later when we implement &lt;code&gt;Phrase&lt;/code&gt; and &lt;code&gt;Voice&lt;/code&gt; which are things that do change.&lt;/p&gt;
+&lt;p&gt;The contract is fine; &lt;code&gt;old midi&lt;/code&gt; is exactly the right tool for a command. Nex rejects the class anyway, because &lt;code&gt;midi&lt;/code&gt; is a &lt;code&gt;once&lt;/code&gt; field. This is a deliberate design choice. If pitches could change, then a &lt;code&gt;Phrase&lt;/code&gt; holding the same &lt;code&gt;Pitch&lt;/code&gt; object in two places would have both notes move when you transpose one. Values that cannot change can be shared freely, and that will make every collection class later in the series simpler. We will have appropriate use for &lt;code&gt;old&lt;/code&gt; later when we implement &lt;code&gt;Phrase&lt;/code&gt; and &lt;code&gt;Voice&lt;/code&gt; which are things that do change.&lt;/p&gt;
 &lt;h2 id=&quot;making-it-sound&quot;&gt;Making it sound&lt;/h2&gt;
 &lt;p&gt;A major scale is a pattern of steps: whole, whole, half, whole, whole, whole, half. In our terms that is a list of intervals, and building the scale is a walk from the tonic:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;let whole := Interval.MAJOR_SECOND
