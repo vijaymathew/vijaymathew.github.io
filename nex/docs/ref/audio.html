@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Libraries — Nex Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../site.css">
+  <script src="../../site.js"></script>
+<link rel="icon" href="../../assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../assets/icons/nex-180.png">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="../../../nex.html"><img src="../../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-light="../../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-dark="../../assets/logo/nex-logo-concept-7-orbit-n-dark.svg" alt="">nex</a>
+    <div class="nav-links">
+      <a href="../../tutorial.html">Tutorial</a>
+      <a href="../../syntax.html">Syntax</a>
+      <a href="../../../nex.html#learn">Learn</a>
+      <a href="../../../nex.html#install">Install</a>
+      <a class="gh" href="https://github.com/vijaymathew/nex" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <button class="toggle" id="theme" aria-label="Toggle dark mode" title="Toggle theme">🌙</button>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="page-head">
+    <span class="eyebrow">// reference</span>
+    <h1>Audio Libraries</h1>
+  </header>
+
+  <div class="doc">
+    <aside class="side">
+      <div class="ref-search">
+        <input id="ref-q" type="search" placeholder="Search the reference…" aria-label="Search the reference" autocomplete="off">
+        <div class="ref-results" id="ref-results"></div>
+      </div>
+      <details class="toc" open>
+        <summary>Nex Reference</summary>
+        <ul><li><a href="index.html">Contents</a></li><li><a href="functions.html">Built-in Functions</a></li><li><a href="foundational-classes.html">Foundational Classes</a></li><li><a href="scalar-types.html">Scalar Types</a></li><li><a href="collection-types.html">Collection Types</a></li><li><a href="cursor-types.html">Cursor Types</a></li><li><a href="system-classes.html">System Classes</a></li><li><a href="exceptions.html">Exception Classes</a></li><li><a href="libraries.html">Library Index</a></li><li><a href="data.html">Data Libraries</a></li><li><a href="audio.html" class="on">Audio Libraries</a></li><li><a href="graphics.html">Graphics Libraries</a></li><li><a href="io.html">IO Libraries</a></li><li><a href="text.html">Text Libraries</a></li><li><a href="time.html">Time Libraries</a></li><li><a href="networking.html">Networking Libraries</a></li></ul>
+      </details>
+      <details class="toc" open>
+        <summary>On this page</summary>
+        <ul>
+  <li><a href="#platform-scope">Platform Scope</a></li>
+  <li><a href="#load">Load</a></li>
+  <li><a href="#example">Example</a></li>
+  <li><a href="#without-a-sound-device">Without a sound device</a></li>
+  <li><a href="#files">Files</a></li>
+  <li><a href="#audio_device"><code>Audio_Device</code></a></li>
+  <li><a href="#sound"><code>Sound</code></a>
+  <ul>
+  <li><a href="#construction">Construction</a></li>
+  <li><a href="#features">Features</a></li>
+  </ul></li>
+  <li><a href="#track"><code>Track</code></a></li>
+  <li><a href="#music"><code>Music</code></a></li>
+  <li><a href="#midi"><code>Midi</code></a></li>
+  <li><a href="#synth"><code>Synth</code></a></li>
+  <li><a href="#midi_score"><code>Midi_Score</code></a></li>
+  <li><a href="#midi_song"><code>Midi_Song</code></a></li>
+  </ul>
+      </details>
+    </aside>
+
+    <main>
+      <div class="prose">
+<p>This page documents the sound library shipped under <code>lib/audio</code>.</p>
+<p>These are library classes, not core built-in classes. Load them with <code>intern</code>. They are written in Nex on top of Java Sound (<code>javax.sound.sampled</code> and <code>javax.sound.midi</code>, through <code>with "java"</code>), with no runtime, typechecker or compiler support of their own, and need no third-party libraries.</p>
+<section id="platform-scope" class="level2">
+<h2 class="anchored" data-anchor-id="platform-scope">Platform Scope</h2>
+<ul>
+<li><code>audio/Audio_Device</code>: JVM interpreter, generated JVM</li>
+<li><code>audio/Sound</code>: JVM interpreter, generated JVM</li>
+<li><code>audio/Track</code>, <code>audio/Music</code>: JVM interpreter, generated JVM</li>
+<li><code>audio/Midi</code>, <code>audio/Synth</code>, <code>audio/Midi_Score</code>, <code>audio/Midi_Song</code>: JVM interpreter, generated JVM</li>
+</ul>
+<p>Playing sound needs a sound device. Everything else works without one, so the same program runs headless, for example in tests or on a server: see <em>Without a sound device</em>.</p>
+</section>
+<section id="load" class="level2">
+<h2 class="anchored" data-anchor-id="load">Load</h2>
+<pre class="nex"><code>intern audio/Sound        -- short effects; also interns Audio_Device
+intern audio/Music        -- recorded tracks; also interns Track
+intern audio/Synth        -- notes played live; also interns Midi
+intern audio/Midi_Song    -- MIDI files and scores; also interns Track, Midi_Score, Midi</code></pre>
+</section>
+<section id="example" class="level2">
+<h2 class="anchored" data-anchor-id="example">Example</h2>
+<pre class="nex"><code>intern audio/Sound
+intern audio/Synth
+
+let beep := create Sound.tone(880.0, 120)   -- no sound file needed
+beep.play()                                  -- returns at once
+
+let s := create Synth.make()
+s.set_instrument(0, Midi.SQUARE_LEAD)
+s.play_note(0, Midi.MIDDLE_C, 100, 150)     -- C for 150 ms</code></pre>
+<p><code>examples/audio_example.nex</code> plays a generated beep, an arpeggio on the synthesizer and a short tune written in code, and needs no sound files.</p>
+</section>
+<section id="without-a-sound-device" class="level2">
+<h2 class="anchored" data-anchor-id="without-a-sound-device">Without a sound device</h2>
+<p>When there is no sound device, or the environment variable <code>NEX_AUDIO</code> (or the Java system property <code>nex.audio</code>) is <code>off</code>, every audio class still works but plays nothing:</p>
+<ul>
+<li><code>Sound</code> still loads, knows its length and counts <code>play_count</code>.</li>
+<li><code>Synth</code> still keeps each channel's instrument and counts <code>notes_played</code>.</li>
+<li><code>Music</code> and <code>Midi_Song</code> still move through their states. A <code>Midi_Song</code>'s   sequencer keeps running in real time, so it reaches its end as usual; a   <code>Music</code> stays at position 0 and never reaches its end by itself.</li>
+<li><code>is_audible()</code> reports <code>false</code>.</li>
+</ul>
+<p>A test can therefore drive a program headless and check which sounds it asked for — say, that the hit sound played three times.</p>
+</section>
+<section id="files" class="level2">
+<h2 class="anchored" data-anchor-id="files">Files</h2>
+<p><code>Sound</code> and <code>Music</code> read WAV, AIFF and AU files with uncompressed (PCM) audio; MP3 and OGG are not supported. <code>Midi_Song</code> reads standard MIDI files. A relative file name is resolved against the directory <code>nex</code> was started from (<code>NEX_USER_DIR</code>), as in <code>Picture.load</code>.</p>
+</section>
+<section id="audio_device" class="level2">
+<h2 class="anchored" data-anchor-id="audio_device"><code>Audio_Device</code></h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>make</code></td>
+<td>constructor</td>
+<td></td>
+</tr>
+<tr class="even">
+<td><code>is_available()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether sound can be heard: a device is present and sound is not switched off.</td>
+</tr>
+<tr class="odd">
+<td><code>is_switched_off()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether <code>NEX_AUDIO</code> or <code>nex.audio</code> is <code>off</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sound" class="level2">
+<h2 class="anchored" data-anchor-id="sound"><code>Sound</code></h2>
+<p>A short sound effect held in memory. <code>play()</code> starts a fresh copy at once and returns without waiting, so a burst of plays sounds like a burst. Up to <code>voices</code> copies (4 by default) play at once; beyond that, the copy that has played longest starts over.</p>
+<section id="construction" class="level3">
+<h3 class="anchored" data-anchor-id="construction">Construction</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Arguments</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>load</code></td>
+<td><code>filename: String</code></td>
+<td>The WAV, AIFF or AU file. Raises if it is missing or unreadable.</td>
+</tr>
+<tr class="even">
+<td><code>tone</code></td>
+<td><code>frequency: Real, duration_ms: Integer</code></td>
+<td>A sine tone, made in memory, fading in and out over 5 ms. Requires <code>20.0 &lt;= frequency &lt;= 20000.0</code> and <code>0 &lt; duration_ms &lt;= 10000</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="features" class="level3">
+<h3 class="anchored" data-anchor-id="features">Features</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>source</code></td>
+<td><code>String</code></td>
+<td>The file name given to <code>load</code>; <code>""</code> for a tone.</td>
+</tr>
+<tr class="even">
+<td><code>duration_ms</code></td>
+<td><code>Integer</code></td>
+<td>Length in milliseconds.</td>
+</tr>
+<tr class="odd">
+<td><code>voices</code></td>
+<td><code>Integer</code></td>
+<td>How many copies may play at once (1..16).</td>
+</tr>
+<tr class="even">
+<td><code>volume</code></td>
+<td><code>Real</code></td>
+<td>0.0 (silent) to 1.0 (as recorded).</td>
+</tr>
+<tr class="odd">
+<td><code>play_count</code></td>
+<td><code>Integer</code></td>
+<td>How many times <code>play()</code> has been called, heard or not.</td>
+</tr>
+<tr class="even">
+<td><code>is_closed</code></td>
+<td><code>Boolean</code></td>
+<td>Whether <code>close()</code> has been called.</td>
+</tr>
+<tr class="odd">
+<td><code>is_audible()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the sound will be heard.</td>
+</tr>
+<tr class="even">
+<td><code>has_volume_control()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the device honours <code>volume</code>. When it does not, the sound plays as recorded.</td>
+</tr>
+<tr class="odd">
+<td><code>is_playing()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether any copy is playing now. Read live; a copy can finish at any moment.</td>
+</tr>
+<tr class="even">
+<td><code>play()</code></td>
+<td>command</td>
+<td>Start a copy. Requires <code>not is_closed</code>; ensures <code>play_count = old play_count + 1</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>stop()</code></td>
+<td>command</td>
+<td>Silence every copy.</td>
+</tr>
+<tr class="even">
+<td><code>set_volume(v: Real)</code></td>
+<td>command</td>
+<td>Requires <code>0.0 &lt;= v &lt;= 1.0</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>set_voices(n: Integer)</code></td>
+<td>command</td>
+<td>Requires <code>1 &lt;= n &lt;= 16</code>.</td>
+</tr>
+<tr class="even">
+<td><code>close()</code></td>
+<td>command</td>
+<td>Release the audio lines; the sound cannot be played again.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="track" class="level2">
+<h2 class="anchored" data-anchor-id="track"><code>Track</code></h2>
+<p>The deferred class behind <code>Music</code> and <code>Midi_Song</code>: something that plays over time, with the state machine below. Every contract here is inherited.</p>
+<pre><code>       play            pause
+  STOPPED ──► PLAYING ───────► PAUSED
+     ▲          │  ▲  resume     │
+     └── stop ──┘  └─────────────┘   (stop from PAUSED too)</code></pre>
+<p><strong>The state changes only on the program's calls.</strong> The audio itself runs on a background thread, so a track can reach its end at any moment. That shows at once in <code>reached_end()</code>, and the state follows it when <code>update()</code> is called — a game calls it once per frame:</p>
+<pre class="nex"><code>music.update()
+if music.is_stopped() then next_level_music.play() end</code></pre>
+<p>This is what lets <code>play()</code> promise <code>is_playing()</code>: nothing can change the state between the routine's body and the postcondition check.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>state()</code></td>
+<td><code>String</code></td>
+<td><code>"STOPPED"</code>, <code>"PLAYING"</code> or <code>"PAUSED"</code> (also <code>STOPPED</code>, <code>PLAYING</code>, <code>PAUSED</code>).</td>
+</tr>
+<tr class="even">
+<td><code>is_stopped()</code>, <code>is_playing()</code>, <code>is_paused()</code></td>
+<td><code>Boolean</code></td>
+<td>The state.</td>
+</tr>
+<tr class="odd">
+<td><code>is_looping</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the track starts again when it ends.</td>
+</tr>
+<tr class="even">
+<td><code>volume</code></td>
+<td><code>Real</code></td>
+<td>0.0 (silent) to 1.0.</td>
+</tr>
+<tr class="odd">
+<td><code>is_closed</code></td>
+<td><code>Boolean</code></td>
+<td>Whether <code>close()</code> has been called.</td>
+</tr>
+<tr class="even">
+<td><code>reached_end()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the audio has run out (never while looping). Read live.</td>
+</tr>
+<tr class="odd">
+<td><code>update()</code></td>
+<td>command</td>
+<td>A track that has reached its end stops and rewinds.</td>
+</tr>
+<tr class="even">
+<td><code>play()</code></td>
+<td>command</td>
+<td>Start from the beginning. Requires <code>not is_closed</code> and <code>is_stopped()</code>; ensures <code>is_playing()</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>pause()</code></td>
+<td>command</td>
+<td>Requires <code>is_playing()</code>; ensures <code>is_paused()</code>.</td>
+</tr>
+<tr class="even">
+<td><code>resume()</code></td>
+<td>command</td>
+<td>Carry on from where <code>pause()</code> left off. Requires <code>is_paused()</code>; ensures <code>is_playing()</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>stop()</code></td>
+<td>command</td>
+<td>Stop and rewind, from any state. Ensures <code>is_stopped()</code>.</td>
+</tr>
+<tr class="even">
+<td><code>set_looping(b: Boolean)</code></td>
+<td>command</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><code>set_volume(v: Real)</code></td>
+<td>command</td>
+<td>Requires <code>0.0 &lt;= v &lt;= 1.0</code>.</td>
+</tr>
+<tr class="even">
+<td><code>close()</code></td>
+<td>command</td>
+<td>Stop and release the device. Ensures <code>is_closed</code> and <code>is_stopped()</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="music" class="level2">
+<h2 class="anchored" data-anchor-id="music"><code>Music</code></h2>
+<p>A recorded track — background music, an ambience loop — held in memory, which suits tracks of a few minutes. Inherits <code>Track</code>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>load(filename: String)</code></td>
+<td>constructor</td>
+<td>The WAV, AIFF or AU file. Raises if it is missing or unreadable.</td>
+</tr>
+<tr class="even">
+<td><code>source</code></td>
+<td><code>String</code></td>
+<td>The file name given to <code>load</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>duration_ms</code></td>
+<td><code>Integer</code></td>
+<td>Length in milliseconds.</td>
+</tr>
+<tr class="even">
+<td><code>is_audible()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the track will be heard.</td>
+</tr>
+<tr class="odd">
+<td><code>position_ms()</code></td>
+<td><code>Integer</code></td>
+<td>How far into the track playback is.</td>
+</tr>
+<tr class="even">
+<td><code>seek(ms: Integer)</code></td>
+<td>command</td>
+<td>Move to <code>ms</code> without changing the state. Requires <code>0 &lt;= ms &lt;= duration_ms</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="midi" class="level2">
+<h2 class="anchored" data-anchor-id="midi"><code>Midi</code></h2>
+<p>General MIDI constants, so a program writes <code>Midi.TRUMPET</code>, not <code>56</code>: <code>DRUM_CHANNEL</code> (9), <code>MIDDLE_C</code> (60), instruments from <code>PIANO</code> to <code>SYNTH_DRUM</code>, and drum notes such as <code>BASS_DRUM</code>, <code>SNARE</code> and <code>CLOSED_HI_HAT</code>. Notes are numbered by semitone, so 61 is the C sharp above middle C and 72 the C an octave up.</p>
+</section>
+<section id="synth" class="level2">
+<h2 class="anchored" data-anchor-id="synth"><code>Synth</code></h2>
+<p>Notes played live on Java's built-in General MIDI synthesizer. There are 16 channels (0..15), each set to one of 128 instruments; channel 9 plays drums, where each note number is a different drum.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>make</code></td>
+<td>constructor</td>
+<td>Opens the synthesizer, every channel on <code>Midi.PIANO</code>.</td>
+</tr>
+<tr class="even">
+<td><code>is_open</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the synthesizer is open.</td>
+</tr>
+<tr class="odd">
+<td><code>notes_played</code></td>
+<td><code>Integer</code></td>
+<td>How many notes have been started, heard or not.</td>
+</tr>
+<tr class="even">
+<td><code>is_audible()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether notes will be heard.</td>
+</tr>
+<tr class="odd">
+<td><code>instrument(channel: Integer)</code></td>
+<td><code>Integer</code></td>
+<td>The channel's General MIDI program.</td>
+</tr>
+<tr class="even">
+<td><code>set_instrument(channel, program: Integer)</code></td>
+<td>command</td>
+<td>Requires a channel 0..15 and a program 0..127.</td>
+</tr>
+<tr class="odd">
+<td><code>note_on(channel, pitch, velocity: Integer)</code></td>
+<td>command</td>
+<td>Start a note, sounding until <code>note_off</code>. Requires pitch 0..127 and velocity 1..127.</td>
+</tr>
+<tr class="even">
+<td><code>note_off(channel, pitch: Integer)</code></td>
+<td>command</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><code>play_note(channel, pitch, velocity, duration_ms: Integer)</code></td>
+<td>command</td>
+<td><code>note_on</code> now and <code>note_off</code> after <code>duration_ms</code>, without waiting.</td>
+</tr>
+<tr class="even">
+<td><code>set_channel_volume(channel, level: Integer)</code></td>
+<td>command</td>
+<td>The channel's loudness, 0..127.</td>
+</tr>
+<tr class="odd">
+<td><code>all_notes_off()</code></td>
+<td>command</td>
+<td>Silence every note on every channel.</td>
+</tr>
+<tr class="even">
+<td><code>close()</code></td>
+<td>command</td>
+<td>Close the synthesizer.</td>
+</tr>
+</tbody>
+</table>
+<p><code>note</code> is a keyword in Nex, so the note number is called <code>pitch</code>.</p>
+</section>
+<section id="midi_score" class="level2">
+<h2 class="anchored" data-anchor-id="midi_score"><code>Midi_Score</code></h2>
+<p>A piece of music written in code, note by note. Time is counted in ticks, and a beat is <code>ticks_per_beat</code> ticks; a song plays at 120 beats per minute unless <code>Midi_Song.set_tempo</code> says otherwise.</p>
+<pre class="nex"><code>let score := create Midi_Score.make(4)       -- 4 ticks per beat
+score.set_instrument(0, Midi.SQUARE_LEAD, 0)
+score.add_note(0, 60, 100, 0, 4)             -- C, one beat
+score.add_note(0, 64, 100, 4, 4)             -- E
+score.add_note(0, 67, 100, 8, 8)             -- G, two beats
+let tune := create Midi_Song.from_score(score)
+tune.play()</code></pre>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>make(ticks_per_beat: Integer)</code></td>
+<td>constructor</td>
+<td>An empty score. Requires <code>ticks_per_beat &gt; 0</code>.</td>
+</tr>
+<tr class="even">
+<td><code>ticks_per_beat</code></td>
+<td><code>Integer</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td><code>note_count</code></td>
+<td><code>Integer</code></td>
+<td>How many notes have been added.</td>
+</tr>
+<tr class="even">
+<td><code>length_ticks</code></td>
+<td><code>Integer</code></td>
+<td>The tick at which the last note ends.</td>
+</tr>
+<tr class="odd">
+<td><code>add_note(channel, pitch, velocity, start, length: Integer)</code></td>
+<td>command</td>
+<td>Requires <code>start &gt;= 0</code> and <code>length &gt; 0</code>; ensures <code>length_ticks &gt;= start + length</code>.</td>
+</tr>
+<tr class="even">
+<td><code>set_instrument(channel, program, at: Integer)</code></td>
+<td>command</td>
+<td>Switch the channel's instrument at tick <code>at</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>save(filename: String)</code></td>
+<td>command</td>
+<td>Write a standard MIDI file. Requires at least one note.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="midi_song" class="level2">
+<h2 class="anchored" data-anchor-id="midi_song"><code>Midi_Song</code></h2>
+<p>A MIDI file or a <code>Midi_Score</code>, played by Java's sequencer on the built-in synthesizer. Inherits <code>Track</code>.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>load(filename: String)</code></td>
+<td>constructor</td>
+<td>The standard MIDI file. Raises if it is missing or unreadable.</td>
+</tr>
+<tr class="even">
+<td><code>from_score(score: Midi_Score)</code></td>
+<td>constructor</td>
+<td>The notes of the score so far. Requires at least one note.</td>
+</tr>
+<tr class="odd">
+<td><code>source</code></td>
+<td><code>String</code></td>
+<td>The file name given to <code>load</code>; <code>""</code> for a score.</td>
+</tr>
+<tr class="even">
+<td><code>length_ticks</code></td>
+<td><code>Integer</code></td>
+<td>Length in ticks.</td>
+</tr>
+<tr class="odd">
+<td><code>tempo_bpm</code></td>
+<td><code>Real</code></td>
+<td>Beats per minute, from the song when it loads.</td>
+</tr>
+<tr class="even">
+<td><code>speed</code></td>
+<td><code>Real</code></td>
+<td>Playback rate: 2.0 plays twice as fast, at the same pitch.</td>
+</tr>
+<tr class="odd">
+<td><code>is_audible()</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the song will be heard.</td>
+</tr>
+<tr class="even">
+<td><code>position_ticks()</code></td>
+<td><code>Integer</code></td>
+<td>How far into the song playback is.</td>
+</tr>
+<tr class="odd">
+<td><code>set_tempo(bpm: Real)</code></td>
+<td>command</td>
+<td>Requires <code>bpm &gt; 0.0</code>.</td>
+</tr>
+<tr class="even">
+<td><code>set_speed(factor: Real)</code></td>
+<td>command</td>
+<td>Requires <code>0.25 &lt;= factor &lt;= 4.0</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>set_channel_muted(channel: Integer, muted: Boolean)</code></td>
+<td>command</td>
+<td>Mute or unmute one channel, e.g. the drums.</td>
+</tr>
+<tr class="even">
+<td><code>is_channel_muted(channel: Integer)</code></td>
+<td><code>Boolean</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><code>set_volume</code> sets the synthesizer's master volume, so it scales the whole song whatever volumes the song sets on its own channels.</p>
+<p>Java's sequencer runs on a thread that would keep the JVM alive, so a song has one only while it is playing or paused: <code>play()</code> opens it, and <code>stop()</code>, <code>close()</code> and an <code>update()</code> that finds the song ended close it again.</p></section>
+
+
+      </div>
+      <div class="next-cards"><a class="next-card" href="data.html"><small>← previous</small><b>Data Libraries</b></a><a class="next-card" href="graphics.html"><small>next →</small><b>Graphics Libraries</b></a></div>
+    </main>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span class="mono">nex</span>
+    <a href="https://github.com/vijaymathew/nex">GitHub</a>
+    <a href="../../tutorial.html">Tutorial</a>
+    <a href="../../syntax.html">Syntax</a>
+    <span class="r">by <a href="../../../index.html">Vijay Mathew</a></span>
+  </div>
+</footer>
+
+<script src="ref.js"></script>
+</body>
+</html>
