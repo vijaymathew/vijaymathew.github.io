@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music with Nex, Part 1 — Pitch and Interval — Nex</title>
+  <meta name="description" content="The first part of a series that builds a small music sequencer from scratch in Nex.">
+  <link rel="canonical" href="https://schemer.in/nex/blog/music-with-nex-part-1.html">
+  <meta property="og:site_name" content="Nex">
+  <meta property="og:url" content="https://schemer.in/nex/blog/music-with-nex-part-1.html">
+  <meta property="og:title" content="Music with Nex, Part 1 — Pitch and Interval — Nex">
+  <meta property="og:description" content="The first part of a series that builds a small music sequencer from scratch in Nex.">
+  <meta property="og:image" content="https://schemer.in/nex/assets/social-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:type" content="article">
+  <meta property="article:published_time" content="2026-10-18">
+  <meta property="article:tag" content="design">
+  <meta property="article:tag" content="contracts">
+  <link rel="alternate" type="application/atom+xml" title="The Nex Blog" href="https://schemer.in/nex/blog/feed.xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../site.css">
+  <script src="../site.js"></script>
+  <link rel="icon" href="../assets/icons/nex.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/icons/nex-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../assets/icons/nex-180.png">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="../../nex.html"><img src="../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-light="../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-dark="../assets/logo/nex-logo-concept-7-orbit-n-dark.svg" alt="">nex</a>
+    <div class="nav-links">
+      <a href="../tutorial.html">Tutorial</a>
+      <a href="../syntax.html">Syntax</a>
+      <a href="../../nex.html#learn">Learn</a>
+      <a href="../../nex.html#install">Install</a>
+      <a href="../blog/index.html">Blog</a>
+      <a class="gh" href="https://github.com/vijaymathew/nex" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <button class="toggle" id="theme" aria-label="Toggle dark mode" title="Toggle theme">🌙</button>
+  </div>
+</nav>
+
+<div class="wrap narrow">
+  <header class="page-head post-head">
+    <span class="eyebrow">// blog</span>
+    <h1>Music with Nex, Part 1 — Pitch and Interval</h1>
+    <p class="lead">The first part of a series that builds a small music sequencer from scratch in Nex.</p>
+    <p class="post-meta"><time datetime="2026-10-18">18 October 2026</time><span>11 min read</span><span class="chips"><a class="chip" href="./tags/design.html">design</a><a class="chip" href="./tags/contracts.html">contracts</a></span></p>
+  </header>
+
+  <article class="article prose post">
+<p>The goal of this series is to build a small music sequencer from scratch in Nex. By the last part it will let you sketch phrases on a piano roll, generate melodies, and play them back. But the real aim is to show you the Nex way of writing object-oriented code where every class states what it promises, and Nex checks the promises while the program runs.</p>
+<p>Music is a good test bed for this. It is full of rules that are easy to state and easy to break. For instance, a bar must add up to its time signature and a transposed melody must stay inside the instrument&rsquo;s range. As we build the sequencer in small steps, we will see how contracts help up express these facts in a clear and enforceable way.</p>
+<p>Nex already ships an audio library with a General MIDI synthesizer, a score you can fill note by note, and a player. So we will not write a single line of sound plumbing. Our job is the layer above it: the musical ideas captured as classes with contracts.</p>
+<p>We start with two basic musical ideas: the <strong>pitch</strong> and <strong>interval</strong>. A <strong>pitch</strong> is how high a note sounds. An <strong>interval</strong> is the distance between two pitches. By the end of this part you will have two small classes, <code>Pitch</code> and <code>Interval</code>, and a C major scale playing through your speakers.</p>
+<h2 id="the-trouble-with-raw-integers">The trouble with raw integers</h2>
+<p>Here is how the audio library wants a note:</p>
+<pre><code class="language-nex">intern audio/Midi_Song
+
+let score := create Midi_Score.make(4)      -- 4 ticks to a beat
+score.add_note(0, 60, 90, 0, 4)            -- channel, pitch, velocity, start, length
+</code></pre>
+<p>That call is already guarded by contracts. <code>add_note</code> requires the channel to be in 0..15, the pitch and velocity in 0..127, the start not negative and the length positive. Break any of those and you get a precondition violation naming the rule.</p>
+<p>But look at what the guard cannot see. Every argument is an <code>Integer</code>. Swap the pitch and the velocity and the call still passes every check:</p>
+<pre><code class="language-nex">score.add_note(0, 90, 60, 0, 4)            -- meant middle C at velocity 90
+</code></pre>
+<p>That plays the F# two and a half octaves above middle C, quietly. Nothing complains, because 90 is a perfectly good pitch and 60 an equally good velocity.</p>
+<p>The second problem is distance. Suppose a melody is stored as integers and we transpose it up an octave by adding 12. A note at 120 becomes 132. Nothing notices until rendering, when <code>add_note</code> rejects it, far from the line that made the mistake. The error names <code>add_note</code>, not the transposition.</p>
+<p>Both problems have the same cure: give the idea its own class. A <code>Pitch</code> cannot be passed where a velocity is expected, and a <code>Pitch</code> that would leave the MIDI range refuses to exist. The check moves from the edge of the program to the moment the mistake is made.</p>
+<h2 id="pitch-a-value-that-cannot-be-wrong">Pitch: a value that cannot be wrong</h2>
+<p>A pitch is a value, like a number or a colour. Two middle Cs are the same pitch, and a pitch never changes once it exists. Here is the whole class. Read the contracts first; then the bodies.</p>
+<pre><code class="language-nex">class Pitch
+  note &quot;How high a note sounds: one of the 128 MIDI pitches, middle C = 60.&quot;
+inherit Comparable
+
+feature
+  LOWEST = 0
+  HIGHEST = 127
+  LETTER_STEPS = {&quot;C&quot;: 0, &quot;D&quot;: 2, &quot;E&quot;: 4, &quot;F&quot;: 5, &quot;G&quot;: 7, &quot;A&quot;: 9, &quot;B&quot;: 11}
+  SHARP_NAMES = [&quot;C&quot;, &quot;C#&quot;, &quot;D&quot;, &quot;D#&quot;, &quot;E&quot;, &quot;F&quot;, &quot;F#&quot;, &quot;G&quot;, &quot;G#&quot;, &quot;A&quot;, &quot;A#&quot;, &quot;B&quot;]
+
+  once midi: Integer
+
+create
+  from_midi(n: Integer)
+  require
+    in_midi_range: n &gt;= LOWEST and n &lt;= HIGHEST
+  do
+    midi := n
+  end
+
+  -- Scientific pitch notation: middle C is (&quot;C&quot;, 0, 4).
+  -- accidental counts sharps (+) or flats (-).
+  named(letter: String, accidental, oct: Integer)
+  require
+    one_letter: letter.length = 1 and &quot;CDEFGAB&quot;.contains(letter)
+    plain_accidental: accidental &gt;= -2 and accidental &lt;= 2
+    octave_in_range: oct &gt;= -1 and oct &lt;= 9
+    not_below_c_minus_1: oct &gt; -1 or LETTER_STEPS.get(letter) + accidental &gt;= 0
+    not_above_g9: oct &lt; 9 or LETTER_STEPS.get(letter) + accidental &lt;= 7
+  do
+    this.from_midi((oct + 1) * 12 + LETTER_STEPS.get(letter) + accidental)
+  end
+
+feature
+  -- Which of the twelve notes this is, C = 0 up to B = 11.
+  pitch_class: Integer
+  do
+    result := midi % 12
+  ensure
+    one_of_twelve: result &gt;= 0 and result &lt;= 11
+  end
+
+  octave: Integer
+  do
+    result := midi / 12 - 1
+  ensure
+    rebuilds_midi: (result + 1) * 12 + pitch_class() = midi
+  end
+
+  name: String
+  do
+    result := SHARP_NAMES.get(pitch_class()) + octave()
+  end
+
+  -- Equal temperament, tuned to A4 = 440 Hz.
+  frequency: Real
+  do
+    result := 440.0 * 2.0 ^ ((midi - 69).to_real / 12.0)
+  ensure
+    positive: result &gt; 0.0
+  end
+
+  compare(other: Any): Integer
+  do
+    if convert other to p: Pitch then
+      if midi &lt; p.midi then
+        result := -1
+      elseif midi &gt; p.midi then
+        result := 1
+      else
+        result := 0
+      end
+    end
+  end
+
+  to_string: String do
+    result := name()
+  end
+
+invariant
+  in_midi_range: midi &gt;= LOWEST and midi &lt;= HIGHEST
+end
+</code></pre>
+<p>A few things are worth slowing down for.</p>
+<p><strong>The invariant and the precondition say the same thing, on purpose.</strong> The invariant is the class&rsquo;s promise: no <code>Pitch</code> anywhere in the program is outside 0..127. The precondition on <code>from_midi</code> is the caller&rsquo;s side of that bargain: don&rsquo;t ask for one that is. If a caller breaks the rule, the error blames the caller, at the call:</p>
+<pre><code class="language-nex">&gt; create Pitch.from_midi(128)
+Error: Precondition violation: in_midi_range
+</code></pre>
+<p><strong><code>named</code> speaks the musician&rsquo;s language and checks it in the musician&rsquo;s terms.</strong> The range rule becomes three clauses about octaves: an octave must be -1..9, nothing goes below C-1, and nothing goes above G9. Each clause has a name, so a failure tells you which rule you broke, not just that some arithmetic went out of bounds. Note <code>one_letter</code>: <code>"CDEFGAB".contains("")</code> is true, so without the length check an empty string would slip through.</p>
+<p><strong>Postconditions document the arithmetic.</strong> <code>octave</code> uses integer division, and its postcondition says exactly what that division must get right: put the octave and the pitch class back together and you get the MIDI number again. A reader who doubts <code>midi / 12 - 1</code> does not have to work it out. The class checks it every time.</p>
+<p><strong><code>Comparable</code> buys ordering.</strong> Inheriting it and defining <code>compare</code> gives <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and <code>&gt;=</code> on pitches. We will lean on that when we check that a melody stays inside an instrument&rsquo;s range.</p>
+<p>Try it:</p>
+<pre><code class="language-nex">&gt; let c4 := create Pitch.named(&quot;C&quot;, 0, 4)
+&gt; c4.midi
+60
+&gt; let a4 := create Pitch.named(&quot;A&quot;, 0, 4)
+&gt; a4.frequency
+440.0
+&gt; c4 &lt; a4
+true
+&gt; c4 = create Pitch.from_midi(60)
+true
+</code></pre>
+<h2 id="interval-distance-and-direction">Interval: distance and direction</h2>
+<p>An interval is a signed number of semitones. Up a fifth is +7; down a minor third is -3. Like <code>Pitch</code>, it is a value.</p>
+<pre><code class="language-nex">class Interval
+  note &quot;A signed distance between two pitches, in semitones.&quot;
+inherit Comparable
+
+feature
+  once semitones: Integer
+
+create
+  make(n: Integer)
+    require
+      within_midi_span: n &gt;= -127 and n &lt;= 127
+    do
+      semitones := n
+    end
+
+feature
+  UNISON = create Interval.make(0)
+  MINOR_SECOND = create Interval.make(1)
+  MAJOR_SECOND = create Interval.make(2)
+  MINOR_THIRD = create Interval.make(3)
+  MAJOR_THIRD = create Interval.make(4)
+  PERFECT_FOURTH = create Interval.make(5)
+  PERFECT_FIFTH = create Interval.make(7)
+  OCTAVE = create Interval.make(12)
+
+  is_ascending(): Boolean do result := semitones &gt; 0 end
+  is_descending(): Boolean do result := semitones &lt; 0 end
+
+  -- The same distance in the other direction.
+  reversed(): Interval
+  do
+    result := create Interval.make(-semitones)
+  ensure
+    opposite: result.semitones = -semitones
+  end
+
+  plus(other: Interval): Interval
+  alias &quot;+&quot;
+  require
+    stays_in_span: (semitones + other.semitones).abs &lt;= 127
+  do
+    result := create Interval.make(semitones + other.semitones)
+  ensure
+    adds_up: result.semitones = semitones + other.semitones
+  end
+
+  -- Folded into one octave, as an upward step of 0..11 semitones.
+  -- A tenth (16) folds to a major third (4).
+  simple: Interval
+  do
+    result := create Interval.make(semitones % 12)
+  ensure
+    within_octave: result.semitones &gt;= 0 and result.semitones &lt;= 11
+    same_class: (semitones - result.semitones) % 12 = 0
+  end
+
+  compare(other: Any): Integer
+  do
+    if convert other to i: Interval then
+      if semitones &lt; i.semitones then
+        result := -1
+      elseif semitones &gt; i.semitones then
+        result := 1
+      else
+        result := 0
+      end
+    end
+  end
+
+  to_string: String
+  do
+    result := &quot;Interval(&quot; + semitones + &quot;)&quot;
+  end
+end
+</code></pre>
+<p><code>plus</code> is bound to <code>+</code> with <code>alias</code>, so <code>Interval.OCTAVE + Interval.PERFECT_FIFTH</code> reads like music theory and is still exactly a call to <code>plus</code>, precondition and all.</p>
+<p>If you look carefully at <code>simple</code> you may notice a problem: when we ask whether a note belongs to a chord, we care about the interval from the root folded into one octave. The body <code>semitones % 12</code> looks right, and for upward intervals it is. Try a downward one:</p>
+<pre><code class="language-nex">&gt; let tenth := create Interval.of(16)
+&gt; tenth.simple
+Interval(4)
+&gt; let down := create Interval.of(-15)
+&gt; down.simple
+Error: Postcondition violation: within_octave
+</code></pre>
+<p>Nex&rsquo;s <code>%</code> keeps the sign of the dividend, as Java does, so <code>-15 % 12</code> is <code>-3</code>, not <code>9</code>. Without the postcondition, <code>simple</code> would quietly return <code>Interval(-3)</code>, and the chord check two posts from now would decide that a perfectly good chord tone was wrong. With it, the routine that broke its promise is named at the moment it breaks it. The fix is one line:</p>
+<pre><code class="language-nex">      result := create Interval.make((semitones % 12 + 12) % 12)
+</code></pre>
+<p>The <code>same_class</code> clause is as important as <code>within_octave</code>. A body that returned <code>Interval.UNISON</code> every time would satisfy the range check. <code>same_class</code> rules that out: the folded interval must differ from the original by whole octaves.</p>
+<h3 id="pitch-meets-interval">Pitch meets Interval</h3>
+<p>Now let&rsquo;s add two methods to <code>Pitch</code> to tie it together with <code>Interval</code>:</p>
+<pre><code class="language-nex">  transposed(by: Interval): Pitch
+  require
+    stays_in_range: midi + by.semitones &gt;= LOWEST
+      and midi + by.semitones &lt;= HIGHEST
+  do
+    result := create Pitch.from_midi(midi + by.semitones)
+  ensure
+    moved_by: result.midi - midi = by.semitones
+  end
+
+  interval_to(other: Pitch): Interval
+  do
+    result := create Interval.make(other.midi - midi)
+  ensure
+    lands_on_other: transposed(result) = other
+  end
+</code></pre>
+<p>The precondition on <code>transposed</code> is the cure for the second problem from the start of the post. Transposing a melody past the top of the range now fails on the line that transposes, not inside the renderer:</p>
+<pre><code class="language-nex">&gt; let top_c := create Pitch.named(&quot;C&quot;, 0, 9)
+&gt; top_c.transposed(Interval.OCTAVE)
+Error: Precondition violation: stays_in_range
+</code></pre>
+<p>The postcondition on <code>interval_to</code> is a different kind of promise. It does not restate the body; it ties two features together. Whatever <code>interval_to</code> returns, <code>transposed</code> must undo it. If either routine changes later, this one line keeps them in sync.</p>
+<h3 id="why-not-a-mutable-transpose">Why not a mutable <code>transpose</code>?</h3>
+<p>It is tempting to write a command instead, one that changes the pitch in place:</p>
+<pre><code class="language-nex">  transpose(by: Interval)
+  require
+    stays_in_range: midi + by.semitones &gt;= LOWEST
+      and midi + by.semitones &lt;= HIGHEST
+  do
+    midi := midi + by.semitones
+  ensure
+    moved_by: midi = old midi + by.semitones
+  end
+</code></pre>
+<p>The contract is fine; <code>old midi</code> is exactly the right tool for a command. Nex rejects the class anyway, because <code>midi</code> is a <code>once</code> field. This a deliberate design choice. If pitches could change, then a <code>Phrase</code> holding the same <code>Pitch</code> object in two places would have both notes move when you transpose one. Values that cannot change can be shared freely, and that will make every collection class later in the series simpler. We will have appropriate use for <code>old</code> later when we implement <code>Phrase</code> and <code>Voice</code> which are things that do change.</p>
+<h2 id="making-it-sound">Making it sound</h2>
+<p>A major scale is a pattern of steps: whole, whole, half, whole, whole, whole, half. In our terms that is a list of intervals, and building the scale is a walk from the tonic:</p>
+<pre><code class="language-nex">let whole := Interval.MAJOR_SECOND
+let half := Interval.MINOR_SECOND
+let major_steps: Array[Interval] := [whole, whole, half, whole, whole, whole, half]
+
+let scale: Array[Pitch] := [create Pitch.named(&quot;C&quot;, 0, 4)]
+across major_steps as step do
+  scale.add(scale.get(scale.length - 1).transposed(step))
+end
+
+across scale as p do print(p.name) end
+-- C4 D4 E4 F4 G4 A4 B4 C5
+</code></pre>
+<p>To hear it, we hand the pitches to the audio library. This is the only place in this part where a <code>Pitch</code> turns back into an <code>Integer</code>, and it does so at the last possible moment, inside one small function:</p>
+<pre><code class="language-nex">intern audio/Midi_Song
+
+function play(pitches: Array[Pitch], beats_each: Integer)
+require
+  something_to_play: pitches.length &gt; 0
+  positive_length: beats_each &gt; 0
+do
+  let ticks_per_beat := 4
+  let ticks := beats_each * ticks_per_beat
+  let score := create Midi_Score.make(ticks_per_beat)
+  score.set_instrument(0, Midi.PIANO, 0)
+  from let k := 0 until k = pitches.length do
+    score.add_note(0, pitches.get(k).midi, 90, k * ticks, ticks)
+    k := k + 1
+  end
+  let song := create Midi_Song.from_score(score)
+  song.play()
+  from until song.is_stopped() do
+    song.update()
+    sleep(20)
+  end
+  song.close()
+end
+
+play(scale, 1)
+</code></pre>
+<p>Notice what can no longer go wrong at the <code>add_note</code> call. The pitch argument comes from a <code>Pitch</code>, so it is in range by the class invariant; <code>add_note</code>&rsquo;s own <code>valid_pitch</code> check can never fire from here. The velocity and pitch can still be swapped by hand in this one function, but there is now exactly one place to look. In a later part of the series we will replace this function with a proper <code>Renderer</code> class and a contract that checks the score against the model.</p>
+<p>No speakers, or running on a server? Set <code>NEX_AUDIO=off</code>. The library plays silently and the contracts are checked all the same.</p>
+<h2 id="what-the-contracts-bought-us">What the contracts bought us</h2>
+<p>Two small classes, and already three kinds of protection:</p>
+<ul>
+<li><strong>Types keep ideas apart.</strong> A <code>Pitch</code> cannot be passed where a velocity or a channel is expected. No contract could catch the swapped arguments from the start of this post; a class does it for free.</li>
+<li><strong>Preconditions put the blame at the call.</strong> An out-of-range pitch or transposition fails on the line that asked for it, with a rule name that says what was wrong.</li>
+<li><strong>Postconditions catch the code we were sure of.</strong> <code>simple</code> was one line, it looked right, and it was wrong for every descending interval. The postcondition found it the first time a descending interval came through.</li>
+</ul>
+<p>So the take away is: types say what a thing <em>is</em>; contracts say what must be <em>true</em> of it. Each catches what the other cannot.</p>
+<h2 id="next-duration-and-meter">Next: Duration and Meter</h2>
+<p>Pitch is half of a note. Part 2 adds the other half: how long it lasts. We will represent durations as exact fractions of a whole note rather than MIDI ticks, give <code>Meter</code> an invariant that every bar is full, and meet the first contract that a test suite would almost certainly miss.</p>
+<h3 id="try-it-yourself">Try it yourself</h3>
+<ol>
+<li>Add <code>Pitch.named_flat</code> that spells pitches with flats (Db rather than C#). What should its postcondition promise about <code>midi</code>?</li>
+<li>Give <code>Interval</code> a <code>name</code> query that returns &ldquo;M3&rdquo;, &ldquo;P5&rdquo; and so on for simple intervals. Which precondition does it need, and could <code>simple</code> remove the need for one?</li>
+<li>Remove the <code>same_class</code> clause from <code>simple</code> and write a wrong body that still passes <code>within_octave</code>. How many tests would you need to catch it instead?</li>
+</ol>
+  </article>
+
+  <div class="post-foot">
+  <div class="next-cards">
+    <h2>Keep reading</h2>
+    <a class="next-card" href="./command-line-arguments.html"><small>older</small><b>Handling command-line arguments in Nex</b><span>10 October 2026</span></a>
+    <a class="next-card" href="./index.html"><small>blog</small><b>All posts</b><span>Everything, newest first.</span></a>
+  </div>
+  <section class="comments" id="comments">
+    <h2>Comments</h2>
+    <p>Questions, corrections, a better way to do it? <a href="https://github.com/vijaymathew/nex/discussions/new?category=general&title=Music%20with%20Nex%2C%20Part%201%20%E2%80%94%20Pitch%20and%20Interval" target="_blank" rel="noopener">Start a discussion on GitHub →</a></p>
+  </section>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span class="mono">nex</span>
+    <a href="https://github.com/vijaymathew/nex">GitHub</a>
+    <a href="../tutorial.html">Tutorial</a>
+    <a href="../syntax.html">Syntax</a>
+    <a href="../blog/index.html">Blog</a>
+    <a href="../blog/feed.xml">Feed</a>
+    <span class="r">by <a href="../../index.html">Vijay Mathew</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
