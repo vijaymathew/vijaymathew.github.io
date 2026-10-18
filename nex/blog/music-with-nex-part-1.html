@@ -72,7 +72,9 @@ score.add_note(0, 60, 90, 0, 4)            -- channel, pitch, velocity, start, l
 <p>Both problems have the same cure: give the idea its own class. A <code>Pitch</code> cannot be passed where a velocity is expected, and a <code>Pitch</code> that would leave the MIDI range cannot be created. The check moves from the edge of the program to the moment the mistake is made.</p>
 <h2 id="pitch-a-value-that-cannot-be-wrong">Pitch: a value that cannot be wrong</h2>
 <p>A pitch is a value, like a number or a colour. Two middle Cs are the same pitch, and a pitch never changes once it exists. Here is the whole class. Read the contracts first; then the bodies.</p>
-<pre><code class="language-nex">class Pitch
+<pre><code class="language-nex">intern Interval
+
+class Pitch
   note &quot;How high a note sounds: one of the 128 MIDI pitches, middle C = 60.&quot;
 inherit Comparable
 
@@ -129,9 +131,26 @@ feature
   -- Equal temperament, tuned to A4 = 440 Hz.
   frequency: Real
   do
-    result := 440.0 * 2.0 ^ ((midi - 69).to_real / 12.0)
+    result := 440.0 * (2.0 ^ ((midi - 69).to_real / 12.0))
   ensure
     positive: result &gt; 0.0
+  end
+
+  transposed(by: Interval): Pitch
+  require
+    stays_in_range: midi + by.semitones &gt;= LOWEST
+      and midi + by.semitones &lt;= HIGHEST
+  do
+    result := create Pitch.from_midi(midi + by.semitones)
+  ensure
+    moved_by: result.midi - midi = by.semitones
+  end
+
+  interval_to(other: Pitch): Interval
+  do
+    result := create Interval.make(other.midi - midi)
+  ensure
+    lands_on_other: transposed(result) = other
   end
 
   compare(other: Any): Integer

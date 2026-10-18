@@ -42,6 +42,8 @@ Both problems have the same cure: give the idea its own class. A `Pitch` cannot 
 A pitch is a value, like a number or a colour. Two middle Cs are the same pitch, and a pitch never changes once it exists. Here is the whole class. Read the contracts first; then the bodies.
 
 ```nex
+intern Interval
+
 class Pitch
   note "How high a note sounds: one of the 128 MIDI pitches, middle C = 60."
 inherit Comparable
@@ -99,11 +101,28 @@ feature
   -- Equal temperament, tuned to A4 = 440 Hz.
   frequency: Real
   do
-    result := 440.0 * 2.0 ^ ((midi - 69).to_real / 12.0)
+    result := 440.0 * (2.0 ^ ((midi - 69).to_real / 12.0))
   ensure
     positive: result > 0.0
   end
-  
+
+  transposed(by: Interval): Pitch
+  require
+    stays_in_range: midi + by.semitones >= LOWEST
+      and midi + by.semitones <= HIGHEST
+  do
+    result := create Pitch.from_midi(midi + by.semitones)
+  ensure
+    moved_by: result.midi - midi = by.semitones
+  end
+
+  interval_to(other: Pitch): Interval
+  do
+    result := create Interval.make(other.midi - midi)
+  ensure
+    lands_on_other: transposed(result) = other
+  end
+
   compare(other: Any): Integer
   do
     if convert other to p: Pitch then
