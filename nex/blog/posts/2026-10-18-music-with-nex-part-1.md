@@ -392,7 +392,7 @@ So the take away is: types say what a thing *is*; contracts say what must be *tr
 
 ## Next: Duration and Meter
 
-Pitch is half of a note. Part 2 adds the other half: how long it lasts. We will represent durations as exact fractions of a whole note rather than MIDI ticks, give `Meter` an invariant that every bar is full, and meet the first contract that a test suite would almost certainly miss.
+Pitch is half of a note. [Part 2](music-with-nex-part-2.html) adds the other half: how long it lasts. We will represent durations as exact fractions of a whole note rather than MIDI ticks, give `Meter` an invariant that every bar is full, and meet the first contract that a test suite would almost certainly miss.
 
 ### Try it yourself
 
