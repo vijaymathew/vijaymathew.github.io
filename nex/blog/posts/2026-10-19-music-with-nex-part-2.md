@@ -42,7 +42,7 @@ end
 
 The precondition is narrower than it needs to be: `gcd` is perfectly well defined for zero and negative numbers. We narrow it on purpose. Durations are always positive, so no caller in this program needs anything else. If a later part needs `gcd(0, n)`, we will widen it then, and every caller written so far stays correct, because a wider precondition accepts everything the narrower one did.
 
-The postcondition is good enough but incomplete. It says the result is *a* common divisor, not the *greatest* one. Hold on to that until one of the exercises at the end revisits it.
+The postcondition is good enough but incomplete. It says the result is *a* common divisor, not the *greatest* one. Hold on to that, we will revisit it later in an exercise.
 
 ## Duration: an exact fraction of a whole note
 
@@ -176,7 +176,7 @@ Error: Precondition violation: leaves_something
 
 Notice what the precondition does not say. It does not say "the result must be positive". It speaks in terms the caller can check before calling: the thing you take away must be shorter than what you start with.
 
-**Postconditions describe; they don't restate.** `plus` could have promised the exact sum, but that would just copy the body into the `ensure`. `longer_than_both` is a weaker promise that would still catch the bugs we are likely to make: a sign error, a swapped numerator, multiplying where we meant to add. `minus` goes further and ties itself to `plus`: whatever it returns, adding `other` back must give the original. We used the same trick with `interval_to` and `transposed` in [Part 1](music-with-nex-part-1.html).
+**Postconditions describe; they don't restate.** `plus` could have promised the exact sum, but that would just copy the body into the `ensure`. `longer_than_both` is a weaker promise that would still catch the bugs we are likely to make: a sign error, a swapped numerator, or multiplying where we meant to add. `minus` goes further and ties itself to `plus`: whatever it returns, adding `other` back must give the original. We used the same trick with `interval_to` and `transposed` in [Part 1](music-with-nex-part-1.html).
 
 **`tuplet` is defined by what musicians mean by it.** "Three in the space of two" is the postcondition, almost word for word: three of the result take as long as two of the original.
 
@@ -256,7 +256,7 @@ That makes two classes that look alike and make opposite choices. `Duration` nor
 
 A bar is a run of note values that fills one meter. This version is pure rhythm: no pitches and no rests yet. [Part 4](music-with-nex-part-4.html) puts pitches on it.
 
-First, a small free function to add up a list of durations. Since there is no zero duration, an empty list has no total, and the precondition says so:
+First, a small free function to add up a list of durations. Since there is no zero duration, an empty list has no total, which is enforced by the precondition:
 
 ```nex
 function total_length(durations: Array[Duration]): Duration
@@ -324,7 +324,7 @@ end
 Error: Precondition violation: fills_the_bar
 ```
 
-As in [Part 1](music-with-nex-part-1.html), the precondition and the invariant say the same thing. The precondition tells the caller what to provide, and the invariant promises that it stays true. But the invariant only holds because of two small details that are easy to skip past: `rhythm` is private, and the constructor stores a *copy* of the array it was given.
+As in [Part 1](music-with-nex-part-1.html), the precondition and the invariant say the same thing. The precondition tells the caller what to provide, and the invariant promises that it stays true. But the invariant will break if not for two small details that are easy to skip past: `rhythm` is private, and the constructor stores a *copy* of the array it was given.
 
 Here is what happens without them. Suppose `make` kept the caller's array instead (`rhythm := durations`):
 
@@ -363,7 +363,7 @@ A whole note is four quarters, so this scales the fraction up and divides. Let's
 
 Every value is right, and every 4/4 bar built from them adds up to 16 ticks. The suite passes.
 
-Now a bar of triplet eighths. The triplet is 1/12 of a whole note, and 1 × 4 × 4 / 12 is 16/12, which integer division turns into 1. Twelve triplets come to 12 ticks, not 16. The `Bar` is still full: its invariant holds, because the model is right. It is the conversion that loses time, and it does so silently. Every bar of triplets ends four ticks early, so the next bar starts early. After four bars of triplets, the music is a whole bar ahead of where it should be. Nothing fails. You just hear rushed triplets and wonder about your ears.
+Now a bar of triplet eighths. The triplet is 1/12 of a whole note, and 1 × 4 × 4 / 12 is 16/12, which integer division turns into 1. Twelve triplets come to 12 ticks, not 16. The `Bar` is still full: its invariant holds, because the model is right. It is the conversion that loses time, and it does so silently. Every bar of triplets ends four ticks early, pulling in the next bar. After four bars of triplets, the music is a whole bar ahead of where it should be. Nothing fails. You just hear rushed triplets and wonder about your ears.
 
 A test suite misses this because tests check examples, and this bug only shows up for examples nobody thought of. It needs a denominator that doesn't divide `4 × ticks_per_quarter`. Anyone who thought to write that test would have found the bug while writing the code. A contract doesn't need anyone to think of the case. It states the rule for every case at once:
 
@@ -447,7 +447,7 @@ The failure is the program working as intended. The precondition turned a subtle
 
 ## Next: Scale and Chord
 
-We have pitches, and we have time. [Part 3](music-with-nex-part-3.html) builds harmony on top of `Pitch` and `Interval`: a `Scale` as a set of steps from a tonic, a `Chord` whose tones are checked against it, and the payoff for the bug we fixed in `Interval.simple` in [Part 1](music-with-nex-part-1.html).
+We have pitches, and we have time. [Part 3](music-with-nex-part-3.html) builds harmony on top of `Pitch` and `Interval`: a `Scale` as a set of steps from a tonic, and a `Chord` whose tones are checked against it.
 
 ### Try it yourself
 

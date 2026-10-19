@@ -43,7 +43,7 @@ ensure
 end
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;The precondition is narrower than it needs to be: &lt;code&gt;gcd&lt;/code&gt; is perfectly well defined for zero and negative numbers. We narrow it on purpose. Durations are always positive, so no caller in this program needs anything else. If a later part needs &lt;code&gt;gcd(0, n)&lt;/code&gt;, we will widen it then, and every caller written so far stays correct, because a wider precondition accepts everything the narrower one did.&lt;/p&gt;
-&lt;p&gt;The postcondition is good enough but incomplete. It says the result is &lt;em&gt;a&lt;/em&gt; common divisor, not the &lt;em&gt;greatest&lt;/em&gt; one. Hold on to that until one of the exercises at the end revisits it.&lt;/p&gt;
+&lt;p&gt;The postcondition is good enough but incomplete. It says the result is &lt;em&gt;a&lt;/em&gt; common divisor, not the &lt;em&gt;greatest&lt;/em&gt; one. Hold on to that, we will revisit it later in an exercise.&lt;/p&gt;
 &lt;h2 id=&quot;duration-an-exact-fraction-of-a-whole-note&quot;&gt;Duration: an exact fraction of a whole note&lt;/h2&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Duration
   note &amp;quot;A length of time as an exact fraction of a whole note.&amp;quot;
@@ -165,7 +165,7 @@ true
 Error: Precondition violation: leaves_something
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;Notice what the precondition does not say. It does not say &amp;ldquo;the result must be positive&amp;rdquo;. It speaks in terms the caller can check before calling: the thing you take away must be shorter than what you start with.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Postconditions describe; they don&amp;rsquo;t restate.&lt;/strong&gt; &lt;code&gt;plus&lt;/code&gt; could have promised the exact sum, but that would just copy the body into the &lt;code&gt;ensure&lt;/code&gt;. &lt;code&gt;longer_than_both&lt;/code&gt; is a weaker promise that would still catch the bugs we are likely to make: a sign error, a swapped numerator, multiplying where we meant to add. &lt;code&gt;minus&lt;/code&gt; goes further and ties itself to &lt;code&gt;plus&lt;/code&gt;: whatever it returns, adding &lt;code&gt;other&lt;/code&gt; back must give the original. We used the same trick with &lt;code&gt;interval_to&lt;/code&gt; and &lt;code&gt;transposed&lt;/code&gt; in &lt;a href=&quot;music-with-nex-part-1.html&quot;&gt;Part 1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Postconditions describe; they don&amp;rsquo;t restate.&lt;/strong&gt; &lt;code&gt;plus&lt;/code&gt; could have promised the exact sum, but that would just copy the body into the &lt;code&gt;ensure&lt;/code&gt;. &lt;code&gt;longer_than_both&lt;/code&gt; is a weaker promise that would still catch the bugs we are likely to make: a sign error, a swapped numerator, or multiplying where we meant to add. &lt;code&gt;minus&lt;/code&gt; goes further and ties itself to &lt;code&gt;plus&lt;/code&gt;: whatever it returns, adding &lt;code&gt;other&lt;/code&gt; back must give the original. We used the same trick with &lt;code&gt;interval_to&lt;/code&gt; and &lt;code&gt;transposed&lt;/code&gt; in &lt;a href=&quot;music-with-nex-part-1.html&quot;&gt;Part 1&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;code&gt;tuplet&lt;/code&gt; is defined by what musicians mean by it.&lt;/strong&gt; &amp;ldquo;Three in the space of two&amp;rdquo; is the postcondition, almost word for word: three of the result take as long as two of the original.&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;&amp;gt; let trip := Duration.EIGHTH.tuplet(3, 2)
 &amp;gt; print(trip)
@@ -230,7 +230,7 @@ false
 &lt;p&gt;That makes two classes that look alike and make opposite choices. &lt;code&gt;Duration&lt;/code&gt; normalises because &lt;code&gt;2/8&lt;/code&gt; and &lt;code&gt;1/4&lt;/code&gt; are the same length of time. &lt;code&gt;Meter&lt;/code&gt; must not normalise, because &lt;code&gt;6/8&lt;/code&gt; and &lt;code&gt;3/4&lt;/code&gt; are not the same meter. Which values to normalise is a design decision, not a detail of the code, and each class&amp;rsquo;s invariant writes that decision down where readers can find it.&lt;/p&gt;
 &lt;h2 id=&quot;bar-always-exactly-full&quot;&gt;Bar: always exactly full&lt;/h2&gt;
 &lt;p&gt;A bar is a run of note values that fills one meter. This version is pure rhythm: no pitches and no rests yet. &lt;a href=&quot;music-with-nex-part-4.html&quot;&gt;Part 4&lt;/a&gt; puts pitches on it.&lt;/p&gt;
-&lt;p&gt;First, a small free function to add up a list of durations. Since there is no zero duration, an empty list has no total, and the precondition says so:&lt;/p&gt;
+&lt;p&gt;First, a small free function to add up a list of durations. Since there is no zero duration, an empty list has no total, which is enforced by the precondition:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;function total_length(durations: Array[Duration]): Duration
 require
   not_empty: durations.length &amp;gt; 0
@@ -290,7 +290,7 @@ end
 &amp;gt; create Bar.make(Meter.THREE_FOUR, [Duration.HALF, Duration.HALF])
 Error: Precondition violation: fills_the_bar
 &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;As in &lt;a href=&quot;music-with-nex-part-1.html&quot;&gt;Part 1&lt;/a&gt;, the precondition and the invariant say the same thing. The precondition tells the caller what to provide, and the invariant promises that it stays true. But the invariant only holds because of two small details that are easy to skip past: &lt;code&gt;rhythm&lt;/code&gt; is private, and the constructor stores a &lt;em&gt;copy&lt;/em&gt; of the array it was given.&lt;/p&gt;
+&lt;p&gt;As in &lt;a href=&quot;music-with-nex-part-1.html&quot;&gt;Part 1&lt;/a&gt;, the precondition and the invariant say the same thing. The precondition tells the caller what to provide, and the invariant promises that it stays true. But the invariant will break if not for two small details that are easy to skip past: &lt;code&gt;rhythm&lt;/code&gt; is private, and the constructor stores a &lt;em&gt;copy&lt;/em&gt; of the array it was given.&lt;/p&gt;
 &lt;p&gt;Here is what happens without them. Suppose &lt;code&gt;make&lt;/code&gt; kept the caller&amp;rsquo;s array instead (&lt;code&gt;rhythm := durations&lt;/code&gt;):&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;&amp;gt; let pattern := [Duration.QUARTER, Duration.QUARTER, Duration.HALF]
 &amp;gt; let bar := create Bar.make(Meter.FOUR_FOUR, pattern)
@@ -345,7 +345,7 @@ Error: Class invariant violation: full
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Every value is right, and every 4/4 bar built from them adds up to 16 ticks. The suite passes.&lt;/p&gt;
-&lt;p&gt;Now a bar of triplet eighths. The triplet is 1/12 of a whole note, and 1 × 4 × 4 / 12 is 16/12, which integer division turns into 1. Twelve triplets come to 12 ticks, not 16. The &lt;code&gt;Bar&lt;/code&gt; is still full: its invariant holds, because the model is right. It is the conversion that loses time, and it does so silently. Every bar of triplets ends four ticks early, so the next bar starts early. After four bars of triplets, the music is a whole bar ahead of where it should be. Nothing fails. You just hear rushed triplets and wonder about your ears.&lt;/p&gt;
+&lt;p&gt;Now a bar of triplet eighths. The triplet is 1/12 of a whole note, and 1 × 4 × 4 / 12 is 16/12, which integer division turns into 1. Twelve triplets come to 12 ticks, not 16. The &lt;code&gt;Bar&lt;/code&gt; is still full: its invariant holds, because the model is right. It is the conversion that loses time, and it does so silently. Every bar of triplets ends four ticks early, pulling in the next bar. After four bars of triplets, the music is a whole bar ahead of where it should be. Nothing fails. You just hear rushed triplets and wonder about your ears.&lt;/p&gt;
 &lt;p&gt;A test suite misses this because tests check examples, and this bug only shows up for examples nobody thought of. It needs a denominator that doesn&amp;rsquo;t divide &lt;code&gt;4 × ticks_per_quarter&lt;/code&gt;. Anyone who thought to write that test would have found the bug while writing the code. A contract doesn&amp;rsquo;t need anyone to think of the case. It states the rule for every case at once:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;  to_ticks(ticks_per_quarter: Integer): Integer
   require
@@ -413,7 +413,7 @@ play_bars([straight, rolling, straight, rolling], 4)
 &lt;li&gt;&lt;strong&gt;Contracts cover the cases nobody thought to test.&lt;/strong&gt; &lt;code&gt;exact_in_ticks&lt;/code&gt; is a rule about every duration, not an example of one, and it names the caller who chose the wrong resolution.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h2 id=&quot;next-scale-and-chord&quot;&gt;Next: Scale and Chord&lt;/h2&gt;
-&lt;p&gt;We have pitches, and we have time. &lt;a href=&quot;music-with-nex-part-3.html&quot;&gt;Part 3&lt;/a&gt; builds harmony on top of &lt;code&gt;Pitch&lt;/code&gt; and &lt;code&gt;Interval&lt;/code&gt;: a &lt;code&gt;Scale&lt;/code&gt; as a set of steps from a tonic, a &lt;code&gt;Chord&lt;/code&gt; whose tones are checked against it, and the payoff for the bug we fixed in &lt;code&gt;Interval.simple&lt;/code&gt; in &lt;a href=&quot;music-with-nex-part-1.html&quot;&gt;Part 1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;We have pitches, and we have time. &lt;a href=&quot;music-with-nex-part-3.html&quot;&gt;Part 3&lt;/a&gt; builds harmony on top of &lt;code&gt;Pitch&lt;/code&gt; and &lt;code&gt;Interval&lt;/code&gt;: a &lt;code&gt;Scale&lt;/code&gt; as a set of steps from a tonic, and a &lt;code&gt;Chord&lt;/code&gt; whose tones are checked against it.&lt;/p&gt;
 &lt;h3 id=&quot;try-it-yourself&quot;&gt;Try it yourself&lt;/h3&gt;
 &lt;ol&gt;
 &lt;li&gt;&lt;code&gt;gcd&lt;/code&gt;&amp;rsquo;s postcondition is satisfied by &lt;code&gt;result := 1&lt;/code&gt;. Replace the body with exactly that and see what happens to &lt;code&gt;Duration&lt;/code&gt;. Does any contract fail? Then write a postcondition that rules the fake body out. (Hint: what is true of &lt;code&gt;a / result&lt;/code&gt; and &lt;code&gt;b / result&lt;/code&gt; when &lt;code&gt;result&lt;/code&gt; really is the greatest common divisor?)&lt;/li&gt;
