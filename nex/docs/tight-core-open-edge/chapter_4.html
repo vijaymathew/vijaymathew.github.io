@@ -48,7 +48,7 @@
 
 <p>Parsing can fail. So we need a way to return failure that a caller cannot ignore. Throwing an exception is the wrong tool here: an exception is an <em>invisible</em> exit that does not show up in the type, so a caller who forgets to handle it compiles cleanly and crashes at runtime. At a trust boundary, failure is not exceptional; it is expected, and it should be as visible as success.</p>
 
-<p>So we make failure a value. <code>Result</code> is a sum type — exactly the construction from <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a> — with two shapes: a success carrying a value, and a failure carrying an explanation. It is common enough that Nex ships it in the standard library, so we bring it in rather than redeclare it:</p>
+<p>So we make failure a value. <code>Result</code> is a sum type — exactly the construction from <a href="chapter_3.html" title="Chapter 3: Making Illegal States Unrepresentable">Chapter 3</a> — with two types: a success carrying a value, and a failure carrying an explanation. It is common enough that Nex ships it in the standard library, so we bring it in rather than redeclare it:</p>
 
 <pre><code>intern data/Result
 
@@ -123,7 +123,7 @@ end</code></pre>
 
 <p>There's no need to write the failure branch. Because the error lives in its own type parameter, the <code>Err</code> from <code>parse_quantity</code> is already a <code>Result[Line_Item, String]</code>'s kind of failure — the same <code>String</code> channel — so <code>result_map</code> carries the same error up for you. Inside, it re-wraps that error in an <code>Err</code> of the new result type, but the error value itself is untouched, and none of that is code you write. When the next step can <em>itself</em> fail, reach for <code>result_and_then</code>, whose function returns a <code>Result</code> and which short-circuits on the first <code>Err</code>; and when a lower layer's error type differs from the caller's, <code>result_map_err</code> translates the one channel into the other. These three — map the value, chain a fallible step, translate the error — collapse the hand-written match-and-rewrap to a single expression.</p>
 
-<p>Each parser converts one loose input into one precise value or failure reason; combining them yields a parser for the whole record with the same shape. Assemble line-item parsers the same way and you get <code>parse_order</code>, whose success case is a value the constrained core will accept without a second look — because by the time it exists, every constituent check has already been done. This is the pipeline the next chapter builds on: once the boundary hands the core a trustworthy value, the domain logic is just a sequence of total functions over precise types.</p>
+<p>Each parser converts one loose input into one precise value or failure reason; combining them yields a parser for the whole record with the same type. Assemble line-item parsers the same way and you get <code>parse_order</code>, whose success case is a value the constrained core will accept without a second look — because by the time it exists, every constituent check has already been done. This is the pipeline the next chapter builds on: once the boundary hands the core a trustworthy value, the domain logic is just a sequence of total functions over precise types.</p>
 
 </section>
 
