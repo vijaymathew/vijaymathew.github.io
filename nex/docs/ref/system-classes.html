@@ -53,6 +53,11 @@
   <li><a href="#construction">Construction</a></li>
   <li><a href="#methods">Methods</a></li>
   </ul></li>
+  <li><a href="#program"><code>Program</code></a>
+  <ul>
+  <li><a href="#construction-program">Construction</a></li>
+  <li><a href="#methods-program">Methods</a></li>
+  </ul></li>
   <li><a href="#process"><code>Process</code></a>
   <ul>
   <li><a href="#construction-1">Construction</a></li>
@@ -98,11 +103,15 @@
 
     <main>
       <div class="prose">
+<p>Every program has a <code>Console</code> and a <code>Program</code> already, under the predeclared names <code>console</code> and <code>program</code>:</p>
+<pre class="nex"><code>console.print_line("Hello")
+console.print_line(program.arguments.to_string)</code></pre>
+<p>They are read-only, usable anywhere (top level, functions, classes), and give way to a declaration of the program’s own: a top-level <code>let</code> of the same name, a function of that name, or the program’s own <code>Console</code> or <code>Program</code> class. A parameter, field or local of the same name shadows them.</p>
 <section id="console" class="level2">
 <h2 class="anchored" data-anchor-id="console"><code>Console</code></h2>
 <section id="construction" class="level3">
 <h3 class="anchored" data-anchor-id="construction">Construction</h3>
-<pre class="nex"><code>create Console</code></pre>
+<pre class="nex"><code>create Console      -- or use the predeclared `console`</code></pre>
 </section>
 <section id="methods" class="level3">
 <h3 class="anchored" data-anchor-id="methods">Methods</h3>
@@ -174,9 +183,76 @@
 </table>
 </section>
 </section>
+<section id="program" class="level2">
+<h2 class="anchored" data-anchor-id="program"><code>Program</code></h2>
+<p>The running program: its arguments, environment, process id and the folder it was started from. Reach it through the predeclared <code>program</code>; every <code>Program</code> value is the same running program.</p>
+<section id="construction-program" class="level3">
+<h3 class="anchored" data-anchor-id="construction-program">Construction</h3>
+<pre class="nex"><code>program             -- predeclared
+create Program      -- the same running program</code></pre>
+</section>
+<section id="methods-program" class="level3">
+<h3 class="anchored" data-anchor-id="methods-program">Methods</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>arguments</code></td>
+<td>none</td>
+<td><code>Array[String]</code></td>
+<td>The program’s own command-line arguments: what came after the file name in <code>nex app.nex a b</code> (or <code>java -jar app.jar a b</code>).</td>
+</tr>
+<tr class="even">
+<td><code>env</code></td>
+<td><code>name: String</code></td>
+<td><code>String</code></td>
+<td>The environment variable <code>name</code>, or <code>""</code> when it is not set.</td>
+</tr>
+<tr class="odd">
+<td><code>has_env</code></td>
+<td><code>name: String</code></td>
+<td><code>Boolean</code></td>
+<td>Whether the environment variable <code>name</code> is set.</td>
+</tr>
+<tr class="even">
+<td><code>pid</code></td>
+<td>none</td>
+<td><code>Integer</code></td>
+<td>The program’s process id.</td>
+</tr>
+<tr class="odd">
+<td><code>working_directory</code></td>
+<td>none</td>
+<td><code>String</code></td>
+<td>The folder the program was started from. (The <code>nex</code> launcher runs the JVM from its own installation folder and records yours in <code>NEX_USER_DIR</code>; this answers with yours.)</td>
+</tr>
+<tr class="even">
+<td><code>exit</code></td>
+<td><code>code: Integer</code></td>
+<td><code>Void</code></td>
+<td>End the program now with exit status <code>code</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The running program’s environment cannot be changed from the JVM, so there is no <code>set_env</code>; set variables for a child process with <code>Process.setenv</code> instead.</p>
+</section>
+</section>
 <section id="process" class="level2">
 <h2 class="anchored" data-anchor-id="process"><code>Process</code></h2>
-<p>A <code>Process</code> value is either the <em>self</em> process (the running Nex program) or a spawned <em>child</em>.</p>
+<p>A <code>Process</code> value is either the <em>self</em> process (the running Nex program) or a spawned <em>child</em>. For the running program, the predeclared <code>program</code> (a <code>Program</code>, above) is usually simpler.</p>
 <section id="construction-1" class="level3">
 <h3 class="anchored" data-anchor-id="construction-1">Construction</h3>
 <pre class="nex"><code>create Process              -- self (the running program)
@@ -762,11 +838,10 @@ create Atomic_Reference.make(nil)</code></pre>
 </section>
 <section id="examples" class="level2">
 <h2 class="anchored" data-anchor-id="examples">Examples</h2>
-<pre class="nex"><code>let con := create Console
-con.print("Enter your name: ")
-con.flush()
-let name := con.read_line()
-con.print_line("Hello, " + name)
+<pre class="nex"><code>console.print("Enter your name: ")
+console.flush()
+let name := console.read_line()
+console.print_line("Hello, " + name)
 
 intern io/Path
 let path: Path := create Path.make("notes.txt")
@@ -775,9 +850,8 @@ path.append_text("\nline 2")
 print(path.exists())
 print(path.read_text())
 
-let p := create Process
-print(p.getenv("HOME"))
-print(p.command_line())
+print(program.env("HOME"))
+print(program.arguments)
 
 let echo := create Process.command("echo", ["hello", "world"])
 echo.start()

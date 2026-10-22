@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Handling command-line arguments in Nex — Nex</title>
-  <meta name="description" content="A Nex program reads its arguments from the Process object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.">
+  <meta name="description" content="A Nex program reads its arguments from the predeclared program object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.">
   <link rel="canonical" href="https://schemer.in/nex/blog/command-line-arguments.html">
   <meta property="og:site_name" content="Nex">
   <meta property="og:url" content="https://schemer.in/nex/blog/command-line-arguments.html">
   <meta property="og:title" content="Handling command-line arguments in Nex — Nex">
-  <meta property="og:description" content="A Nex program reads its arguments from the Process object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.">
+  <meta property="og:description" content="A Nex program reads its arguments from the predeclared program object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.">
   <meta property="og:image" content="https://schemer.in/nex/assets/social-card.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta property="og:type" content="article">
@@ -48,22 +48,21 @@
   <header class="page-head post-head">
     <span class="eyebrow">// blog</span>
     <h1>Handling command-line arguments in Nex</h1>
-    <p class="lead">A Nex program reads its arguments from the Process object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.</p>
+    <p class="lead">A Nex program reads its arguments from the predeclared program object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.</p>
     <p class="post-meta"><time datetime="2026-10-10">10 October 2026</time><span>5 min read</span><span class="chips"><a class="chip" href="./tags/how-to.html">how-to</a><a class="chip" href="./tags/cli.html">cli</a><a class="chip" href="./tags/contracts.html">contracts</a></span></p>
   </header>
 
   <article class="article prose post">
-<p>A Nex program can ask for its command-line arguments via an instance of the <code>Process</code> class.
-<code>create Process</code> gives you the process you are running in, and <code>command_line()</code> returns its arguments as an <code>Array[String]</code>.</p>
-<pre><code class="language-nex">let proc: Process := create Process
-let args: Array[String] := proc.command_line()
-let con: Console := create Console
+<p>Every Nex program starts with two objects already declared: <code>console</code>, for reading and writing text, and <code>program</code>, which describes the running program.
+<code>program.arguments</code> returns the command-line arguments as an <code>Array[String]</code>.</p>
+<pre><code class="language-nex">let args: Array[String] := program.arguments
 
-con.print_line(&quot;got &quot; + args.length + &quot; argument(s)&quot;)
+console.print_line(&quot;got &quot; + args.length + &quot; argument(s)&quot;)
 across args as a do
-  con.print_line(&quot;  &quot; + a)
+  console.print_line(&quot;  &quot; + a)
 end
 </code></pre>
+<p><em>Updated 22 October 2026:</em> this post now uses the predeclared <code>program</code> and <code>console</code>, which arrive in the release after 0.6.2. On 0.6.2 itself, declare them yourself: <code>(create Process).command_line()</code> returns the same arguments, and <code>create Console</code> makes a console.</p>
 <p>Save that as <code>args.nex</code> and run it with a few arguments:</p>
 <pre><code>$ nex args.nex report.txt &quot;two words&quot; --top 3
 got 4 argument(s)
@@ -101,8 +100,8 @@ feature
 create
   make(a_name: String, a_times: Integer, a_shout: Boolean)
   require
-    has_name: name.length &gt; 0
-    positive_times: times &gt; 0
+    has_name: a_name.length &gt; 0
+    positive_times: a_times &gt; 0
   do
     name := a_name
     times := a_times
@@ -114,9 +113,8 @@ invariant
 end
 
 function fail(message: String) do
-  let con: Console := create Console
-  con.error(&quot;greet: &quot; + message)
-  con.error(&quot;usage: nex greet.nex &lt;name&gt; [--times n] [--shout]&quot;)
+  console.error(&quot;greet: &quot; + message)
+  console.error(&quot;usage: nex greet.nex &lt;name&gt; [--times n] [--shout]&quot;)
   exit(2)
 end
 
@@ -166,9 +164,7 @@ do
 end
 
 function main() do
-  let proc: Process := create Process
-  let opts: Options := parse(proc.command_line())
-  let con: Console := create Console
+  let opts: Options := parse(program.arguments)
   let greeting: String := &quot;Hello, &quot; + opts.name + &quot;!&quot;
   if opts.shout then
     greeting := greeting.to_upper()
@@ -179,7 +175,7 @@ function main() do
   until
     n = opts.times
   do
-    con.print_line(greeting)
+    console.print_line(greeting)
     n := n + 1
   end
 end
@@ -208,30 +204,29 @@ usage: nex greet.nex &lt;name&gt; [--times n] [--shout]
 <p><code>main</code> does not pass the raw array around. It calls <code>parse</code> once and from then on works with an <code>Options</code> object. No other part of the program looks at strings, checks whether an index is in range, or wonders whether <code>times</code> was converted yet.</p>
 <h3 id="bad-input-is-not-a-bug">Bad input is not a bug</h3>
 <p>Someone typing <code>--times zero</code> has made a mistake, but the <em>program</em> is fine. So <code>parse</code> handles it with ordinary code: it prints a message that names the problem, prints the usage line, and stops. <code>to_integer()</code> raises a <code>Conversion_Error</code> on text that is not a number, and the <code>rescue</code> clause in <code>to_count</code> turns that into the same kind of message.</p>
-<p>Errors go to <code>Console.error</code>, which writes to standard error, so they stay out of the way when the output is piped somewhere. <code>exit(2)</code> sets the exit status. By convention <code>0</code> means success and <code>2</code> means the command was used wrongly, which lets a shell script tell the two apart.</p>
+<p>Errors go to <code>console.error</code>, which writes to standard error, so they stay out of the way when the output is piped somewhere. <code>exit(2)</code> sets the exit status. By convention <code>0</code> means success and <code>2</code> means the command was used wrongly, which lets a shell script tell the two apart.</p>
 <h3 id="a-broken-parser-is-a-bug">A broken parser is a bug</h3>
 <p>The contracts on <code>Options</code> do a different job. They are not there to check the user. They state what the rest of the program may assume: there is a name, and <code>times</code> is positive. <code>main</code> relies on that when it loops <code>opts.times</code> times without checking anything.</p>
 <p>That makes the constructor a checkpoint for the parser itself. Suppose a later edit drops the <code>result &lt;= 0</code> test from <code>to_count</code>. Nothing about the type of <code>times</code> changes, and the program still compiles. But the first run with a bad value stops at the boundary:</p>
 <pre><code>$ nex greet.nex Ada --times 0
 Error: Precondition violation: positive_times
-  The call at line 71, in parse does not meet the precondition `positive_times` of Options.make.
-  called from line 76, in main
-  called from line 93
+  The call at line 70, in parse does not meet the precondition `positive_times` of Options.make.
+  called from line 74, in main
+  called from line 90
 </code></pre>
 <p>The message names the clause and blames the caller, <code>parse</code>, which is where the missing check belongs. A user should never see this message. If one does, it is telling you about a hole in your validation, not about their typing.</p>
 <h2 id="file-arguments-and-relative-paths">File arguments and relative paths</h2>
-<p>One thing will surprise you the first time you take a file name as an argument. The <code>nex</code> launcher starts your program from its own installation directory, so a relative path like <code>report.txt</code> does not resolve against the directory you ran the command in. The launcher records that directory in the environment variable <code>NEX_USER_DIR</code>, and you can use it to resolve the path yourself:</p>
-<pre><code class="language-nex">function resolve(proc: Process, raw: String): String
+<p>One thing will surprise you the first time you take a file name as an argument. The <code>nex</code> launcher starts your program from its own installation directory, so a relative path like <code>report.txt</code> does not resolve against the directory you ran the command in. The launcher records that directory, and <code>program.working_directory</code> gives it back to you, so you can resolve the path yourself:</p>
+<pre><code class="language-nex">function resolve(raw: String): String
 do
-  let base: ?String := proc.getenv(&quot;NEX_USER_DIR&quot;)
-  if raw.starts_with(&quot;/&quot;) or base = nil or base = &quot;&quot; then
+  if raw.starts_with(&quot;/&quot;) then
     result := raw
   else
-    result := base + &quot;/&quot; + raw
+    result := program.working_directory + &quot;/&quot; + raw
   end
 end
 </code></pre>
-<p>The check for a missing <code>NEX_USER_DIR</code> is relevant for the next section: a compiled program does not go through the launcher, so the variable is not set and relative paths already work.</p>
+<p>The same code is right for the next section too: a compiled program does not go through the launcher, and there <code>working_directory</code> is simply the directory the program runs in.</p>
 <h2 id="shipping-it-as-a-jar">Shipping it as a jar</h2>
 <p><code>nex compile jvm</code> turns the program into a standalone jar. The arguments reach it the same way, so nothing in the code changes:</p>
 <pre><code>$ nex compile jvm greet.nex
@@ -241,7 +236,7 @@ Hello, Grace!
 </code></pre>
 <h2 id="where-to-go-next">Where to go next</h2>
 <ul>
-<li><code>Process</code> can also read the environment and start child processes. The full list is in the <a href="../docs/ref/system-classes.html">system classes reference</a>.</li>
+<li><code>program</code> can also read the environment (<code>env</code>, <code>has_env</code>) and end the program with a status (<code>exit</code>), and <code>Process</code> starts child processes. The full list is in the <a href="../docs/ref/system-classes.html">system classes reference</a>.</li>
 <li>If <code>require</code>, <code>ensure</code> and <code>invariant</code> are new to you, the <a href="../tutorial.html">tour of Nex</a> introduces them in a few minutes.</li>
 </ul>
   </article>

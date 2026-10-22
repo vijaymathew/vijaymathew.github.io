@@ -5,7 +5,7 @@
   <link href="https://schemer.in/nex/blog/feed.xml" rel="self"/>
   <link href="https://schemer.in/nex/blog/"/>
   <id>https://schemer.in/nex/blog/</id>
-  <updated>2026-10-19T00:00:00Z</updated>
+  <updated>2026-10-22T00:00:00Z</updated>
   <author><name>Vijay Mathew</name></author>
   <entry>
     <title>Music with Nex, Part 2 — Duration and Meter</title>
@@ -765,22 +765,21 @@ play(scale, 1)
     <link href="https://schemer.in/nex/blog/command-line-arguments.html"/>
     <id>https://schemer.in/nex/blog/command-line-arguments.html</id>
     <published>2026-10-10T00:00:00Z</published>
-    <updated>2026-10-10T00:00:00Z</updated>
-    <summary>A Nex program reads its arguments from the Process object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.</summary>
+    <updated>2026-10-22T00:00:00Z</updated>
+    <summary>A Nex program reads its arguments from the predeclared program object. Here is how to get at them, parse them into usable formats, and deal with invalid input gracefully.</summary>
     <category term="how-to"/>
     <category term="cli"/>
     <category term="contracts"/>
-    <content type="html" xml:base="https://schemer.in/nex/blog/">&lt;p&gt;A Nex program can ask for its command-line arguments via an instance of the &lt;code&gt;Process&lt;/code&gt; class.
-&lt;code&gt;create Process&lt;/code&gt; gives you the process you are running in, and &lt;code&gt;command_line()&lt;/code&gt; returns its arguments as an &lt;code&gt;Array[String]&lt;/code&gt;.&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;let proc: Process := create Process
-let args: Array[String] := proc.command_line()
-let con: Console := create Console
+    <content type="html" xml:base="https://schemer.in/nex/blog/">&lt;p&gt;Every Nex program starts with two objects already declared: &lt;code&gt;console&lt;/code&gt;, for reading and writing text, and &lt;code&gt;program&lt;/code&gt;, which describes the running program.
+&lt;code&gt;program.arguments&lt;/code&gt; returns the command-line arguments as an &lt;code&gt;Array[String]&lt;/code&gt;.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;let args: Array[String] := program.arguments
 
-con.print_line(&amp;quot;got &amp;quot; + args.length + &amp;quot; argument(s)&amp;quot;)
+console.print_line(&amp;quot;got &amp;quot; + args.length + &amp;quot; argument(s)&amp;quot;)
 across args as a do
-  con.print_line(&amp;quot;  &amp;quot; + a)
+  console.print_line(&amp;quot;  &amp;quot; + a)
 end
 &lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;em&gt;Updated 22 October 2026:&lt;/em&gt; this post now uses the predeclared &lt;code&gt;program&lt;/code&gt; and &lt;code&gt;console&lt;/code&gt;, which arrive in the release after 0.6.2. On 0.6.2 itself, declare them yourself: &lt;code&gt;(create Process).command_line()&lt;/code&gt; returns the same arguments, and &lt;code&gt;create Console&lt;/code&gt; makes a console.&lt;/p&gt;
 &lt;p&gt;Save that as &lt;code&gt;args.nex&lt;/code&gt; and run it with a few arguments:&lt;/p&gt;
 &lt;pre&gt;&lt;code&gt;$ nex args.nex report.txt &amp;quot;two words&amp;quot; --top 3
 got 4 argument(s)
@@ -818,8 +817,8 @@ feature
 create
   make(a_name: String, a_times: Integer, a_shout: Boolean)
   require
-    has_name: name.length &amp;gt; 0
-    positive_times: times &amp;gt; 0
+    has_name: a_name.length &amp;gt; 0
+    positive_times: a_times &amp;gt; 0
   do
     name := a_name
     times := a_times
@@ -831,9 +830,8 @@ invariant
 end
 
 function fail(message: String) do
-  let con: Console := create Console
-  con.error(&amp;quot;greet: &amp;quot; + message)
-  con.error(&amp;quot;usage: nex greet.nex &amp;lt;name&amp;gt; [--times n] [--shout]&amp;quot;)
+  console.error(&amp;quot;greet: &amp;quot; + message)
+  console.error(&amp;quot;usage: nex greet.nex &amp;lt;name&amp;gt; [--times n] [--shout]&amp;quot;)
   exit(2)
 end
 
@@ -883,9 +881,7 @@ do
 end
 
 function main() do
-  let proc: Process := create Process
-  let opts: Options := parse(proc.command_line())
-  let con: Console := create Console
+  let opts: Options := parse(program.arguments)
   let greeting: String := &amp;quot;Hello, &amp;quot; + opts.name + &amp;quot;!&amp;quot;
   if opts.shout then
     greeting := greeting.to_upper()
@@ -896,7 +892,7 @@ function main() do
   until
     n = opts.times
   do
-    con.print_line(greeting)
+    console.print_line(greeting)
     n := n + 1
   end
 end
@@ -925,30 +921,29 @@ usage: nex greet.nex &amp;lt;name&amp;gt; [--times n] [--shout]
 &lt;p&gt;&lt;code&gt;main&lt;/code&gt; does not pass the raw array around. It calls &lt;code&gt;parse&lt;/code&gt; once and from then on works with an &lt;code&gt;Options&lt;/code&gt; object. No other part of the program looks at strings, checks whether an index is in range, or wonders whether &lt;code&gt;times&lt;/code&gt; was converted yet.&lt;/p&gt;
 &lt;h3 id=&quot;bad-input-is-not-a-bug&quot;&gt;Bad input is not a bug&lt;/h3&gt;
 &lt;p&gt;Someone typing &lt;code&gt;--times zero&lt;/code&gt; has made a mistake, but the &lt;em&gt;program&lt;/em&gt; is fine. So &lt;code&gt;parse&lt;/code&gt; handles it with ordinary code: it prints a message that names the problem, prints the usage line, and stops. &lt;code&gt;to_integer()&lt;/code&gt; raises a &lt;code&gt;Conversion_Error&lt;/code&gt; on text that is not a number, and the &lt;code&gt;rescue&lt;/code&gt; clause in &lt;code&gt;to_count&lt;/code&gt; turns that into the same kind of message.&lt;/p&gt;
-&lt;p&gt;Errors go to &lt;code&gt;Console.error&lt;/code&gt;, which writes to standard error, so they stay out of the way when the output is piped somewhere. &lt;code&gt;exit(2)&lt;/code&gt; sets the exit status. By convention &lt;code&gt;0&lt;/code&gt; means success and &lt;code&gt;2&lt;/code&gt; means the command was used wrongly, which lets a shell script tell the two apart.&lt;/p&gt;
+&lt;p&gt;Errors go to &lt;code&gt;console.error&lt;/code&gt;, which writes to standard error, so they stay out of the way when the output is piped somewhere. &lt;code&gt;exit(2)&lt;/code&gt; sets the exit status. By convention &lt;code&gt;0&lt;/code&gt; means success and &lt;code&gt;2&lt;/code&gt; means the command was used wrongly, which lets a shell script tell the two apart.&lt;/p&gt;
 &lt;h3 id=&quot;a-broken-parser-is-a-bug&quot;&gt;A broken parser is a bug&lt;/h3&gt;
 &lt;p&gt;The contracts on &lt;code&gt;Options&lt;/code&gt; do a different job. They are not there to check the user. They state what the rest of the program may assume: there is a name, and &lt;code&gt;times&lt;/code&gt; is positive. &lt;code&gt;main&lt;/code&gt; relies on that when it loops &lt;code&gt;opts.times&lt;/code&gt; times without checking anything.&lt;/p&gt;
 &lt;p&gt;That makes the constructor a checkpoint for the parser itself. Suppose a later edit drops the &lt;code&gt;result &amp;lt;= 0&lt;/code&gt; test from &lt;code&gt;to_count&lt;/code&gt;. Nothing about the type of &lt;code&gt;times&lt;/code&gt; changes, and the program still compiles. But the first run with a bad value stops at the boundary:&lt;/p&gt;
 &lt;pre&gt;&lt;code&gt;$ nex greet.nex Ada --times 0
 Error: Precondition violation: positive_times
-  The call at line 71, in parse does not meet the precondition `positive_times` of Options.make.
-  called from line 76, in main
-  called from line 93
+  The call at line 70, in parse does not meet the precondition `positive_times` of Options.make.
+  called from line 74, in main
+  called from line 90
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;The message names the clause and blames the caller, &lt;code&gt;parse&lt;/code&gt;, which is where the missing check belongs. A user should never see this message. If one does, it is telling you about a hole in your validation, not about their typing.&lt;/p&gt;
 &lt;h2 id=&quot;file-arguments-and-relative-paths&quot;&gt;File arguments and relative paths&lt;/h2&gt;
-&lt;p&gt;One thing will surprise you the first time you take a file name as an argument. The &lt;code&gt;nex&lt;/code&gt; launcher starts your program from its own installation directory, so a relative path like &lt;code&gt;report.txt&lt;/code&gt; does not resolve against the directory you ran the command in. The launcher records that directory in the environment variable &lt;code&gt;NEX_USER_DIR&lt;/code&gt;, and you can use it to resolve the path yourself:&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;function resolve(proc: Process, raw: String): String
+&lt;p&gt;One thing will surprise you the first time you take a file name as an argument. The &lt;code&gt;nex&lt;/code&gt; launcher starts your program from its own installation directory, so a relative path like &lt;code&gt;report.txt&lt;/code&gt; does not resolve against the directory you ran the command in. The launcher records that directory, and &lt;code&gt;program.working_directory&lt;/code&gt; gives it back to you, so you can resolve the path yourself:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;function resolve(raw: String): String
 do
-  let base: ?String := proc.getenv(&amp;quot;NEX_USER_DIR&amp;quot;)
-  if raw.starts_with(&amp;quot;/&amp;quot;) or base = nil or base = &amp;quot;&amp;quot; then
+  if raw.starts_with(&amp;quot;/&amp;quot;) then
     result := raw
   else
-    result := base + &amp;quot;/&amp;quot; + raw
+    result := program.working_directory + &amp;quot;/&amp;quot; + raw
   end
 end
 &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;The check for a missing &lt;code&gt;NEX_USER_DIR&lt;/code&gt; is relevant for the next section: a compiled program does not go through the launcher, so the variable is not set and relative paths already work.&lt;/p&gt;
+&lt;p&gt;The same code is right for the next section too: a compiled program does not go through the launcher, and there &lt;code&gt;working_directory&lt;/code&gt; is simply the directory the program runs in.&lt;/p&gt;
 &lt;h2 id=&quot;shipping-it-as-a-jar&quot;&gt;Shipping it as a jar&lt;/h2&gt;
 &lt;p&gt;&lt;code&gt;nex compile jvm&lt;/code&gt; turns the program into a standalone jar. The arguments reach it the same way, so nothing in the code changes:&lt;/p&gt;
 &lt;pre&gt;&lt;code&gt;$ nex compile jvm greet.nex
@@ -958,7 +953,7 @@ Hello, Grace!
 &lt;/code&gt;&lt;/pre&gt;
 &lt;h2 id=&quot;where-to-go-next&quot;&gt;Where to go next&lt;/h2&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;code&gt;Process&lt;/code&gt; can also read the environment and start child processes. The full list is in the &lt;a href=&quot;../docs/ref/system-classes.html&quot;&gt;system classes reference&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;program&lt;/code&gt; can also read the environment (&lt;code&gt;env&lt;/code&gt;, &lt;code&gt;has_env&lt;/code&gt;) and end the program with a status (&lt;code&gt;exit&lt;/code&gt;), and &lt;code&gt;Process&lt;/code&gt; starts child processes. The full list is in the &lt;a href=&quot;../docs/ref/system-classes.html&quot;&gt;system classes reference&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;If &lt;code&gt;require&lt;/code&gt;, &lt;code&gt;ensure&lt;/code&gt; and &lt;code&gt;invariant&lt;/code&gt; are new to you, the &lt;a href=&quot;../tutorial.html&quot;&gt;tour of Nex&lt;/a&gt; introduces them in a few minutes.&lt;/li&gt;
 &lt;/ul&gt;</content>
   </entry>
