@@ -110,8 +110,8 @@ c.wait_until_closed()    -- keep it on screen until the user closes it</code></p
 <li><strong>Coordinates.</strong> (0, 0) is the bottom left and (1, 1) the top right until <code>set_x_scale</code>/<code>set_y_scale</code> change them. y grows upward.</li>
 <li><strong>Centre-based shapes.</strong> <code>circle(x, y, radius)</code>, <code>square(x, y, half_side)</code> and <code>rectangle(x, y, half_width, half_height)</code> are all centred on (x, y). Lengths are scaled per axis, so with unequal x and y scales a circle comes out as an ellipse.</li>
 <li><strong>Pen.</strong> Lines and outlines are drawn with the pen color, <code>2 * pen_radius</code> pixels wide. The pen radius is in pixels, not user units. Colors with an alpha below 255 blend with what is underneath.</li>
-<li><strong>Window.</strong> <code>show</code> copies the offscreen image to the window, opening the window the first time. A canvas that never calls <code>show</code> never opens one. Without a display, <code>show</code> only updates the onscreen image and <code>wait_until_closed</code> returns at once, so the same program runs headless.</li>
-<li><strong>Buffering.</strong> With double buffering off (the default), every drawing command also refreshes an already open window. With it on, the window changes only on <code>show</code>. Turn it on for flicker-free animation.</li>
+<li><strong>Window.</strong> <code>show</code> brings the window up to date, opening it the first time. A canvas that never calls <code>show</code> never opens one. Without a display, <code>show</code> does nothing and <code>wait_until_closed</code> returns at once, so the same program runs headless (and <code>save</code> still writes what was drawn). The window is titled “Nex Canvas” until <code>set_title</code> changes it.</li>
+<li><strong>Buffering.</strong> With double buffering off (the default), the window shows the image being drawn on, so every drawing command appears at once; the window repaints soon after, once for a whole burst of commands. With it on, the window shows a second image that only <code>show</code> updates, so it changes only on <code>show</code>. Turn it on for flicker-free animation.</li>
 <li><strong>Program exit.</strong> The window closes when the program ends. A script that should stay on screen ends with <code>wait_until_closed()</code>.</li>
 <li><strong>File names.</strong> A relative name given to <code>save</code> or <code>Picture.load</code> is resolved against the directory <code>nex</code> was started from (<code>NEX_USER_DIR</code>), not the Nex install directory the launcher runs in.</li>
 </ul>
@@ -186,26 +186,31 @@ c.wait_until_closed()    -- keep it on screen until the user closes it</code></p
 <td>Whether drawing waits for <code>show</code>.</td>
 </tr>
 <tr class="odd">
+<td><code>title</code></td>
+<td><code>String</code></td>
+<td>The window’s title; <code>"Nex Canvas"</code> unless <code>set_title</code> changed it.</td>
+</tr>
+<tr class="even">
 <td><code>has_display()</code></td>
 <td><code>Boolean</code></td>
 <td>Whether a window can be opened at all.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>is_window_open()</code></td>
 <td><code>Boolean</code></td>
 <td>Whether this canvas has a window on screen.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>color_at(x, y: Real)</code></td>
 <td><code>Color</code></td>
 <td>The color of the pixel at user position (x, y). Requires the point to be inside the scale.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>is_image_file_name(filename: String)</code></td>
 <td><code>Boolean</code></td>
 <td>Whether <code>save</code> understands the file's extension.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>input</code></td>
 <td><code>Canvas_Input</code></td>
 <td>The underlying mouse and keyboard state. See <em>Input</em>.</td>
@@ -345,26 +350,31 @@ c.wait_until_closed()    -- keep it on screen until the user closes it</code></p
 <td>See <em>Buffering</em> above.</td>
 </tr>
 <tr class="even">
-<td><code>show</code></td>
-<td>none</td>
-<td>Copy the offscreen image to the window, opening it if needed.</td>
+<td><code>set_title</code></td>
+<td><code>t: String</code></td>
+<td>Title the window: an open one at once, otherwise when <code>show</code> opens it.</td>
 </tr>
 <tr class="odd">
+<td><code>show</code></td>
+<td>none</td>
+<td>Bring the window up to date with what has been drawn, opening it if needed. Does nothing without a display.</td>
+</tr>
+<tr class="even">
 <td><code>clear</code></td>
 <td>none, or <code>color: Color</code></td>
 <td>Fill the whole canvas with white, or with <code>color</code>.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>pause</code></td>
 <td><code>ms: Integer</code></td>
 <td>Sleep for <code>ms</code> milliseconds. For pacing an animation.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>wait_until_closed</code></td>
 <td>none</td>
 <td>Block until the user closes the window. Returns at once if none is open.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>save</code></td>
 <td><code>filename: String</code></td>
 <td>Write the image. The format comes from the extension: <code>.png</code>, <code>.jpg</code>/<code>.jpeg</code>, <code>.gif</code> or <code>.bmp</code>.</td>
@@ -678,7 +688,7 @@ from let row := 0 until row = photo.height do
   row := row + 1
 end
 photo.grayscale().rotated_right().save("photo_gray.png")</code></pre>
-<p>A per-pixel loop is fine for small and medium images: on the compiled backend one <code>get</code> and one <code>set</code> per pixel over a 512x512 picture takes a second or two (<code>grayscale</code> is such a loop, so it costs about the same). <code>fill</code>, <code>cropped</code>, <code>scaled</code> and the flips and turns are done by Java2D in a single call, so they are much faster.</p>
+<p>A per-pixel loop is fine for small and medium images: on the compiled backend one <code>get</code> and one <code>set</code> per pixel over a 512x512 picture takes about half a second. <code>grayscale</code>, <code>fill</code>, <code>cropped</code>, <code>scaled</code> and the flips and turns are done by Java2D in a single call, so they are much faster: <code>grayscale</code> takes a few tens of milliseconds for a million pixels.</p>
 </section>
 <section id="color" class="level2">
 <h2 class="anchored" data-anchor-id="color"><code>Color</code></h2>
