@@ -64,6 +64,7 @@
   <li><a href="#construction-2">Construction</a></li>
   <li><a href="#methods-2">Methods</a></li>
   </ul></li>
+  <li><a href="#functional-methods">Functional Methods</a></li>
   <li><a href="#min_heapt"><code>Min_Heap[T]</code></a>
   <ul>
   <li><a href="#construction-3">Construction</a></li>
@@ -87,6 +88,7 @@
 <p>In the tables below, <code>T</code> is the element type of an <code>Array[T]</code> or <code>Set[T]</code>, and <code>K</code> and <code>V</code> are the key and value types of a <code>Map[K, V]</code>.</p>
 <p>All built-in collection types inherit <code>Any</code>, and <code>Array[T]</code>, <code>Set[T]</code> and <code>Map[K, V]</code> are also <code>Iterable</code> (so <code>across</code> walks them, and they can be passed where an <code>Iterable</code> is expected; see <a href="./foundational-classes.html">Foundational Classes</a>). Their <code>to_string</code>, <code>equals</code>, and <code>clone</code> methods operate recursively: <code>to_string</code> renders nested structure, <code>equals</code> performs deep structural equality, and <code>clone</code> performs a deep copy.</p>
 <p><code>Set</code> membership and dedup, and <code>Map</code> key lookup, compare by Nex value equality — the same <code>equals</code>/<code>hash</code> used by the <code>=</code> operator — so a class that overrides <code>equals</code>/<code>hash</code> is matched by value as an element or key.</p>
+<p>All four built-in collections, and <code>String</code>, also have the <a href="#functional-methods">functional methods</a> <code>map</code>, <code>filter</code>, <code>fold</code>, <code>reduce</code>, <code>any</code>, <code>all</code>, <code>count</code> and <code>find</code>.</p>
 <p>Each method table below includes a <strong>Complexity</strong> column, given as <code>time / space</code> (average case for <code>Map</code>/<code>Set</code>, as with any hash table). <code>nex file.nex</code> compiles to JVM bytecode; a tree-walking interpreter is used as a fallback and an easy to understand reference implementation. The two backends agree on every operation's complexity except <code>Map.remove</code> and <code>Set.remove</code>: <code>O(1)</code> average on the compiled backend (backed by a real hash table), <code>O(n)</code> on the interpreter (which keeps a separate insertion-order list that removal must also filter).</p>
 <section id="arrayt" class="level2">
 <h2 class="anchored" data-anchor-id="arrayt"><code>Array[T]</code></h2>
@@ -616,6 +618,80 @@ create Set[Integer].from_array([1, 2, 3])</code></pre>
 <p><small>* "Deep" means the cost scales with the total nested size of elements, not just element count.<br>
 † <code>remove</code> and <code>cursor</code> are the two operations where the backends diverge, the same way as <code>Map</code> above: <code>remove</code> is <code>O(1)</code> average on the compiled backend but <code>O(n)</code> on the interpreter; <code>cursor</code> creation is <code>O(n)</code> on both, since it snapshots every element up front. (<code>n</code> above is the size of the receiver, <code>m</code> the size of <code>other</code>.)</small></p>
 </section>
+</section>
+<section id="functional-methods" class="level2">
+<h2 class="anchored" data-anchor-id="functional-methods">Functional Methods</h2>
+<p><code>Array[T]</code>, <code>Set[T]</code>, <code>Map[K, V]</code> and <code>String</code> share eight methods that take a function. Each walks the receiver's elements in the order <code>across</code> does: an <code>Array</code>'s or <code>Set</code>'s elements, a <code>String</code>'s <code>Char</code>s, a <code>Map</code>'s <code>Map_Entry[K, V]</code> entries. Below, <code>E</code> is that element type.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>map</code></td>
+<td><code>f: Function(x: E): U</code></td>
+<td><code>Array[U]</code></td>
+<td><code>f</code> applied to each element, in order. Always an <code>Array</code>, whatever the receiver.</td>
+</tr>
+<tr class="even">
+<td><code>filter</code></td>
+<td><code>f: Function(x: E): Boolean</code></td>
+<td>the receiver's type</td>
+<td>The elements for which <code>f</code> is true: an <code>Array</code> gives an <code>Array</code>, a <code>Set</code> a <code>Set</code>, a <code>String</code> a <code>String</code>, a <code>Map</code> a <code>Map</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>fold</code></td>
+<td><code>init: A, f: Function(acc: A, x: E): A</code></td>
+<td><code>A</code></td>
+<td><code>f</code> applied to <code>init</code> and the first element, then to that result and the next, and so on; <code>init</code> for an empty receiver.</td>
+</tr>
+<tr class="even">
+<td><code>reduce</code></td>
+<td><code>f: Function(acc: E, x: E): E</code></td>
+<td><code>E</code></td>
+<td>Like <code>fold</code>, starting from the first element. Raises on an empty receiver.</td>
+</tr>
+<tr class="odd">
+<td><code>any</code></td>
+<td><code>f: Function(x: E): Boolean</code></td>
+<td><code>Boolean</code></td>
+<td>Whether <code>f</code> is true for some element (false when empty).</td>
+</tr>
+<tr class="even">
+<td><code>all</code></td>
+<td><code>f: Function(x: E): Boolean</code></td>
+<td><code>Boolean</code></td>
+<td>Whether <code>f</code> is true for every element (true when empty).</td>
+</tr>
+<tr class="odd">
+<td><code>count</code></td>
+<td><code>f: Function(x: E): Boolean</code></td>
+<td><code>Integer</code></td>
+<td>How many elements <code>f</code> is true for.</td>
+</tr>
+<tr class="even">
+<td><code>find</code></td>
+<td><code>f: Function(x: E): Boolean</code></td>
+<td><code>?E</code></td>
+<td>The first element <code>f</code> is true for, or <code>nil</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The function's parameter types come from the receiver, so they need not be written, and <code>map</code>'s <code>U</code> and <code>fold</code>'s <code>A</code> come from what the function returns and from <code>init</code>:</p>
+<pre class="nex"><code>let xs: Array[Integer] := [1, 2, 3, 4]
+print(xs.map(fn (x) =&gt; x * 10))                  -- [10, 20, 30, 40]
+print(xs.filter(fn (x) =&gt; x % 2 = 0))            -- [2, 4]
+print(xs.fold(0, fn (sum, x) =&gt; sum + x))        -- 10
+print(xs.find(fn (x) =&gt; x &gt; 2))                  -- 3
+print("hello".filter(fn (c) =&gt; c /= #l))         -- "heo"
+let ages: Map[String, Integer] := {"ann": 31, "bo": 17}
+print(ages.filter(fn (e) =&gt; e.value &gt;= 18))      -- {"ann": 31}
+print(xs.filter(fn (x) =&gt; x &gt; 1).map(fn (x) =&gt; x * x).fold(0, fn (a, b) =&gt; a + b))   -- 29</code></pre>
 </section>
 <section id="min_heapt" class="level2">
 <h2 class="anchored" data-anchor-id="min_heapt"><code>Min_Heap[T]</code></h2>
