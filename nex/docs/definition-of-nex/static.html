@@ -541,6 +541,35 @@ has the type <code>Function(x1: T1, &hellip;, xn: Tn): T</code>. Its body is
 checked with the parameters in scope, and with <code>result</code> of type
 <code>T</code>.</p>
 
+<p>Parameter types, and the result type, may be left out where the anonymous
+function stands in a place that expects a function type
+<code>Function(y1: U1, &hellip;, yn: Un): U</code>: as the initialiser of a
+<code>let</code> of that type, the value assigned to a variable (or to
+<code>result</code>) of that type, or an argument whose parameter has that type
+(of a routine, a constructor, or a function value). Each omitted
+<code>Ti</code> is then <code>Ui</code>, and an omitted <code>T</code> is
+<code>U</code>; the anonymous function must have <code>n</code> parameters, and
+any type it does write must agree with the expected one. For a call to a
+generic routine or constructor, the type arguments are first inferred from the
+other arguments (Section&nbsp;<a href="#sec-4.7">4.7</a>), and the expected type is the parameter&rsquo;s
+type in that instance:</p>
+
+<pre><code>function apply_to[T](x: T, f: Function(v: T): T): T do
+  result := f(x)
+end
+print(apply_to(10, fn (v) do result := v + 1 end))   -- v is an Integer</code></pre>
+
+<p>Where no function type is expected, every parameter type must be written.</p>
+
+<p>An expression function <code>fn (ps) =&gt; e</code> (Appendix&nbsp;<a href="appendix-derived.html#sec-C.8">C.8</a>) whose result
+type is neither written nor supplied by the context has as its result type the
+type of <code>e</code>, checked with the parameters in scope. In particular, a
+generic parameter that only the expected result type mentions, such as
+<code>U</code> in <code>map_all[T, U](xs: Array[T], f: Function(x: T): U)</code>,
+is not imposed on the function; it is inferred from the function&rsquo;s result:</p>
+
+<pre><code>let lengths := map_all(["a", "bb"], fn (s) =&gt; s.length)   -- Array[Integer]</code></pre>
+
 <h4>Object tests</h4>
 
 <p>An object test <code>? e as x</code> requires <code>e</code> to have an

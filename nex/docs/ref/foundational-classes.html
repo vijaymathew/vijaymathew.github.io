@@ -43,14 +43,15 @@
       </div>
       <details class="toc" open>
         <summary>Nex Reference</summary>
-        <ul><li><a href="index.html">Contents</a></li><li><a href="functions.html">Built-in Functions</a></li><li><a href="foundational-classes.html" class="on">Foundational Classes</a></li><li><a href="scalar-types.html">Scalar Types</a></li><li><a href="collection-types.html">Collection Types</a></li><li><a href="cursor-types.html">Cursor Types</a></li><li><a href="system-classes.html">System Classes</a></li><li><a href="exceptions.html">Exception Classes</a></li><li><a href="libraries.html">Library Index</a></li><li><a href="data.html">Data Libraries</a></li><li><a href="audio.html">Audio Libraries</a></li><li><a href="graphics.html">Graphics Libraries</a></li><li><a href="io.html">IO Libraries</a></li><li><a href="text.html">Text Libraries</a></li><li><a href="time.html">Time Libraries</a></li><li><a href="networking.html">Networking Libraries</a></li></ul>
+        <ul><li><a href="index.html">Contents</a></li><li><a href="functions.html">Built-in Functions</a></li><li><a href="foundational-classes.html" class="on">Foundational Classes</a></li><li><a href="scalar-types.html">Scalar Types</a></li><li><a href="collection-types.html">Collection Types</a></li><li><a href="cursor-types.html">Cursor Types</a></li><li><a href="system-classes.html">System Classes</a></li><li><a href="exceptions.html">Exception Classes</a></li><li><a href="libraries.html">Library Index</a></li><li><a href="data.html">Data Libraries</a></li><li><a href="audio.html">Audio Libraries</a></li><li><a href="graphics.html">Graphics Libraries</a></li><li><a href="io.html">IO Libraries</a></li><li><a href="math.html">Math Libraries</a></li><li><a href="text.html">Text Libraries</a></li><li><a href="time.html">Time Libraries</a></li><li><a href="networking.html">Networking Libraries</a></li></ul>
       </details>
       <details class="toc" open>
         <summary>On this page</summary>
         <ul>
   <li><a href="#any"><code>Any</code></a></li>
   <li><a href="#function"><code>Function</code></a></li>
-  <li><a href="#cursor"><code>Cursor</code></a></li>
+  <li><a href="#iterable-deferred"><code>Iterable[T]</code> (deferred)</a></li>
+  <li><a href="#cursor"><code>Cursor[T]</code> (deferred)</a></li>
   <li><a href="#comparable-deferred"><code>Comparable</code> (deferred)</a></li>
   <li><a href="#examples">Examples</a></li>
   <li><a href="#operators-and-the-routines-they-denote">Operators and the Routines They Denote</a>
@@ -176,9 +177,32 @@ let double: Transformer := fn (n: Integer): Integer do result := n * 2 end</code
 </table>
 </section>
 </section>
+<section id="iterable-deferred" class="level2">
+<h2 class="anchored" data-anchor-id="iterable-deferred"><code>Iterable[T]</code> (deferred)</h2>
+<p>Anything whose elements can be walked. <code>across</code> traverses any <code>Iterable</code>, and a parameter typed <code>Iterable[T]</code> accepts every kind of one.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Arguments</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>cursor</code></td>
+<td>none</td>
+<td><code>Cursor[T]</code></td>
+<td>A new cursor over the elements.</td>
+</tr>
+</tbody>
+</table>
+<p><code>Array[T]</code> and <code>Set[T]</code> are <code>Iterable[T]</code>, <code>String</code> is <code>Iterable[Char]</code>, and <code>Map[K, V]</code> is <code>Iterable[Map_Entry[K, V]]</code>.</p>
+</section>
 <section id="cursor" class="level2">
-<h2 class="anchored" data-anchor-id="cursor"><code>Cursor</code></h2>
-<p>Abstract iteration interface.</p>
+<h2 class="anchored" data-anchor-id="cursor"><code>Cursor[T]</code> (deferred)</h2>
+<p>One walk over some elements. An heir of <code>Iterable[T]</code>: a cursor's <code>cursor</code> is the cursor itself, so <code>across</code> can walk a cursor too.</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -193,29 +217,65 @@ let double: Transformer := fn (n: Integer): Integer do result := n * 2 end</code
 <td><code>start</code></td>
 <td>none</td>
 <td><code>Void</code></td>
-<td>Reset iteration to the first position.</td>
+<td>Go to the first element.</td>
 </tr>
 <tr class="even">
 <td><code>item</code></td>
 <td>none</td>
-<td><code>Any</code></td>
-<td>Return current item.</td>
+<td><code>T</code></td>
+<td>The current element.</td>
 </tr>
 <tr class="odd">
 <td><code>next</code></td>
 <td>none</td>
 <td><code>Void</code></td>
-<td>Advance to next position.</td>
+<td>Move to the next element.</td>
 </tr>
 <tr class="even">
 <td><code>at_end</code></td>
 <td>none</td>
 <td><code>Boolean</code></td>
-<td>Check whether iteration is complete.</td>
+<td>Whether the walk is over.</td>
+</tr>
+<tr class="odd">
+<td><code>cursor</code></td>
+<td>none</td>
+<td><code>Cursor[T]</code></td>
+<td>The cursor itself.</td>
 </tr>
 </tbody>
 </table>
-<p>Concrete runtime cursor types are documented in <a href="./cursor-types.html">Cursor Types</a>.</p>
+<p>The built-in collections' cursors are documented in <a href="./cursor-types.html">Cursor Types</a>.</p>
+<p>A class of your own becomes iterable by inheriting <code>Iterable[T]</code> and returning a cursor class that inherits <code>Cursor[T]</code>:</p>
+<pre class="nex"><code>class Countdown_Cursor
+inherit Cursor[Integer]
+create
+  make(top: Integer) do this.top := top end
+feature
+  top: Integer
+  current: Integer
+  start() do current := top end
+  item(): Integer do result := current end
+  next() do current := current - 1 end
+  at_end(): Boolean do result := current &lt; 0 end
+end
+
+class Countdown
+inherit Iterable[Integer]
+create
+  make(top: Integer) do this.top := top end
+feature
+  top: Integer
+  cursor(): Cursor[Integer] do result := create Countdown_Cursor.make(top) end
+end
+
+function total(xs: Iterable[Integer]): Integer do
+  across xs as x do result := result + x end
+end
+
+print(total(create Countdown.make(3)))    -- 6
+print(total([1, 2, 3]))                   -- 6</code></pre>
+<p>A class that only declares a <code>cursor()</code> method, without inheriting <code>Iterable</code>, still works with <code>across</code>, but cannot be passed where an <code>Iterable</code> is expected.</p>
 </section>
 <section id="comparable-deferred" class="level2">
 <h2 class="anchored" data-anchor-id="comparable-deferred"><code>Comparable</code> (deferred)</h2>

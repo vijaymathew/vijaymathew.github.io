@@ -190,7 +190,7 @@ end
   <details class="syntax-item" id="across">
     <summary>Across</summary>
     <div class="syntax-body prose">
-<p>Iterate over any collection (Array, String, Map) using its cursor:</p>
+<p>Iterate over anything <code>Iterable</code>: an Array, Set, String or Map, a cursor, or a class of your own that inherits <code>Iterable[T]</code>:</p>
 <pre><code>across [10, 20, 30] as x do
   print(x)
 end
@@ -1122,6 +1122,12 @@ end</code></pre>
 <pre><code>let add: Function(a: Integer, b: Integer): Integer :=
   fn (a, b: Integer): Integer do result := a + b end
 print(add(3, 4))                -- 7</code></pre>
+<p>A function whose body only computes its result can be written with <code>=&gt;</code> and the expression. Its result type is the expression's (or the one the context expects), and the expression runs as far to the right as an expression can:</p>
+<pre><code>let double := fn (n: Integer) =&gt; n * 2
+print(double(21))                       -- 42
+names.sort(fn (a, b) =&gt; a.length - b.length)
+let say := fn (m: String) =&gt; print(m)   -- no result: the call is the body</code></pre>
+<p><code>fn (x) =&gt; e</code> means <code>fn (x) do result := e end</code>. Use the <code>do ... end</code> form for anything with statements, contracts or <code>rescue</code>. Writing a user-defined generic function over a function argument becomes easy too: for <code>map_all[T, U](xs: Array[T], f: Function(x: T): U): Array[U]</code>, the call <code>map_all(["a", "bb"], fn (s) =&gt; s.length)</code> takes <code>T</code> from the array and <code>U</code> from what the function returns, so it gives an <code>Array[Integer]</code>.</p>
 <p>Bare <code>Function</code> is still valid and compatible with any typed function value:</p>
 <pre><code>let f: Function := fn (n: Integer): Integer do result := n * 2 end</code></pre>
 <p>When the target already carries a concrete <code>Function(...)</code> type,
@@ -1129,9 +1135,20 @@ print(add(3, 4))                -- 7</code></pre>
 they're inferred from that target:</p>
 <pre><code>let add2: Function(a: Integer, b: Integer): Integer := fn(a, b) do result := a + b end
 print(add2(3, 4))                -- 7</code></pre>
-<p>Inference only works where a target type is actually available (here, the
-<code>let</code>'s own annotation). With no such context, every parameter
-needs its own explicit type, or it's a compile error.</p>
+<p>The same works when <code>fn</code> is passed as an argument: the parameter it is passed to supplies the types. That covers methods, free and generic functions, constructors, and built-ins such as <code>Array.sort</code>:</p>
+<pre><code>function twice(f: Function(n: Integer): Integer, x: Integer): Integer do
+  result := f(f(x))
+end
+print(twice(fn (n) do result := n * 3 end, 2))     -- 18
+
+let names: Array[String] := ["bo", "ann"]
+print(names.sort(fn (a, b) do result := a.length - b.length end))   -- ["bo", "ann"]
+
+server.post("/echo", fn (req) do                   -- req is an Http_Request
+  result := create Http_Server_Response.make(200, req.body(), {})
+end)</code></pre>
+<p>For a generic function, the other arguments are looked at first: <code>apply_to[T](x: T, f: Function(v: T): T)</code> called as <code>apply_to(10, fn (v) do result := v + 1 end)</code> binds <code>T</code> to <code>Integer</code> from <code>10</code>, so <code>v</code> is an <code>Integer</code>.</p>
+<p>Inference only works where a target type is actually available: a typed <code>let</code>, or a parameter of a <code>Function(...)</code> type. With no such context (<code>let f := fn (x) do ... end</code>), every parameter needs its own explicit type, or it's a compile error.</p>
 <p>A <code>Function(...)</code> type's parameter names are for documentation
 only &mdash; they can be dropped, leaving just the types:</p>
 <pre><code>let is_positive: Function(Integer): Boolean := fn(n: Integer): Boolean do result := n > 0 end</code></pre>

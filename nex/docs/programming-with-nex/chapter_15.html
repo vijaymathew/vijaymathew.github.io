@@ -246,17 +246,18 @@ true</code></pre>
 </section>
 <section class="level2" data-number="16.8" id="iterating-your-own-types">
 <h2 class="anchored" data-anchor-id="iterating-your-own-types" data-number="16.8"> Iterating Over Your Own Types</h2>
-<p>Earlier in this book we saw that <code>across</code> works with <em>any</em> object that knows how to produce a <em>cursor</em>, a small helper that visits the elements one at a time. By giving a class a <code>cursor</code> method you make your own type iterable, so client code can loop over it with the same <code>across</code> it uses for an array.</p>
-<p>A cursor is an object that implements four features — the <code>Cursor</code> protocol:</p>
+<p>Earlier in this book we saw that <code>across</code> works with <em>any</em> object that knows how to produce a <em>cursor</em>, a small helper that visits the elements one at a time. By having a class inherit <code>Iterable[T]</code> and give it a <code>cursor</code> method you make your own type iterable, so client code can loop over it with the same <code>across</code> it uses for an array.</p>
+<p>A cursor is an object of a class that inherits the deferred class <code>Cursor[T]</code>, where <code>T</code> is the type of the elements. It has four features:</p>
 <ul>
 <li><code>start</code> — position the cursor at the first element</li>
 <li><code>item</code> — return the element at the current position</li>
 <li><code>next</code> — advance to the following element</li>
 <li><code>at_end</code> — report whether the traversal is finished</li>
 </ul>
-<p>When you write <code>across some_object as x do … end</code>, Nex calls <code>some_object.cursor</code> to obtain a cursor, then drives that cursor: it calls <code>start</code> once, and repeats <code>item</code> / <code>next</code> until <code>at_end</code> becomes true. The built-in collections work exactly this way — an array hands back an <code>Array_Cursor</code>, a map a <code>Map_Cursor</code> — which is why one loop form works uniformly across all of them.</p>
+<p>When you write <code>across some_object as x do … end</code>, Nex calls <code>some_object.cursor</code> to obtain a cursor, then drives that cursor: it calls <code>start</code> once, and repeats <code>item</code> / <code>next</code> until <code>at_end</code> becomes true. The built-in collections work exactly this way: an <code>Array[Integer]</code> is an <code>Iterable[Integer]</code>, and hands back a <code>Cursor[Integer]</code>; a <code>String</code> is an <code>Iterable[Char]</code>. That is why one loop form works uniformly across all of them.</p>
 <p>Consider an <code>Interval</code> — an inclusive range of integers — that does not store its values in an array at all, but generates them on demand. First the cursor that walks the range:</p>
 <pre><code>nex&gt; class Interval_Cursor
+     inherit Cursor[Integer]
      create
        make(lo, hi: Integer) do current := lo  last := hi end
      feature
@@ -267,14 +268,15 @@ true</code></pre>
        next()            do current := current + 1 end
        at_end(): Boolean do result := current &gt; last end
      end</code></pre>
-<p>The cursor holds its own position in <code>current</code>. It starts already on the first element, so <code>start</code> has nothing to do; <code>item</code> reads the current value; <code>next</code> moves forward; and <code>at_end</code> is true once it has stepped past <code>last</code>. Now the <code>Interval</code> itself, whose only job is to hand out a fresh cursor:</p>
+<p>Inheriting <code>Cursor[Integer]</code> is a promise that the class provides all four features, with <code>item</code> returning an <code>Integer</code>, and Nex holds the class to it: leave out <code>at_end</code>, or have <code>item</code> return a <code>String</code>, and it is a type error. The cursor holds its own position in <code>current</code>. It starts already on the first element, so <code>start</code> has nothing to do; <code>item</code> reads the current value; <code>next</code> moves forward; and <code>at_end</code> is true once it has stepped past <code>last</code>. Now the <code>Interval</code> itself, whose only job is to hand out a fresh cursor:</p>
 <pre><code>nex&gt; class Interval
+     inherit Iterable[Integer]
      create
        make(lo, hi: Integer) do low := lo  high := hi end
      feature
        low: Integer
        high: Integer
-       cursor(): Interval_Cursor
+       cursor(): Cursor[Integer]
        do
         result := create Interval_Cursor.make(low, high)
        end
@@ -291,8 +293,18 @@ nex&gt; across week as day do
 5
 6
 7</code></pre>
-<p>Each <code>cursor</code> call returns a new, independent cursor, so the same <code>Interval</code> can be iterated more than once, and even nested inside another loop over itself, without the traversals interfering.</p>
-<p>The lesson generalises beyond ranges. Any class that models a collection — a ring buffer, say, or a tree with a chosen traversal order — becomes usable with <code>across</code> the moment it can produce a cursor. The iteration protocol is the meeting point: clients write one familiar loop, while each type decides privately how its elements are stored and produced. It is the same bargain generics offer, struck at the level of behaviour rather than types: <code>Stack[G]</code> lets one class serve every element type, and the <code>Cursor</code> protocol lets one loop serve every collection.</p>
+<p>The loop variable <code>day</code> is an <code>Integer</code>, because an <code>Interval</code> is an <code>Iterable[Integer]</code>. Each <code>cursor</code> call returns a new, independent cursor, so the same <code>Interval</code> can be iterated more than once, and even nested inside another loop over itself, without the traversals interfering.</p>
+<p>Because <code>Interval</code> is an <code>Iterable[Integer]</code>, it can also go wherever one is expected. A function that sums an <code>Iterable[Integer]</code> works on an interval, an array, a set, or any other iterable of integers:</p>
+<pre><code>nex&gt; function sum_all(xs: Iterable[Integer]): Integer do
+       across xs as x do
+         result := result + x
+       end
+     end
+nex&gt; sum_all(create Interval.make(1, 100))
+5050
+nex&gt; sum_all([1, 2, 3])
+6</code></pre>
+<p>The lesson generalises beyond ranges. Any class that models a collection — a ring buffer, say, or a tree with a chosen traversal order — becomes usable with <code>across</code> the moment it can produce a cursor. The iteration protocol is the meeting point: clients write one familiar loop, while each type decides privately how its elements are stored and produced. It is the same bargain generics offer: <code>Stack[G]</code> lets one class serve every element type, and <code>Iterable[T]</code> lets one loop, and one function, serve every collection.</p>
 </section>
 <section class="level2" data-number="16.9" id="a-worked-example-a-generic-result-type">
 <h2 class="anchored" data-anchor-id="a-worked-example-a-generic-result-type" data-number="16.9"> A Worked Example: A Generic Result Type</h2>
@@ -359,7 +371,7 @@ Error: division by zero</code></pre>
 <li>Type constraints restrict which types can fill a parameter: <code>[G -&gt; Comparable]</code> requires <code>G</code> to implement <code>Comparable</code>; hashing needs no constraint, since every value has <code>hash</code></li>
 <li>A generic class can inherit from another generic class using the same type parameter: <code>class Bounded_Stack [G] inherit Stack[G]</code></li>
 <li>The built-in <code>Array[T]</code>, <code>Set[T]</code>, and <code>Map[K, V]</code> are generic classes; <code>Set</code> literals use <code>#{...}</code>, and understanding these collection types explains why element types are inferred and why operations work uniformly across types</li>
-<li>Any class becomes usable with <code>across</code> by giving it a <code>cursor</code> method that returns an object implementing the <code>Cursor</code> protocol — <code>start</code>, <code>item</code>, <code>next</code>, <code>at_end</code> — which is how the built-in collections work too; narrow the <code>Any</code> loop variable with <code>convert</code> when you need its concrete type</li>
+<li>Any class becomes usable with <code>across</code> by inheriting <code>Iterable[T]</code> and giving it a <code>cursor</code> method that returns a <code>Cursor[T]</code>, an object with <code>start</code>, <code>item</code>, <code>next</code> and <code>at_end</code>; this is how the built-in collections work too, and the loop variable has type <code>T</code></li>
 <li>Generic classes provide reuse without duplication and type safety without losing flexibility</li>
 </ul>
 </section>
@@ -370,8 +382,8 @@ Error: division by zero</code></pre>
 <p><strong>3.</strong> Define a generic class <code>Range [G -&gt; Comparable]</code> with fields <code>low: G</code> and <code>high: G</code>, a constructor <code>make(l, h: G)</code>, and methods <code>contains(value: G): Boolean</code> (returns <code>true</code> if <code>low &lt;= value &lt;= high</code>) and <code>overlaps(other: Range[G]): Boolean</code>. Test with integer and real ranges.</p>
 <p><strong>4.</strong> The <code>Result[V]</code> class in <a href="chapter_15.html#a-worked-example-a-generic-result-type" title="Section 15.9: A Worked Example: A Generic Result Type">Section 15.9</a> has <code>value: ?V</code> as a detachable field. Why is <code>?V</code> needed rather than <code>V</code>? What would happen in the <code>failure</code> constructor if <code>value</code> were not detachable?</p>
 <p><strong>5.*</strong> Define a generic <code>Queue [G]</code> class backed by an <code>Array[G]</code>, with methods <code>enqueue(value: G)</code>, <code>dequeue(): G</code>, <code>front(): G</code>, <code>is_empty(): Boolean</code>, and <code>size(): Integer</code>. Then define a <code>Priority_Queue [G -&gt; Comparable]</code> that inherits <code>Queue[G]</code> and overrides <code>enqueue</code> so that elements are always inserted in sorted order (smallest at the front). Verify that dequeuing from a <code>Priority_Queue[Integer]</code> after inserting <code>[5, 2, 8, 1, 9]</code> produces the elements in ascending order.</p>
-<p><strong>6.</strong> Following the <code>Interval</code> example from <a href="chapter_15.html#iterating-your-own-types" title="Section 15.8: Iterating Over Your Own Types">Section 15.8</a>, write a class <code>Countdown</code> whose constructor takes a positive integer <code>n</code> and that, when iterated with <code>across</code>, yields <code>n, n-1, …, 1</code>. Give it a cursor implementing <code>start</code>, <code>item</code>, <code>next</code>, and <code>at_end</code>, and a <code>cursor</code> method that returns a fresh one. Verify that <code>across (create Countdown.make(5)) as k do print(k) end</code> prints 5 down to 1, and that iterating the same object twice produces the full sequence both times.</p>
-<p><strong>7.*</strong> Make the <code>Stack[G]</code> class from <a href="chapter_15.html#a-generic-class" title="Section 15.1: A Generic Class">Section 15.1</a> iterable from top to bottom by adding a <code>cursor</code> method, without exposing its underlying <code>items</code> array. Then write a loop that uses <code>convert</code> to total the elements of a <code>Stack[Integer]</code>, and explain why the loop variable arrives as <code>Any</code>.</p>
+<p><strong>6.</strong> Following the <code>Interval</code> example from <a href="chapter_15.html#iterating-your-own-types" title="Section 15.8: Iterating Over Your Own Types">Section 15.8</a>, write a class <code>Countdown</code> whose constructor takes a positive integer <code>n</code> and that, when iterated with <code>across</code>, yields <code>n, n-1, …, 1</code>. Make it inherit <code>Iterable[Integer]</code>, and give it a cursor class that inherits <code>Cursor[Integer]</code>, and a <code>cursor</code> method that returns a fresh one. Verify that <code>across (create Countdown.make(5)) as k do print(k) end</code> prints 5 down to 1, and that iterating the same object twice produces the full sequence both times.</p>
+<p><strong>7.*</strong> Make the <code>Stack[G]</code> class from <a href="chapter_15.html#a-generic-class" title="Section 15.1: A Generic Class">Section 15.1</a> iterable from top to bottom by having it inherit <code>Iterable[G]</code> and adding a <code>cursor</code> method, without exposing its underlying <code>items</code> array. (The cursor class is generic too: <code>Stack_Cursor [G] inherit Cursor[G]</code>.) Then use the <code>sum_all</code> function from <a href="chapter_15.html#iterating-your-own-types" title="Section 15.8: Iterating Over Your Own Types">Section 15.8</a> to total a <code>Stack[Integer]</code>, and explain why the same function accepts an <code>Array[Integer]</code>.</p>
 </section>
 
   </div>

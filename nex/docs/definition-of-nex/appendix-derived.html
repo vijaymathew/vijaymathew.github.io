@@ -83,9 +83,10 @@ program that requires a count fixed in advance should bind the bound first
 
 <h2 id="sec-C.3"><span class="secno">C.3</span>The Cursor Loop</h2>
 
-<p>The <code>across</code> loop traverses any value that supplies the
-<code>Cursor</code> protocol of Appendix&nbsp;<a href="appendix-basis.html">B</a>. It translates into a general loop
-driven by that protocol.</p>
+<p>The <code>across</code> loop traverses any <code>Iterable</code> value
+(Appendix&nbsp;<a href="appendix-basis.html">B</a>), or any value of a class with a <code>cursor</code> method that
+returns a cursor. It translates into a general loop driven by the
+<code>Cursor</code> methods.</p>
 
 <div class="grammar">
 <table>
@@ -96,9 +97,13 @@ driven by that protocol.</p>
 </div>
 
 <p>The cursor variable <code>x</code> is bound afresh on each iteration to the
-current item, and is in scope only within the body. An <code>Array</code> yields
-its elements in order, a <code>String</code> its characters, and a
-<code>Map</code> its entries as <code>[key, value]</code> pairs
+current item, and is in scope only within the body. Its type is that of
+<code>e.cursor.item</code>: <code>T</code> when <code>e</code> is an
+<code>Iterable[T]</code>. When <code>e</code> is itself a cursor, it is the type
+of <code>e.item</code>, so a cursor class that declares a narrower
+<code>item</code> keeps it. An <code>Array</code> yields its elements in order,
+a <code>String</code> its characters, and a <code>Map</code> its entries as
+<code>Map_Entry</code> values with a <code>key</code> and a <code>value</code>
 (Section&nbsp;<a href="syntax-core.html#sec-2.8">2.8</a> and Appendix&nbsp;<a href="appendix-basis.html">B</a>).</p>
 
 <h2 id="sec-C.4"><span class="secno">C.4</span>Cascaded Conditionals</h2>
@@ -230,7 +235,30 @@ bind.
 A top-level <code>_</code> pattern translates to the <code>else</code>
 block.</p>
 
-<h2 id="sec-C.8"><span class="secno">C.8</span>What Is Not Derived</h2>
+<h2 id="sec-C.8"><span class="secno">C.8</span>Expression Functions</h2>
+
+<p>An anonymous function whose body would only compute its result may be
+written with <code>=&gt;</code> and the expression. The expression extends as
+far to the right as an expression can.</p>
+
+<div class="grammar">
+<table>
+<tr><td><code>fn (ps): T =&gt; e</code></td><td class="op">&rarr;</td><td><code>fn (ps): T do result := e end</code></td></tr>
+</table>
+</div>
+
+<p>Unlike the other forms here, the translation is completed during
+elaboration, by the rule for anonymous functions in Section&nbsp;<a href="static.html#sec-4.4">4.4</a>: when the
+result type <code>T</code> is neither written nor supplied by the context, it
+is the type of <code>e</code>; and when the result type is <code>Void</code>, or
+<code>e</code> has no value (a call to a procedure), the body is <code>e</code>
+itself, as a statement, rather than <code>result := e</code>.</p>
+
+<pre><code>let double := fn (n: Integer) =&gt; n * 2        -- Function(n: Integer): Integer
+names.sort(fn (a, b) =&gt; a.length - b.length)  -- a, b: String, from Array[String].sort
+let say := fn (m: String) =&gt; print(m)         -- no result</code></pre>
+
+<h2 id="sec-C.9"><span class="secno">C.9</span>What Is Not Derived</h2>
 
 <p>It is worth saying which apparent conveniences are <em>not</em> derived
 forms, but primitive constructs with rules of their own.</p>

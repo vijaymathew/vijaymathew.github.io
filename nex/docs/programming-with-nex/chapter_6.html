@@ -240,8 +240,18 @@ let dog_handler: Function(d: Dog): String := any_animal</code></pre>
 </section>
 <section class="level3" id="inferring-fn-parameter-types">
 <h3 class="anchored" data-anchor-id="inferring-fn-parameter-types">Letting <code>fn</code>&rsquo;s parameter types come from context</h3>
-<p>When an anonymous function is bound to something that already carries a concrete <code>Function(...)</code> type — a typed <code>let</code>, as above — its own parameter and return types can be left out. Nex infers them from that target type:</p>
+<p>When an anonymous function is bound to something that already carries a concrete <code>Function(...)</code> type — a typed <code>let</code>, as above, or a parameter it is passed to — its own parameter and return types can be left out. Nex infers them from that target type:</p>
 <pre class="nex"><code>let double2: Function(n: Integer): Integer := fn(n) do result := n * 2 end</code></pre>
+<p>Passing one to <code>apply_twice</code> works the same way, because <code>apply_twice</code>&rsquo;s parameter <code>f</code> says what kind of function it takes:</p>
+<pre><code>nex&gt; apply_twice(fn (n) do result := n + 3 end, 10)
+16</code></pre>
+<p>A function like this one, whose body does nothing but compute its result, has a shorter form. Write <code>=&gt;</code> and the expression, with no <code>do</code>, <code>result :=</code> or <code>end</code>:</p>
+<pre><code>nex&gt; apply_twice(fn (n) =&gt; n + 3, 10)
+16
+nex&gt; let triple := fn (n: Integer) =&gt; n * 3
+nex&gt; triple(5)
+15</code></pre>
+<p>The result type is the type of the expression, here <code>Integer</code>, or the one the context asks for. Keep the <code>do</code> &hellip; <code>end</code> form for anything longer: several statements, a contract, a <code>rescue</code>.</p>
 <p>This only works when a target type is actually available where the literal appears. Written with no target type to draw from, every parameter still needs its own explicit type — the type annotation on <code>fn</code>&rsquo;s parameters is not optional in general, only when Nex has somewhere else to get it from:</p>
 <pre class="nex"><code>let mystery := fn(n) do result := n * 2 end   -- error: cannot infer the type of n</code></pre>
 </section>
@@ -337,7 +347,8 @@ nex&gt; describe_temperature(body_temp_c)
 <li>A function with no <code>result</code> assignment returns the default value of its declared return type (e.g., <code>0</code> for <code>Integer</code>), or <code>nil</code> if no return type is specified</li>
 <li>Anonymous functions are defined with <code>fn</code> and can be assigned to variables or passed as arguments</li>
 <li>Function-typed variables can carry a full signature annotation: <code>let f: Function(n: Integer): Integer := ...</code></li>
-<li>When a target type like that is already in place, <code>fn</code>&rsquo;s own parameter and return types can be left out and inferred from it; with no target type available, they must be written explicitly</li>
+<li>When a target type like that is already in place — a typed <code>let</code>, or the parameter an anonymous function is passed to — <code>fn</code>&rsquo;s own parameter and return types can be left out and inferred from it; with no target type available, they must be written explicitly</li>
+<li>A function that only computes its result can be written <code>fn (n) =&gt; n + 3</code>; its result type is the expression&rsquo;s</li>
 <li><code>declare type Name = TypeExpression</code> gives a compile-time alias to any type, most commonly used to name a function signature for reuse</li>
 <li>Write a function whenever naming or reusing a computation would make the code clearer</li>
 <li>Functions calling other functions is natural and encouraged; decomposition is how manageable programs are built from simple pieces</li>

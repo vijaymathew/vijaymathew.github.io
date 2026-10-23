@@ -50,17 +50,23 @@ but does so implicitly in any case.</p>
 </tbody>
 </table>
 
-<p>Three further foundational classes are in the standard environment:</p>
+<p>Four further foundational classes are in the standard environment:</p>
 
 <ul>
   <li><code>Function</code>&mdash;the base class of all closures, whose type is
   the unconstrained function type <code>Function</code>. It supplies the invocation
   protocol <code>call0</code>, <code>call1</code>, &hellip;, by which a closure of
   any arity up to a fixed bound is applied.</li>
-  <li><code>Cursor</code>&mdash;the abstract iteration interface, with methods
-  <code>start</code>, <code>item</code>, <code>next</code>, and
-  <code>at_end</code>. The <code>across</code> loop is defined in terms of this
-  protocol (Appendix&nbsp;<a href="appendix-derived.html">C</a>).</li>
+  <li><code>Iterable[T]</code> (deferred)&mdash;anything whose elements can be
+  walked, with <code>cursor</code>, which returns a <code>Cursor[T]</code>. The
+  <code>across</code> loop traverses an <code>Iterable</code> (Appendix&nbsp;<a href="appendix-derived.html">C</a>).
+  <code>Array[T]</code> and <code>Set[T]</code> are <code>Iterable[T]</code>,
+  <code>String</code> is <code>Iterable[Char]</code>, and <code>Map[K, V]</code> is
+  <code>Iterable[Map_Entry[K, V]]</code>.</li>
+  <li><code>Cursor[T]</code> (deferred), an heir of <code>Iterable[T]</code>&mdash;one
+  walk over some elements, with <code>start</code>, <code>item</code> (a
+  <code>T</code>), <code>next</code>, and <code>at_end</code>. A cursor is itself
+  iterable: its <code>cursor</code> returns the cursor.</li>
   <li><code>Comparable</code> (deferred)&mdash;with <code>compare</code>, which
   takes an <code>Any</code> and returns a negative, zero or positive
   <code>Integer</code> according to the order of the two values. It is the basis of
@@ -278,8 +284,8 @@ constant or obtained from the standard environment.</p>
 
 <h2 id="sec-B.4"><span class="secno">B.4</span>Collection Classes</h2>
 
-<p>Three generic collection classes are in the standard environment, each a
-<code>Cursor</code> source so that <code>across</code> may traverse it.</p>
+<p>Three generic collection classes are in the standard environment, each
+<code>Iterable</code> (Section&nbsp;<a href="#sec-B.1">B.1</a>) so that <code>across</code> may traverse it.</p>
 
 <h4><code>Array[T]</code></h4>
 <p>An ordered, growable sequence. The display <code>[e₁, …, eₙ]</code> is a
@@ -291,7 +297,8 @@ which appends; and <code>length</code>, which returns an <code>Integer</code>.</
 <p>An association of keys to values. The display
 <code>{k₁: v₁, …}</code> is a derived form; <code>{}</code> is the empty map.
 Representative methods: <code>get(k)</code>, which returns a <code>V</code>;
-<code>put(k, v)</code>; and iteration, which yields <code>[key, value]</code> pairs.</p>
+<code>put(k, v)</code>; and iteration, which yields <code>Map_Entry[K, V]</code> values,
+each with a <code>key</code> and a <code>value</code>.</p>
 
 <h4><code>Set[T]</code></h4>
 <p>An unordered collection of distinct values. The display
@@ -308,7 +315,7 @@ and <code>size</code> provide the usual set algebra.</p>
 <p><code>Byte_Array</code>, loaded with <code>intern data/Byte_Array</code>, is <em>not</em> a
 class of the standard environment: it is a shipped library class, described in the reference rather than in this
 Definition. It is a fixed-size, mutable sequence of <code>Byte</code>s that a host may keep packed,
-one byte per element, and it is a <code>Cursor</code> source whose items are <code>Byte</code>s, so
+one byte per element, and it is an <code>Iterable[Byte]</code>, so
 <code>across</code> may traverse it. Unlike <code>Array[Byte]</code> it has no <code>add</code>; its
 <code>slice</code>, <code>concat</code>, and <code>copy</code> yield new values that share no storage
 with the original.</p>
