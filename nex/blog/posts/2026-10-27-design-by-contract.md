@@ -101,7 +101,7 @@ feature -- Editing
     content := prefix + s + content.substring(cursor, content.length)
     cursor := cursor + s.length
   ensure
-    grown: length = old content.length + s.length
+    grown: length = old length + s.length
     cursor_advanced: cursor = old cursor + s.length
   end
 
@@ -116,7 +116,7 @@ feature -- Editing
     content := prefix + suffix
     cursor := cursor - n
   ensure
-    shrunk: length = old content.length - n
+    shrunk: length = old length - n
     cursor_moved_back: cursor = old cursor - n
   end
 
@@ -236,7 +236,7 @@ assert b_buf.content = "hello, "
 b_buf.insert("world") -- raise postcondition violation
 ```
 
-`Bounded_Buffer.insert` contains no assertions, but it inherits `grown: length = old content.length + s.length` and `cursor_advanced` from `Text_Buffer`. Crucially, they are evaluated for the call the client actually made, with the client’s `s`. The first time a string is truncated with checking enabled, you get a postcondition violation that names `Bounded_Buffer.insert` as the culprit. `super.insert` checking its own contract on the shorter string doesn’t hide the problem.
+`Bounded_Buffer.insert` contains no assertions, but it inherits `grown: length = old length + s.length` and `cursor_advanced` from `Text_Buffer`. Crucially, they are evaluated for the call the client actually made, with the client’s `s`. The first time a string is truncated with checking enabled, you get a postcondition violation that names `Bounded_Buffer.insert` as the culprit. `super.insert` checking its own contract on the shorter string doesn’t hide the problem.
 
 ## Putting the limit in the parent's contract
 
@@ -266,7 +266,7 @@ feature -- Editing
     content := prefix + s + content.substring(cursor, content.length)
     cursor := cursor + s.length
   ensure
-    grown: length = old content.length + s.length
+    grown: length = old length + s.length
     cursor_advanced: cursor = old cursor + s.length
   end
 
@@ -423,8 +423,8 @@ Notice how `undo` rebuilds the text with `super.delete_back` and `super.insert` 
       super.insert(s)
     end
   ensure
-    undoable: s.length = 0 or can_undo
-    ignored: s.length > 0 or content = old content
+    undoable: s.length > 0 implies can_undo
+    ignored: s.length = 0 implies content = old content
   end
 ```
 
@@ -448,7 +448,7 @@ Calling `delete_back(5)` on a buffer holding `"hi"` now fails with `Postconditio
 
 ### Promising more: stronger postconditions
 
-The `ensure` clauses of the redefined `insert` don't replace the parent's `grown` and `cursor_advanced`. They are AND-ed with them, so `Undoable_Buffer.insert` promises everything `Text_Buffer.insert` did, plus two things about the history. Nex has no `implies` operator, so `s.length = 0 or can_undo` is how to say "if something was inserted, it can be undone".
+The `ensure` clauses of the redefined `insert` don't replace the parent's `grown` and `cursor_advanced`. They are AND-ed with them, so `Undoable_Buffer.insert` promises everything `Text_Buffer.insert` did, plus two things about the history. `s.length > 0 implies can_undo` reads the way you'd say it: if something was inserted, it can be undone. When `s` is empty, the clause holds without `can_undo` being evaluated.
 
 `delete_back` keeps the parent's precondition and only adds a promise:
 
