@@ -166,3 +166,73 @@ Let's go back and look at the Java class again. There we see `deleteBack` throwi
 The class-designed in Nex argues the opposite (the **non-redundancy principle**). The point is that the body of a well-designed routine should never test its own precondition. The caller is responsible for knowing where the cursor is. An editor that sends Backspace with nothing before the cursor has a bug in its key handling, and the buffer shouldn’t absorb it. The runtime check exists only to catch that bug during development and testing. Defensive programming, where every routine checks everything just in case, produces code that is longer and slower and leaves it unclear who is responsible for what.
 
 Note one caveat here: external input is not covered by preconditions. A keystroke or a pasted clipboard string should be validated once, by the module that receives it, and from then on the program can rely on contracts.
+
+## Contracts and Inheritance 
+
+Dynamic binding means a client written against `Text_Buffer` might actually be working with an object of its child class. The client can only reason with the contract it can see. So every redefinition has to be a subcontract that honours that contract:
+
+    - The **precondition may only weaken**: the redefinition must accept at least everything the parent accepted.
+    - The **postcondition may only strengthen**: it must deliver at least everything the parent promised.
+	- The **invariant is inherited**, and descendants can only add to it.
+	
+There are no language-level support in Java or Python to enforce these rules. That means, if the programmer who is implementing a child class can end up breaking the contracts of the abstract datatype. Imagine someone trying to implement a buffer with a maximum length, it may go as follows in Java:
+
+```java
+public class BoundedBuffer extends TextBuffer {
+    private final int capacity;
+
+    public BoundedBuffer(int capacity) { this.capacity = capacity; }
+
+    @Override
+    public void insert(String s) {
+        int room = capacity - length();
+        if (room > 0)
+            super.insert(s.substring(0, Math.min(room, s.length())));
+    }
+}
+```
+
+This compiles and runs without complaint. Now consider a client written against `TextBuffer`, for example an autocomplete feature:
+
+```java
+void complete(TextBuffer buf, String suffix) {
+    buf.insert(suffix);
+    highlight(buf.cursor() - suffix.length(), buf.cursor());  // select what was inserted
+}
+```
+
+With a `BoundedBuffer` that truncates, the highlight now covers text the user typed, not the completion. When the buffer is already full, it covers characters that were there before. No contract violation is reported. Even the parent’s asserts pass, because `super.insert` checks its postcondition against the truncated string it was handed, not the string the client asked to insert. The contract the client relied on is broken, and none of the checks can see it.
+
+Now let's look at the same child class implemented in Nex:
+
+```nex
+class Bounded_Buffer
+inherit Text_Buffer
+
+feature
+  capacity: Integer
+
+create
+  make_with_capacity(n: Integer)
+  do
+    capacity := n
+  end
+
+feature
+  insert(s: String)
+  do
+    let room := capacity - length
+    if room > 0 then
+      super.insert(s.substring(0, room.min(s.length)))
+    end
+  end
+end
+
+let b_buf: Text_Buffer := create Bounded_Buffer.make_with_capacity(10)
+b_buf.insert("he")
+b_buf.insert("llo, ")
+assert b_buf.content = "hello, "
+b_buf.insert("world") -- raise postcondition violation
+```
+
+`Bounded_Buffer.insert` contains no assertions, but it inherits `grown: count = old count + s.count` and `cursor_advanced` from `Text_Buffer`. Crucially, they are evaluated for the call the client actually made, with the client’s `s`. The first time a string is truncated with checking enabled, you get a postcondition violation that names `Bounded_Buffer.insert` as the culprit. `super.insert` checking its own contract on the shorter string doesn’t hide the problem.
