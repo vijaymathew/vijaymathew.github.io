@@ -91,7 +91,7 @@ nex&gt; double(x)
 
 nex&gt; rectangle_area(4.0, 5.0)
 20.0</code></pre>
-<p>If a function body does not assign to <code>result</code>, the return value depends on whether a return type was declared. If a return type is specified, <code>result</code> holds the default value of that type (for example, <code>0</code> for <code>Integer</code>), and that default is returned. If no return type is specified, the function returns <code>nil</code>.</p>
+<p>If a function body does not assign to <code>result</code>, the return value depends on whether a return type was declared. If a return type is specified, <code>result</code> holds the default value of that type (for example, <code>0</code> for <code>Integer</code>), and that default is returned. If no return type is specified, the function returns a <code>Void</code>, which is a special value that cannot be used in a computation.</p>
 </section>
 <section class="level2" data-number="7.4" id="the-result-variable">
 <h2 class="anchored" data-anchor-id="the-result-variable" data-number="7.4"> The <code>result</code> Variable</h2>
@@ -222,14 +222,14 @@ nex&gt; apply_twice(fn (n: Integer): Integer do result := n + 3 end, 10)
 <p>This style — passing functions as arguments — becomes more powerful as programs grow. We return to it in <a href="chapter_7.html#functions-as-values">Chapter 7</a>.</p>
 <section class="level3" id="function-type-signatures">
 <h3 class="anchored" data-anchor-id="function-type-signatures">Function type signatures</h3>
-<p>When a variable holds a function, the type annotation can spell out exactly which function shape it expects. Instead of just <code>Function</code>, you write <code>Function(param: Type, ...): ReturnType</code>:</p>
+<p>When a variable holds a function, the type annotation can spell out exactly which function signature it expects. Instead of just <code>Function</code>, you write <code>Function(param: Type, ...): ReturnType</code>:</p>
 <pre class="nex"><code>let double: Function(n: Integer): Integer :=
   fn (n: Integer): Integer do result := n * 2 end</code></pre>
 <p>The parameter names in the annotation are optional. The positional form works too:</p>
 <pre class="nex"><code>let add: Function(Integer, Integer): Integer :=
   fn (a, b: Integer): Integer do result := a + b end</code></pre>
-<p>A typed function value is compatible with any parameter that expects the same or a broader shape. A bare <code>Function</code> annotation accepts any function value; a typed annotation documents the expected contract.</p>
-<p>What counts as a &ldquo;broader shape&rdquo; follows a precise rule, and it is worth knowing because it runs opposite to first intuition. A function value fits a slot when it <strong>accepts at least</strong> the arguments the slot will pass and <strong>returns at most</strong> what the slot promises. So its parameter types may be <em>more general</em> than the slot&rsquo;s, and its return type <em>more specific</em>. In programming jargon, parameters are <em>contravariant</em> and the return type is <em>covariant</em>.</p>
+<p>A typed function value is compatible with any parameter that expects the same or a broader signature. A bare <code>Function</code> annotation accepts any function value; a typed annotation documents the expected contract.</p>
+<p>What counts as a &ldquo;broader signature&rdquo; follows a precise rule, and it is worth knowing because it runs opposite to first intuition. A function value fits a slot when it <strong>accepts at least</strong> the arguments the slot will pass and <strong>returns at most</strong> what the slot promises. So its parameter types may be <em>more general</em> than the slot&rsquo;s, and its return type <em>more specific</em>. In programming jargon, parameters are <em>contravariant</em> and the return type is <em>covariant</em>.</p>
 <p>Concretely, suppose <code>Dog</code> is a sub-type of <code>Animal</code>. A value of type <code>Function(a: Animal): String</code> may be stored where a <code>Function(a: Dog): String</code> is expected &mdash; a function that handles any animal certainly handles a dog:</p>
 <pre class="nex"><code>let any_animal: Function(a: Animal): String :=
   fn (a: Animal): String do result := a.name end
@@ -251,13 +251,13 @@ let dog_handler: Function(d: Dog): String := any_animal</code></pre>
 nex&gt; let triple := fn (n: Integer) =&gt; n * 3
 nex&gt; triple(5)
 15</code></pre>
-<p>The result type is the type of the expression, here <code>Integer</code>, or the one the context asks for. Keep the <code>do</code> &hellip; <code>end</code> form for anything longer: several statements, a contract, a <code>rescue</code>.</p>
+<p>The result type is the type of the expression, here <code>Integer</code>, or the one the context asks for. Keep the <code>do</code> &hellip; <code>end</code> form for anything longer, like a function body with several statements, or a contract.</p>
 <p>This only works when a target type is actually available where the literal appears. Written with no target type to draw from, every parameter still needs its own explicit type — the type annotation on <code>fn</code>&rsquo;s parameters is not optional in general, only when Nex has somewhere else to get it from:</p>
 <pre class="nex"><code>let mystery := fn(n) do result := n * 2 end   -- error: cannot infer the type of n</code></pre>
 </section>
 <section class="level3" id="naming-function-types-with-declare-type">
 <h3 class="anchored" data-anchor-id="naming-function-types-with-declare-type">Naming function types with <code>declare type</code></h3>
-<p>If the same function shape appears in several places, repeating the full annotation becomes noise. <code>declare type</code> gives a name to any type expression:</p>
+<p>If the same function signature appears in several places, repeating the full annotation becomes noise. <code>declare type</code> gives a name to any type expression:</p>
 <pre class="nex"><code>declare type Transformer = Function(n: Integer): Integer</code></pre>
 <p>After this declaration, <code>Transformer</code> is an alias for <code>Function(n: Integer): Integer</code> and can be used anywhere a type is expected:</p>
 <pre class="nex"><code>let double: Transformer := fn (n: Integer): Integer do result := n * 2 end
