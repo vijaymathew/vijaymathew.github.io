@@ -5,8 +5,431 @@
   <link href="https://schemer.in/nex/blog/feed.xml" rel="self"/>
   <link href="https://schemer.in/nex/blog/"/>
   <id>https://schemer.in/nex/blog/</id>
-  <updated>2026-10-22T00:00:00Z</updated>
+  <updated>2026-10-27T00:00:00Z</updated>
   <author><name>Vijay Mathew</name></author>
+  <entry>
+    <title>Classes and their Contracts</title>
+    <link href="https://schemer.in/nex/blog/design-by-contract.html"/>
+    <id>https://schemer.in/nex/blog/design-by-contract.html</id>
+    <published>2026-10-27T00:00:00Z</published>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <summary>How Nex allows the specification of an abstract datatype to live in the code itself instead of a comment or document.</summary>
+    <category term="how-to"/>
+    <category term="object-oriented-programming"/>
+    <category term="software-design"/>
+    <category term="contracts"/>
+    <content type="html" xml:base="https://schemer.in/nex/blog/">&lt;p&gt;One of the first lessons taught in object-oriented programming courses is that classes are an expression of an &lt;em&gt;abstract datatype&lt;/em&gt;.
+An abstract datatype has a public API (an &lt;em&gt;interface&lt;/em&gt;) and is supposed to keep its &lt;em&gt;invariants&lt;/em&gt;. An invariant is a statement that is
+always true about an object of the class, as seen from the client&amp;rsquo;s perspective. For example, if a class represents the abstract notion of
+a push-down stack, then the implementation must assure the client that after a successful call to the &lt;code&gt;pop&lt;/code&gt; method, the size of the stack will
+not go negative.&lt;/p&gt;
+&lt;p&gt;In this post, let&amp;rsquo;s look at the implementation of another abstract datatype – a text buffer with a cursor, the kind of thing behind any text field or editor.
+It exposes the following methods in its API:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;insert(text)&lt;/code&gt; – insert &lt;code&gt;text&lt;/code&gt; at the current cursor position. &lt;code&gt;text&lt;/code&gt; must be non-null and non-empty.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;delete_back(n)&lt;/code&gt; – delete &lt;code&gt;n&lt;/code&gt; characters before the cursor (like Backspace). &lt;code&gt;0 &amp;lt; n &amp;lt;= cursor&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;length&lt;/code&gt; – return the number of characters in the buffer.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;cursor&lt;/code&gt; – return the cursor position (positions start at 0).&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The implementation must also maintain the class invariant &lt;code&gt;0 &amp;lt;= cursor and cursor &amp;lt;= length&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;A Java implementation of the above specification follows:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;/**
+ * A text buffer with an insertion cursor.
+ * Invariant: 0 &amp;lt;= cursor &amp;lt;= length()
+ */
+public class TextBuffer {
+    protected final StringBuilder content = new StringBuilder();
+    protected int cursor = 0;
+
+    public int length() { return content.length(); }
+    public int cursor() { return cursor; }
+
+    /**
+     * Inserts s at the cursor and moves the cursor past it.
+     * @param s must be non-null and non-empty
+     * Postcondition: length grows by s.length(); cursor advances by s.length()
+     */
+    public void insert(String s) {
+        if (s == null || s.isEmpty())
+            throw new IllegalArgumentException(&amp;quot;s must be non-empty&amp;quot;);
+        int oldLength = length(), oldCursor = cursor;   // manual &amp;quot;old&amp;quot;
+        content.insert(cursor, s);
+        cursor += s.length();
+        assert length() == oldLength + s.length();
+        assert cursor == oldCursor + s.length();
+        assert 0 &amp;lt;= cursor &amp;amp;&amp;amp; cursor &amp;lt;= length();      // invariant, by hand
+    }
+
+    /**
+     * Deletes n characters before the cursor, like Backspace.
+     * @param n must satisfy 0 &amp;lt; n &amp;lt;= cursor
+     */
+    public void deleteBack(int n) {
+        if (n &amp;lt;= 0 || n &amp;gt; cursor)
+            throw new IllegalArgumentException(&amp;quot;need 0 &amp;lt; n &amp;lt;= cursor&amp;quot;);
+        int oldLength = length(), oldCursor = cursor;
+        content.delete(cursor - n, cursor);
+        cursor -= n;
+        assert length() == oldLength - n;
+        assert cursor == oldCursor - n;
+        assert 0 &amp;lt;= cursor &amp;amp;&amp;amp; cursor &amp;lt;= length();
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The above implementation is as close to the specification as it can be, but most of the contract lives in comments. Though documenting the public API of a class like this in Javadoc (or its equivalent in other languages) is considered great software engineering practice, its value is minimal because no tool can reliably check and enforce prose. For instance, if someone changes &lt;code&gt;deleteBack&lt;/code&gt; to clamp &lt;code&gt;n&lt;/code&gt; instead of rejecting it and forgets the comment, nothing complains.&lt;/p&gt;
+&lt;p&gt;Having said that, the programmer has not completely ignored the API&amp;rsquo;s contracts. As you can see, &lt;code&gt;insert&lt;/code&gt; makes sure the content length and cursor are incremented correctly once the method finishes its job. Though this is good practice, every postcondition that mentions the previous state needs locals captured at the start. This is a tedious job and in practice people skip it. As a result, postconditions mostly go unwritten.&lt;/p&gt;
+&lt;p&gt;What about the class invariant? Though it is part of almost all high-level design documents, the class invariant is not a language concept in Java (and most other industrial languages). As a consequence, invariant checks have to be repeated at the end of every public method in the form of an &lt;code&gt;assert&lt;/code&gt;. Add &lt;code&gt;moveCursorTo(int)&lt;/code&gt; next month and whoever writes it will almost certainly forget the check.&lt;/p&gt;
+&lt;p&gt;Another catch for Java programmers is that &lt;code&gt;assert&lt;/code&gt; is off by default. Assertions run only with the &lt;code&gt;-ea&lt;/code&gt; flag.&lt;/p&gt;
+&lt;p&gt;The bottom line is that specification and defensive code get mixed up, and any comment that keeps track of the original design assumptions soon goes out of sync with the code.&lt;/p&gt;
+&lt;p&gt;Before critiquing the Java version further, let&amp;rsquo;s see how the same class looks in Nex, where preconditions, postconditions and invariants are first-class language constructs.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Text_Buffer
+feature -- Access
+
+  length: Integer
+  do
+    result := content.length
+  end
+
+  cursor: Integer
+
+feature -- Editing
+  insert(s: String)
+    note &amp;quot;Insert `s` at the cursor and move the cursor past it.&amp;quot;
+  require
+    not_empty: s.length &amp;gt; 0
+  do
+    let prefix := content.substring(0, cursor)
+    content := prefix + s + content.substring(cursor, content.length)
+    cursor := cursor + s.length
+  ensure
+    grown: length = old length + s.length
+    cursor_advanced: cursor = old cursor + s.length
+  end
+
+  delete_back(n: Integer)
+    note &amp;quot;Delete `n` characters before the cursor, like Backspace.&amp;quot;
+  require
+    positive: n &amp;gt; 0
+    enough_text_before_cursor: n &amp;lt;= cursor
+  do
+    let prefix := content.substring(0, cursor - n)
+    let suffix := content.substring(cursor, content.length)
+    content := prefix + suffix
+    cursor := cursor - n
+  ensure
+    shrunk: length = old length - n
+    cursor_moved_back: cursor = old cursor - n
+  end
+
+  set_cursor(n: Integer)
+  require
+    cursor_in_range: n &amp;gt;= 0 and n &amp;lt;= length
+  do
+    cursor := n
+  end
+
+feature -- Implementation
+  content: String
+
+invariant
+    cursor_in_range: 0 &amp;lt;= cursor and cursor &amp;lt;= length
+end
+
+-- Tests
+let buf := create Text_Buffer
+buf.insert(&amp;quot;hello&amp;quot;)
+buf.insert(&amp;quot;world&amp;quot;)
+assert buf.content = &amp;quot;helloworld&amp;quot;
+buf.set_cursor(5)
+buf.insert(&amp;quot;, &amp;quot;)
+assert buf.content = &amp;quot;hello, world&amp;quot;
+buf.set_cursor(3)
+buf.delete_back(2)
+assert buf.content = &amp;quot;hlo, world&amp;quot;
+buf.insert(&amp;quot;el&amp;quot;)
+assert buf.content = &amp;quot;hello, world&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In the Nex definition of &lt;code&gt;Text_Buffer&lt;/code&gt;, the contract sits next to the code it describes.
+Notice how the three kinds of assertion divide the work of completely enforcing the specification:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;require&lt;/code&gt; is the client’s obligation. Calling &lt;code&gt;delete_back(5)&lt;/code&gt; with the cursor at position 2 is a bug in the caller.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;ensure&lt;/code&gt; is the supplier’s obligation. If &lt;code&gt;insert&lt;/code&gt; leaves the cursor in the wrong place, the bug is in this routine. &lt;code&gt;old&lt;/code&gt; refers to a value on entry, so the postcondition can relate the before and after states.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;invariant&lt;/code&gt; must hold whenever an object is observable from outside: after creation, and before and after every call from a client. Here it says the cursor can never run off either end of the text.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Tools like &lt;code&gt;nex doc&lt;/code&gt; can extract the contract view of the class, which shows signatures, header comments and assertions with no implementation. That view is generated from the code, so it can’t drift away from it.&lt;/p&gt;
+&lt;p&gt;There&amp;rsquo;s no &lt;code&gt;null&lt;/code&gt; check on &lt;code&gt;s&lt;/code&gt; because Nex is null-safe: a &lt;code&gt;String&lt;/code&gt; argument is always attached to a value, so the type system rules out &lt;code&gt;null&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;preconditions-vs-defensive-programming&quot;&gt;Preconditions vs. defensive programming&lt;/h2&gt;
+&lt;p&gt;Let&amp;rsquo;s go back and look at the Java class again. There we see &lt;code&gt;deleteBack&lt;/code&gt; throwing &lt;code&gt;IllegalArgumentException&lt;/code&gt;. It turns “n must not exceed the cursor” from an obligation on the caller into defined behaviour of the method: delete too much and you get an exception, which callers may catch and rely on. Java’s own guidance reinforces this. Oracle’s “Programming With Assertions” guide says not to use &lt;code&gt;assert&lt;/code&gt; for argument checking in public methods, and to throw exceptions instead.&lt;/p&gt;
+&lt;p&gt;Design by Contract takes the opposite view, which Bertrand Meyer calls the &lt;strong&gt;non-redundancy principle&lt;/strong&gt;: the body of a well-designed routine should never test its own precondition. The caller is responsible for knowing where the cursor is. An editor that sends Backspace with nothing before the cursor has a bug in its key handling, and the buffer shouldn’t absorb it. The runtime check exists only to catch that bug during development and testing. Defensive programming, where every routine checks everything just in case, produces code that is longer and slower and leaves it unclear who is responsible for what.&lt;/p&gt;
+&lt;p&gt;Note one caveat here: external input is not covered by preconditions. A keystroke or a pasted clipboard string should be validated once, by the module that receives it, and from then on the program can rely on contracts.&lt;/p&gt;
+&lt;h2 id=&quot;contracts-and-inheritance&quot;&gt;Contracts and inheritance&lt;/h2&gt;
+&lt;p&gt;Dynamic binding means a client written against &lt;code&gt;Text_Buffer&lt;/code&gt; might actually be working with an object of its child class. The client can only reason with the contract it can see. So every redefinition has to be a subcontract that honours that contract:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The &lt;strong&gt;precondition may only weaken&lt;/strong&gt;: the redefinition must accept at least everything the parent accepted.&lt;/li&gt;
+&lt;li&gt;The &lt;strong&gt;postcondition may only strengthen&lt;/strong&gt;: it must deliver at least everything the parent promised.&lt;/li&gt;
+&lt;li&gt;The &lt;strong&gt;invariant is inherited&lt;/strong&gt;, and descendants can only add to it.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There is no language-level support in Java or Python to enforce these rules. That means the programmer who is implementing a child class can end up breaking the contracts of the abstract datatype. Imagine someone implementing a buffer with a maximum length. In Java, it might look like this:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;public class BoundedBuffer extends TextBuffer {
+    private final int capacity;
+
+    public BoundedBuffer(int capacity) { this.capacity = capacity; }
+
+    @Override
+    public void insert(String s) {
+        int room = capacity - length();
+        if (room &amp;gt; 0)
+            super.insert(s.substring(0, Math.min(room, s.length())));
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This compiles and runs without complaint. Now consider a client written against &lt;code&gt;TextBuffer&lt;/code&gt;, for example an autocomplete feature:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;void complete(TextBuffer buf, String suffix) {
+    buf.insert(suffix);
+    highlight(buf.cursor() - suffix.length(), buf.cursor());  // select what was inserted
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With a &lt;code&gt;BoundedBuffer&lt;/code&gt; that truncates, the highlight now covers text the user typed, not the completion. When the buffer is already full, it covers characters that were there before. No contract violation is reported. Even the parent’s asserts pass, because &lt;code&gt;super.insert&lt;/code&gt; checks its postcondition against the truncated string it was handed, not the string the client asked to insert. The contract the client relied on is broken, and none of the checks can see it.&lt;/p&gt;
+&lt;p&gt;Now let&amp;rsquo;s look at the same child class implemented in Nex:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Bounded_Buffer
+inherit Text_Buffer
+
+feature
+  capacity: Integer
+
+create
+  make_with_capacity(n: Integer)
+  do
+    capacity := n
+  end
+
+feature
+  insert(s: String)
+  do
+    let room := capacity - length
+    if room &amp;gt; 0 then
+      super.insert(s.substring(0, room.min(s.length)))
+    end
+  end
+end
+
+let b_buf: Text_Buffer := create Bounded_Buffer.make_with_capacity(10)
+b_buf.insert(&amp;quot;he&amp;quot;)
+b_buf.insert(&amp;quot;llo, &amp;quot;)
+assert b_buf.content = &amp;quot;hello, &amp;quot;
+b_buf.insert(&amp;quot;world&amp;quot;) -- raise postcondition violation
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;Bounded_Buffer.insert&lt;/code&gt; contains no assertions, but it inherits &lt;code&gt;grown: length = old length + s.length&lt;/code&gt; and &lt;code&gt;cursor_advanced&lt;/code&gt; from &lt;code&gt;Text_Buffer&lt;/code&gt;. Crucially, they are evaluated for the call the client actually made, with the client’s &lt;code&gt;s&lt;/code&gt;. The first time a string is truncated, you get a postcondition violation that names &lt;code&gt;Bounded_Buffer.insert&lt;/code&gt; as the culprit. &lt;code&gt;super.insert&lt;/code&gt; checking its own contract on the shorter string doesn’t hide the problem.&lt;/p&gt;
+&lt;h2 id=&quot;putting-the-limit-in-the-parents-contract&quot;&gt;Putting the limit in the parent&amp;rsquo;s contract&lt;/h2&gt;
+&lt;p&gt;The real problem isn&amp;rsquo;t in &lt;code&gt;Bounded_Buffer&lt;/code&gt;. It&amp;rsquo;s that &lt;code&gt;Text_Buffer&lt;/code&gt;&amp;rsquo;s contract promises something a bounded buffer can&amp;rsquo;t deliver: any non-empty string can always be inserted. No redefinition of &lt;code&gt;insert&lt;/code&gt; can fix that. When a string doesn&amp;rsquo;t fit, the only honest thing a bounded &lt;code&gt;insert&lt;/code&gt; can do is refuse it, and refusing means a stronger precondition, which the subcontracting rules forbid.&lt;/p&gt;
+&lt;p&gt;The fix is to make the parent&amp;rsquo;s contract admit that a buffer may run out of room. Add a query, &lt;code&gt;has_room&lt;/code&gt;, to &lt;code&gt;Text_Buffer&lt;/code&gt; and make it part of &lt;code&gt;insert&lt;/code&gt;&amp;rsquo;s precondition:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Text_Buffer
+feature -- Access
+  -- length and cursor as before
+
+  has_room(s: String): Boolean
+    note &amp;quot;Can `s` be inserted without exceeding the buffer&#x27;s limits?&amp;quot;
+  do
+    result := true
+  end
+
+feature -- Editing
+  insert(s: String)
+    note &amp;quot;Insert `s` at the cursor and move the cursor past it.&amp;quot;
+  require
+    not_empty: s.length &amp;gt; 0
+    room_available: has_room(s)
+  do
+    let prefix := content.substring(0, cursor)
+    content := prefix + s + content.substring(cursor, content.length)
+    cursor := cursor + s.length
+  ensure
+    grown: length = old length + s.length
+    cursor_advanced: cursor = old cursor + s.length
+  end
+
+  -- delete_back, set_cursor, content and the invariant as before
+end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A plain &lt;code&gt;Text_Buffer&lt;/code&gt; always has room, so for its clients nothing changes in practice. But the contract now says, in code, that a client must establish &lt;code&gt;has_room(s)&lt;/code&gt; before calling &lt;code&gt;insert&lt;/code&gt;. A bounded buffer only has to say what &amp;ldquo;room&amp;rdquo; means for it:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Bounded_Buffer
+inherit Text_Buffer
+
+feature
+  capacity: Integer
+
+  has_room(s: String): Boolean
+  do
+    result := length + s.length &amp;lt;= capacity
+  end
+
+create
+  make_with_capacity(n: Integer)
+  require
+    non_negative: n &amp;gt;= 0
+  do
+    capacity := n
+  end
+
+invariant
+  within_capacity: length &amp;lt;= capacity
+end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;Bounded_Buffer&lt;/code&gt; doesn&amp;rsquo;t redefine &lt;code&gt;insert&lt;/code&gt; at all. It inherits the parent&amp;rsquo;s body, precondition and postconditions unchanged. Its only addition to the contract is the invariant &lt;code&gt;within_capacity&lt;/code&gt;, which is AND-ed with the inherited &lt;code&gt;cursor_in_range&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Clients written against &lt;code&gt;Text_Buffer&lt;/code&gt; now ask before they insert:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;let buf: Text_Buffer := create Bounded_Buffer.make_with_capacity(10)
+buf.insert(&amp;quot;he&amp;quot;)
+buf.insert(&amp;quot;llo, &amp;quot;)
+assert not buf.has_room(&amp;quot;world&amp;quot;)
+if buf.has_room(&amp;quot;wor&amp;quot;) then
+  buf.insert(&amp;quot;wor&amp;quot;)
+end
+assert buf.content = &amp;quot;hello, wor&amp;quot;
+buf.insert(&amp;quot;!&amp;quot;) -- raise precondition violation
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The last call fails with &lt;code&gt;Precondition violation: room_available&lt;/code&gt;, and the error points at the call, not at &lt;code&gt;insert&lt;/code&gt;. That&amp;rsquo;s the right verdict: the buffer was full, the client could have asked, and it didn&amp;rsquo;t. In the previous version the same mistake produced a postcondition violation that blamed &lt;code&gt;Bounded_Buffer.insert&lt;/code&gt;, and in Java it produced nothing at all.&lt;/p&gt;
+&lt;p&gt;Isn&amp;rsquo;t this just a stronger precondition in disguise? For a given object, a &lt;code&gt;Bounded_Buffer&lt;/code&gt; does accept fewer strings than an unbounded one. The difference is that clients were told. The precondition a client reads is &lt;code&gt;has_room(s)&lt;/code&gt;, the same expression in both classes, and a client that respects it is correct for every kind of buffer. What the subcontracting rules forbid is a child adding a requirement the client can&amp;rsquo;t see. Here the requirement was in the parent&amp;rsquo;s contract all along, and the child only answers it for its own case.&lt;/p&gt;
+&lt;p&gt;The catch is that the parent has to be designed for it. Someone has to anticipate that a descendant might run out of room, or go back and add &lt;code&gt;has_room&lt;/code&gt; when the first such descendant shows up. That&amp;rsquo;s the general lesson: when a child class can&amp;rsquo;t honour its parent&amp;rsquo;s contract, the fix belongs in the parent&amp;rsquo;s contract, not in a clever override.&lt;/p&gt;
+&lt;h2 id=&quot;what-a-child-class-may-do&quot;&gt;What a child class may do&lt;/h2&gt;
+&lt;p&gt;So far we&amp;rsquo;ve looked at what a child class must not do. The subcontracting rules also say what it may do: accept more calls, promise more on each call, and guarantee more about its state. An editor buffer with undo needs all three.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;Undoable_Buffer&lt;/code&gt; remembers the text and cursor before each edit, as a &lt;code&gt;Snapshot&lt;/code&gt;. It keeps them on a stack, with the most recent snapshot at index 0, and caps the history at &lt;code&gt;history_limit&lt;/code&gt; edits so that memory use stays bounded:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Snapshot
+create
+  make(t: String, c: Integer)
+  do
+    text := t
+    cursor := c
+  end
+feature
+  text: String
+  cursor: Integer
+end
+
+class Undoable_Buffer
+inherit Text_Buffer
+
+create
+  make_with_limit(n: Integer)
+  require
+    positive: n &amp;gt; 0
+  do
+    history_limit := n
+  end
+
+feature -- Access
+  history_limit: Integer
+
+  can_undo: Boolean
+  do
+    result := undo_stack.length &amp;gt; 0
+  end
+
+  undo_count: Integer
+  do
+    result := undo_stack.length
+  end
+
+feature -- Editing
+  -- insert and delete_back are redefined below
+
+  undo
+    note &amp;quot;Restore the text and cursor to what they were before the last edit.&amp;quot;
+  require
+    something_to_undo: can_undo
+  do
+    let previous := undo_stack.get(0)
+    undo_stack.remove(0)
+    set_cursor(length)
+    if length &amp;gt; 0 then
+      super.delete_back(length)
+    end
+    if previous.text.length &amp;gt; 0 then
+      super.insert(previous.text)
+    end
+    set_cursor(previous.cursor)
+  ensure
+    text_restored: content = old undo_stack.get(0).text
+    cursor_restored: cursor = old undo_stack.get(0).cursor
+  end
+
+feature -- Implementation
+  undo_stack: Array[Snapshot]
+
+  record_edit
+  do
+    if undo_count = history_limit then
+      undo_stack.remove(undo_count - 1)  -- forget the oldest edit
+    end
+    undo_stack.add_at(0, create Snapshot.make(content, cursor))
+  end
+
+invariant
+  history_bounded: undo_count &amp;lt;= history_limit
+end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Notice how &lt;code&gt;undo&lt;/code&gt; rebuilds the text with &lt;code&gt;super.delete_back&lt;/code&gt; and &lt;code&gt;super.insert&lt;/code&gt; instead of assigning to &lt;code&gt;content&lt;/code&gt;. Nex lets only the class that declares a field assign it, so even a child class has to work through &lt;code&gt;Text_Buffer&lt;/code&gt;&amp;rsquo;s routines and their contracts. It calls the &lt;code&gt;super&lt;/code&gt; versions so that restoring a snapshot doesn&amp;rsquo;t itself get recorded as an edit.&lt;/p&gt;
+&lt;h3 id=&quot;accepting-more-a-weaker-precondition&quot;&gt;Accepting more: a weaker precondition&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;Text_Buffer.insert&lt;/code&gt; rejects an empty string. For an editor that&amp;rsquo;s an inconvenience: pasting an empty clipboard is a reasonable thing for a user to do. It shouldn&amp;rsquo;t be a bug, and it shouldn&amp;rsquo;t leave an empty step in the undo history either. &lt;code&gt;Undoable_Buffer&lt;/code&gt; accepts it:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;  insert(s: String)
+    note &amp;quot;As in Text_Buffer, but an empty string is accepted and ignored.&amp;quot;
+  require
+    nothing_to_insert: s.length = 0
+  do
+    if s.length &amp;gt; 0 then
+      record_edit
+      super.insert(s)
+    end
+  ensure
+    undoable: s.length &amp;gt; 0 implies can_undo
+    ignored: s.length = 0 implies content = old content
+  end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A redefinition&amp;rsquo;s &lt;code&gt;require&lt;/code&gt; is OR-ed with the one it inherits, so the precondition of &lt;code&gt;Undoable_Buffer.insert&lt;/code&gt; is effectively &lt;code&gt;(not_empty and room_available) or nothing_to_insert&lt;/code&gt;. Every call the parent accepted is still accepted, plus one more kind. A client that knows it has an &lt;code&gt;Undoable_Buffer&lt;/code&gt; can rely on the extra case. A client written against &lt;code&gt;Text_Buffer&lt;/code&gt; still reads &lt;code&gt;not_empty&lt;/code&gt; in the contract it sees, so it shouldn&amp;rsquo;t count on it, even though the call would go through at runtime.&lt;/p&gt;
+&lt;p&gt;The OR also means a child can&amp;rsquo;t sneak in a stronger precondition. Suppose &lt;code&gt;Undoable_Buffer.delete_back&lt;/code&gt; declared &lt;code&gt;require small: n &amp;lt;= 2&lt;/code&gt; to keep undo steps small. The combined precondition would be &lt;code&gt;(positive and enough_text_before_cursor) or small&lt;/code&gt;, and &lt;code&gt;delete_back(4)&lt;/code&gt; would still be accepted. A &lt;code&gt;require&lt;/code&gt; in a redefinition can only add to the set of calls the routine accepts.&lt;/p&gt;
+&lt;p&gt;There&amp;rsquo;s a second catch: the inherited postconditions still apply to the calls the redefinition now accepts. For an empty string they hold trivially. The length grows by zero and the cursor advances by zero. Compare that with a tempting weakening of &lt;code&gt;delete_back&lt;/code&gt; that accepts any positive &lt;code&gt;n&lt;/code&gt; and clamps it to the cursor:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;  delete_back(n: Integer)
+  require
+    any_amount: n &amp;gt; 0
+  do
+    record_edit
+    super.delete_back(n.min(cursor))
+  end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Calling &lt;code&gt;delete_back(5)&lt;/code&gt; on a buffer holding &lt;code&gt;&quot;hi&quot;&lt;/code&gt; now fails with &lt;code&gt;Postcondition violation: shrunk&lt;/code&gt;. The parent promised that the length shrinks by exactly &lt;code&gt;n&lt;/code&gt;, and a clamped delete can&amp;rsquo;t deliver that. Weakening a precondition only works when the routine can still keep the old promises for the new calls.&lt;/p&gt;
+&lt;h3 id=&quot;promising-more-stronger-postconditions&quot;&gt;Promising more: stronger postconditions&lt;/h3&gt;
+&lt;p&gt;The &lt;code&gt;ensure&lt;/code&gt; clauses of the redefined &lt;code&gt;insert&lt;/code&gt; don&amp;rsquo;t replace the parent&amp;rsquo;s &lt;code&gt;grown&lt;/code&gt; and &lt;code&gt;cursor_advanced&lt;/code&gt;. They are AND-ed with them, so &lt;code&gt;Undoable_Buffer.insert&lt;/code&gt; promises everything &lt;code&gt;Text_Buffer.insert&lt;/code&gt; did, plus two things about the history. &lt;code&gt;s.length &amp;gt; 0 implies can_undo&lt;/code&gt; reads the way you&amp;rsquo;d say it: if something was inserted, it can be undone. When &lt;code&gt;s&lt;/code&gt; is empty, the clause holds without &lt;code&gt;can_undo&lt;/code&gt; being evaluated.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;delete_back&lt;/code&gt; keeps the parent&amp;rsquo;s precondition and only adds a promise:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;  delete_back(n: Integer)
+  do
+    record_edit
+    super.delete_back(n)
+  ensure
+    undoable: can_undo
+  end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A client written against &lt;code&gt;Text_Buffer&lt;/code&gt; still gets &lt;code&gt;shrunk&lt;/code&gt; and &lt;code&gt;cursor_moved_back&lt;/code&gt;, and never notices the extra one. An editor that knows it has an &lt;code&gt;Undoable_Buffer&lt;/code&gt; can enable its Undo menu item right after a Backspace without checking anything. The &lt;code&gt;undo&lt;/code&gt; routine is new, so its contract is a first declaration, and any child of &lt;code&gt;Undoable_Buffer&lt;/code&gt; will inherit it.&lt;/p&gt;
+&lt;h3 id=&quot;guaranteeing-more-a-new-invariant&quot;&gt;Guaranteeing more: a new invariant&lt;/h3&gt;
+&lt;p&gt;&lt;code&gt;Undoable_Buffer&lt;/code&gt; inherits &lt;code&gt;cursor_in_range&lt;/code&gt; from &lt;code&gt;Text_Buffer&lt;/code&gt; and adds &lt;code&gt;history_bounded: undo_count &amp;lt;= history_limit&lt;/code&gt;. Both are checked before and after every call a client makes. If &lt;code&gt;record_edit&lt;/code&gt; forgot to drop the oldest snapshot, the first edit after the history filled up would fail with &lt;code&gt;Class invariant violation: history_bounded&lt;/code&gt;, and the error would name the routine that left the object in that state.&lt;/p&gt;
+&lt;p&gt;Putting it all together:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;let buf := create Undoable_Buffer.make_with_limit(3)
+buf.insert(&amp;quot;hello&amp;quot;)
+buf.insert(&amp;quot;, world&amp;quot;)
+buf.delete_back(7)
+assert buf.content = &amp;quot;hello&amp;quot;
+buf.undo
+assert buf.content = &amp;quot;hello, world&amp;quot;
+buf.undo
+assert buf.content = &amp;quot;hello&amp;quot;
+buf.insert(&amp;quot;&amp;quot;)  -- accepted, and not recorded
+assert buf.undo_count = 1
+buf.insert(&amp;quot;!&amp;quot;)
+buf.insert(&amp;quot;!&amp;quot;)
+buf.insert(&amp;quot;!&amp;quot;)
+assert buf.undo_count = 3  -- the oldest edit was forgotten
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Adding &lt;code&gt;redo&lt;/code&gt; is a good exercise. It needs a second stack, a &lt;code&gt;can_redo&lt;/code&gt; query, a &lt;code&gt;redo_cleared: not can_redo&lt;/code&gt; postcondition on every edit, and an invariant that bounds both stacks together.&lt;/p&gt;
+&lt;p&gt;None of these additions was free to make. Each one had to fit around the contract &lt;code&gt;Text_Buffer&lt;/code&gt; already published, and Nex checked that it did.&lt;/p&gt;</content>
+  </entry>
   <entry>
     <title>Handling command-line arguments in Nex</title>
     <link href="https://schemer.in/nex/blog/command-line-arguments.html"/>
