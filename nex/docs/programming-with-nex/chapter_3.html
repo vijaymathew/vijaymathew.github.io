@@ -111,16 +111,16 @@ nex&gt; -5 + 3
 </section>
 <section class="level2" data-number="4.3" id="operator-precedence">
 <h2 class="anchored" data-anchor-id="operator-precedence" data-number="4.3"> Operator Precedence</h2>
-<p>When an expression contains more than one operator, Nex must decide which to evaluate first. The rules that govern this are called <em>operator precedence</em>. They follow the conventions of ordinary mathematics:</p>
+<p>When an expression contains more than one operator, Nex must decide which to evaluate first. The rules that govern this are called <em>operator precedence</em>. They mostly follow the conventions of ordinary mathematics, with one exception, exponentiation, described below:</p>
 <ol type="1">
-<li>Unary minus (<code>-</code>) — highest precedence</li>
-<li>Exponentiation (<code>^</code>)</li>
-<li>Multiplication, division, remainder (<code>*</code>, <code>/</code>, <code>%</code>)</li>
+<li>Unary minus (<code>-</code>) and <code>not</code> — highest precedence</li>
+<li>Multiplication, division, remainder, exponentiation (<code>*</code>, <code>/</code>, <code>%</code>, <code>^</code>)</li>
 <li>Addition, subtraction (<code>+</code>, <code>-</code>)</li>
 <li>Comparison (<code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>)</li>
 <li>Equality (<code>=</code>, <code>/=</code>)</li>
 <li>Logical <code>and</code></li>
-<li>Logical <code>or</code> — lowest precedence</li>
+<li>Logical <code>or</code></li>
+<li>Logical <code>implies</code> — lowest precedence</li>
 </ol>
 <p>Operators at a higher level in this list bind more tightly than those lower down. So <code>2 + 3 * 4</code> is evaluated as <code>2 + (3 * 4)</code>, giving <code>14</code>, not <code>(2 + 3) * 4</code>, which would give <code>20</code>.</p>
 <p>Verify a few cases at the REPL:</p>
@@ -131,9 +131,13 @@ nex&gt; 10 - 2 - 3
 5
 
 nex&gt; 2 ^ 3 ^ 2
-64</code></pre>
+64
+
+nex&gt; 2 * 3 ^ 2
+36</code></pre>
 <p>The second example shows <em>left associativity</em>: when the same operator appears twice, Nex evaluates left to right. <code>10 - 2 - 3</code> is <code>(10 - 2) - 3</code>, which is <code>5</code>, not <code>10 - (2 - 3)</code>, which would be <code>11</code>.</p>
 <p>The third example shows that <code>^</code> is also left-associative in Nex: <code>2 ^ 3 ^ 2</code> is <code>(2 ^ 3) ^ 2 = 8 ^ 2 = 64</code>. This is worth knowing because some languages treat exponentiation as right-associative, which would give <code>2 ^ (3 ^ 2) = 2 ^ 9 = 512</code> — a very different result. If you intend right-to-left evaluation, write the parentheses explicitly.</p>
+<p>The fourth example shows the exception to mathematical convention. In mathematics, exponentiation binds more tightly than multiplication, so 2 &times; 3<sup>2</sup> is 18. In Nex, <code>^</code> sits on the same level as <code>*</code>, so <code>2 * 3 ^ 2</code> is read left to right as <code>(2 * 3) ^ 2 = 6 ^ 2 = 36</code>. Write <code>2 * (3 ^ 2)</code> when you mean 18.</p>
 <p><strong>The practical rule:</strong> when in doubt, use parentheses. Parentheses are free and make your intentions unambiguous. An expression that requires you to recall the precedence table to understand it is an expression that should have parentheses.</p>
 </section>
 <section class="level2" data-number="4.4" id="comparison-expressions">
@@ -222,7 +226,7 @@ true</code></pre>
 </section>
 <section class="level2" data-number="4.5" id="boolean-expressions">
 <h2 class="anchored" data-anchor-id="boolean-expressions" data-number="4.5"> Boolean Expressions</h2>
-<p>Boolean expressions combine <code>true</code> and <code>false</code> values using <code>and</code>, <code>or</code>, and <code>not</code>.</p>
+<p>Boolean expressions combine <code>true</code> and <code>false</code> values using <code>and</code>, <code>or</code>, <code>not</code>, and <code>implies</code>.</p>
 <p><strong><code>and</code></strong> is <code>true</code> only when both sides are <code>true</code>:</p>
 <pre><code>nex&gt; true and true
 true
@@ -257,6 +261,25 @@ false</code></pre>
 <pre><code>nex&gt; true or false and false
 true</code></pre>
 <p>This evaluates as <code>true or (false and false)</code>, which is <code>true or false</code>, which is <code>true</code>. If you meant <code>(true or false) and false</code>, which would be <code>false</code>, you must write the parentheses. When <code>and</code> and <code>or</code> appear in the same expression, always add parentheses to make the grouping explicit.</p>
+<p><strong><code>implies</code></strong> states a rule of the form &ldquo;if this, then that&rdquo;. <code>a implies b</code> is <code>true</code> unless <code>a</code> is <code>true</code> and <code>b</code> is <code>false</code>:</p>
+<pre><code>nex&gt; true implies true
+true
+
+nex&gt; true implies false
+false
+
+nex&gt; false implies true
+true
+
+nex&gt; false implies false
+true</code></pre>
+<p>The last two results surprise most people at first. Think of <code>a implies b</code> as a promise that only says something when <code>a</code> holds. &ldquo;If it rains, the match is cancelled&rdquo; is not broken on a dry day, whatever happens to the match. So when the left side is <code>false</code>, the promise is kept and the result is <code>true</code>. Nex doesn&rsquo;t even evaluate the right side then, because the answer is already known.</p>
+<p><code>implies</code> has the lowest precedence of all, lower than <code>or</code>. That puts the conditions on its left and the conclusion on its right without any parentheses, which is almost always what you mean:</p>
+<pre><code>nex&gt; let age := 17
+
+nex&gt; age &gt;= 13 and age &lt;= 17 implies age &lt; 18
+true</code></pre>
+<p>This reads as <code>(age &gt;= 13 and age &lt;= 17) implies (age &lt; 18)</code>: every teenager is under eighteen. You will meet <code>implies</code> again in Chapter&nbsp;17, where it is most useful: stating guarantees that apply only in some cases.</p>
 </section>
 <section class="level2" data-number="4.6" id="string-concatenation">
 <h2 class="anchored" data-anchor-id="string-concatenation" data-number="4.6"> String Concatenation</h2>
@@ -321,10 +344,11 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="summary" data-number="4.10"> Summary</h2>
 <ul>
 <li>An expression produces a value. A statement performs an action. The right-hand side of an assignment and the arguments to <code>print</code> and other calls must be expressions.</li>
-<li>Arithmetic operators follow conventional mathematical precedence: exponentiation before multiplication, multiplication before addition.</li>
+<li>Arithmetic operators follow conventional mathematical precedence, multiplication before addition, with one exception: <code>^</code> binds only as tightly as <code>*</code>, so <code>2 * 3 ^ 2</code> is <code>36</code>.</li>
 <li>When the precedence is unclear, use parentheses. They make intentions unambiguous.</li>
 <li>Comparison operators (<code>=</code>, <code>/=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>) produce <code>Boolean</code> values. Arithmetic is evaluated before comparisons.</li>
 <li>Boolean operators <code>and</code>, <code>or</code>, and <code>not</code> combine <code>Boolean</code> values. <code>and</code> binds more tightly than <code>or</code>; use parentheses when both appear in the same expression.</li>
+<li><code>a implies b</code> means &ldquo;if <code>a</code>, then <code>b</code>&rdquo;. It is <code>true</code> whenever <code>a</code> is <code>false</code>, and it binds more loosely than every other operator.</li>
 <li>String concatenation uses <code>+</code>. If either operand is a string, the other is converted with <code>to_string</code> automatically.</li>
 <li>Method calls are expressions and can be chained. The value produced by one call becomes the receiver of the next.</li>
 </ul>
