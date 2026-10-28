@@ -716,9 +716,9 @@ condition may <em>narrow</em> the types of some variables within a branch. In th
 <code>x</code> is a local variable or parameter of type <code>?T</code>,
 <code>x</code> has type <code>T</code>.</p>
 
-<p>No other condition narrows anything. In particular, <code>or</code> narrows
-nothing, and an <code>and</code> condition narrows nothing in the
-<code>else</code> branch.</p>
+<p>No other condition narrows anything. In particular, <code>or</code> and
+<code>implies</code> narrow nothing in either branch, and an <code>and</code>
+condition narrows nothing in the <code>else</code> branch.</p>
 
 <p>Narrowing also applies within the condition itself. The right operand of an
 <code>and</code> is checked with the narrowings of its left operand in effect,
@@ -730,7 +730,11 @@ clause, an <code>assert</code>, an assignment or an argument, so
 because <code>and</code> evaluates its right operand only when the left is
 true (Section&nbsp;<a href="dynamic.html#sec-5.3">5.3</a>). The narrowing ends
 with the <code>and</code>: after <code>let ok := x /= nil and x.v &gt; 0</code>,
-<code>x</code> still has type <code>?T</code>. The
+<code>x</code> still has type <code>?T</code>. The right operand of an
+<code>implies</code> is checked the same way, since it too runs only when the
+left operand is true: <code>x /= nil implies x.v &gt; 0</code> and
+<code>? e as y implies y.v &gt; 0</code> are accepted, the second with
+<code>y</code> in scope only in the right operand. The
 conditional expression <code>when</code> narrows its branches in the same way as
 <code>if</code> (Section&nbsp;<a href="#sec-4.4">4.4</a>).</p>
 
@@ -876,12 +880,15 @@ dynamic semantics only to name the condition in a violation report.</p>
 <h4><code>old</code> expressions</h4>
 
 <p>The expression <code>old e</code> may appear only in a postcondition. Its
-operand <code>e</code> is elaborated with only the fields of the current object
-in scope: not the parameters, not local variables, and not <code>result</code>.
-Any expression that is well typed there is allowed, and <code>old e</code> has
-the same type as <code>e</code>. Writing <code>old</code> outside an
-<code>ensure</code> clause, or applying it to a parameter, is a compile-time
-error.</p>
+operand <code>e</code> is evaluated on entry (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>), so it is
+elaborated with only what has a value then in scope: the fields of the current
+object, the parameters, and the routines it can call, but not
+<code>result</code>, and not a name the postcondition itself binds with
+<code>convert</code> or an object test. Any expression that is well typed there
+is allowed, and <code>old e</code> has the same type as <code>e</code>. Writing
+<code>old</code> outside an <code>ensure</code> clause, nesting one
+<code>old</code> inside another, or applying it to a bare parameter, whose value
+cannot change, is a compile-time error.</p>
 
 <pre><code>class Counter
   create make() do count := 0 end
@@ -907,8 +914,10 @@ held on entry, so after one call of <code>bump</code> the count is
 <code>1</code> and the postcondition holds.</p>
 
 <p>The operand need not be a bare field. <code>old items.length</code> is
-accepted just as well, since every name it reads is a field, and its value is
-the length the collection had on entry (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>).</p>
+accepted just as well, and its value is the length the collection had on entry;
+<code>old size()</code> is the value the query returned on entry, and
+<code>old other.balance</code>, for a parameter <code>other</code>, the balance
+that object held on entry (Section&nbsp;<a href="dynamic.html#sec-5.6">5.6</a>).</p>
 
 <h2 id="sec-4.7"><span class="secno">4.7</span>Generic Elaboration</h2>
 

@@ -14,7 +14,7 @@
     });
   }
 
-  var KEYWORDS = new RegExp('^(?:class|feature|create|inherit|invariant|require|ensure|do|end|if|then|elseif|else|when|case|of|from|until|repeat|across|as|let|function|fn|result|old|import|intern|with|spawn|select|timeout|rescue|retry|raise|and|or|not|true|false|nil|this|assert|await)$');
+  var KEYWORDS = new RegExp('^(?:class|feature|create|inherit|invariant|require|ensure|do|end|if|then|elseif|else|when|case|of|from|until|repeat|across|as|let|function|fn|result|old|import|intern|with|spawn|select|timeout|rescue|retry|raise|and|or|implies|not|true|false|nil|this|assert|await)$');
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
   // Small lexer: comments, strings, numbers, keywords, capitalised names (types).

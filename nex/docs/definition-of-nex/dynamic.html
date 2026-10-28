@@ -297,15 +297,18 @@ operator is never a way around a method&rsquo;s contract.</p>
 let paid: Money := create Money.make(30, "EUR")
 print(owed - paid)      -- Precondition violation: same_currency</code></pre>
 
-<h4>Short-circuit <code>and</code> and <code>or</code></h4>
+<h4>Short-circuit <code>and</code>, <code>or</code> and <code>implies</code></h4>
 
-<p>The operators <code>and</code> and <code>or</code> do not always evaluate
-their right operand. In <code>a and b</code>, <code>a</code> is evaluated first.
+<p>The operators <code>and</code>, <code>or</code> and <code>implies</code> do
+not always evaluate their right operand. In <code>a and b</code>, <code>a</code> is evaluated first.
 If it is <code>false</code>, the result is <code>false</code> and <code>b</code>
 is not evaluated; otherwise the result is the value of <code>b</code>. In
 <code>a or b</code>, if <code>a</code> is <code>true</code>, the result is
 <code>true</code> and <code>b</code> is not evaluated; otherwise the result is the
-value of <code>b</code>.</p>
+value of <code>b</code>. In <code>a implies b</code>, if <code>a</code> is
+<code>false</code>, the result is <code>true</code> and <code>b</code> is not
+evaluated; otherwise the result is the value of <code>b</code>. So
+<code>a implies b</code> has the value of <code>not a or b</code>.</p>
 
 <p>This holds on every back end and is part of the language, not an
 optimisation. A guard such as <code>n /= 0 and total / n &gt; 2</code> therefore
@@ -352,15 +355,17 @@ steps. Figure&nbsp;5.2 shows the same steps, with every way a call can end.</p>
   overriding method in a subclass takes effect. Because the number of
   arguments takes part in the selection, this step also resolves overloading
   by arity (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>).</li>
-  <li>If the method has a postcondition, the values its <code>old</code>
-  expressions will need are recorded (Section&nbsp;<a href="#sec-5.6">5.6</a>). Then a new set of
+  <li>A new set of
   bindings is made for the method&rsquo;s body. Each parameter is bound to the
   value of its argument, and <code>this</code> is bound to the object the
   method belongs to (see <em>Which object <code>this</code> names</em>,
   below).</li>
   <li>If the call is qualified (see below), the class invariant is checked
   (Section&nbsp;<a href="#sec-5.6">5.6</a>).</li>
-  <li>The method&rsquo;s precondition is checked.</li>
+  <li>The method&rsquo;s precondition is checked. Then, if the method has a
+  postcondition, each of its <code>old</code> expressions is evaluated and its
+  value recorded; an exception raised by one is recorded in its place and held
+  back (Section&nbsp;<a href="#sec-5.6">5.6</a>).</li>
   <li>The body is run.</li>
   <li>The method&rsquo;s postcondition is checked.</li>
   <li>If the call is qualified, the class invariant is checked again.</li>
@@ -394,7 +399,7 @@ what happens next.</p>
   <li>If the clause executes <code>retry</code>, the call goes back to the
   start of step&nbsp;7 and runs the body again. Neither the invariant nor the
   precondition is checked again, and the <code>old</code> values recorded in
-  step&nbsp;4 are kept.</li>
+  step&nbsp;6 are kept.</li>
   <li>If the clause completes normally, the call continues at step&nbsp;8, as if
   the body had completed. The value of the call is still the final value of
   <code>result</code>, which the clause may have set.</li>
@@ -438,12 +443,13 @@ made to fields before the exception remain in place.</p>
 <text class="cf-t" x="155" y="169" text-anchor="middle">3  Select the method</text>
 <text class="cf-s" x="155" y="185" text-anchor="middle">by the object’s class and the argument count</text>
 <rect class="cf-box" x="10" y="220" width="290" height="44" rx="5"/>
-<text class="cf-t" x="155" y="247" text-anchor="middle">4  Record <tspan class="cf-m">old</tspan> values; bind the parameters</text>
+<text class="cf-t" x="155" y="247" text-anchor="middle">4  Bind the parameters</text>
 <rect class="cf-box" x="10" y="290" width="290" height="44" rx="5"/>
 <text class="cf-t" x="155" y="309" text-anchor="middle">5  Check the class invariant</text>
 <text class="cf-s" x="155" y="325" text-anchor="middle">qualified calls only</text>
 <rect class="cf-box" x="10" y="360" width="290" height="44" rx="5"/>
-<text class="cf-t" x="155" y="387" text-anchor="middle">6  Check the precondition</text>
+<text class="cf-t" x="155" y="379" text-anchor="middle">6  Check the precondition</text>
+<text class="cf-s" x="155" y="395" text-anchor="middle">then record <tspan class="cf-m">old</tspan> values</text>
 <rect class="cf-box" x="10" y="430" width="290" height="44" rx="5"/>
 <text class="cf-t" x="155" y="457" text-anchor="middle">7  Run the body</text>
 <rect class="cf-box" x="10" y="500" width="290" height="44" rx="5"/>
@@ -817,14 +823,22 @@ is caught by a <code>rescue</code> clause in the same way (Section&nbsp;<a href=
 (Section&nbsp;<a href="#sec-5.4">5.4</a> and Figure&nbsp;<a href="#fig-5.2">5.2</a>).</p>
 
 <ul>
-  <li><strong>On entry,</strong> if the routine has a postcondition, the values
-  its <code>old</code> expressions will need are recorded: for each field that
-  an <code>old</code> expression reads, the value the field holds at that
-  moment. This happens before the invariant and the precondition are
-  checked.</li>
   <li><strong>The precondition</strong> is checked after the parameters are
   bound and before the body runs. A failed precondition is the
   caller&rsquo;s fault.</li>
+  <li><strong>On entry,</strong> once the precondition holds and before the
+  body runs, each <code>old</code> expression in the postcondition is
+  evaluated and its value recorded. Because this comes after the precondition,
+  a precondition can protect an <code>old</code> expression that would
+  otherwise fail: <code>require</code> <code>items.length &gt; 0</code> makes
+  <code>old items.get(0)</code> safe. If evaluating one raises an exception,
+  the exception is held back rather than raised: the call goes on, and the
+  exception is raised only if the postcondition, when it is checked, reads that
+  <code>old</code> expression. So <code>old items.length = 0 or items.get(0) =
+  old items.get(0)</code> holds on an empty array, because <code>or</code> never
+  reads the second <code>old</code>. A held-back exception is raised as it was,
+  not as a contract violation, and like a failed postcondition it is not seen
+  by the routine&rsquo;s own <code>rescue</code> clause.</li>
   <li><strong>The postcondition</strong> is checked when the body completes
   normally, or when the routine&rsquo;s <code>rescue</code> clause completes
   without <code>retry</code>. At that point <code>result</code> holds the value
@@ -992,19 +1006,23 @@ positive</code>.</p>
 
 <div class="note">
   <span class="note-label">What <code>old</code> captures</span>
-  <code>old</code> takes an expression, not only a bare field name. Any
-  expression built from the fields of the current object is allowed, so
-  <code>old xs.length</code> is as legitimate as <code>old count</code>. On entry,
-  each field such an expression reads is recorded, and the <code>old</code>
-  expression is evaluated against those recorded values rather than the current
-  ones. For a field of scalar or reference type, the recorded value is the value
-  the field held on entry; for a reference, that means the object it referred
-  to then. For a field holding a mutable collection, an array or a map, the
-  collection&rsquo;s membership is recorded as of entry: its length, its keys,
-  and which element occupies each position. So <code>old xs.length</code>,
-  <code>old xs.get(i)</code> and <code>old m.contains_key(k)</code> all report
-  the state on entry, and a postcondition can speak of a collection&rsquo;s
-  earlier size directly, without an extra field to remember it.
+  <code>old e</code> is the value of the whole expression <code>e</code>
+  evaluated on entry, and <code>e</code> is evaluated once, whatever the body
+  then does. So <code>old count</code>, <code>old xs.length</code>,
+  <code>old size()</code> and <code>old other.balance</code> all report the
+  state on entry: a query of the current object, a field of another object, and
+  a query on a parameter are evaluated then, not when the postcondition is
+  checked. What is recorded is the value <code>e</code> yields. For a value of
+  scalar or reference type that is the value itself; for a reference, the
+  object it referred to then, not a copy of that object, so <code>old
+  other</code> names the same object as <code>other</code>, and its fields are
+  read whenever the postcondition reads them. To speak of the earlier state of
+  an object, apply <code>old</code> to the query that reads it:
+  <code>old other.balance</code>, not <code>(old other).balance</code>. A value
+  that is a mutable collection, an array or a map, is the exception: its
+  membership is recorded as of entry, its length, its keys, and which element
+  occupies each position, so <code>(old xs).length</code> reports the earlier
+  length too. The elements themselves are not copied.
 </div>
 
 <h4>The <code>assert</code> statement</h4>

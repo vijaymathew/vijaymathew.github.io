@@ -22,7 +22,7 @@ is expected.</p>
 <code>class</code> <code>convert</code> <code>create</code> <code>declare</code>
 <code>deferred</code> <code>do</code> <code>else</code> <code>elseif</code>
 <code>end</code> <code>ensure</code> <code>enum</code> <code>feature</code> <code>fn</code>
-<code>from</code> <code>function</code> <code>if</code> <code>import</code>
+<code>from</code> <code>function</code> <code>if</code> <code>implies</code> <code>import</code>
 <code>inherit</code> <code>intern</code> <code>invariant</code> <code>let</code>
 <code>match</code> <code>nil</code> <code>not</code> <code>note</code>
 <code>of</code> <code>old</code> <code>once</code> <code>or</code>
@@ -238,24 +238,32 @@ must be represented using its numeric code <code>#123</code>).</p>
 
 <p>Nex has a fixed set of infix and prefix operators; the programmer cannot
 declare new ones or alter their precedence. The operators are listed below from
-lowest to highest binding power. All binary operators are left-associative,
-exponentiation <code>^</code> included: <code>2 ^ 3 ^ 2</code> denotes
-<code>(2 ^ 3) ^ 2</code> and evaluates to <code>64</code>. (Mathematical
-convention writes the power tower right-associated; Nex trades that convention
-for a single associativity rule, and a right-nested power must be
-parenthesised: <code>2 ^ (3 ^ 2)</code>.) The prefix
-operators are unary minus <code>-</code> and logical <code>not</code>.</p>
+lowest to highest binding power. Every binary operator but
+<code>implies</code> is left-associative, exponentiation <code>^</code>
+included: <code>2 ^ 3 ^ 2</code> denotes <code>(2 ^ 3) ^ 2</code> and
+evaluates to <code>64</code>. (Mathematical convention writes the power tower
+right-associated; Nex trades that convention for a single associativity rule,
+and a right-nested power must be parenthesised: <code>2 ^ (3 ^ 2)</code>.)
+<code>implies</code> is the one exception: it is right-associative, so
+<code>a implies b implies c</code> denotes <code>a implies (b implies c)</code>,
+the reading logic gives it; the left-nested reading would hold whenever
+<code>c</code> does, which is rarely what such a line means. As the loosest
+operator, <code>implies</code> takes whole conjunctions and disjunctions as
+operands: <code>a and b implies c or d</code> denotes <code>(a and b) implies
+(c or d)</code>. The prefix operators are unary minus <code>-</code> and
+logical <code>not</code>.</p>
 
 <table>
 <thead><tr><th>Level</th><th>Operators</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td>1 (lowest)</td><td><code>or</code></td><td>logical disjunction (short-circuit)</td></tr>
-<tr><td>2</td><td><code>and</code></td><td>logical conjunction (short-circuit)</td></tr>
-<tr><td>3</td><td><code>=</code> <code>/=</code> <code>==</code> <code>!=</code></td><td>value and identity (in)equality</td></tr>
-<tr><td>4</td><td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>ordering comparison</td></tr>
-<tr><td>5</td><td><code>+</code> <code>-</code></td><td>addition, subtraction</td></tr>
-<tr><td>6</td><td><code>*</code> <code>/</code> <code>%</code> <code>^</code></td><td>multiplication, division, remainder, power</td></tr>
-<tr><td>7 (highest)</td><td><code>-</code> <code>not</code></td><td>prefix negation</td></tr>
+<tr><td>1 (lowest)</td><td><code>implies</code></td><td>logical implication (short-circuit, right-associative)</td></tr>
+<tr><td>2</td><td><code>or</code></td><td>logical disjunction (short-circuit)</td></tr>
+<tr><td>3</td><td><code>and</code></td><td>logical conjunction (short-circuit)</td></tr>
+<tr><td>4</td><td><code>=</code> <code>/=</code> <code>==</code> <code>!=</code></td><td>value and identity (in)equality</td></tr>
+<tr><td>5</td><td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>ordering comparison</td></tr>
+<tr><td>6</td><td><code>+</code> <code>-</code></td><td>addition, subtraction</td></tr>
+<tr><td>7</td><td><code>*</code> <code>/</code> <code>%</code> <code>^</code></td><td>multiplication, division, remainder, power</td></tr>
+<tr><td>8 (highest)</td><td><code>-</code> <code>not</code></td><td>prefix negation</td></tr>
 </tbody>
 </table>
 
@@ -266,14 +274,15 @@ classes. Application (a call or member access) and parentheses bind more
 tightly than any operator.</p>
 
 <div class="note">
-  <span class="note-label">Short-circuit conjunction and disjunction</span>
-  <code>and</code> and <code>or</code> are <em>short-circuiting</em> in every
-  back end: in <code>e₁ and e₂</code> the operand <code>e₂</code> is evaluated
-  only if <code>e₁</code> is true, and in <code>e₁ or e₂</code> only if
+  <span class="note-label">Short-circuit logical operators</span>
+  <code>and</code>, <code>or</code> and <code>implies</code> are
+  <em>short-circuiting</em> in every back end: in <code>e₁ and e₂</code> and
+  in <code>e₁ implies e₂</code> the operand <code>e₂</code> is evaluated only
+  if <code>e₁</code> is true, and in <code>e₁ or e₂</code> only if
   <code>e₁</code> is false. There are no separate <code>and then</code> /
   <code>or else</code> forms; the plain operators <em>are</em> the
-  short-circuit forms. Consequently <code>x /= nil and x.f</code> is a safe
-  guard. This is a property of the dynamic semantics
+  short-circuit forms. Consequently <code>x /= nil and x.f</code> and
+  <code>x /= nil implies x.f</code> are safe guards. This is a property of the dynamic semantics
   (Section&nbsp;<a href="dynamic.html#sec-5.3">5.3</a>) and is recorded here because it affects how an expression
   is read.
 </div>
@@ -305,7 +314,7 @@ in Appendix&nbsp;<a href="appendix-grammar.html">A</a>.</p>
 <tr><td></td><td class="op">|</td><td><span class="lit">spawn</span> <span class="lit">do</span> <span class="nt">block</span> &langle;<span class="lit">rescue</span> <span class="nt">block</span>&rangle; <span class="lit">end</span></td><td class="cmt">&mdash; task creation</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="lit">convert</span> <span class="nt">exp</span> <span class="lit">to</span> <span class="nt">id</span> <span class="lit">:</span> <span class="nt">ty</span></td><td class="cmt">&mdash; type conversion</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="lit">?</span> <span class="nt">exp</span> <span class="lit">as</span> <span class="nt">id</span></td><td class="cmt">&mdash; object test</td></tr>
-<tr><td></td><td class="op">|</td><td><span class="lit">old</span> <span class="nt">exp</span></td><td class="cmt">&mdash; pre-state snapshot (in <code>ensure</code> only)</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">old</span> <span class="nt">exp</span></td><td class="cmt">&mdash; value on entry (in <code>ensure</code> only)</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">arraylit</span> <span class="op">|</span> <span class="nt">maplit</span> <span class="op">|</span> <span class="nt">setlit</span></td><td class="cmt">&mdash; collection displays (Appendix&nbsp;<a href="appendix-derived.html">C</a>)</td></tr>
 </table>
 </div>
@@ -419,9 +428,12 @@ are checked before elaboration and a violation is a compile-time error.</p>
   An inner <code>let</code> may, however, <em>shadow</em> an outer binding of the
   same name in a nested block.</li>
   <li>The expression <code>old e</code> may occur only within an
-  <code>ensure</code> clause, and every name <code>e</code> reads must there be a
-  field of the current object (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>): a parameter, a local, or
-  <code>result</code> beneath <code>old</code> is a compile-time error.</li>
+  <code>ensure</code> clause, and <code>e</code> may read only what has a value
+  on entry (Section&nbsp;<a href="syntax-modules.html#sec-3.4">3.4</a>): fields,
+  parameters, and the routines it calls. <code>result</code>, a name the
+  postcondition itself binds, or another <code>old</code> beneath
+  <code>old</code> is a compile-time error, and so is <code>old p</code> for a
+  bare parameter <code>p</code>, which would always equal <code>p</code>.</li>
   <li>The identifier <code>result</code> may be read or assigned only within a
   routine that declares a return type.</li>
   <li>The cursor variable of an <code>across</code> loop, the bound variable of a

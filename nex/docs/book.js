@@ -3,7 +3,7 @@
   var root = document.documentElement;
   try { var t = localStorage.getItem('nex-theme'); if (t) root.dataset.theme = t; } catch (e) {}
 
-  var KEYWORDS = new RegExp('^(?:across|alias|and|as|assert|await|case|class|convert|create|declare|deferred|do|else|elseif|end|ensure|enum|false|feature|fn|from|function|if|import|inherit|intern|invariant|let|match|nil|not|note|of|old|once|or|private|raise|repeat|require|rescue|result|retry|sealed|select|spawn|super|then|this|timeout|to|true|type|union|until|variant|when|where|with)$');
+  var KEYWORDS = new RegExp('^(?:across|alias|and|as|assert|await|case|class|convert|create|declare|deferred|do|else|elseif|end|ensure|enum|false|feature|fn|from|function|if|implies|import|inherit|intern|invariant|let|match|nil|not|note|of|old|once|or|private|raise|repeat|require|rescue|result|retry|sealed|select|spawn|super|then|this|timeout|to|true|type|union|until|variant|when|where|with)$');
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
   // Small Nex lexer (same as the reference pages): comments, strings, numbers,
