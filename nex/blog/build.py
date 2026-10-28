@@ -10,7 +10,8 @@ A post is one Markdown file in ``posts/``, named ``YYYY-MM-DD-slug.md``:
     ---
 
     The body, in Markdown. Fenced code blocks are highlighted as Nex unless
-    they name another language or start with "$ ".
+    they name another language or start with "$ ". Blocks marked ```java are
+    highlighted as Java; other languages are left plain (see ../site.js).
 
 Optional front matter: ``date`` (overrides the one in the file name),
 ``updated``, ``slug``, and ``draft: true`` (built only with ``--drafts``).

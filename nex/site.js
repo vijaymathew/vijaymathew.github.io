@@ -15,19 +15,40 @@
   }
 
   var KEYWORDS = new RegExp('^(?:class|feature|create|inherit|invariant|require|ensure|do|end|if|then|elseif|else|when|case|of|from|until|repeat|across|as|let|function|fn|result|old|import|intern|with|spawn|select|timeout|rescue|retry|raise|and|or|implies|not|true|false|nil|this|assert|await)$');
+  var JAVA_KEYWORDS = new RegExp('^(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|non-sealed|package|permits|private|protected|public|record|return|sealed|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|var|void|volatile|while|yield|true|false|null)$');
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
+  // Per-language token pattern. Groups: 1 comment, 2 string, 3 number, 4 word, 5 anything else.
+  var LANGS = {
+    nex:  { kw: KEYWORDS, errors: true,
+            re: /(--.*$)|("(?:[^"\\]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|([\s\S])/g },
+    java: { kw: JAVA_KEYWORDS, block: true,
+            re: /(\/\/.*$|\/\*.*?(?:\*\/|$))|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?[LlFfDd]?\b)|(@?[A-Za-z_$][A-Za-z0-9_$]*)|([\s\S])/g }
+  };
+
   // Small lexer: comments, strings, numbers, keywords, capitalised names (types).
-  function highlight(src) {
+  function highlight(src, lang) {
+    var L = LANGS[lang] || LANGS.nex, inComment = false;
     return src.split('\n').map(function (line) {
-      if (/^\s*(Error|Warning)\b/.test(line)) return '<span class="er">' + esc(line) + '</span>';
-      var re = /(--.*$)|("(?:[^"\\]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|([\s\S])/g, out = '', m;
-      while ((m = re.exec(line))) {
-        if (m[1]) out += '<span class="c">' + esc(m[1]) + '</span>';
+      if (L.errors && /^\s*(Error|Warning)\b/.test(line)) return '<span class="er">' + esc(line) + '</span>';
+      var out = '', m;
+      if (inComment) {                     // inside a /* ... */ that began on an earlier line
+        var end = line.indexOf('*/');
+        if (end < 0) return '<span class="c">' + esc(line) + '</span>';
+        out = '<span class="c">' + esc(line.slice(0, end + 2)) + '</span>';
+        line = line.slice(end + 2);
+        inComment = false;
+      }
+      L.re.lastIndex = 0;
+      while ((m = L.re.exec(line))) {
+        if (m[1]) {
+          out += '<span class="c">' + esc(m[1]) + '</span>';
+          if (L.block && /^\/\*/.test(m[1]) && !/^\/\*[\s\S]*\*\/$/.test(m[1])) inComment = true;
+        }
         else if (m[2]) out += '<span class="s">' + esc(m[2]) + '</span>';
         else if (m[3]) out += '<span class="s">' + m[3] + '</span>';
-        else if (m[4]) out += KEYWORDS.test(m[4]) ? '<span class="k">' + m[4] + '</span>'
-                           : /^[A-Z]/.test(m[4]) ? '<span class="n">' + m[4] + '</span>' : m[4];
+        else if (m[4]) out += L.kw.test(m[4]) ? '<span class="k">' + m[4] + '</span>'
+                           : /^@?[A-Z]/.test(m[4]) ? '<span class="n">' + m[4] + '</span>' : m[4];
         else out += esc(m[5]);
       }
       return out;
@@ -63,9 +84,9 @@
       var code = pre.querySelector('code');
       if (!code) return;
       var text = code.textContent;
-      // Fenced blocks from Markdown carry a language-* class; only Nex is highlighted.
-      var lang = (code.className.match(/language-(\S+)/) || [])[1];
-      if ((!lang || lang === 'nex') && !/^dbg>|^\$ /.test(text)) code.innerHTML = highlight(text);
+      // Fenced blocks from Markdown carry a language-* class; Nex (the default) and Java are highlighted.
+      var lang = (code.className.match(/language-(\S+)/) || [])[1] || 'nex';
+      if (LANGS[lang] && !/^dbg>|^\$ /.test(text)) code.innerHTML = highlight(text, lang);
       var b = document.createElement('button');
       b.className = 'pre-copy'; b.type = 'button'; b.textContent = 'Copy';
       b.setAttribute('aria-label', 'Copy code');
