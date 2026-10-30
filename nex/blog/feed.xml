@@ -5,8 +5,252 @@
   <link href="https://schemer.in/nex/blog/feed.xml" rel="self"/>
   <link href="https://schemer.in/nex/blog/"/>
   <id>https://schemer.in/nex/blog/</id>
-  <updated>2026-10-27T00:00:00Z</updated>
+  <updated>2026-10-30T00:00:00Z</updated>
   <author><name>Vijay Mathew</name></author>
+  <entry>
+    <title>When Code Is Cheap, Design the Promises</title>
+    <link href="https://schemer.in/nex/blog/when-code-is-cheap.html"/>
+    <id>https://schemer.in/nex/blog/when-code-is-cheap.html</id>
+    <published>2026-10-30T00:00:00Z</published>
+    <updated>2026-10-30T00:00:00Z</updated>
+    <summary>AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program&#x27;s promises change over time a core part of software engineering.</summary>
+    <category term="software-design"/>
+    <category term="contracts"/>
+    <category term="ai"/>
+    <content type="html" xml:base="https://schemer.in/nex/blog/">&lt;p&gt;Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and it&amp;rsquo;s done just as fast. What hasn&amp;rsquo;t become cheaper is knowing whether the code does what it should, and whether it still does after the tenth change made by something that need not remember the first two.&lt;/p&gt;
+&lt;p&gt;The &lt;a href=&quot;../designed-for-correctness.html&quot;&gt;essay on why Nex is designed for correctness&lt;/a&gt; argues that contracts are the verification layer generated code most lacks. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software &lt;em&gt;evolves&lt;/em&gt; becomes more important, and a practical way to do it.&lt;/p&gt;
+&lt;h2 id=&quot;the-specification-becomes-the-source&quot;&gt;The specification becomes the source&lt;/h2&gt;
+&lt;p&gt;Here is a specification of the kind that gets written in tickets, design docs and prompts every day:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Wrap the text so that no line is longer than the given width.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;A person reading this fills in the gaps from experience. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.&lt;/p&gt;
+&lt;p&gt;Now the same specification as a contract. It is written as a deferred (or abstract) class, which states what &lt;code&gt;wrap&lt;/code&gt; must do and says nothing about how:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;deferred class Wrapper
+feature
+  wrap(text: String, width: Integer): Array[String]
+    note &amp;quot;Break `text` into lines of at most `width` characters.&amp;quot;
+  require
+    positive_width: width &amp;gt; 0
+    words_fit: words(text).all(fn (w) =&amp;gt; w.length &amp;lt;= width)
+  deferred
+  ensure
+    lines_fit: result.all(fn (line) =&amp;gt; line.length &amp;lt;= width)
+    same_words: &amp;quot; &amp;quot;.join(result) = &amp;quot; &amp;quot;.join(words(text))
+    filled: is_filled(result, width)
+  end
+
+  words(text: String): Array[String]
+    note &amp;quot;The words of `text`, without the spaces around them.&amp;quot;
+  do
+    result := text.split(&amp;quot; &amp;quot;).filter(fn (w) =&amp;gt; w.length &amp;gt; 0)
+  end
+
+  is_filled(lines: Array[String], width: Integer): Boolean
+    note &amp;quot;No line has room for the first word of the line after it.&amp;quot;
+  do
+    result := true
+    from let i := 0 until result = false or i &amp;gt;= lines.length - 1 do
+      let next_word := words(lines.get(i + 1)).get(0)
+      if lines.get(i).length + 1 + next_word.length &amp;lt;= width then
+        result := false
+      end
+      i := i + 1
+    end
+  end
+end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Each clause answers one of the questions the prose left open:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;words_fit&lt;/code&gt; makes a word longer than the line the caller&amp;rsquo;s problem. The wrapper never has to split or hyphenate anything.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;same_words&lt;/code&gt; says the lines hold exactly the words of the text, in order, with single spaces between them. Nothing is lost, added or reordered, and runs of spaces aren&amp;rsquo;t kept.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;lines_fit&lt;/code&gt; is the width rule from the prose.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;filled&lt;/code&gt; rules out the one-word-per-line answer: no line may have room left for the first word of the line after it.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;words&lt;/code&gt; and &lt;code&gt;is_filled&lt;/code&gt; have bodies, but they aren&amp;rsquo;t the implementation. They are the vocabulary the contract is written in, and they are small enough to check by reading them.&lt;/p&gt;
+&lt;p&gt;Together, the clauses pin down the output. For a given width and any text with at least one word, exactly one list of lines satisfies them all. (For an empty text, both &lt;code&gt;[]&lt;/code&gt; and &lt;code&gt;[&quot;&quot;]&lt;/code&gt; pass, a gap small enough to leave open.) What the clauses don&amp;rsquo;t pin down is how to compute the answer.&lt;/p&gt;
+&lt;h3 id=&quot;whats-left-for-the-model&quot;&gt;What&amp;rsquo;s left for the model&lt;/h3&gt;
+&lt;p&gt;The algorithm is what&amp;rsquo;s left. A model writes it in a class that inherits the specification:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Greedy_Wrapper
+  inherit Wrapper
+feature
+  wrap(text: String, width: Integer): Array[String] do
+    result := []
+    let line := &amp;quot;&amp;quot;
+    across words(text) as w do
+      if line.length = 0 then
+        line := w
+      elseif line.length + 1 + w.length &amp;lt;= width then
+        line := line + &amp;quot; &amp;quot; + w
+      else
+        result.add(line)
+        line := w
+      end
+    end
+    if line.length &amp;gt; 0 then
+      result.add(line)
+    end
+  end
+end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The class doesn&amp;rsquo;t repeat a single clause. Nex attaches the inherited contract to the redefined &lt;code&gt;wrap&lt;/code&gt;, so every call is checked against &lt;code&gt;Wrapper&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;let w: Wrapper := create Greedy_Wrapper
+print(w.wrap(&amp;quot;the quick brown fox jumps over the lazy dog&amp;quot;, 10))
+-- [&amp;quot;the quick&amp;quot;, &amp;quot;brown fox&amp;quot;, &amp;quot;jumps over&amp;quot;, &amp;quot;the lazy&amp;quot;, &amp;quot;dog&amp;quot;]
+print(w.wrap(&amp;quot;  lots   of   space  &amp;quot;, 10))
+-- [&amp;quot;lots of&amp;quot;, &amp;quot;space&amp;quot;]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The algorithm is short, but it is easy to get slightly wrong. Here is the same loop with the space between two words left out of the length check:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;      elseif line.length + w.length &amp;lt;= width then   -- forgot the space
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Nothing about this version looks wrong, and it wraps the sentence above correctly. But when two words plus their space come to one more than the width, it puts them on one line anyway. &lt;code&gt;&quot;hello world&quot;&lt;/code&gt; is 11 characters, so &lt;code&gt;w.wrap(&quot;hello world&quot;, 10)&lt;/code&gt; fails:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-text&quot;&gt;Error: Postcondition violation: lines_fit
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The one-word-per-line implementation is even shorter:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;  wrap(text: String, width: Integer): Array[String] do
+    result := words(text)
+  end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;It fails with &lt;code&gt;Postcondition violation: filled&lt;/code&gt;. Without the &lt;code&gt;filled&lt;/code&gt; clause, though, it would pass. Every line fits, and every word is there in order. The prose never said lines should be full, so the contract has to say it, or the model is free not to. A contract decides which gaps matter, and anything it leaves open is the implementer&amp;rsquo;s choice. Leaving something open should be a decision too.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;filled&lt;/code&gt; is itself a decision. It asks for greedy filling, one line at a time. A wrapper that balances line lengths, the way typesetting systems do, leaves room on some lines on purpose, and it would break &lt;code&gt;filled&lt;/code&gt;. If that is what you want, the promise has to change, not just the code.&lt;/p&gt;
+&lt;p&gt;This changes the role of the specification. When code was expensive, the specification was a step on the way to the code, and once the code existed it became the reference. When code is cheap, the relationship turns around. &lt;code&gt;Greedy_Wrapper&lt;/code&gt; can be regenerated, rewritten by a different model, or replaced in an afternoon with a faster version. &lt;code&gt;Wrapper&lt;/code&gt; is what stays. It is the target a generator aims at and the test that tells you whether it hit it.&lt;/p&gt;
+&lt;p&gt;For that to work, the specification has to be precise enough to check. Prose specifications were always ambiguous. The ambiguity used to be resolved by the person writing the code, who could ask what was meant. A model resolves it by guessing, and it often won&amp;rsquo;t say that it guessed.&lt;/p&gt;
+&lt;h2 id=&quot;two-kinds-of-documentation&quot;&gt;Two kinds of documentation&lt;/h2&gt;
+&lt;p&gt;If the contract states &lt;em&gt;what&lt;/em&gt; the code does, what is left for documentation?&lt;/p&gt;
+&lt;p&gt;Much of what we have written in the past as documentation is restatement: a comment above &lt;code&gt;wrap&lt;/code&gt; saying it wraps text, a Javadoc block listing the parameters, a wiki page describing the API. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. &lt;code&gt;nex doc&lt;/code&gt; extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for &lt;code&gt;wrap&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-text&quot;&gt;### wrap(`text: String`, `width: Integer`): `Array[String]` *(deferred)*
+🌐 Public
+Break `text` into lines of at most `width` characters.
+
+**Parameters:**
+- `text`: `String`
+- `width`: `Integer`
+
+**Returns:** `Array[String]`
+
+**Pre-conditions:**
+- **positive_width**: `width &amp;gt; 0`
+- **words_fit**: `words(text).all(fn (w) =&amp;gt; w.length &amp;lt;= width)`
+
+**Post-conditions:**
+- **lines_fit**: `result.all(fn (line) =&amp;gt; line.length &amp;lt;= width)`
+- **same_words**: `&amp;quot; &amp;quot;.join(result) = &amp;quot; &amp;quot;.join(words(text))`
+- **filled**: `is_filled(result, width)`
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That view is generated from the code, so it can&amp;rsquo;t drift away from it. If it&amp;rsquo;s wrong, the code is wrong.&lt;/p&gt;
+&lt;p&gt;What the contract can&amp;rsquo;t hold is &lt;em&gt;why&lt;/em&gt;. Why is a word longer than the line the caller&amp;rsquo;s problem, instead of something the wrapper hyphenates? Why fill lines greedily instead of balancing them? Which alternatives were tried and dropped, and what ruled them out? A model can&amp;rsquo;t regenerate those answers, because they aren&amp;rsquo;t in the code. They live in someone&amp;rsquo;s head, in a meeting that wasn&amp;rsquo;t written up, or in the requirements of whatever displays the text.&lt;/p&gt;
+&lt;p&gt;So documentation splits in two:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;What the code promises.&lt;/strong&gt; It belongs in the code as contracts, where it is executed and checked. Writing it in prose elsewhere is a liability, because the prose will go out of date and nothing will notice.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Why it promises that.&lt;/strong&gt; It belongs in prose, because it can&amp;rsquo;t be checked. That also means it decays unless someone keeps it up on purpose.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The first kind gets easier with AI, since a model is good at drafting contracts for a human to review. The second kind gets more valuable. When anyone can produce an implementation, the reasoning behind the design is the part that is hard to replace.&lt;/p&gt;
+&lt;h2 id=&quot;why-tracking-evolution-matters-more&quot;&gt;Why tracking evolution matters more&lt;/h2&gt;
+&lt;p&gt;A codebase is a history of changes, and keeping track of that history has always been hard. AI makes it harder in three ways.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Volume.&lt;/strong&gt; A team that used to merge ten changes a day can now merge a hundred. Review capacity didn&amp;rsquo;t grow at the same rate. Reading every line of every diff with care was never fully realistic, and now it isn&amp;rsquo;t close.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Short or no memory.&lt;/strong&gt; A developer who changed a routine last month remembers why. An agent starting a new session doesn&amp;rsquo;t. It sees the code as it is now, not the decisions that shaped it, so it can undo a deliberate choice that looks like an accident from the outside.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Agents fix the check instead of the code.&lt;/strong&gt; When a change makes a test or an assertion fail, the quickest way to make the failure go away is to change the check. People do this too, but an agent told to &amp;ldquo;make the build pass&amp;rdquo; may do it without hesitation, and without saying so.&lt;/p&gt;
+&lt;p&gt;Here is what that looks like. Take a small account class whose contract has been in use for a while:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Account
+  note &amp;quot;A bank account that never goes overdrawn.&amp;quot;
+feature
+  balance: Integer
+
+  deposit(amount: Integer)
+    note &amp;quot;Add `amount` to the balance.&amp;quot;
+  require
+    positive: amount &amp;gt; 0
+  do
+    balance := balance + amount
+  ensure
+    increased: balance = old balance + amount
+  end
+
+  withdraw(amount: Integer)
+    note &amp;quot;Take `amount` out of the account.&amp;quot;
+  require
+    positive: amount &amp;gt; 0
+    enough: amount &amp;lt;= balance
+  do
+    balance := balance - amount
+  ensure
+    decreased: balance = old balance - amount
+  end
+
+invariant
+  never_overdrawn: balance &amp;gt;= 0
+end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Someone asks for a flat fee of 1 on every withdrawal. The agent changes the body:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;  withdraw(amount: Integer)
+  require
+    positive: amount &amp;gt; 0
+    enough: amount &amp;lt;= balance
+  do
+    balance := balance - amount - 1   -- new: a flat fee
+  ensure
+    decreased: balance = old balance - amount
+  end
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The contract catches the change immediately:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-text&quot;&gt;Error: Postcondition violation: decreased
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That&amp;rsquo;s what contracts are for: to catch routines that no longer keep their promises. The right response requires a decision. Either the promise changes, so callers learn that a withdrawal costs &lt;code&gt;amount + 1&lt;/code&gt;, or the fee goes somewhere else. The quick response is to loosen the postcondition until it passes:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;  ensure
+    decreased: balance &amp;lt; old balance
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The program runs again. Every check passes. And a promise callers depended on, that a withdrawal takes out exactly what was asked for, is gone. Any caller that computed the expected balance is now wrong, and nothing reports it.&lt;/p&gt;
+&lt;p&gt;In a diff of a few hundred lines, that one-line change is easy to miss. It is also the most important line in the change.&lt;/p&gt;
+&lt;h2 id=&quot;each-version-is-a-subclass-of-the-last-one&quot;&gt;Each version is a subclass of the last one&lt;/h2&gt;
+&lt;p&gt;Nex already has rules for changing a contract safely. They apply to inheritance. A redefinition in a subclass may &lt;strong&gt;weaken&lt;/strong&gt; a precondition, because it must accept every call the parent accepted. It may &lt;strong&gt;strengthen&lt;/strong&gt; a postcondition, because it must keep every promise the parent made. It is bound by every inherited invariant. Nex enforces this by combining contracts down the hierarchy: preconditions with &lt;code&gt;or&lt;/code&gt;, postconditions and invariants with &lt;code&gt;and&lt;/code&gt;. (The post on &lt;a href=&quot;design-by-contract.html&quot;&gt;classes and their contracts&lt;/a&gt; works through this in detail.)&lt;/p&gt;
+&lt;p&gt;The reason for those rules is substitutability. A client written against the parent must still work when it receives a child object.&lt;/p&gt;
+&lt;p&gt;A new version of a module has the same problem in time instead of space. Every client written against version 1 should still work against version 2. So the same rules apply:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Version 2 may accept &lt;strong&gt;more&lt;/strong&gt; than version 1 (a weaker or removed &lt;code&gt;require&lt;/code&gt; clause).&lt;/li&gt;
+&lt;li&gt;Version 2 may promise &lt;strong&gt;more&lt;/strong&gt; than version 1 (a new or stronger &lt;code&gt;ensure&lt;/code&gt; or &lt;code&gt;invariant&lt;/code&gt; clause).&lt;/li&gt;
+&lt;li&gt;Anything else, such as accepting less, promising less, or removing a public feature, is a breaking change and should be announced as one.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This is what semantic versioning is trying to capture, stated in terms that can be checked. &amp;ldquo;Is this change backwards compatible?&amp;rdquo; becomes &amp;ldquo;Is version 2 a valid subcontract of version 1?&amp;rdquo;&lt;/p&gt;
+&lt;p&gt;The word-wrap specification is already set up this way. &lt;code&gt;Wrapper&lt;/code&gt; is the parent, and every implementation, generated or not, is a subclass bound by its contract. Between releases there is no such parent. Version 1 isn&amp;rsquo;t a class that version 2 inherits from, it&amp;rsquo;s just an older commit. Nex checks the rule automatically across inheritance. Nothing checks it between releases, so the job falls to the review process. The good news is that contracts make that job small, because the parts that need checking are exactly the contracts.&lt;/p&gt;
+&lt;h2 id=&quot;a-practical-workflow&quot;&gt;A practical workflow&lt;/h2&gt;
+&lt;p&gt;The idea is to make the change to the contracts its own reviewable artifact, separate from the change to the code.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;1. Keep the contract view in the repository.&lt;/strong&gt; Generate it with &lt;code&gt;nex doc&lt;/code&gt; and commit the output next to the code, for example under &lt;code&gt;docs/contracts/&lt;/code&gt;. In CI, regenerate it and fail if it differs from what was committed:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-sh&quot;&gt;$ nex doc src docs/contracts
+$ git diff --exit-code docs/contracts
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Any change that touches a contract now has to change a file in &lt;code&gt;docs/contracts/&lt;/code&gt;, and that file shows up in the pull request on its own.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;2. Read the contract diff first.&lt;/strong&gt; Here is the agent&amp;rsquo;s &amp;ldquo;fix&amp;rdquo; from the previous section, as it appears in the contract view:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-diff&quot;&gt; **Post-conditions:**
+-- **decreased**: `balance = old balance - amount`
++- **decreased**: `balance &amp;lt; old balance`
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A postcondition got weaker, so this is a breaking change. It doesn&amp;rsquo;t matter how many lines of implementation came with it. Compare a change that adds a withdrawal counter:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-diff&quot;&gt; - **balance**: `Integer` 🌐 Public
++- **withdrawals**: `Integer` 🌐 Public
+ ...
+ **Post-conditions:**
+ - **decreased**: `balance = old balance - amount`
++- **counted**: `withdrawals = old withdrawals + 1`
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A new feature and a new promise, with nothing taken away: compatible. And a daily limit:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-diff&quot;&gt; **Pre-conditions:**
+ - **positive**: `amount &amp;gt; 0`
+ - **enough**: `amount &amp;lt;= balance`
++- **within_daily_limit**: `amount &amp;lt;= 500`
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The precondition got stronger. A call that worked in version 1, &lt;code&gt;withdraw(600)&lt;/code&gt; on a balance of 1000, now fails with &lt;code&gt;Precondition violation: within_daily_limit&lt;/code&gt;. That&amp;rsquo;s breaking, even though the code change is a single line.&lt;/p&gt;
+&lt;p&gt;Reading the diff takes judgement. When a clause is edited instead of added or removed, someone has to decide whether the new one is weaker or stronger. But the diff shows where to look, and it is usually a few lines, however large the change to the code.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;3. Diffs that change only the body are refactorings.&lt;/strong&gt; If the contract view didn&amp;rsquo;t change, the change claims to keep every promise, and the contracts check that claim each time the code runs. Those changes still deserve review, but a different kind: tests, performance and readability, not &amp;ldquo;did the meaning change?&amp;rdquo;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;4. Require a human to approve contract changes.&lt;/strong&gt; On GitHub, a &lt;code&gt;CODEOWNERS&lt;/code&gt; entry for &lt;code&gt;docs/contracts/&lt;/code&gt; makes approval from a named person mandatory for any change to that directory. An agent can propose a new promise. A person decides whether to make it.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;5. Write down the why, close to the change.&lt;/strong&gt; When a contract changes on purpose, record the reason in a short decision record: one file per decision, such as &lt;code&gt;docs/decisions/0007-withdrawal-fee.md&lt;/code&gt;, saying what changed, why, and what was considered instead. When an agent made the change, include the request it was given. A year later, the contract diff tells you &lt;em&gt;what&lt;/em&gt; changed, and the decision record tells you &lt;em&gt;why&lt;/em&gt;. With both, a new team member or a new agent session can reconstruct how the module got to its current state.&lt;/p&gt;
+&lt;p&gt;None of this needs new tools. It needs contracts in the code, a generated view of them, and a rule that changes to that view are reviewed as changes in meaning.&lt;/p&gt;
+&lt;h2 id=&quot;limits&quot;&gt;Limits&lt;/h2&gt;
+&lt;p&gt;Runtime contracts aren&amp;rsquo;t proofs. A contract catches a violation when the code path that breaks it runs. A path that no test or user exercises can still break a promise without anyone noticing. The contract view only tracks promises that were written down, so behaviour nobody specified can change without leaving a trace in &lt;code&gt;docs/contracts/&lt;/code&gt;. That is one more reason to write the contract in the first place.&lt;/p&gt;
+&lt;p&gt;The &lt;em&gt;why&lt;/em&gt; still depends on people. Nothing checks a decision record, and an unmaintained one is as misleading as a stale comment.&lt;/p&gt;
+&lt;h2 id=&quot;the-history-of-the-promises&quot;&gt;The history of the promises&lt;/h2&gt;
+&lt;p&gt;For most of the history of software, writing the code was the hard part, and the specification was something we wrote to help us write it. That is no longer true. Code can be produced, thrown away and produced again. What a program promises, and how those promises changed and why, is the part that has to be kept.&lt;/p&gt;
+&lt;p&gt;In a language where promises are written in the code and checked, that history is something you can read and review.&lt;/p&gt;</content>
+  </entry>
   <entry>
     <title>Classes and their Contracts</title>
     <link href="https://schemer.in/nex/blog/design-by-contract.html"/>
