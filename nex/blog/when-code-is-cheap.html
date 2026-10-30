@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>When Code Is Cheap, Design the Promises — Nex</title>
-  <meta name="description" content="AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program&#x27;s promises change over time a core part of software engineering.">
+  <meta name="description" content="AI has made code cheap to write but no cheaper to trust. Here we examine how that affects two aspects of software engineering — specification and keeping track of program evolution.">
   <link rel="canonical" href="https://schemer.in/nex/blog/when-code-is-cheap.html">
   <meta property="og:site_name" content="Nex">
   <meta property="og:url" content="https://schemer.in/nex/blog/when-code-is-cheap.html">
   <meta property="og:title" content="When Code Is Cheap, Design the Promises — Nex">
-  <meta property="og:description" content="AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program&#x27;s promises change over time a core part of software engineering.">
+  <meta property="og:description" content="AI has made code cheap to write but no cheaper to trust. Here we examine how that affects two aspects of software engineering — specification and keeping track of program evolution.">
   <meta property="og:image" content="https://schemer.in/nex/assets/social-card.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta property="og:type" content="article">
@@ -48,19 +48,19 @@
   <header class="page-head post-head">
     <span class="eyebrow">// blog</span>
     <h1>When Code Is Cheap, Design the Promises</h1>
-    <p class="lead">AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program&#x27;s promises change over time a core part of software engineering.</p>
+    <p class="lead">AI has made code cheap to write but no cheaper to trust. Here we examine how that affects two aspects of software engineering — specification and keeping track of program evolution.</p>
     <p class="post-meta"><time datetime="2026-10-30">30 October 2026</time><span>13 min read</span><span class="chips"><a class="chip" href="./tags/software-design.html">software-design</a><a class="chip" href="./tags/contracts.html">contracts</a><a class="chip" href="./tags/ai.html">ai</a></span></p>
   </header>
 
   <article class="article prose post">
 <p>Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and it&rsquo;s done just as fast. What hasn&rsquo;t become cheaper is knowing whether the code does what it should, and whether it still does after the tenth change made by something that need not remember the first two.</p>
-<p>The <a href="../designed-for-correctness.html">essay on why Nex is designed for correctness</a> argues that contracts are the verification layer generated code most lacks. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software <em>evolves</em> becomes more important, and a practical way to do it.</p>
+<p>The <a href="../designed-for-correctness.html">essay on why Nex is designed for correctness</a> attempts to show why design by contract is important in the age of LLM-generated code. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software <em>evolves</em> becomes more important, and a practical way to do it.</p>
 <h2 id="the-specification-becomes-the-source">The specification becomes the source</h2>
-<p>Here is a specification of the kind that gets written in tickets, design docs and prompts every day:</p>
+<p>Here is a typical specification that gets written in tickets, design docs and prompts every day:</p>
 <blockquote>
 <p>Wrap the text so that no line is longer than the given width.</p>
 </blockquote>
-<p>A person reading this fills in the gaps from experience. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.</p>
+<p>A person reading this fills in the gaps from experience and imagination. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.</p>
 <p>Now the same specification as a contract. It is written as a deferred (or abstract) class, which states what <code>wrap</code> must do and says nothing about how:</p>
 <pre><code class="language-nex">deferred class Wrapper
 feature
@@ -108,7 +108,7 @@ end
 <h3 id="whats-left-for-the-model">What&rsquo;s left for the model</h3>
 <p>The algorithm is what&rsquo;s left. A model writes it in a class that inherits the specification:</p>
 <pre><code class="language-nex">class Greedy_Wrapper
-  inherit Wrapper
+inherit Wrapper
 feature
   wrap(text: String, width: Integer): Array[String] do
     result := []
@@ -153,7 +153,7 @@ print(w.wrap(&quot;  lots   of   space  &quot;, 10))
 <p>For that to work, the specification has to be precise enough to check. Prose specifications were always ambiguous. The ambiguity used to be resolved by the person writing the code, who could ask what was meant. A model resolves it by guessing, and it often won&rsquo;t say that it guessed.</p>
 <h2 id="two-kinds-of-documentation">Two kinds of documentation</h2>
 <p>If the contract states <em>what</em> the code does, what is left for documentation?</p>
-<p>Much of what we have written in the past as documentation is restatement: a comment above <code>wrap</code> saying it wraps text, a Javadoc block listing the parameters, a wiki page describing the API. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. <code>nex doc</code> extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for <code>wrap</code>:</p>
+<p>Much of what we have written in the past as documentation were simple restatements of what was already there in the code: a comment above <code>wrap</code> saying it wraps text, or a Javadoc block listing the parameters. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. <code>nex doc</code> extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for <code>wrap</code>:</p>
 <pre><code class="language-text">### wrap(`text: String`, `width: Integer`): `Array[String]` *(deferred)*
 🌐 Public
 Break `text` into lines of at most `width` characters.

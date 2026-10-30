@@ -13,18 +13,18 @@
     <id>https://schemer.in/nex/blog/when-code-is-cheap.html</id>
     <published>2026-10-30T00:00:00Z</published>
     <updated>2026-10-30T00:00:00Z</updated>
-    <summary>AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program&#x27;s promises change over time a core part of software engineering.</summary>
+    <summary>AI has made code cheap to write but no cheaper to trust. Here we examine how that affects two aspects of software engineering — specification and keeping track of program evolution.</summary>
     <category term="software-design"/>
     <category term="contracts"/>
     <category term="ai"/>
     <content type="html" xml:base="https://schemer.in/nex/blog/">&lt;p&gt;Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and it&amp;rsquo;s done just as fast. What hasn&amp;rsquo;t become cheaper is knowing whether the code does what it should, and whether it still does after the tenth change made by something that need not remember the first two.&lt;/p&gt;
-&lt;p&gt;The &lt;a href=&quot;../designed-for-correctness.html&quot;&gt;essay on why Nex is designed for correctness&lt;/a&gt; argues that contracts are the verification layer generated code most lacks. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software &lt;em&gt;evolves&lt;/em&gt; becomes more important, and a practical way to do it.&lt;/p&gt;
+&lt;p&gt;The &lt;a href=&quot;../designed-for-correctness.html&quot;&gt;essay on why Nex is designed for correctness&lt;/a&gt; attempts to show why design by contract is important in the age of LLM-generated code. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software &lt;em&gt;evolves&lt;/em&gt; becomes more important, and a practical way to do it.&lt;/p&gt;
 &lt;h2 id=&quot;the-specification-becomes-the-source&quot;&gt;The specification becomes the source&lt;/h2&gt;
-&lt;p&gt;Here is a specification of the kind that gets written in tickets, design docs and prompts every day:&lt;/p&gt;
+&lt;p&gt;Here is a typical specification that gets written in tickets, design docs and prompts every day:&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;Wrap the text so that no line is longer than the given width.&lt;/p&gt;
 &lt;/blockquote&gt;
-&lt;p&gt;A person reading this fills in the gaps from experience. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.&lt;/p&gt;
+&lt;p&gt;A person reading this fills in the gaps from experience and imagination. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.&lt;/p&gt;
 &lt;p&gt;Now the same specification as a contract. It is written as a deferred (or abstract) class, which states what &lt;code&gt;wrap&lt;/code&gt; must do and says nothing about how:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;deferred class Wrapper
 feature
@@ -72,7 +72,7 @@ end
 &lt;h3 id=&quot;whats-left-for-the-model&quot;&gt;What&amp;rsquo;s left for the model&lt;/h3&gt;
 &lt;p&gt;The algorithm is what&amp;rsquo;s left. A model writes it in a class that inherits the specification:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-nex&quot;&gt;class Greedy_Wrapper
-  inherit Wrapper
+inherit Wrapper
 feature
   wrap(text: String, width: Integer): Array[String] do
     result := []
@@ -117,7 +117,7 @@ print(w.wrap(&amp;quot;  lots   of   space  &amp;quot;, 10))
 &lt;p&gt;For that to work, the specification has to be precise enough to check. Prose specifications were always ambiguous. The ambiguity used to be resolved by the person writing the code, who could ask what was meant. A model resolves it by guessing, and it often won&amp;rsquo;t say that it guessed.&lt;/p&gt;
 &lt;h2 id=&quot;two-kinds-of-documentation&quot;&gt;Two kinds of documentation&lt;/h2&gt;
 &lt;p&gt;If the contract states &lt;em&gt;what&lt;/em&gt; the code does, what is left for documentation?&lt;/p&gt;
-&lt;p&gt;Much of what we have written in the past as documentation is restatement: a comment above &lt;code&gt;wrap&lt;/code&gt; saying it wraps text, a Javadoc block listing the parameters, a wiki page describing the API. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. &lt;code&gt;nex doc&lt;/code&gt; extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for &lt;code&gt;wrap&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;Much of what we have written in the past as documentation were simple restatements of what was already there in the code: a comment above &lt;code&gt;wrap&lt;/code&gt; saying it wraps text, or a Javadoc block listing the parameters. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. &lt;code&gt;nex doc&lt;/code&gt; extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for &lt;code&gt;wrap&lt;/code&gt;:&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-text&quot;&gt;### wrap(`text: String`, `width: Integer`): `Array[String]` *(deferred)*
 🌐 Public
 Break `text` into lines of at most `width` characters.

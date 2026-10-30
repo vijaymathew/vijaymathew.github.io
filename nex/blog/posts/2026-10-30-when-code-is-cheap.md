@@ -1,20 +1,20 @@
 ---
 title: When Code Is Cheap, Design the Promises
 tags: [software-design, contracts, ai]
-summary: AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program's promises change over time a core part of software engineering.
+summary: AI has made code cheap to write but no cheaper to trust. Here we examine how that affects two aspects of software engineering — specification and keeping track of program evolution.
 ---
 
 Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and it's done just as fast. What hasn't become cheaper is knowing whether the code does what it should, and whether it still does after the tenth change made by something that need not remember the first two.
 
-The [essay on why Nex is designed for correctness](../designed-for-correctness.html) argues that contracts are the verification layer generated code most lacks. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software *evolves* becomes more important, and a practical way to do it.
+The [essay on why Nex is designed for correctness](../designed-for-correctness.html) attempts to show why design by contract is important in the age of LLM-generated code. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software *evolves* becomes more important, and a practical way to do it.
 
 ## The specification becomes the source
 
-Here is a specification of the kind that gets written in tickets, design docs and prompts every day:
+Here is a typical specification that gets written in tickets, design docs and prompts every day:
 
 > Wrap the text so that no line is longer than the given width.
 
-A person reading this fills in the gaps from experience. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.
+A person reading this fills in the gaps from experience and imagination. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.
 
 Now the same specification as a contract. It is written as a deferred (or abstract) class, which states what `wrap` must do and says nothing about how:
 
@@ -71,7 +71,7 @@ The algorithm is what's left. A model writes it in a class that inherits the spe
 
 ```nex
 class Greedy_Wrapper
-  inherit Wrapper
+inherit Wrapper
 feature
   wrap(text: String, width: Integer): Array[String] do
     result := []
@@ -135,7 +135,7 @@ For that to work, the specification has to be precise enough to check. Prose spe
 
 If the contract states *what* the code does, what is left for documentation?
 
-Much of what we have written in the past as documentation is restatement: a comment above `wrap` saying it wraps text, a Javadoc block listing the parameters, a wiki page describing the API. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. `nex doc` extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for `wrap`:
+Much of what we have written in the past as documentation were simple restatements of what was already there in the code: a comment above `wrap` saying it wraps text, or a Javadoc block listing the parameters. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. `nex doc` extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for `wrap`:
 
 ```text
 ### wrap(`text: String`, `width: Integer`): `Array[String]` *(deferred)*
