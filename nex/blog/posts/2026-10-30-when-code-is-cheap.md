@@ -1,10 +1,10 @@
 ---
-title: When Code Is Cheap, Promises Are the Product
+title: When Code Is Cheap, Design the Promises
 tags: [software-design, contracts, ai]
-summary: AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program's promises change over time a core part of the job.
+summary: AI has made code cheap to write but no cheaper to trust. That changes what a specification is for, and it makes tracking how a program's promises change over time a core part of software engineering.
 ---
 
-Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and you get that too. What hasn't become cheaper is knowing whether the code does what it should, and whether it still does after the tenth change made by something that need not remember the first two.
+Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and it's done just as fast. What hasn't become cheaper is knowing whether the code does what it should, and whether it still does after the tenth change made by something that need not remember the first two.
 
 The [essay on why Nex is designed for correctness](../designed-for-correctness.html) argues that contracts are the verification layer generated code most lacks. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software *evolves* becomes more important, and a practical way to do it.
 
@@ -14,9 +14,9 @@ Here is a specification of the kind that gets written in tickets, design docs an
 
 > Wrap the text so that no line is longer than the given width.
 
-A person reading this fills in the gaps from experience. A model fills them in too, with whatever is most plausible. And there are a lot of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, and nobody would accept it.
+A person reading this fills in the gaps from experience. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.
 
-Now the same specification as a contract. It is written as a deferred class, which states what `wrap` must do and says nothing about how:
+Now the same specification as a contract. It is written as a deferred (or abstract) class, which states what `wrap` must do and says nothing about how:
 
 ```nex
 deferred class Wrapper
@@ -43,7 +43,7 @@ feature
     note "No line has room for the first word of the line after it."
   do
     result := true
-    from let i: Integer := 0 until i >= lines.length - 1 do
+    from let i := 0 until result = false or i >= lines.length - 1 do
       let next_word := words(lines.get(i + 1)).get(0)
       if lines.get(i).length + 1 + next_word.length <= width then
         result := false
@@ -129,13 +129,13 @@ It fails with `Postcondition violation: filled`. Without the `filled` clause, th
 
 This changes the role of the specification. When code was expensive, the specification was a step on the way to the code, and once the code existed it became the reference. When code is cheap, the relationship turns around. `Greedy_Wrapper` can be regenerated, rewritten by a different model, or replaced in an afternoon with a faster version. `Wrapper` is what stays. It is the target a generator aims at and the test that tells you whether it hit it.
 
-For that to work, the specification has to be precise enough to check. Prose specifications were always ambiguous. The ambiguity used to be resolved by the person writing the code, who could ask what was meant. A model resolves it by guessing, and it never says that it guessed.
+For that to work, the specification has to be precise enough to check. Prose specifications were always ambiguous. The ambiguity used to be resolved by the person writing the code, who could ask what was meant. A model resolves it by guessing, and it often won't say that it guessed.
 
 ## Two kinds of documentation
 
 If the contract states *what* the code does, what is left for documentation?
 
-Much of what we have written as documentation is restatement: a comment above `wrap` saying it wraps text, a Javadoc block listing the parameters, a wiki page describing the API. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. `nex doc` extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for `wrap`:
+Much of what we have written in the past as documentation is restatement: a comment above `wrap` saying it wraps text, a Javadoc block listing the parameters, a wiki page describing the API. That kind of writing was useful when reading code was slow. A model can now produce it on demand, and in a Nex program most of it is already in the contract. `nex doc` extracts the contract view of a class, with signatures, notes and assertions and no implementation. Here is the entry for `wrap`:
 
 ```text
 ### wrap(`text: String`, `width: Integer`): `Array[String]` *(deferred)*
@@ -171,13 +171,13 @@ The first kind gets easier with AI, since a model is good at drafting contracts 
 
 ## Why tracking evolution matters more
 
-A codebase has always been a history of changes, and keeping track of that history has always been hard. AI makes it harder in three ways.
+A codebase is a history of changes, and keeping track of that history has always been hard. AI makes it harder in three ways.
 
 **Volume.** A team that used to merge ten changes a day can now merge a hundred. Review capacity didn't grow at the same rate. Reading every line of every diff with care was never fully realistic, and now it isn't close.
 
-**No memory.** A developer who changed a routine last month remembers why. An agent starting a new session doesn't. It sees the code as it is now, not the decisions that shaped it, so it can undo a deliberate choice that looks like an accident from the outside.
+**Short or no memory.** A developer who changed a routine last month remembers why. An agent starting a new session doesn't. It sees the code as it is now, not the decisions that shaped it, so it can undo a deliberate choice that looks like an accident from the outside.
 
-**Agents fix the check instead of the code.** When a change makes a test or an assertion fail, the quickest way to make the failure go away is to change the check. People do this too, but an agent told to "make the build pass" does it readily and without saying so.
+**Agents fix the check instead of the code.** When a change makes a test or an assertion fail, the quickest way to make the failure go away is to change the check. People do this too, but an agent told to "make the build pass" may do it without hesitation, and without saying so.
 
 Here is what that looks like. Take a small account class whose contract has been in use for a while:
 
@@ -233,7 +233,7 @@ The contract catches the change immediately:
 Error: Postcondition violation: decreased
 ```
 
-That's the contract doing its job: the routine no longer keeps the promise it made. The right response is a decision. Either the promise changes, so callers learn that a withdrawal costs `amount + 1`, or the fee goes somewhere else. The quick response is to loosen the postcondition until it passes:
+That's what contracts are for: to catch routines that no longer keep their promises. The right response requires a decision. Either the promise changes, so callers learn that a withdrawal costs `amount + 1`, or the fee goes somewhere else. The quick response is to loosen the postcondition until it passes:
 
 ```nex
   ensure
@@ -262,7 +262,7 @@ The word-wrap specification is already set up this way. `Wrapper` is the parent,
 
 ## A practical workflow
 
-The idea is to make the change to the promises its own reviewable artifact, separate from the change to the code.
+The idea is to make the change to the contracts its own reviewable artifact, separate from the change to the code.
 
 **1. Keep the contract view in the repository.** Generate it with `nex doc` and commit the output next to the code, for example under `docs/contracts/`. In CI, regenerate it and fail if it differs from what was committed:
 
