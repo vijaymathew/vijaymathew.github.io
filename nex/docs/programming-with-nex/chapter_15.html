@@ -145,11 +145,75 @@ nex&gt; nums.min
 nex&gt; nums.max
 8</code></pre>
 <p>Attempting <code>create Sorted_List[Array[Integer]].make</code> would be a type error at instantiation, because <code>Array[Integer]</code> does not implement <code>Comparable</code>.</p>
-<p>The built-in constraint available in Nex is <code>Comparable</code>, which supports ordering (<code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>). Hashing needs no constraint: every value has <code>hash</code>, a feature of <code>Any</code>, so any type can be a map key.</p>
+<p>The built-in constraint available in Nex is <code>Comparable</code>, which supports ordering (<code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>). As we saw earlier, hashing needs no constraint: every value has <code>hash</code>, a feature of <code>Any</code>, so any type can be a map key.</p>
 </section>
 <section class="level2" data-number="16.5" id="constrained-multiple-parameters">
 <h2 class="anchored" data-anchor-id="constrained-multiple-parameters" data-number="16.5"> Constrained Multiple Parameters</h2>
-<p>Type constraints and multiple parameters combine naturally. Here's an implementation of a class that captures a mapping function <code>fn(K) = V</code>, but caches the result for each <code>K</code> so that the same computation never runs twice.</p>
+<p>When a class has several type parameters, each one gets its own constraint, or none. In <code>[K -&gt; Comparable, V]</code>, <code>K</code> must be <code>Comparable</code> and <code>V</code> can be any type. Here is a map that keeps its keys in order, so it can answer questions such as &ldquo;which key is smallest?&rdquo; and &ldquo;which values have keys in this range?&rdquo;:</p>
+<pre><code>nex&gt; class Sorted_Map [K -&gt; Comparable, V]
+     create
+       make() do
+         keys := []
+       end
+     feature
+       keys: Array[K]
+       values: Map[K, V]
+
+       put(k: K, v: V) do
+         if not values.contains_key(k) then
+           keys.add(k)
+           keys := keys.sort
+         end
+         values.set(k, v)
+       end
+
+       get(k: K): V
+       require
+         known_key: values.contains_key(k)
+       do
+         result := values.get(k)
+       end
+
+       first_key(): K
+       require
+         not_empty: keys.length &gt; 0
+       do
+         result := keys.get(0)
+       end
+
+       last_key(): K
+       require
+         not_empty: keys.length &gt; 0
+       do
+         result := keys.get(keys.length - 1)
+       end
+
+       between(low: K, high: K): Array[V] do
+         result := []
+         across keys as k do
+           if k &gt;= low and k &lt;= high then
+             result.add(values.get(k))
+           end
+         end
+       end
+     end</code></pre>
+<p>The constraint on <code>K</code> is what makes two parts of this class valid. <code>keys.sort</code> needs keys that can be ordered, and <code>between</code> compares keys with <code>&gt;=</code> and <code>&lt;=</code>. The class never orders or compares a <code>V</code>. It only stores values and hands them back, so <code>V</code> needs no constraint.</p>
+<p>Strings are <code>Comparable</code>, and dates written as <code>YYYY-MM-DD</code> sort in date order, so a <code>Sorted_Map[String, Real]</code> can hold daily rainfall:</p>
+<pre><code>nex&gt; let rain := create Sorted_Map[String, Real].make
+nex&gt; rain.put("2026-10-03", 12.5)
+nex&gt; rain.put("2026-10-01", 4.0)
+nex&gt; rain.put("2026-10-02", 0.0)
+nex&gt; rain.put("2026-10-05", 7.5)
+nex&gt; rain.first_key
+"2026-10-01"
+
+nex&gt; rain.last_key
+"2026-10-05"
+
+nex&gt; rain.between("2026-10-02", "2026-10-04")
+[0.0, 12.5]</code></pre>
+<p>Nex checks the constraint in two places. Inside the class, if you remove <code>-&gt; Comparable</code> and write <code>[K, V]</code>, the class itself fails to typecheck: <code>keys.sort</code> is rejected because the elements are of type <code>K</code>, which isn&rsquo;t known to be sortable, and <code>k &gt;= low</code> is rejected because nothing says two <code>K</code> values can be compared. At the point of use, <code>create Sorted_Map[Array[Integer], String].make</code> is a type error, because <code>Array[Integer]</code> is not <code>Comparable</code>. <code>create Sorted_Map[Integer, Array[Integer]].make</code> is fine, because the constraint applies to <code>K</code> only.</p>
+<p>Not every parameter of a collection needs a constraint, even when it is used as a map key. The next class wraps a function <code>fn(K) = V</code> and caches the result for each <code>K</code>, so the same computation never runs twice:</p>
 <pre><code>nex&gt; class Cache[K, V]
      feature
        cached_results: Map[K, V]
@@ -158,30 +222,33 @@ nex&gt; nums.max
      create
        make(f: Function(K): V)
        do
-        callback := f
+         callback := f
        end
 
      feature
        lookup(k: K): V
        do
-        if cached_results.contains_key(k) then
-          result := cached_results.get(k)
-        else
-          result := callback(k)
-          cached_results.set(k, result)
-        end
-      end
-   end</code></pre>
-
-<p>Neither parameter needs a constraint. Map keys require hashing, but every value has <code>hash</code>, a feature of <code>Any</code>, so any type can be a key; and values can be any type. This mirrors the built-in <code>Map</code> type, which is itself a generic class over unconstrained <code>K</code> and <code>V</code>. A constraint combines with multiple parameters just as it does with one: <code>class Ranking[K -&gt; Comparable, V]</code> would require ordered keys while leaving <code>V</code> free.</p>
+         if cached_results.contains_key(k) then
+           result := cached_results.get(k)
+         else
+           result := callback(k)
+           cached_results.set(k, result)
+         end
+       end
+     end</code></pre>
+<p>Neither parameter has a constraint. Map keys require hashing, but every value has <code>hash</code>, a feature of <code>Any</code>, so any type can be a key, and values can be any type. This mirrors the built-in <code>Map</code> type, which is itself a generic class over unconstrained <code>K</code> and <code>V</code>. <code>Sorted_Map</code> needs its constraint because it orders its keys, not because it stores them in a map.</p>
 <pre><code>nex&gt; let cache := create Cache[String, Integer].make(
                     fn(s: String): Integer do
                       result := s.to_integer * 10
                     end)
+nex&gt; cache.lookup("1089")
+10890
 
-cache.lookup("1089") -- 10890
-cache.lookup("8900") -- 89000
-cache.lookup("1089") -- 10890 looked up from cache</code></pre>
+nex&gt; cache.lookup("8900")
+89000
+
+nex&gt; cache.lookup("1089")   -- answered from the cache
+10890</code></pre>
 </section>
 <section class="level2" data-number="16.6" id="generic-classes-and-inheritance">
 <h2 class="anchored" data-anchor-id="generic-classes-and-inheritance" data-number="16.6"> Generic Classes and Inheritance</h2>
