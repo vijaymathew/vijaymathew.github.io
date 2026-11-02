@@ -262,7 +262,13 @@ end:</code></pre>
   ...
   INVOKEVIRTUAL Method.invoke
   &lt;unbox-or-cast result&gt;</code></pre>
-<p>This is not how file-compiled static calls work. It is specifically the compiled REPL strategy, where the current session state is part of the call protocol.</p>
+<p>This is specifically the compiled REPL strategy, where a later input may redefine a function, so every call looks it up by name. A compiled file is never extended, so there a call to one of the program’s own functions is direct. Each function is emitted as two static methods on the program class: <code>NAME$t</code>, whose descriptor takes and returns <code>Integer</code>, <code>Real</code>, <code>Boolean</code> and <code>Char</code> unboxed (<code>long</code>, <code>double</code>, <code>boolean</code>, <code>char</code>) and which holds the body, and <code>NAME</code>, of the uniform <code>(state, Object[]) → Object</code> shape, which the <code>functions</code> map registers and which unpacks its arguments and calls <code>NAME$t</code>.</p>
+<pre class="text"><code>Bytecode shape (compiled file):
+  ALOAD state
+  &lt;emit each argument, coerced to the typed descriptor&gt;
+  INVOKESTATIC Program.__method_fn$arityN$t
+  &lt;coerce result to the expected type&gt;</code></pre>
+<p>A recursive <code>fib(40)</code> runs about sixteen times faster this way than through <code>Method.invoke</code>.</p>
 </section>
 <section id="compiled-instance-and-virtual-calls" class="level3" data-number="A.6.3">
 <h3 data-number="A.6.3" class="anchored" data-anchor-id="compiled-instance-and-virtual-calls"><span class="header-section-number">A.6.3</span> Compiled Instance and Virtual Calls</h3>
