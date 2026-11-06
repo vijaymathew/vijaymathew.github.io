@@ -1243,6 +1243,141 @@ static world. A class that breaks one of them is a compile-time error.</p>
 formed, is <em>statically valid</em>. The dynamic semantics of the next chapter
 is defined only for statically valid programs.</p>
 
+<h2 id="sec-4.10"><span class="secno">4.10</span>Extensions</h2>
+
+<p>An extension (Section&nbsp;<a href="syntax-modules.html#sec-3.2.3">3.2.3</a>) adds features to its target. This
+section gives the rules by which its target is found, its routines are
+elaborated, and the features it adds are reached. They are checked over the
+whole static world, after module links are resolved (Section&nbsp;<a href="programs.html#sec-7.2">7.2</a>), so an
+extension in one unit may name a class another declares.</p>
+
+<h4>The target</h4>
+
+<p>The target of <code>extend T</code> is found by trying, in order:</p>
+
+<ol>
+  <li>a class of the program named <code>T</code>, bare or qualified. A bare
+  name that more than one interned unit declares is ambiguous, as anywhere else
+  (Section&nbsp;<a href="#sec-4.2.1">4.2.1</a>), and the extension must name the class it means by its
+  qualified name;</li>
+  <li>a built-in type: <code>Integer</code>, <code>Byte</code>,
+  <code>Integer16</code>, <code>Integer32</code>, <code>Real</code>,
+  <code>Char</code>, <code>Boolean</code>, <code>String</code>,
+  <code>Array</code>, <code>Map</code>, <code>Set</code>,
+  <code>Map_Entry</code>, <code>Min_Heap</code>, <code>Task</code>,
+  <code>Channel</code>, the atomic types, <code>Console</code>,
+  <code>Process</code>, <code>Program</code>, <code>Any</code> or
+  <code>Comparable</code> (Appendix&nbsp;<a href="appendix-basis.html">B</a>). No other built-in type, such as
+  <code>Function</code> or a cursor type, may be extended;</li>
+  <li>a host class or interface that an <code>import</code> names
+  <code>T</code>.</li>
+</ol>
+
+<p>If none is found, the extension is a compile-time error.</p>
+
+<h4>Extensions of classes</h4>
+
+<p>An extension of a class <code>C</code> is folded into <code>C</code>
+(Appendix&nbsp;<a href="appendix-derived.html#sec-C.9">C.9</a>), and the routines it adds are elaborated as
+<code>C</code>&rsquo;s own, with three differences that follow from their being
+written outside <code>C</code>.</p>
+
+<ul>
+  <li><strong>A client&rsquo;s view.</strong> The body of an added routine sees
+  only the public features of <code>C</code> and its ancestors; a private feature
+  of <code>C</code> is not visible in it. Since it is not written in the text of
+  <code>C</code>, it may not assign a field of <code>C</code>
+  (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Field assignment</em>): it changes an object&rsquo;s
+  state only by calling the object&rsquo;s routines.</li>
+  <li><strong>One supplier per feature.</strong> A class supplies each feature,
+  by name and number of parameters, from one place: its own declaration or one
+  extension. An extension that adds a feature <code>C</code> declares itself,
+  or that another extension adds to <code>C</code>, is a compile-time error.
+  Supplying, for <code>C</code>, a feature that <code>C</code> inherits is not
+  such a conflict: it is a redefinition, subject to <em>Conformant
+  overriding</em> (Section&nbsp;<a href="#sec-4.9">4.9</a>).</li>
+  <li><strong>Adoption.</strong> A feature an extension introduces on an
+  ancestor may already be declared by an heir. The heir&rsquo;s declaration then
+  redefines it, conforming to it and inheriting its contract (Section&nbsp;<a href="#sec-4.6">4.6</a>),
+  as though the ancestor had declared the feature first.</li>
+</ul>
+
+<p>Otherwise an added routine is a routine of <code>C</code> like any other. It
+is inherited, may be redefined in heirs, and takes part in contract formation
+(Section&nbsp;<a href="#sec-4.6">4.6</a>). In particular <em>Complete deferral</em> (Section&nbsp;<a href="#sec-4.9">4.9</a>)
+applies to a routine an extension declares <code>deferred</code>: every concrete
+heir of <code>C</code> in the program must supply it, by its own declaration, by
+an extension, or by a field of the same name. Because the rule is checked over
+the whole static world, a program that brings together a unit adding such a
+routine to <code>C</code> and a unit adding a new heir of <code>C</code> is
+rejected until it supplies the routine for that heir.</p>
+
+<h4>Extensions of built-in types</h4>
+
+<p>A built-in type has no declaration to fold into. Each routine
+<code>f</code>, of <code>n</code> parameters, that an extension of a built-in
+type <code>T</code> adds becomes a feature of <code>T</code>:</p>
+
+<ul>
+  <li>A call <code>e.f(e₁, &hellip;, eₙ)</code> whose receiver has static type
+  <code>T</code> elaborates as a call of the added routine, as a call of one of
+  <code>T</code>&rsquo;s own features would, with the routine&rsquo;s parameter
+  types and result type. For <code>T</code> = <code>Any</code> the receiver may
+  have any type; for <code>T</code> = <code>Comparable</code>, any type that
+  conforms to <code>Comparable</code>.</li>
+  <li>In the body, <code>this</code> names the receiver and has type
+  <code>T</code>. A name used without a receiver that is a feature of
+  <code>T</code> (one of its own, one of <code>Any</code>&rsquo;s, or one an
+  extension of <code>T</code> adds) denotes that feature of <code>this</code>.
+  So that this is never ambiguous, a parameter or local of the routine may not
+  have the name of such a feature, just as a local of a method may not have the
+  name of a field of its class.</li>
+  <li>The routine may not be <code>deferred</code>, and may not have the name
+  of a feature <code>T</code> or <code>Any</code> already has, whatever its
+  number of parameters. Two extensions may not add the same feature to
+  <code>T</code>.</li>
+  <li>A generic <code>T</code> is extended with its own parameter names
+  (<code>extend Array [T]</code>). A constraint on one,
+  <code>extend Array [T -&gt; Comparable]</code>, makes the routines available
+  only on receivers whose corresponding type argument satisfies it: calling one
+  on an <code>Array [Dog]</code> whose <code>Dog</code> does not conform to
+  <code>Comparable</code> is a compile-time error.</li>
+  <li>Conformance among the scalar types is unchanged. An <code>Integer</code>
+  is converted where a <code>Real</code> is expected (Section&nbsp;<a href="#sec-4.3">4.3</a>), not a
+  kind of <code>Real</code>, so an extension of <code>Real</code> adds nothing to
+  <code>Integer</code>.</li>
+  <li>A class may not declare a feature, by name and number of parameters,
+  that an extension of <code>Any</code> or <code>Comparable</code> adds. Such a
+  feature belongs to every value (to every comparable one), and is not
+  redefinable.</li>
+</ul>
+
+<h4>Extensions of host classes</h4>
+
+<p>An extension of a host class or interface <code>H</code> adds routines to
+<code>H</code> by the rules for built-in types above, with <code>this</code> of
+type <code>H</code> and the public methods of <code>H</code> as the features a
+body may call without a receiver. In addition:</p>
+
+<ul>
+  <li>A call <code>e.f(&hellip;)</code> whose receiver&rsquo;s static type is a
+  host class reaches <code>f</code> when it is added to that class or to the
+  nearest of its host supertypes that has it: its superclasses first, nearest
+  first, then the interfaces of each.</li>
+  <li>A feature, by name and number of parameters, may be added to only one
+  class or interface of a host hierarchy. Adding it to both <code>H</code> and
+  a host subtype of <code>H</code> is a compile-time error, so that the choice
+  above never depends on more than one of them.</li>
+  <li>The routine may not have the name and number of parameters of a public
+  method of <code>H</code>, inherited ones included.</li>
+  <li>The host classes that are the run-time form of built-in values (those of
+  arrays, maps, sets, strings and the scalar types) may not be extended; the
+  built-in type is extended instead. Nor may the root of the host hierarchy,
+  since every value is an instance of it; <code>Any</code> is extended
+  instead.</li>
+  <li>The extension takes no generic parameters.</li>
+</ul>
+
 </article>
 <nav class="chapter-nav"><div class="prev"><a href="syntax-modules.html"><span class="label">&larr; Chapter 3</span><span class="ttl">Syntax of Classes and Modules</span></a></div><div class="next"><a href="dynamic.html"><span class="label">Chapter 5 &rarr;</span><span class="ttl">Dynamic Semantics</span></a></div></nav>
 </main>

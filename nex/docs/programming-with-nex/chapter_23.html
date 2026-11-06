@@ -285,8 +285,125 @@ feature
 end</code></pre>
 <p>Each file has one job. The design is visible in the file structure itself.</p>
 </section>
-<section class="level2" data-number="24.11" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="24.11"> Summary</h2>
+<section class="level2" data-number="24.11" id="extending-a-class-from-another-file">
+<h2 class="anchored" data-anchor-id="extending-a-class-from-another-file" data-number="24.11"> Extending a Class from Another File</h2>
+<p>Sometimes the class that needs a new feature is not yours to edit. It comes from a library, or from a module another part of the program owns. Suppose a report needs the average amount of an account&rsquo;s entries, and <code>finance/Account</code> is shared code you would rather not change. A free function <code>average_entry(a)</code> would work, but then callers write <code>a.balance</code> for one question about an account and <code>average_entry(a)</code> for the next.</p>
+<p>An <code>extend</code> block adds features to an existing class from outside its file:</p>
+<pre><code>intern finance/Account
+
+extend Account
+feature
+  average_entry(): Real
+    require
+      has_entries: not entries.is_empty
+    do
+      result := balance / entries.length.to_real
+    end
+end
+
+let a := create Account.make("Ada")
+a.add_entry(create Transaction.make("salary", 3000.0))
+a.add_entry(create Transaction.make("rent", -1200.0))
+print(a.average_entry)     -- 900.0</code></pre>
+<p>Callers now write <code>a.average_entry</code>, as if <code>Account</code> had declared it. The feature is inherited by heirs of <code>Account</code>, its precondition is checked like any other, and <code>Account</code>&rsquo;s invariant is checked around the call. Calling it on an account with no entries fails at the caller, as a precondition should:</p>
+<pre class="text"><code>Error: Precondition violation: has_entries
+  The call at line 19 does not meet the precondition `has_entries` of Account.average_entry.</code></pre>
+<p>An extension is written by a <em>client</em> of the class, not by its author, and the rules follow from that:</p>
+<ul>
+<li>it sees only the class&rsquo;s public features; a private one is not visible in its body</li>
+<li>it cannot assign the class&rsquo;s fields; it changes an object only by calling the class&rsquo;s own routines</li>
+<li>it adds routines only: no fields, constructors or invariants</li>
+<li>it cannot replace a feature the class already has, and two extensions cannot add the same feature</li>
+</ul>
+<p>So an extension can never break a class: everything it does goes through the class&rsquo;s own contracts.</p>
+<h3>Adding an Operation to a Family of Classes</h3>
+<p>Extensions matter most for a family of classes. Suppose a <code>geometry/Shapes</code> module declares a deferred <code>Shape</code> with heirs <code>Circle</code> and <code>Rect</code>, and a second module, <code>geometry/Areas</code>, adds an operation to the whole family:</p>
+<pre><code>intern geometry/Shapes
+
+extend Shape
+feature
+  area(): Real
+    deferred
+    ensure
+      non_negative: result &gt;= 0.0
+    end
+end
+
+extend Circle
+feature
+  area: Real do result := 3.14159 * radius * radius end
+end
+
+extend Rect
+feature
+  area: Real do result := width * height end
+end</code></pre>
+<p><code>area</code> is deferred in <code>Shape</code>, so every concrete heir must have one, and each implementation inherits the postcondition. A call <code>s.area</code> on a <code>Shape</code> dispatches on the object&rsquo;s class, as for any routine.</p>
+<p>Now a third module, <code>geometry/Triangles</code>, adds a new heir, <code>Triangle</code>, knowing nothing about areas. A program that interns both modules is rejected:</p>
+<pre class="text"><code>Type error in .../geometry/Triangles.nex: Class 'Triangle' does not implement
+deferred feature 'area', declared by 'extend Shape' at .../geometry/Areas.nex,
+line 3. Add 'extend Triangle feature area ... end', give 'area' a default body
+in 'extend Shape', or declare 'Triangle' 'deferred'.</code></pre>
+<p>The program that brings the two together supplies the missing piece:</p>
+<pre><code>intern geometry/Areas
+intern geometry/Triangles
+
+extend Triangle
+feature
+  area: Real do result := base * height / 2.0 end
+end
+
+let shapes: Array[Shape] := [create Circle.make(1.0), create Triangle.make(4.0, 3.0)]
+across shapes as s do
+  print(s.area)
+end</code></pre>
+<p>This is worth pausing on. A family of classes can grow in two directions: new heirs, and new operations on all of them. Inheritance makes the first easy and the second hard; a <code>match</code> over a <code>union</code> does the opposite. With extensions both are easy, neither requires editing existing files, and the compiler still guarantees that every heir has every deferred operation. When not every heir should have an operation, give the <code>Shape</code> extension a default body instead of <code>deferred</code>, and let the heirs that can do better redefine it.</p>
+<h3>Extending Built-in Types</h3>
+<p>Built-in types can be extended too. In the body, <code>this</code> is the value, and the type&rsquo;s own features can be used without it, as in a class:</p>
+<pre><code>extend String
+feature
+  is_palindrome: Boolean do
+    let s := to_lower
+    result := true
+    from
+      let i := 0
+    until
+      i &gt;= length / 2
+    do
+      if s.char_at(i) /= s.char_at(length - 1 - i) then
+        result := false
+      end
+      i := i + 1
+    end
+  end
+end
+
+print("Level".is_palindrome)     -- true
+print("Nex".is_palindrome)       -- false</code></pre>
+<p>Because <code>length</code> and <code>to_lower</code> name features of <code>String</code>, a local of the routine may not use those names; the compiler says so rather than guess which one you meant.</p>
+<p>A generic built-in type is extended with its own parameter names, and a constraint limits an extension to some type arguments:</p>
+<pre><code>extend Array [T -&gt; Comparable]
+feature
+  maximum: T
+    require
+      not_empty: not is_empty
+    do
+      result := get(0)
+      across this as x do
+        if x &gt; result then result := x end
+      end
+    end
+end
+
+print([3, 9, 4].maximum)                     -- 9
+print(["pear", "apple", "plum"].maximum)     -- "plum"</code></pre>
+<p>Calling <code>maximum</code> on an array of objects that are not <code>Comparable</code> is a compile-time error. An extension of <code>Any</code> gives a feature to every value, and one of <code>Comparable</code> to every comparable value, your own classes included. Note that an extension of <code>Real</code> does not apply to <code>Integer</code> values: an <code>Integer</code> is converted where a <code>Real</code> is expected, but it is not a kind of <code>Real</code>.</p>
+<p>Extensions work in the REPL as well: an <code>extend</code> input adds its features to a class an earlier input declared.</p>
+<h3>When to Extend</h3>
+<p>If you own a class and the feature belongs to its concept, put the feature in the class. An extension is for the cases where that is not possible or not right: a library class, a built-in type, or an operation that belongs to a different module than the classes it applies to, as <code>area</code> belongs to <code>geometry/Areas</code> rather than to <code>geometry/Shapes</code>. Keep each extension in the module whose concept it serves, and resist spreading one class across many files: a reader should still be able to find a class&rsquo;s features.</p>
+</section>
+<section class="level2" data-number="24.12" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="24.12"> Summary</h2>
 <ul>
 <li>Split programs into files to express design boundaries, not merely to reduce length</li>
 <li>Use <code>intern path/Class_Name</code> to load Nex classes from other files</li>
@@ -299,17 +416,22 @@ end</code></pre>
 <li>Good file boundaries usually follow good class boundaries</li>
 <li>Contracts make multi-file code easier to trust and reuse</li>
 <li>A clean module layout reduces coupling and mental overhead</li>
+<li><code>extend Class feature ... end</code> adds routines to a class from another file; an extension is a client of the class, sees only its public features, and adds no state</li>
+<li>A <code>deferred</code> feature an extension adds must be implemented by every concrete heir in the program, so new operations and new heirs can both be added without editing existing files</li>
+<li>Built-in types can be extended too, generic ones with their own parameter names and optional constraints, as in <code>extend Array [T -&gt; Comparable]</code></li>
 </ul>
 </section>
-<section class="level2" data-number="24.12" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="24.12"> Exercises</h2>
+<section class="level2" data-number="24.13" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="24.13"> Exercises</h2>
 <p><strong>1.</strong> Split a simple earlier example into two files: one defining a class and one using it with <code>intern</code>.</p>
 <p><strong>2.</strong> Take a class that currently does too much and divide it into two classes in two files. Explain why the new boundary is better.</p>
 <p><strong>3.</strong> Write a short example using <code>intern ... as ...</code> and show why the alias is helpful.</p>
 <p><strong>4.</strong> Sketch a directory layout for a small address-book program with classes <code>Contact</code>, <code>Address_Book</code>, and <code>Csv_Exporter</code>.</p>
 <p><strong>5.</strong> Write two small libraries that each define a class with the same name, then intern both into one program. Show two different ways to use both classes: a qualified reference, and an alias.</p>
 <p><strong>6.</strong> Write two small libraries that each define a free function with the same name, then intern both into one program. Show the ambiguous-reference error a bare call produces, then fix it with a qualified call to each.</p>
-<p><strong>7.*</strong> Choose a chapter 26-sized program idea of your own. Before writing any code, propose the file structure and justify each file in one sentence.</p>
+<p><strong>7.</strong> Write a module that extends <code>finance/Account</code> with a query <code>largest_entry(): Transaction</code>, with a precondition. Try to make the extension assign <code>owner</code>, and read the error.</p>
+<p><strong>8.</strong> Split the shapes example of <em>Adding an Operation to a Family of Classes</em> into its four files. Add a <code>perimeter</code> operation in a module of its own, then a <code>Square</code> heir in another, and write the program that uses all of them.</p>
+<p><strong>9.*</strong> Choose a chapter 26-sized program idea of your own. Before writing any code, propose the file structure and justify each file in one sentence.</p>
 </section>
 
   </div>

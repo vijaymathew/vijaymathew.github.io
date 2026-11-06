@@ -34,8 +34,8 @@ larger structure.</p>
 <h2 id="sec-3.1"><span class="secno">3.1</span>Programs and Compilation Units</h2>
 
 <p>A program is a sequence of top-level items: import and intern declarations,
-class declarations, union declarations, function declarations and definitions,
-type declarations, and statements.</p>
+class declarations, union declarations, extensions, function declarations and
+definitions, type declarations, and statements.</p>
 
 <div class="grammar">
 <table>
@@ -43,6 +43,7 @@ type declarations, and statements.</p>
 <tr><td class="nt">topitem</td><td class="op">::=</td><td><span class="nt">import</span> <span class="op">|</span> <span class="nt">intern</span></td><td class="cmt">&mdash; module links</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">classdec</span></td><td class="cmt">&mdash; class declaration</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">uniondec</span></td><td class="cmt">&mdash; union declaration</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="nt">extdec</span></td><td class="cmt">&mdash; extension</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">fundec</span> <span class="op">|</span> <span class="nt">funsig</span></td><td class="cmt">&mdash; function definition / declaration</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">tydec</span></td><td class="cmt">&mdash; type alias / refinement</td></tr>
 <tr><td></td><td class="op">|</td><td><span class="nt">stmt</span></td><td class="cmt">&mdash; top-level statement</td></tr>
@@ -52,8 +53,8 @@ type declarations, and statements.</p>
 <p>Although the items may be written in any order, they do not all take effect
 at once. The grammar&rsquo;s order is not the order of execution.</p>
 
-<p>The <em>declarations</em> &mdash; classes, functions, and type aliases
-&mdash; constitute the <em>static world</em> of the program. They are
+<p>The <em>declarations</em> &mdash; classes, extensions, functions, and type
+aliases &mdash; constitute the <em>static world</em> of the program. They are
 elaborated first, as a whole, so that they may refer to one another
 regardless of textual position.</p>
 
@@ -182,6 +183,53 @@ variant may re-declare them. A plain <code>union</code> is not enriched like the
   Green
   Blue
 end</code></pre>
+
+<h3 id="sec-3.2.3"><span class="secno">3.2.3</span>Extensions</h3>
+
+<p>An <strong>extension</strong> adds features to a type from outside the
+type&rsquo;s declaration, possibly from another unit. It is how a program adds
+an operation to a family of classes it did not write, as a new heir adds a
+variant to one.</p>
+
+<div class="grammar">
+<table>
+<tr><td class="nt">extdec</td><td class="op">::=</td><td><span class="lit">extend</span> <span class="nt">target</span> &langle;<span class="nt">gen</span>&rangle; &langle;<span class="nt">note</span>&rangle; <span class="nt">featuresec</span><sup>+</sup> <span class="lit">end</span></td></tr>
+<tr><td class="nt">target</td><td class="op">::=</td><td><span class="nt">qid</span></td><td class="cmt">&mdash; a class, a built-in type, or an imported host class</td></tr>
+<tr><td></td><td class="op">|</td><td><span class="lit">Integer</span> <span class="op">|</span> <span class="lit">Real</span> <span class="op">|</span> <span class="lit">Char</span> <span class="op">|</span> <span class="lit">Boolean</span> <span class="op">|</span> <span class="lit">String</span></td><td class="cmt">&mdash; a built-in scalar type</td></tr>
+</table>
+</div>
+
+<p>The target is one of three kinds, tried in this order (Section&nbsp;<a href="static.html#sec-4.10">4.10</a>):
+a class the program declares; a built-in type of the standard environment
+(Appendix&nbsp;<a href="appendix-basis.html">B</a>); or a host class an <code>import</code> brings into scope.
+A generic target restates its generic parameters, with the names the target
+itself uses: <code>extend Box [T]</code> for <code>class Box [T]</code>, and
+<code>extend Map [K, V]</code>.</p>
+
+<p>An extension adds operations, never state or structure. Its sections are
+feature sections whose members are routines; each routine may carry a contract
+and, when the target is a class, may be <code>deferred</code>.</p>
+
+<pre><code>extend Shape
+feature
+  area(): Real
+    deferred
+    ensure non_negative: result &gt;= 0.0
+    end
+end
+
+extend Circle
+feature
+  area: Real do result := 3.14159 * radius * radius end
+end</code></pre>
+
+<p>An extension of a class is a <em>derived form</em>: the class is elaborated
+as though its own declaration contained the extension&rsquo;s feature sections
+(Appendix&nbsp;<a href="appendix-derived.html#sec-C.9">C.9</a>). An extension of a built-in type or a host class is
+not, since such a type has no declaration to add to; the features it adds are
+given their meaning directly (Sections&nbsp;<a href="static.html#sec-4.10">4.10</a> and&nbsp;<a href="dynamic.html#sec-5.4">5.4</a>).</p>
+
+<p>The word <code>extend</code> is contextual (Section&nbsp;<a href="syntax-core.html#sec-2.1">2.1</a>).</p>
 
 <h2 id="sec-3.3"><span class="secno">3.3</span>Features</h2>
 
@@ -558,6 +606,17 @@ grammar production.</p>
   <li>Free function names are intended to be unique: a free function, unlike a
   method, may not be overloaded by arity. A second definition of a name is
   rejected rather than silently superseding the earlier one.</li>
+  <li>The members of an extension are routines. A field, constant or
+  <code>once</code> field may not appear in one, nor may a <code>private</code>
+  feature section; the grammar admits no <code>create</code> section,
+  <code>inherit</code> clause or <code>invariant</code> in one.</li>
+  <li>A routine of an extension of a built-in type or host class may not be
+  <code>deferred</code>.</li>
+  <li>An extension of a generic class or built-in type names the target&rsquo;s
+  own generic parameters, in order. An extension of a class may not constrain
+  them further than the class does; an extension of a built-in type may
+  (Section&nbsp;<a href="static.html#sec-4.10">4.10</a>). An extension of a host class takes no generic
+  parameters.</li>
 </ul>
 
 </article>

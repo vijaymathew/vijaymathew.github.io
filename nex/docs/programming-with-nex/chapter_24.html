@@ -130,6 +130,45 @@ with "java" do
 end</code></pre>
 <p><code>Worker</code> declares no constructor of its own here, so nothing calls <code>super.new(...)</code> explicitly — that is fine as long as the Java class has a public no-argument constructor, which <code>Thread</code> does. Written out, the equivalent explicit form is <code>super.new()</code> or, naming the class directly, <code>Thread.new()</code>; either is accepted as the constructor’s first statement, and the typechecker rejects it anywhere else, since the JVM requires the superclass constructor to run before anything else touches the new object.</p>
 <p>Three things are happening in <code>run</code> that are worth noticing separately. <code>super.run()</code> reaches <code>Thread</code>’s own implementation of <code>run</code> — the same real method a Java subclass’s <code>super.run()</code> would reach, not a recursive call back into this override. <code>run</code> itself is an override: because a real <code>java.lang.Thread</code> calls its own <code>run()</code> internally when <code>start()</code> spawns the new thread, and that call must land on this class’s version for the override to mean anything. And <code>w.setName(...)</code>, <code>w.start()</code>, <code>w.join()</code>, and <code>w.getName()</code> are all methods <code>Worker</code> never defines — inherited, un-overridden members of <code>Thread</code>, callable on a <code>Worker</code> exactly as they would be on a plain <code>Thread</code>.</p>
+<h3>Adding Features to a Java Class</h3>
+<p>Inheriting a Java class makes a new class. Sometimes what you want instead is to give an existing Java class a feature of your own, so that every <code>StringBuilder</code> has it, wherever it was made. An <code>extend</code> block (<a href="chapter_23.html#extending-a-class-from-another-file">Chapter&nbsp;23</a>) does that for Java classes and interfaces just as it does for Nex classes:</p>
+<pre class="text"><code>import java.lang.StringBuilder
+import java.util.LinkedList
+import java.util.List
+
+extend StringBuilder
+feature
+  is_blank: Boolean do result := length() = 0 end
+
+  add_line(s: String) do
+    append(s)
+    append("\n")
+  end
+end
+
+extend List
+feature
+  describe: String do result := "a list of " + size().to_string end
+end
+
+let sb: StringBuilder := create StringBuilder
+print(sb.is_blank)       -- true
+sb.add_line("first")
+print(sb.is_blank)       -- false
+
+let names: LinkedList := create LinkedList
+names.add("Ada")
+names.add("Bo")
+print(names.describe)    -- "a list of 2"</code></pre>
+<p>In the body, <code>this</code> is the Java object, and the class&rsquo;s own methods can be called without it, as <code>length()</code> and <code>append</code> are here. An interface can be extended too: <code>LinkedList</code> implements <code>List</code>, so it has <code>describe</code>. This works the same on the interpreter and the compiled path, outside <code>with "java"</code> blocks as well as inside them.</p>
+<p>A few rules keep this predictable:</p>
+<ul>
+<li>the Java class must be imported, and the extension takes no generic parameters</li>
+<li>a feature cannot have the name and number of arguments of one of the Java class&rsquo;s public methods, so it never hides one</li>
+<li>a feature can be added to only one class of a Java hierarchy: adding <code>describe</code> to both <code>List</code> and <code>LinkedList</code> is an error, and <code>LinkedList</code> gets <code>List</code>&rsquo;s anyway</li>
+<li>the Java classes that hold Nex&rsquo;s own values, such as <code>ArrayList</code> (Nex&rsquo;s <code>Array</code>) and <code>String</code>, cannot be extended, since that would change the Nex type too; the error says which Nex type to extend instead</li>
+</ul>
+<p>Like the wrapper classes of the next section, an extension is a good place to keep host details: a short, well-named feature with a contract, in one module, rather than raw Java calls repeated through the program.</p>
 </section>
 <section class="level2" data-number="25.6" id="a-small-interop-oriented-design">
 <h2 class="anchored" data-anchor-id="a-small-interop-oriented-design" data-number="25.6"> A Small Interop-Oriented Design</h2>
@@ -247,6 +286,7 @@ print(app.run())</code></pre>
 <li>Nex compiles to JVM bytecode</li>
 <li><code>inherit</code> an imported Java interface to implement it, with methods named exactly as Java names them — works on both the interpreter and the compiled path</li>
 <li><code>inherit</code> a concrete Java class to extend it, forwarding to its constructor with <code>super.new(...)</code> — compiled-JVM only</li>
+<li><code>extend</code> an imported Java class or interface to give every instance a feature of your own, on both the interpreter and the compiled path</li>
 <li>Contracts are especially valuable around interop boundaries</li>
 <li>Portable core logic is easier to test, reason about, and reuse</li>
 </ul>
@@ -257,7 +297,8 @@ print(app.run())</code></pre>
 <p><strong>2.</strong> Choose a small program idea and identify which parts should remain pure Nex logic and which parts belong to the host boundary.</p>
 <p><strong>3.</strong> Write a wrapper-class design for a clock or random-number service. State the contract of the main routine and explain what remains host-specific.</p>
 <p><strong>4.</strong> Explain when disabling runtime contract checks in a production build might be reasonable, and when it is risky.</p>
-<p><strong>5.*</strong> Take one earlier example, such as a report printer or configuration loader, and redesign it so that host-specific work is isolated in one class while the main computation remains platform-independent.</p>
+<p><strong>5.</strong> Extend <code>java.lang.StringBuilder</code> with a command <code>add_all(lines: Array[String])</code> that appends each line followed by a newline. Then try to add a feature named <code>reverse</code> and read the error.</p>
+<p><strong>6.*</strong> Take one earlier example, such as a report printer or configuration loader, and redesign it so that host-specific work is isolated in one class while the main computation remains platform-independent.</p>
 </section>
 
   </div>
