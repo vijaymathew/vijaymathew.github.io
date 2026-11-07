@@ -125,8 +125,7 @@ character, string, or boolean literal, or the constant <code>nil</code>.</p>
 literal introduced by <code>0b</code> (binary), <code>0o</code> (octal), or
 <code>0x</code> (hexadecimal). An underscore may appear between two digits as a
 visual separator and has no other significance. There is no sign: a leading
-minus is the unary operator of Section&nbsp;<a href="#sec-2.6">2.6</a>, not part of the constant &mdash;
-with the one exception of the signed fixed-width constants below.</p>
+minus is the unary operator of Section&nbsp;<a href="#sec-2.6">2.6</a>, not part of the constant.</p>
 
 <div class="grammar">
 <table>
@@ -139,7 +138,14 @@ with the one exception of the signed fixed-width constants below.</p>
 
 <p>A decimal integer constant has type <code>Integer</code>. An
 <code>Integer</code> is a signed 64-bit integer on every platform, with range
-&minus;2<sup>63</sup> to 2<sup>63</sup>&nbsp;&minus;&nbsp;1; a constant outside that range is rejected.</p>
+&minus;2<sup>63</sup> to 2<sup>63</sup>&nbsp;&minus;&nbsp;1; a constant outside that range is rejected,
+with one exception. A constant one past the maximum of its type is accepted as
+the operand of a unary minus written immediately before it, with no parentheses
+and no call after it; the two together denote the type&rsquo;s minimum. So
+<code>-9223372036854775808</code> is the least <code>Integer</code>, although
+<code>9223372036854775808</code> and <code>-(9223372036854775808)</code> are rejected. The rule
+is needed because unary minus keeps the type of an <code>Integer</code> operand, and
+the minimum has no positive counterpart to negate.</p>
 
 <p>The value spaces of the scalar types are set out in Appendix&nbsp;<a href="appendix-basis.html">B</a>,
 &sect;<a href="appendix-basis.html#sec-B.3">B.3</a>: the 64-bit, checked <code>Integer</code>, the IEEE&nbsp;754
@@ -168,12 +174,15 @@ between &minus;2<sup>15</sup> and 2<sup>15</sup>&nbsp;&minus;&nbsp;1; an <code>i
 <code>Integer32</code> and must lie between &minus;2<sup>31</sup> and 2<sup>31</sup>&nbsp;&minus;&nbsp;1. A constant outside its range is
 rejected.</p>
 
-<p>For the two signed types a leading minus <em>is</em> part of the constant:
-<code>-5i16</code> is one constant of type <code>Integer16</code>, not the negation of one, and
-<code>-32768i16</code> is a valid constant although <code>32768i16</code> is not. The
-unary minus of Section&nbsp;<a href="#sec-2.6">2.6</a>, applied to any other operand of a fixed-width type,
-yields an <code>Integer</code> (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>); so <code>-5u8</code> is the
-<code>Integer</code> <code>-5</code>, a <code>Byte</code> never being negative.</p>
+<p>Unary minus keeps the type of an <code>Integer16</code> or <code>Integer32</code>
+operand (Section&nbsp;<a href="static.html#sec-4.4">4.4</a>), so <code>-5i16</code> is the
+<code>Integer16</code> &minus;5. The exception for a constant one past the maximum applies
+to the two signed types as it does to <code>Integer</code>: <code>-32768i16</code> is valid
+although <code>32768i16</code> and <code>-(32768i16)</code> are not. Because a call binds more
+tightly than the minus, <code>-5i16.abs()</code> is <code>-(5i16.abs())</code>, the
+<code>Integer16</code> &minus;5, and <code>(-5i16).abs()</code> is 5. On a <code>Byte</code>, never
+negative, unary minus yields an <code>Integer</code>: <code>-5u8</code> is the
+<code>Integer</code> <code>-5</code>.</p>
 
 <p>There is no implicit conversion from an integer constant to a fixed-width
 type. An unsuffixed constant is always an <code>Integer</code>, whatever type the context
