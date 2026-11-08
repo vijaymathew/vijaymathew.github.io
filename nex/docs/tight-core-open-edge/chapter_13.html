@@ -151,9 +151,9 @@ end</code></pre>
 <section id="routing-by-unification" class="level2" data-number="13.3">
 <h2 class="anchored" data-anchor-id="routing-by-unification"><span class="header-section-number">13.3</span> Routing by Unification</h2>
 
-<p>An order presents its structure with a destination zone and the items it needs, and each fulfillment route is a pattern over that structure with the unknowns left open. Unifying the order against a route either fails (this route cannot serve this order) or succeeds with the unknowns bound. A route pattern like <code>route("zone-a", Warehouse, Carrier, Cost)</code> unified against an order in zone A binds <code>Warehouse</code>, <code>Carrier</code>, and <code>Cost</code> to whatever that route offers — computing the assignment rather than looking it up, and running in whichever direction the knowns allow.</p>
+<p>An order presents its structure with a destination zone and the items it needs, and each fulfillment route is a fact: a ground term naming a zone, a warehouse, a carrier, and a cost. The order becomes a query over that same structure, with what it knows filled in and the rest left as unknowns. Unifying the query against a route either fails (this route cannot serve this order) or succeeds with the unknowns bound. A query like <code>route("zone-a", Warehouse, Carrier, Cost)</code> unified against the fact for zone A binds <code>Warehouse</code>, <code>Carrier</code>, and <code>Cost</code> to whatever that route offers — computing the assignment rather than looking it up. And because unification has no fixed inputs, the query can run in whichever direction the knowns allow: fix the warehouse and leave the zone unknown, and the same search finds a zone and carrier that warehouse serves.</p>
 
-<p>The power over a hand-written matcher is the same power the DSL had over hand-written handlers: routes are <em>data</em>. New routes are new patterns added to a table, never edits to the router. The set of ways an order can be fulfilled is open, and unification is the engine that matches an order against all of them uniformly.</p>
+<p>The power over a hand-written matcher is the same power the DSL had over hand-written handlers: routes are <em>data</em>. New routes are new facts added to a table, never edits to the router. The set of ways an order can be fulfilled is open, and unification is the engine that matches an order against all of them uniformly.</p>
 </section>
 
 <section id="search" class="level2" data-number="13.4">
@@ -177,7 +177,7 @@ do
   do
     match unify(order, routes.get(i), create Substitution.make()) of
       Ok as s then
-        if satisfies_constraints(s.value) then
+        if satisfies_constraints(order, s.value) then
           result := create Ok[Substitution, String].make(s.value)   -- commit to this route
           found := true
         end
@@ -188,22 +188,37 @@ do
     i := i + 1
   end
 ensure
-  satisfies_domain: is_admissible(result)   -- a committed route meets every constraint
+  satisfies_domain: is_admissible(order, result)   -- a committed route meets every constraint
 end</code></pre>
 
-<p>The domain check the loop defers to is where "unifies structurally" becomes "is a route we can actually use." Here it is a one-liner — did the search bind a warehouse at all — but this is the point where a real system would add its substantive checks, like stock on hand, or a carrier that meets the deadline. The loop uses it to choose, and <code>route</code>'s postcondition <code>satisfies_domain</code> uses it to promise: whatever the search commits to has passed it.</p>
+<p>The domain check the loop defers to is where "unifies structurally" becomes "is a route we can actually use." Here it is small — does the order's warehouse now name an actual warehouse, whether the query left it unknown or fixed it from the start — but this is the point where a real system would add its substantive checks, like stock on hand, or a carrier that meets the deadline. The loop uses it to choose, and <code>route</code>'s postcondition <code>satisfies_domain</code> uses it to promise: whatever the search commits to has passed it.</p>
 
-<pre><code>-- The domain check a committed solution must pass.
--- A real one checks stock and deadline; here: was a warehouse bound at all?
-function satisfies_constraints(s: Substitution): Boolean
-  do result := s.bindings.contains_key("Warehouse") end
+<pre><code>-- The domain check a committed solution must pass. A real one checks
+-- stock and deadline; here: does the order's warehouse, the second
+-- argument of route(zone, warehouse, carrier, cost), now name an actual
+-- warehouse rather than an unknown?
+function satisfies_constraints(order: Term, s: Substitution): Boolean
+do
+  result := false
+  match order of
+    Compound as c then
+      if c.args.length &gt;= 2 then
+        match s.resolve(c.args.get(1)) of
+          Atom then result := true
+          else result := false
+        end
+      end
+    else
+      result := false
+  end
+end
 
 -- The postcondition's test: a committed answer satisfies the domain;
 -- a failure commits to nothing.
-function is_admissible(r: Result[Substitution, String]): Boolean
+function is_admissible(order: Term, r: Result[Substitution, String]): Boolean
 do
   match r of
-    Ok as ok then result := satisfies_constraints(ok.value)
+    Ok as ok then result := satisfies_constraints(order, ok.value)
     Err then result := true
   end
 end</code></pre>
