@@ -147,7 +147,7 @@ end
 
 class Dog
   inherit Animal
-  create make() do end
+  create make() do Animal.make() end
 feature
   speak(): String do result := "woof" end
 end
@@ -314,7 +314,7 @@ in scope only within a routine that declares one (Section&nbsp;<a href="syntax-c
   (Section&nbsp;<a href="syntax-modules.html#sec-3.2">3.2</a>), every use of <code>super</code> is a compile-time error,
   and the intended ancestor must be named instead.</li>
   <li><strong>The name of an ancestor</strong>, <code>B</code>, may be written
-  where <code>super</code> could be, as in <code>Shape.describe</code>.
+  where <code>super</code> could be, as in <code>B.describe</code>.
   <code>B</code> must be a class to which the current class conforms, other than
   the current class itself, and need not be a direct parent. Its type is
   <code>B</code>.</li>
@@ -327,7 +327,7 @@ in scope only within a routine that declares one (Section&nbsp;<a href="syntax-c
   on a receiver of type <code>B</code> (see <em>Member access and calls</em>,
   below). It finds a method that <code>B</code> declares or inherits.</li>
   <li><strong>Constructors.</strong> The same form written before a
-  constructor&rsquo;s name, <code>Shape.make(&hellip;)</code>, does not create an
+  constructor&rsquo;s name, <code>B.make(&hellip;)</code>, does not create an
   object. It delegates to that ancestor&rsquo;s constructor (see <em>Object
   creation</em>, below, and Section&nbsp;<a href="dynamic.html#sec-5.5">5.5</a>). Here <code>B</code> must declare
   the constructor itself: one it only inherits does not qualify.</li>
@@ -386,7 +386,9 @@ arithmetic. If neither rule applies, the expression is a compile-time error.</p>
   <li>the type of <code>e</code> is a class type, say
   <code>A[T1, &hellip;, Tk]</code>; and</li>
   <li><code>A</code> has a field named <code>f</code>, declared or inherited, that
-  is accessible at the point of the access.</li>
+  is accessible at the point of the access; and</li>
+  <li><code>f</code> is not ambiguous on <code>A</code>
+  (Section&nbsp;<a href="#sec-4.9">4.9</a>, <em>Ambiguous inherited names</em>).</li>
 </ul>
 
 <p>The type of the access is the type of the field, with <code>A</code>&rsquo;s
@@ -399,12 +401,20 @@ generic parameters replaced by <code>T1</code> to <code>Tk</code>
   <li>the type of <code>e</code> is a class type, say
   <code>A[T1, &hellip;, Tk]</code>;</li>
   <li><code>A</code> has a method named <code>m</code> with <code>n</code>
-  parameters, declared or inherited, that is accessible at the point of the call;
+  parameters, declared or inherited, that is accessible at the point of the call;</li>
+  <li><code>m</code> with <code>n</code> parameters is not ambiguous on
+  <code>A</code> (Section&nbsp;<a href="#sec-4.9">4.9</a>, <em>Ambiguous inherited names</em>);
   and</li>
   <li>the type of each argument <code>ei</code> conforms to the type of the
   corresponding parameter, after <code>A</code>&rsquo;s generic parameters are
   replaced by <code>T1</code> to <code>Tk</code>.</li>
 </ul>
+
+<p>A bare name <code>f</code> or call <code>m(e1, &hellip;, en)</code> in the
+text of a class that denotes a member of the class, rather than a local, a
+parameter or a global, is checked as <code>this.f</code> or
+<code>this.m(e1, &hellip;, en)</code>, and so falls under the same rule. An ancestor name <code>P.f</code> or <code>P.m(&hellip;)</code>
+checks the name on <code>P</code> instead.</p>
 
 <p>The type of the call is the method&rsquo;s return type, with the same
 replacement, or the void type if the method declares no return type.</p>
@@ -459,7 +469,8 @@ accepted if:</p>
   <li><code>A</code> is not deferred;</li>
   <li><code>A[T1, &hellip;, Tn]</code> is a well-formed type
   (Section&nbsp;<a href="#sec-4.7">4.7</a>);</li>
-  <li><code>k</code> is a constructor of <code>A</code>, declared or inherited;
+  <li><code>k</code> is a constructor of <code>A</code>, declared or inherited,
+  that is not ambiguous on <code>A</code> (Section&nbsp;<a href="#sec-4.9">4.9</a>);
   and</li>
   <li>the type of each argument conforms to the type of the corresponding
   parameter of <code>k</code>.</li>
@@ -1061,11 +1072,62 @@ static world. A class that breaks one of them is a compile-time error.</p>
 <ul>
   <li><strong>Acyclic inheritance.</strong> No class may inherit from itself,
   directly or through other classes.</li>
+  <li><strong>Ambiguous inherited names.</strong>
+  <p>Members are matched by name and, for methods and constructors, by number
+  of parameters. A field or constant matches a method with no parameters.
+  Constructors are matched only with constructors.</p>
+  <p>Each public member of a class has one or more <em>origins</em>, the
+  declarations it descends from. A member the class only inherits keeps the
+  origins it has in the parent it comes through. A member the class declares
+  itself takes the origins of the inherited members it redefines, those that
+  match it. If it redefines none, its own declaration is its only origin. The
+  routines of the basis classes have their origins there, so
+  <code>equals</code>, <code>hash</code> and <code>to_string</code> have the same
+  origin, in <code>Any</code>, in every class.</p>
+  <p>Suppose a class inherits members that match, through two of its parents.
+  If the two have an origin in common, they are one member reached by more than
+  one path, and <em>Ambiguous member resolution</em>, below, applies. Otherwise
+  they are two unrelated members that only share a name, and the name is
+  <em>ambiguous</em> on the class, unless one of the following holds:</p>
+  <ul>
+    <li>The class itself declares a public member that matches them both. This
+    member redefines both, and must conform to each (<em>Conformant
+    overriding</em>, below).</li>
+    <li>Both are deferred methods. They then <em>join</em> into one deferred
+    method with the origins of both, which the class or a descendant implements
+    once.</li>
+  </ul>
+  <p>A name ambiguous on a class stays ambiguous on its heirs, until one of
+  them declares a matching member. Private members take no part. A private
+  member can be used only in the text of the class that declares it, so it is
+  never reached through an heir.</p>
+  <p>Inheriting an ambiguous name is not itself an error. Each parent&rsquo;s
+  code keeps using its own member, and the object holds both. What is rejected
+  is an unqualified use of the name on the class (Section&nbsp;<a href="#sec-4.4">4.4</a>):
+  a bare <code>x</code> or <code>this.x</code> in its text, a member access
+  <code>e.x</code> or call <code>e.m(&hellip;)</code> whose receiver has the
+  class as its type, a constant <code>C.k</code>, or a creation
+  <code>create C.k(&hellip;)</code>. Inside the class or a descendant, an
+  ancestor name says which one is meant: <code>A.x</code> reads
+  <code>A</code>&rsquo;s. A client can use the object as one of the parents,
+  since it conforms to each, or the class can expose the member it means
+  through a feature of its own.</p>
+  <pre><code>class A feature x: Integer end
+class B feature x: Integer end
+
+class C
+inherit A, B
+feature
+  sum(): Integer do result := A.x + B.x end   -- accepted
+  bad(): Integer do result := x end           -- rejected: x is ambiguous on C
+end</code></pre></li>
   <li><strong>Ambiguous member resolution.</strong>
   <p>Two parents named in one class&rsquo;s <code>inherit</code> clause, or two
   ancestors reached through them, may share a common ancestor. A member that
   ancestor declares (a field, method or constructor) can then be reached by more
-  than one path. This is not itself an error.</p>
+  than one path, and may have been redefined along some of them. This is not
+  itself an error: the versions have an origin in common, so the name is not
+  ambiguous in the sense of <em>Ambiguous inherited names</em>, above.</p>
   <p>An unqualified reference to such a member is resolved through the first
   parent named in <code>inherit</code>, searching that parent&rsquo;s own
   ancestors depth-first before the next parent is tried at all.</p>
@@ -1099,10 +1161,16 @@ static world. A class that breaks one of them is a compile-time error.</p>
   <p>Every constructor of a class must leave each of the class&rsquo;s fields
   <em>attached</em>, holding a value of its declared type rather than
   <code>nil</code>, unless the field has an optional type, which admits
-  <code>nil</code>. A constructor that can return with a non-optional reference
-  field still unattached is a compile-time error.</p>
-  <p>Scalar fields are attached by their zero value, and need no explicit
-  assignment. Optional fields are attached to <code>nil</code> by default. This
+  <code>nil</code>. A constructor that can return with a non-optional field
+  still unattached is a compile-time error.</p>
+  <p>Scalar fields are attached by their zero value, and <code>Array</code>,
+  <code>Map</code> and <code>Set</code> fields by a new empty collection, so
+  neither needs an explicit assignment. Optional fields are attached to
+  <code>nil</code> by default. Every other field must be assigned, whatever its
+  type: a user class, a basis class such as <code>Console</code> or
+  <code>Task</code>, or a function type. A field whose type is a generic
+  parameter of its class needs no assignment, since the parameter may stand for
+  a scalar. This
   discipline is what guarantees that a non-optional reference is never observed
   to be <code>nil</code> at run time.</p>
   <p>&ldquo;The class&rsquo;s fields&rdquo; includes those declared by its
@@ -1114,7 +1182,32 @@ static world. A class that breaks one of them is a compile-time error.</p>
   delegate, directly or in turn, to a constructor of the declaring class
   (Section&nbsp;<a href="#sec-4.4">4.4</a>), or to call a method that the declaring class provides for
   the purpose. So a class that inherits fields needing attachment must route each
-  of its own constructors through one or the other.</p></li>
+  of its own constructors through one or the other. When the declaring class has
+  constructors, <em>Parent construction</em>, below, already requires the
+  first.</p></li>
+  <li><strong>Parent construction.</strong>
+  <p>If a parent named in a class&rsquo;s <code>inherit</code> clause has
+  constructors, declared or inherited, every constructor of the class must call
+  one of them, written <code>P.k(&hellip;)</code> or <code>super.k(&hellip;)</code>
+  (Section&nbsp;<a href="#sec-4.4">4.4</a>). The call may be made in a constructor of the class
+  that this one delegates to with <code>this.k(&hellip;)</code>. When
+  <code>P</code> only inherits its constructors, a call naming the ancestor that
+  declares one, <code>Q.k(&hellip;)</code>, counts as well. A call on
+  <code>P</code> that is not a constructor does not count. As with attachment, a
+  call in only one branch of a conditional counts: the rule guards against
+  forgetting a parent, and does not prove that every path constructs it.</p>
+  <p>A class that declares no constructors of its own is created through an
+  inherited one, which runs only its own class&rsquo;s part of the object. So
+  such a class may have at most one parent with constructors; with more, it
+  must declare a constructor that calls one of each.</p>
+  <pre><code>class C
+inherit A, B
+create
+  make(y: Integer) do
+    A.make(y)        -- required: A has constructors
+    B.make(y * 2)    -- required: B has constructors
+  end
+end</code></pre></li>
   <li><strong>Repeated inheritance and shared ancestors.</strong> When a common
   ancestor reached by more than one path (see <em>Ambiguous member
   resolution</em>, above) declares a field, the field is not shared. Each path
