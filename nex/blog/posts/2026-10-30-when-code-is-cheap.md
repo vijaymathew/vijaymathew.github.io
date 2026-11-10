@@ -319,7 +319,7 @@ Runtime contracts aren't proofs. A contract catches a violation when the code pa
 
 The *why* still depends on people. Nothing checks a decision record, and an unmaintained one is as misleading as a stale comment.
 
-## The history of the promises
+## Conclusion
 
 For most of the history of software, writing the code was the hard part, and the specification was something we wrote to help us write it. That is no longer true. Code can be produced, thrown away and produced again. What a program promises, and how those promises changed and why, is the part that has to be kept.
 
