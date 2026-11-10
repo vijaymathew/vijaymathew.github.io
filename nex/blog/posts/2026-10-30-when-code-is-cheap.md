@@ -4,7 +4,7 @@ tags: [software-design, contracts, ai]
 summary: AI has made code cheap to write but no cheaper to trust. Here we examine how that affects two aspects of software engineering — specification and keeping track of program evolution.
 ---
 
-Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and it's done just as fast. What hasn't become cheaper is knowing whether the code does what it should, and whether it still does after the tenth change made by something that need not remember the first two.
+Generating code is no longer the expensive part of building software. Describe a routine to a model and you get an apparently correct implementation in seconds. Ask for a change and it's done just as fast. What hasn't become cheaper is knowing whether the code does what it should, and whether it still does after many changes by a model that need not remember any of the earlier ones.
 
 The [essay on why Nex is designed for correctness](../designed-for-correctness.html) attempts to show why design by contract is important in the age of LLM-generated code. This post follows that argument in two directions. The first is what happens to specification and documentation when the implementation becomes the cheap part. The second is why tracking how software *evolves* becomes more important, and a practical way to do it.
 
@@ -16,7 +16,7 @@ Here is a typical specification that gets written in tickets, design docs and pr
 
 A person reading this fills in the gaps from experience and imagination. A model fills them in too, with whatever is most plausible. And believe me, there are plenty of gaps. What happens to a word longer than the width: is it split, left sticking out past the edge, or rejected? Are runs of spaces kept? How full should each line be? An implementation that puts every word on a line of its own obeys the sentence exactly, but as you can imagine, no one will accept it.
 
-Now the same specification as a contract. It is written as a deferred (or abstract) class, which states what `wrap` must do and says nothing about how:
+Now let's see how the same specification will look as a contract. It is written as a deferred (or abstract) class, which states what `wrap` must do and says nothing about how:
 
 ```nex
 deferred class Wrapper

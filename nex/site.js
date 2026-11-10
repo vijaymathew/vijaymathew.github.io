@@ -14,7 +14,7 @@
     });
   }
 
-  var KEYWORDS = new RegExp('^(?:class|feature|create|inherit|invariant|require|ensure|do|end|if|then|elseif|else|when|case|of|from|until|repeat|across|as|let|function|fn|result|old|import|intern|with|spawn|select|timeout|rescue|retry|raise|and|or|implies|not|true|false|nil|this|assert|await)$');
+  var KEYWORDS = new RegExp('^(?:class|deferred|feature|create|inherit|invariant|require|ensure|do|end|if|then|elseif|else|when|case|of|from|until|repeat|across|as|let|function|fn|result|old|import|intern|with|spawn|select|timeout|rescue|retry|raise|and|or|implies|not|true|false|nil|this|assert|await|extend|where|union|alias)$');
   var JAVA_KEYWORDS = new RegExp('^(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|non-sealed|package|permits|private|protected|public|record|return|sealed|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|var|void|volatile|while|yield|true|false|null)$');
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
