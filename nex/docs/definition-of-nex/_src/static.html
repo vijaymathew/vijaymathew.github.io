@@ -33,7 +33,7 @@ functions, and the structure of classes.</p>
   <li><strong>The unconstrained function type</strong>, written
   <code>Function</code> with no parameter list, to which every function type
   conforms.</li>
-  <li><strong>An optional type</strong>, written <code>?T</code>, whose values
+  <li><strong>A detachable type</strong>, written <code>?T</code>, whose values
   are the values of <code>T</code> together with <code>nil</code>.</li>
   <li><strong><code>Any</code></strong>, the type to which every type conforms.
   It is the type of the root class <code>Any</code>.</li>
@@ -41,7 +41,7 @@ functions, and the structure of classes.</p>
   a routine that declares no return type. It is not a value type, so no field,
   parameter or variable may have it.</li>
   <li><strong>The nil type</strong>, the type of the constant <code>nil</code>.
-  It conforms to every optional type and to <code>Any</code>, and to nothing
+  It conforms to every detachable type and to <code>Any</code>, and to nothing
   else.</li>
 </ul>
 
@@ -209,20 +209,21 @@ types. The result is a <code>Real</code> if either operand is a
 operand is the one exception (Section&nbsp;<a href="#sec-4.4">4.4</a>). This rule is recorded with the
 arithmetic operators in Appendix&nbsp;<a href="appendix-basis.html">B</a>.</p>
 
-<h4>Optional types</h4>
+<h4>Detachable types</h4>
 
-<p>An optional type <code>?T</code> has the values of <code>T</code> together
-with <code>nil</code>.</p>
+<p>A detachable type <code>?T</code> has the values of <code>T</code> together
+with <code>nil</code>. A type that is not detachable is <em>attached</em>: no
+value of it is ever <code>nil</code>.</p>
 
 <ul>
   <li><code>T</code> conforms to <code>?T</code>.</li>
-  <li>The nil type conforms to every optional type.</li>
+  <li>The nil type conforms to every detachable type.</li>
   <li>If <code>S</code> conforms to <code>T</code>, then <code>?S</code> conforms
   to <code>?T</code>.</li>
 </ul>
 
-<p><code>?T</code> does <em>not</em> conform to <code>T</code>. A value of an
-optional type can be used where a non-optional one is expected only after a test
+<p><code>?T</code> does <em>not</em> conform to <code>T</code>. A value of a
+detachable type can be used where a non-detachable one is expected only after a test
 has shown that it is not <code>nil</code> (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Narrowing</em>).</p>
 
 <h4>Function types</h4>
@@ -453,12 +454,12 @@ otherwise as a call of the free function <code>m</code>
   may not be overloaded at all.
 </div>
 
-<p>The safe access <code>e?.f</code> may be applied to a receiver of optional
+<p>The safe access <code>e?.f</code> may be applied to a receiver of detachable
 type. If <code>e</code> has type <code>?T</code>, the conditions are those of
 <code>e.f</code> on a receiver of type <code>T</code>, and if that access has
 type <code>S</code>, the safe access has type <code>?S</code>: it yields
 <code>nil</code> when <code>e</code> is <code>nil</code>. An ordinary access or
-call on a receiver of optional type is a compile-time error.</p>
+call on a receiver of detachable type is a compile-time error.</p>
 
 <h4>Object creation</h4>
 
@@ -558,11 +559,11 @@ is not imposed on the function; it is inferred from the function&rsquo;s result:
 
 <h4>Object tests</h4>
 
-<p>An object test <code>? e as x</code> requires <code>e</code> to have an
-optional type, and has type <code>Boolean</code>. It is true when
+<p>An object test <code>? e as x</code> requires <code>e</code> to have a
+detachable type, and has type <code>Boolean</code>. It is true when
 <code>e</code> is not <code>nil</code>. Used as the condition of an
 <code>if</code>, it makes <code>x</code> available in the <code>then</code>
-branch with the non-optional type (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Narrowing</em>).</p>
+branch with the non-detachable type (Section&nbsp;<a href="#sec-4.5">4.5</a>, <em>Narrowing</em>).</p>
 
 <h2 id="sec-4.5"><span class="secno">4.5</span>Elaboration of Statements</h2>
 
@@ -782,10 +783,10 @@ call may set the field to <code>nil</code> again, and so may another task
 nothing can have made <code>x</code> <code>nil</code> again:</p>
 
 <ul>
-  <li>An assignment to <code>x</code> of <code>nil</code>, or of a value of an
-  optional type, ends it for the rest of the narrowed branch, including after any
+  <li>An assignment to <code>x</code> of <code>nil</code>, or of a value of a
+  detachable type, ends it for the rest of the narrowed branch, including after any
   nested block that contains the assignment. An assignment of a value of a
-  non-optional type leaves it in effect. An assignment in one branch of an
+  non-detachable type leaves it in effect. An assignment in one branch of an
   <code>if</code>, or in one clause of a <code>match</code>, does not affect the
   other branches or clauses.</li>
   <li>A loop body that assigns <code>x</code> ends a narrowing made before the
@@ -981,7 +982,7 @@ it.</p>
 
 <p>Whether a value of a parameter&rsquo;s type may be <code>nil</code> is
 decided where a type is written, not by the parameter. A type argument may
-itself be optional: <code>Box[?String]</code> instantiates <code>G</code> as
+itself be detachable: <code>Box[?String]</code> instantiates <code>G</code> as
 <code>?String</code>, so a value of type <code>G</code> in that instance may be
 <code>nil</code>, and any parameter accepts such an argument. Within the class
 text, where <code>G</code> may stand for an attached type, <code>nil</code> may
@@ -1160,18 +1161,18 @@ end</code></pre></li>
   <li><strong>Attachment (void safety).</strong>
   <p>Every constructor of a class must leave each of the class&rsquo;s fields
   <em>attached</em>, holding a value of its declared type rather than
-  <code>nil</code>, unless the field has an optional type, which admits
-  <code>nil</code>. A constructor that can return with a non-optional field
+  <code>nil</code>, unless the field has a detachable type, which admits
+  <code>nil</code>. A constructor that can return with a non-detachable field
   still unattached is a compile-time error.</p>
   <p>Scalar fields are attached by their zero value, and <code>Array</code>,
   <code>Map</code> and <code>Set</code> fields by a new empty collection, so
-  neither needs an explicit assignment. Optional fields are attached to
+  neither needs an explicit assignment. Detachable fields are attached to
   <code>nil</code> by default. Every other field must be assigned, whatever its
   type: a user class, a basis class such as <code>Console</code> or
   <code>Task</code>, or a function type. A field whose type is a generic
   parameter of its class needs no assignment, since the parameter may stand for
   a scalar. This
-  discipline is what guarantees that a non-optional reference is never observed
+  discipline is what guarantees that a non-detachable reference is never observed
   to be <code>nil</code> at run time.</p>
   <p>&ldquo;The class&rsquo;s fields&rdquo; includes those declared by its
   ancestors. Inheriting a field carries the obligation to attach it; it does not
