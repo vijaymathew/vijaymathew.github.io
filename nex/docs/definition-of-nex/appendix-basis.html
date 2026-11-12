@@ -263,16 +263,27 @@ counterpart, raises. (The bitwise methods of <code>Integer</code> keep their 32-
 <p><code>Boolean</code> has exactly the two values <code>true</code> and
 <code>false</code>.</p>
 
-<p>A <code>Char</code> is a single <strong>Unicode code point</strong>. A
-character constant may be written as a literal character, as one of the
+<p>A <code>Char</code> is a single <strong>Unicode code point</strong>, an integer in
+the range 0 to 1114111 (<code>0x10FFFF</code>), on every platform: every character,
+one outside the Basic Multilingual Plane (an emoji) included, is one
+<code>Char</code>. A character constant may be written as a literal character, as one of the
 named characters of Section&nbsp;<a href="syntax-core.html#sec-2.2">2.2</a>, or as a decimal code point after
 <code>#</code>, so <code>#65</code> denotes the same character as
-<code>#A</code>.</p>
+<code>#A</code>. <code>c.to_integer</code> is the code point of <code>c</code>, and
+<code>n.to_char</code> the <code>Char</code> whose code point is the <code>Integer</code> <code>n</code>;
+it <strong>raises</strong> <code>Conversion_Error</code> unless <code>n</code> is in the range. <code>Char</code>
+values are ordered and compared by code point.</p>
 
-<p>A <code>String</code> is a finite sequence of characters. Its
+<p>A <code>String</code> is a finite sequence of characters, that is, of code points. Its
 <code>length</code> is the number of characters, it iterates character by
-character (Section&nbsp;<a href="syntax-core.html#sec-2.8">2.8</a>), and <code>char_at</code> and <code>chars</code>
-address it by character position.</p>
+character (Section&nbsp;<a href="syntax-core.html#sec-2.8">2.8</a>), and every position a method takes or
+returns&mdash;<code>char_at</code>, <code>substring</code>, <code>index_of</code>&mdash;counts characters, as
+<code>chars</code> lists them. A character outside the Basic Multilingual Plane is one
+character, never two: <code>"😀".length</code> is 1 and <code>"a😀b".char_at(1)</code> is
+<code>#😀</code>. Text obtained from the host that holds an unpaired UTF-16 surrogate
+(which is not a character) counts that surrogate as one character, so such text
+can still be indexed and iterated; <code>to_bytes</code> raises on it rather than
+encode it.</p>
 
 <p>The <em>encoding</em> of a string is exposed only through
 <code>to_bytes</code>, which yields the <strong>UTF-8</strong> bytes of the
@@ -296,11 +307,11 @@ constant or obtained from the standard environment.</p>
 <tbody>
 <tr><td><code>Integer</code></td><td>signed 64-bit two&rsquo;s-complement, range &minus;2<sup>63</sup> to 2<sup>63</sup>&nbsp;&minus;&nbsp;1, on every platform; checked&mdash;overflow and division by zero raise; bitwise on low 32 bits</td><td>&mdash;</td></tr>
 <tr><td><code>Real</code></td><td>IEEE&nbsp;754 double, in representation <em>and</em> arithmetic; division by zero yields an infinity or <code>NaN</code> per IEEE</td><td>&mdash;</td></tr>
-<tr><td><code>Char</code></td><td>a Unicode code point</td><td>internal representation</td></tr>
+<tr><td><code>Char</code></td><td>a Unicode code point, 0 to 1114111 (<code>0x10FFFF</code>); <code>to_char</code> raises outside the range</td><td>internal representation</td></tr>
 <tr><td><code>Byte</code></td><td>unsigned 8-bit, 0 to 255; <code>to_byte</code> raises outside the range; arithmetic yields <code>Integer</code>; bitwise on 8 bits</td><td>&mdash;</td></tr>
 <tr><td><code>Integer16</code></td><td>signed 16-bit two&rsquo;s-complement, &minus;2<sup>15</sup> to 2<sup>15</sup>&nbsp;&minus;&nbsp;1; <code>to_integer16</code> raises outside the range; arithmetic yields <code>Integer</code>, but unary minus keeps the type; bitwise on 16 bits</td><td>&mdash;</td></tr>
 <tr><td><code>Integer32</code></td><td>signed 32-bit two&rsquo;s-complement, &minus;2<sup>31</sup> to 2<sup>31</sup>&nbsp;&minus;&nbsp;1; <code>to_integer32</code> raises outside the range; arithmetic yields <code>Integer</code>, but unary minus keeps the type; bitwise on 32 bits</td><td>&mdash;</td></tr>
-<tr><td><code>String</code></td><td>sequence of characters; <code>length</code> in characters; <code>to_bytes</code> is UTF-8 as <code>Byte</code>s; <code>from_bytes</code> its strict inverse</td><td>internal encoding; character-to-code-unit mapping</td></tr>
+<tr><td><code>String</code></td><td>sequence of characters (code points); <code>length</code> and every position in characters, a character outside the BMP counting as one; <code>to_bytes</code> is UTF-8 as <code>Byte</code>s; <code>from_bytes</code> its strict inverse</td><td>internal encoding; character-to-code-unit mapping</td></tr>
 </tbody>
 </table>
 

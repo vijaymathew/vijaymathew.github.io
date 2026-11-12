@@ -70,6 +70,7 @@
 <section id="string" class="level2">
 <h2 class="anchored" data-anchor-id="string"><code>String</code></h2>
 <p>A double-quoted string interprets backslash escapes: <code>\n</code> (newline), <code>\t</code> (tab), <code>\r</code> (carriage return), <code>\0</code> (null), <code>\\</code> (backslash), <code>\"</code> (double quote), and <code>\u{H...}</code> (a Unicode code point in hex); any other escape is an error. A single-quoted string is raw — every character, backslash included, is literal — which is convenient for regular-expression patterns and paths: <code>'\d+'</code>, <code>'C:\dir'</code>.</p>
+<p>A <code>String</code> is a sequence of characters, and a character is a Unicode code point (a <code>Char</code>). Lengths and positions count characters, so a character outside the Basic Multilingual Plane, such as an emoji, counts as one: <code>"😀".length</code> is <code>1</code>, <code>"a😀b".char_at(1)</code> is <code>#😀</code>, and <code>across</code> visits it once. Only <code>to_bytes</code> sees the encoding, UTF-8 (<code>"😀".to_bytes()</code> is four bytes). Indexing stays fast: <code>length</code> and <code>char_at</code> take constant time on text with no such character, and a short, bounded search on text that has one.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 25%">
@@ -90,7 +91,7 @@
 <td><code>length</code></td>
 <td>none</td>
 <td><code>Integer</code></td>
-<td>Number of characters.</td>
+<td>Number of characters (code points).</td>
 </tr>
 <tr class="even">
 <td><code>index_of</code></td>
@@ -192,7 +193,7 @@
 <td><code>to_bytes</code></td>
 <td>none</td>
 <td><code>Array[Byte]</code></td>
-<td>UTF-8 bytes of the string.</td>
+<td>UTF-8 bytes of the string. Raises if the text holds an unpaired surrogate (only text from the host can), rather than writing <code>?</code>.</td>
 </tr>
 <tr class="odd">
 <td><code>split</code></td>
@@ -517,7 +518,7 @@ print(text) -- "héllo"</code></pre>
 <td><code>to_char</code></td>
 <td>none</td>
 <td><code>Char</code></td>
-<td>Return the character whose Unicode code point equals this integer. Valid for BMP code points (0–65535).</td>
+<td>The character whose Unicode code point equals this integer; raises unless it is in <code>0..1114111</code>.</td>
 </tr>
 <tr class="even">
 <td><code>to_byte</code></td>
@@ -1327,6 +1328,7 @@ print(angle.sin)                  -- 0.7071067811865475</code></pre>
 </section>
 <section id="char" class="level2">
 <h2 class="anchored" data-anchor-id="char"><code>Char</code></h2>
+<p>A <code>Char</code> is one Unicode code point, <code>0..1114111</code> (<code>0x10FFFF</code>), so it holds any character, an emoji included: <code>#😀</code> and <code>#128512</code> are the same <code>Char</code>, and <code>(128512).to_char</code> makes it. <code>to_integer</code> gives the code point back.</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1359,7 +1361,7 @@ print(angle.sin)                  -- 0.7071067811865475</code></pre>
 <td><code>to_integer</code></td>
 <td>none</td>
 <td><code>Integer</code></td>
-<td>Unicode code point of the character. Valid for BMP code points (0–65535).</td>
+<td>The character's Unicode code point, <code>0..1114111</code>.</td>
 </tr>
 <tr class="odd">
 <td><code>is_whitespace</code></td>
