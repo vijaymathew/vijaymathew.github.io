@@ -5,8 +5,213 @@
   <link href="https://schemer.in/nex/blog/feed.xml" rel="self"/>
   <link href="https://schemer.in/nex/blog/"/>
   <id>https://schemer.in/nex/blog/</id>
-  <updated>2026-10-30T00:00:00Z</updated>
+  <updated>2026-11-15T00:00:00Z</updated>
   <author><name>Vijay Mathew</name></author>
+  <entry>
+    <title>Characters, not code units: Strings and Chars in Nex</title>
+    <link href="https://schemer.in/nex/blog/strings-and-chars.html"/>
+    <id>https://schemer.in/nex/blog/strings-and-chars.html</id>
+    <published>2026-11-15T00:00:00Z</published>
+    <updated>2026-11-15T00:00:00Z</updated>
+    <summary>How Nex Strings count Unicode characters without slowing down ordinary text.</summary>
+    <category term="unicode"/>
+    <category term="internals"/>
+    <content type="html" xml:base="https://schemer.in/nex/blog/">&lt;p&gt;How long is &lt;code&gt;&quot;😀&quot;&lt;/code&gt;? Ask Java or JavaScript and you get 2. Rust&amp;rsquo;s &lt;code&gt;len&lt;/code&gt; and Go&amp;rsquo;s &lt;code&gt;len&lt;/code&gt; say 4. Python says 1, and so does Swift. Each language is counting something different: UTF-16 code units, UTF-8 bytes, code points and grapheme clusters, in that order.&lt;/p&gt;
+&lt;p&gt;In Nex a &lt;code&gt;Char&lt;/code&gt; is a Unicode code point, and a &lt;code&gt;String&lt;/code&gt; is a sequence of &lt;code&gt;Char&lt;/code&gt;s (&lt;a href=&quot;../docs/definition-of-nex/appendix-basis.html#sec-B.3&quot;&gt;Appendix B.3&lt;/a&gt;). So the answer is 1. Up to version 0.7.2, Nex Strings were Java Strings, and &lt;code&gt;&quot;😀&quot;.length&lt;/code&gt; came back as 2. An emoji could not be stored in a &lt;code&gt;Char&lt;/code&gt; at all, and &lt;code&gt;across&lt;/code&gt; split it into two halves, neither of which is a character. This post discusses the changes in release 0.7.3 that bring Nex strings closer to Unicode conformance, and the work in 0.7.4 that made them faster.&lt;/p&gt;
+&lt;h2 id=&quot;how-nex-sees-characters&quot;&gt;How Nex sees characters&lt;/h2&gt;
+&lt;p&gt;Lengths, positions and iteration count characters:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nex&amp;gt; &amp;quot;a😀b&amp;quot;.length
+3
+nex&amp;gt; &amp;quot;a😀b&amp;quot;.char_at(1)
+#😀
+nex&amp;gt; &amp;quot;a😀b&amp;quot;.index_of(&amp;quot;b&amp;quot;)
+2
+nex&amp;gt; &amp;quot;a😀b&amp;quot;.substring(1, 3)
+&amp;quot;😀b&amp;quot;
+nex&amp;gt; across &amp;quot;a😀b&amp;quot; as c do print(c) end
+#a
+#😀
+#b
+nex&amp;gt; &amp;quot;a😀b&amp;quot;.map(fn (x) =&amp;gt; x.to_integer)
+[97, 128512, 98]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;across &quot;a😀b&quot; as c do ... end&lt;/code&gt; runs three times, and &lt;code&gt;c&lt;/code&gt; is one whole character each time. &lt;code&gt;map&lt;/code&gt;, &lt;code&gt;filter&lt;/code&gt;, &lt;code&gt;fold&lt;/code&gt; and the other functional methods also visit one character at a time.&lt;/p&gt;
+&lt;p&gt;A &lt;code&gt;Char&lt;/code&gt; can hold any code point from &lt;code&gt;0&lt;/code&gt; to &lt;code&gt;1114111&lt;/code&gt; (&lt;code&gt;0x10FFFF&lt;/code&gt;). A &lt;code&gt;Char&lt;/code&gt; literal is the character itself or its code point after &lt;code&gt;#&lt;/code&gt;. &lt;code&gt;to_char&lt;/code&gt; turns an integer into a &lt;code&gt;Char&lt;/code&gt;, and &lt;code&gt;to_integer&lt;/code&gt; gives the integer back. Inside a string, the escape &lt;code&gt;\u{...}&lt;/code&gt; takes the code point in hexadecimal:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nex&amp;gt; #😀 = #128512
+true
+nex&amp;gt; #😀.to_integer
+128512
+nex&amp;gt; 128512.to_char
+#😀
+nex&amp;gt; &amp;quot;\u{1F600}&amp;quot; = &amp;quot;😀&amp;quot;
+true
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The encoding shows up in only one place, which is converting to and from bytes. That conversion uses UTF-8:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nex&amp;gt; &amp;quot;😀&amp;quot;.to_bytes
+[240, 159, 152, 128]
+nex&amp;gt; create String.from_bytes(&amp;quot;😀&amp;quot;.to_bytes)
+&amp;quot;😀&amp;quot;
+nex&amp;gt; &amp;quot;こんにちは&amp;quot;.length
+5
+nex&amp;gt; &amp;quot;こんにちは&amp;quot;.to_bytes.length
+15
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id=&quot;code-points-vs-characters&quot;&gt;Code points vs characters&lt;/h2&gt;
+&lt;p&gt;A code point is not always what a reader thinks of as one character. An accented letter can be stored as a single code point, or as a base letter followed by a combining mark. A flag is two &amp;ldquo;regional indicator&amp;rdquo; code points. A family emoji is three people joined by two invisible joiners:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nex&amp;gt; &amp;quot;é&amp;quot;.length
+1
+nex&amp;gt; &amp;quot;e\u{301}&amp;quot;
+&amp;quot;é&amp;quot;
+nex&amp;gt; &amp;quot;e\u{301}&amp;quot;.length
+2
+nex&amp;gt; &amp;quot;é&amp;quot; = &amp;quot;e\u{301}&amp;quot;
+false
+nex&amp;gt; &amp;quot;🇮🇳&amp;quot;.length
+2
+nex&amp;gt; &amp;quot;👨‍👩‍👧&amp;quot;.length
+5
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Nex does not normalize text. The two spellings of &lt;code&gt;é&lt;/code&gt; above print the same, but they are different strings. Case changes can also change the length, which is why &lt;code&gt;Char.to_upper&lt;/code&gt; returns a &lt;code&gt;String&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nex&amp;gt; #ß.to_upper
+&amp;quot;SS&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We stop at code points on purpose. A code point is a fixed integer: &lt;code&gt;U+1F600&lt;/code&gt; is 😀 in every Unicode version. Grapheme clusters, the units a reader sees, are found with segmentation rules and data tables that change with each Unicode version. If &lt;code&gt;length&lt;/code&gt; counted grapheme clusters, the same string could get a different length after a Unicode upgrade. Libraries can provide grapheme clusters and normalization on top of code points.&lt;/p&gt;
+&lt;h2 id=&quot;inside-two-forms-of-string&quot;&gt;Inside: two forms of String&lt;/h2&gt;
+&lt;p&gt;Nex runs on the JVM, where &lt;code&gt;java.lang.String&lt;/code&gt; is a sequence of UTF-16 code units. Every character in the Basic Multilingual Plane (BMP), &lt;code&gt;U+0000&lt;/code&gt; to &lt;code&gt;U+FFFF&lt;/code&gt;, takes one unit. The characters beyond it take two, called a &lt;em&gt;surrogate pair&lt;/em&gt;. These include emoji, some rare CJK ideographs, historic scripts and mathematical letters. Without surrogate pairs, unit &lt;code&gt;i&lt;/code&gt; is character &lt;code&gt;i&lt;/code&gt;. With them, finding character &lt;code&gt;i&lt;/code&gt; means counting from the start.&lt;/p&gt;
+&lt;p&gt;There were a few ways to build code-point strings on the JVM:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Store an &lt;code&gt;int&lt;/code&gt; per character.&lt;/strong&gt; Every string would take two to four times as much memory. Every call into Java would also need a conversion, and Nex calls into Java a lot: files, regex, the network and every library.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Store UTF-8 bytes.&lt;/strong&gt; This has the same conversion problem, and finding character &lt;code&gt;i&lt;/code&gt; still takes a scan.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Keep &lt;code&gt;java.lang.String&lt;/code&gt; and scan.&lt;/strong&gt; This is simple, but &lt;code&gt;char_at&lt;/code&gt; and &lt;code&gt;length&lt;/code&gt; would take time proportional to the string&amp;rsquo;s length. A loop over the characters would take quadratic time.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Nex uses a different approach. In almost all text, no character needs a surrogate pair, and for that text UTF-16 indexing already counts characters. So a Nex String has two runtime forms, and the text decides which one it gets:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A &lt;strong&gt;plain &lt;code&gt;java.lang.String&lt;/code&gt;&lt;/strong&gt; when the text has no surrogates. &lt;code&gt;length&lt;/code&gt; and &lt;code&gt;char_at&lt;/code&gt; are Java&amp;rsquo;s own constant-time operations, so nothing changes for this text.&lt;/li&gt;
+&lt;li&gt;A &lt;strong&gt;&lt;code&gt;NexWideString&lt;/code&gt;&lt;/strong&gt; when it has any. It keeps the same Java String along with its length in characters, a small index and a cursor.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre&gt;&lt;code class=&quot;language-clojure&quot;&gt;(deftype NexWideString [^String s ^int n ^ints crumbs ^AtomicLong cursor]
+  Object
+  (toString [_] s)
+  (equals [_ o] (and (instance? NexWideString o) (.equals s (.-s ^NexWideString o))))
+  (hashCode [_] (.hashCode s))
+  ...
+  ;; The UTF-16 view, for Java APIs that take a CharSequence.
+  CharSequence
+  (length [_] (.length s))
+  (charAt [_ i] (.charAt s i))
+  ...)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;breadcrumbs&quot;&gt;Breadcrumbs&lt;/h3&gt;
+&lt;p&gt;Take &lt;code&gt;&quot;ab😀cd😀ef&quot;&lt;/code&gt;. It has 8 characters but 10 UTF-16 units, because each 😀 takes two:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;character index:  0   1   2       3   4   5       6   7
+character:        a   b   😀      c   d   😀      e   f
+UTF-16 offset:    0   1   2  3    4   5   6  7    8   9
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;code&gt;char_at(6)&lt;/code&gt; should give &lt;code&gt;e&lt;/code&gt;, which starts at offset 8. Java&amp;rsquo;s &lt;code&gt;charAt(6)&lt;/code&gt; gives the unit at offset 6, the first half of the second 😀. The only way to get from a character index to an offset is to walk from the start, adding 1 for each ordinary character and 2 for each 😀. On a long string, &lt;code&gt;char_at&lt;/code&gt; near the end would take as many steps as there are characters. A loop calling it for every character would take time proportional to the square of the length.&lt;/p&gt;
+&lt;p&gt;A &lt;code&gt;NexWideString&lt;/code&gt; avoids the long walk with an index called breadcrumbs. Building the string already means walking it once to count its characters. During that walk the runtime writes down where every 32nd character starts.&lt;/p&gt;
+&lt;p&gt;To keep the example small, suppose it wrote down every 4th character instead:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;crumbs[0] = 0    -- character 0, a, starts at offset 0
+crumbs[1] = 5    -- character 4, d, starts at offset 5
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now &lt;code&gt;char_at(6)&lt;/code&gt; takes three steps:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Pick the crumb at or before character 6: 6 ÷ 4 = 1, so &lt;code&gt;crumbs[1]&lt;/code&gt;. Character 4 starts at offset 5.&lt;/li&gt;
+&lt;li&gt;Work out how many characters are left to walk: 6 mod 4 = 2.&lt;/li&gt;
+&lt;li&gt;Walk 2 characters from offset 5. Stepping over &lt;code&gt;d&lt;/code&gt; (one unit) reaches offset 6, and stepping over 😀 (two units) reaches offset 8, where &lt;code&gt;e&lt;/code&gt; starts.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The walk is never more than 3 characters long, because the nearest crumb is never more than 3 characters back. With the real spacing of 32 the walk is at most 31 characters, however long the string is. Because 32 is 2⁵, the division and remainder become bit operations, &lt;code&gt;i &amp;gt;&amp;gt; 5&lt;/code&gt; and &lt;code&gt;i &amp;amp; 31&lt;/code&gt;. Leaving out the two shortcuts described below, the lookup is:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-clojure&quot;&gt;(defn- wide-offset [^NexWideString w ^long i]
+  (if (&amp;gt;= i (.-n w))
+    (long (.length ^String (.-s w)))
+    (let [^String s (.-s w)
+          k (bit-shift-right i crumb-shift)]          ; crumb-shift = 5
+      (loop [off (long (aget ^ints (.-crumbs w) k))
+             left (bit-and i crumb-mask)]             ; crumb-mask = 31
+        (if (zero? left)
+          off
+          (recur (+ off (Character/charCount (.codePointAt s (int off)))) (dec left)))))))
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;So &lt;code&gt;char_at&lt;/code&gt; and &lt;code&gt;substring&lt;/code&gt; take a short, bounded number of steps on a wide string, however long it is.&lt;/p&gt;
+&lt;h3 id=&quot;skipping-the-walk&quot;&gt;Skipping the walk&lt;/h3&gt;
+&lt;p&gt;A short walk still costs something on every call. Release 0.7.4 added two shortcuts that avoid most walks.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Blocks without surrogate pairs.&lt;/strong&gt; The crumbs divide the string into blocks of 32 characters. A block that holds no surrogate pair spans exactly 32 UTF-16 units, so the next crumb is 32 units after its own. In such a block, character &lt;code&gt;i&lt;/code&gt; is at its crumb&amp;rsquo;s offset plus &lt;code&gt;i &amp;amp; 31&lt;/code&gt;, with no walk at all. Text with an occasional emoji is mostly blocks like that. Only the block that holds the emoji needs a walk.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;A cursor.&lt;/strong&gt; Most loops ask for character &lt;code&gt;i&lt;/code&gt;, then &lt;code&gt;i + 1&lt;/code&gt;, then &lt;code&gt;i + 2&lt;/code&gt;. Each lookup would walk from the same crumb as the one before, over the same characters. So a wide string remembers the last character it found and its offset. When the next character asked for is in the same block and not before the cursor, the walk starts at the cursor. In the example, after &lt;code&gt;char_at(6)&lt;/code&gt; has found offset 8, &lt;code&gt;char_at(7)&lt;/code&gt; takes one step from there instead of three from &lt;code&gt;crumbs[1]&lt;/code&gt;. A loop over every character then takes one step per character.&lt;/p&gt;
+&lt;p&gt;A Nex String is immutable, but the cursor changes, and two threads can use the same string at once. The cursor is therefore one &lt;code&gt;long&lt;/code&gt;, the character in the high 32 bits and the offset in the low 32, read and written as a single value through an &lt;code&gt;AtomicLong&lt;/code&gt;. A thread may see a cursor that another thread just moved, but it always sees a character together with its own offset, and since the text never changes, any such pair is correct. The accesses use the &lt;code&gt;AtomicLong&lt;/code&gt;&amp;rsquo;s opaque mode, which guarantees exactly that and adds no memory fence.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;index_of&lt;/code&gt; needs the reverse direction. It searches with Java&amp;rsquo;s &lt;code&gt;indexOf&lt;/code&gt; and gets back a UTF-16 offset that must become a character index. Suppose, in the example, Java reports offset 8:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Find the last crumb at or before offset 8. That is &lt;code&gt;crumbs[1]&lt;/code&gt;: offset 5, character 4. The crumbs are in increasing order, so a binary search finds the right one.&lt;/li&gt;
+&lt;li&gt;Count the characters from offset 5 up to offset 8. There are two, &lt;code&gt;d&lt;/code&gt; and 😀.&lt;/li&gt;
+&lt;li&gt;Add them to the crumb&amp;rsquo;s character: 4 + 2 = 6.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The index costs one &lt;code&gt;int&lt;/code&gt; for every 32 characters and one &lt;code&gt;AtomicLong&lt;/code&gt; for the cursor, and only strings that contain a surrogate have them.&lt;/p&gt;
+&lt;p&gt;The &amp;ldquo;breadcrumbs&amp;rdquo; idea is borrowed from Swift&amp;rsquo;s standard library, which has &lt;a href=&quot;https://github.com/swiftlang/swift/blob/main/stdlib/public/core/StringBreadcrumbs.swift&quot;&gt;&lt;code&gt;_StringBreadcrumbs&lt;/code&gt;&lt;/a&gt; with a binary search for the reverse lookup. Swift places a crumb every 64 characters. Nex started with 64 too, and moved to 32 in 0.7.4 because it made random access about a quarter faster, at the cost of twice as many crumbs: one &lt;code&gt;int&lt;/code&gt; per 32 characters instead of one per 64. Swift&amp;rsquo;s crumbs also work in the other direction from ours. Swift strings are stored as UTF-8, and the crumbs make UTF-16 offsets fast for Objective-C APIs. PyPy stores its strings as UTF-8 and keeps an &lt;a href=&quot;https://github.com/pypy/pypy/blob/main/rpython/rlib/rutf8.py&quot;&gt;index of character positions&lt;/a&gt;. It skips the index entirely for ASCII text, just as Nex leaves strings without surrogates alone.&lt;/p&gt;
+&lt;h3 id=&quot;one-form-per-text&quot;&gt;One form per text&lt;/h3&gt;
+&lt;p&gt;The form depends only on the text. Every string that enters Nex goes through one function, &lt;code&gt;-&amp;gt;nex-string&lt;/code&gt;, and that rule holds for strings returned from Java, read from files and the console, received over HTTP, matched by a regex, parsed from JSON or decoded by &lt;code&gt;from_bytes&lt;/code&gt;. The function checks for surrogates and wraps the string only when it finds one. Strings produced by a wide string&amp;rsquo;s own methods go through the same function. That is why &lt;code&gt;equals&lt;/code&gt; and &lt;code&gt;hashCode&lt;/code&gt; above never have to compare a plain string with a wide one. Two equal texts always have the same form, so a wide string can be a &lt;code&gt;Map&lt;/code&gt; key or a &lt;code&gt;Set&lt;/code&gt; element without special cases.&lt;/p&gt;
+&lt;p&gt;The rule also gives two shortcuts:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Concatenation.&lt;/strong&gt; Joining two plain strings needs no scan, because neither has a surrogate, so the result cannot have one either.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Substrings.&lt;/strong&gt; A piece of a wide string that happens to have no surrogates goes back through &lt;code&gt;-&amp;gt;nex-string&lt;/code&gt; and comes out as a plain string again.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The rule only holds if no string gets past &lt;code&gt;-&amp;gt;nex-string&lt;/code&gt;. A host string with a surrogate that skipped it would stay a plain Java String. It would count UTF-16 units, as before 0.7.3, and it would not be equal to the wide string with the same text, so as a &lt;code&gt;Map&lt;/code&gt; key or &lt;code&gt;Set&lt;/code&gt; element it would not be found. That is why the compiler routes every crossing from Java through the same function, as described below.&lt;/p&gt;
+&lt;h3 id=&quot;how-chars-are-represented&quot;&gt;How Chars are represented&lt;/h3&gt;
+&lt;p&gt;At run time a &lt;code&gt;Char&lt;/code&gt; is a &lt;code&gt;NexChar&lt;/code&gt;, a small object around an &lt;code&gt;int&lt;/code&gt; code point. One instance for each code point below 256 is created in advance, because most characters a program handles are ASCII or Latin-1.&lt;/p&gt;
+&lt;p&gt;Compiled code stores a &lt;code&gt;Char&lt;/code&gt; as a JVM &lt;code&gt;int&lt;/code&gt;, not a JVM &lt;code&gt;char&lt;/code&gt;. A JVM &lt;code&gt;char&lt;/code&gt; has 16 bits and cannot hold &lt;code&gt;0x1F600&lt;/code&gt;. When a &lt;code&gt;Char&lt;/code&gt; is passed to or returned from a typed method, it is boxed as a &lt;code&gt;NexChar&lt;/code&gt;. An &lt;code&gt;int&lt;/code&gt; parameter would be ambiguous there, because a parameter typed &lt;code&gt;I&lt;/code&gt; already means &lt;code&gt;Integer32&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The compiled code gives a Nex String the JVM type &lt;code&gt;Object&lt;/code&gt;, since it is one of two classes. A string literal without surrogates is an ordinary &lt;code&gt;ldc&lt;/code&gt; constant. A literal with surrogates is a &lt;code&gt;ConstantDynamic&lt;/code&gt;, which calls &lt;code&gt;-&amp;gt;nex-string&lt;/code&gt; the first time it is used. After that the JVM keeps the &lt;code&gt;NexWideString&lt;/code&gt;, so the breadcrumbs are built once per class, not on every use of the literal.&lt;/p&gt;
+&lt;p&gt;The compiler handles each crossing into Java:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;A String into Java.&lt;/strong&gt; The Java method receives the plain &lt;code&gt;java.lang.String&lt;/code&gt; text.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A String back from Java.&lt;/strong&gt; The returned string goes through &lt;code&gt;-&amp;gt;nex-string&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;A Char into a Java &lt;code&gt;char&lt;/code&gt; parameter.&lt;/strong&gt; The Char must fit in 16 bits. Passing &lt;code&gt;#😀&lt;/code&gt; to &lt;code&gt;Character.isSurrogate&lt;/code&gt;, which takes only a &lt;code&gt;char&lt;/code&gt;, is a type error. For a Java method that takes a code point as an &lt;code&gt;int&lt;/code&gt;, pass &lt;code&gt;c.to_integer&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Callbacks work too. A Nex class can implement &lt;code&gt;java.io.FilenameFilter&lt;/code&gt;, for example, and the file names Java passes to it arrive as Nex Strings, emoji included.&lt;/p&gt;
+&lt;h3 id=&quot;unpaired-surrogates&quot;&gt;Unpaired surrogates&lt;/h3&gt;
+&lt;p&gt;Java text can contain half of a surrogate pair with no partner. This is usually a bug in some other program, but it does happen. Nex counts an unpaired surrogate as one character, so indexing still works. Converting it to UTF-8 is an error:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nex&amp;gt; &amp;quot;a\u{D800}b&amp;quot;.length
+3
+nex&amp;gt; &amp;quot;a\u{D800}b&amp;quot;.to_bytes
+Error: String.to_bytes: the text holds an unpaired surrogate, which is not a character
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Before 0.7.3, &lt;code&gt;to_bytes&lt;/code&gt; wrote a &lt;code&gt;?&lt;/code&gt; for the unpaired surrogate and the original text was lost. Now &lt;code&gt;to_bytes&lt;/code&gt; raises a &lt;code&gt;Conversion_Error&lt;/code&gt; instead, as &lt;code&gt;from_bytes&lt;/code&gt; does on bytes that are not UTF-8. As a result, &lt;code&gt;create String.from_bytes(s.to_bytes)&lt;/code&gt; always gives back &lt;code&gt;s&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;what-it-costs&quot;&gt;What it costs&lt;/h2&gt;
+&lt;p&gt;Plain strings use Java&amp;rsquo;s own &lt;code&gt;length&lt;/code&gt; and &lt;code&gt;charAt&lt;/code&gt;. Since 0.7.4, compiled code calls &lt;code&gt;char_at&lt;/code&gt; through a small helper that takes and returns primitive values, and &lt;code&gt;Char.to_integer&lt;/code&gt; compiles to a single JVM instruction, because a compiled &lt;code&gt;Char&lt;/code&gt; is already an &lt;code&gt;int&lt;/code&gt;. Wide strings pay for a shortcut or a short walk on each &lt;code&gt;char_at&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;To measure it, the &lt;a href=&quot;https://github.com/vijaymathew/nex/tree/main/benchmarks&quot;&gt;&lt;code&gt;char_at&lt;/code&gt; and &lt;code&gt;char_at_wide&lt;/code&gt; benchmarks&lt;/a&gt; build a 9,000-character string and sum its code points with &lt;code&gt;char_at&lt;/code&gt; 10,000 times, which is 90 million calls. One string has only ASCII characters. The other has 😀 in every ninth position, so every 32-character block holds a surrogate pair and needs a walk. These are the times of the loop alone, the median of 5 runs of compiled code with Nex 0.7.4 on an Intel Core i5-10400F with OpenJDK 25:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;string&lt;/th&gt;
+&lt;th style=&quot;text-align: right;&quot;&gt;Nex&lt;/th&gt;
+&lt;th style=&quot;text-align: right;&quot;&gt;Java&lt;/th&gt;
+&lt;th style=&quot;text-align: right;&quot;&gt;Python&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;ASCII&lt;/td&gt;
+&lt;td style=&quot;text-align: right;&quot;&gt;238 ms (2.6 ns per call)&lt;/td&gt;
+&lt;td style=&quot;text-align: right;&quot;&gt;70 ms&lt;/td&gt;
+&lt;td style=&quot;text-align: right;&quot;&gt;5.37 s&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;😀 in every ninth position&lt;/td&gt;
+&lt;td style=&quot;text-align: right;&quot;&gt;1.34 s (15 ns per call)&lt;/td&gt;
+&lt;td style=&quot;text-align: right;&quot;&gt;23 ms&lt;/td&gt;
+&lt;td style=&quot;text-align: right;&quot;&gt;6.01 s&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Java has no constant-time indexing by code point, so its version of the second benchmark copies the code points into an &lt;code&gt;int&lt;/code&gt; array first and indexes that. It shows what plain array access costs, not another way to store strings. Python indexes by code point natively.&lt;/p&gt;
+&lt;p&gt;The cursor keeps the wide loop at 15 ns, because each call walks one character. Visiting the same string in a scattered order, where the cursor can&amp;rsquo;t help, took about 49 ns per call in a separate run: the cost of the average walk of 15 characters. A string that was ASCII except for one emoji took about 11 ns, since all but one of its blocks skip the walk. A program that does any other work in its loop will notice these differences less, and text without characters beyond the BMP pays nothing.&lt;/p&gt;
+&lt;h2 id=&quot;whats-not-done-yet&quot;&gt;What&amp;rsquo;s not done yet&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;String order is UTF-16 order.&lt;/strong&gt; &lt;code&gt;compare&lt;/code&gt; and sorting order Strings as Java does, by code unit. &lt;code&gt;Char&lt;/code&gt;s are ordered by code point. The two orders differ only when a character above &lt;code&gt;U+FFFF&lt;/code&gt; meets one between &lt;code&gt;U+E000&lt;/code&gt; and &lt;code&gt;U+FFFF&lt;/code&gt;. Here 😀 is &lt;code&gt;U+1F600&lt;/code&gt; and ｡ is the halfwidth full stop &lt;code&gt;U+FF61&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nex&amp;gt; &amp;quot;😀&amp;quot;.compare(&amp;quot;｡&amp;quot;)
+-1
+nex&amp;gt; #😀.compare(#｡)
+1
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I kept Java&amp;rsquo;s order so that Nex sorts strings the same way as the Java libraries it calls.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Grapheme clusters and normalization.&lt;/strong&gt; As explained above, these belong in a library.&lt;/p&gt;
+&lt;p&gt;To summarize: a &lt;code&gt;Char&lt;/code&gt; is a code point, a &lt;code&gt;String&lt;/code&gt; counts code points, and text with no characters beyond the BMP is still a plain Java String.&lt;/p&gt;</content>
+  </entry>
   <entry>
     <title>When Code Is Cheap, Design the Promises</title>
     <link href="https://schemer.in/nex/blog/when-code-is-cheap.html"/>
