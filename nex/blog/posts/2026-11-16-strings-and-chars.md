@@ -1,7 +1,7 @@
 ---
 title: "Characters, not code units: Strings and Chars in Nex"
 tags: [unicode, internals]
-summary: Since 0.7.3 a Nex Char is a Unicode code point and a String is a sequence of them, so an emoji counts as one character. Here is what that means in a program, and how the runtime does it while plain text stays as fast as a Java String.
+summary: How Nex represent and manipulate Strings with Unicode characters with minimal runtime overhead.
 draft: true
 ---
 
@@ -18,24 +18,28 @@ nex> "a😀b".length
 3
 nex> "a😀b".char_at(1)
 #😀
-nex> "a😀b".chars
-[#a, #😀, #b]
 nex> "a😀b".index_of("b")
 2
 nex> "a😀b".substring(1, 3)
 "😀b"
+nex> across "a😀b" as c do print(c) end
+#a
+#😀
+#b
+nex> "a😀b".map(fn (x) => x.to_integer)
+[97, 128512, 98]
 ```
 
 `across "a😀b" as c do ... end` runs three times, and `c` is one whole character each time. `map`, `filter`, `fold` and the other functional methods also visit one character at a time.
 
-A `Char` can hold any code point from `0` to `1114111` (`0x10FFFF`). There are three ways to write one. A literal can be the character itself or its code point after `#`. `to_char` turns an integer into a `Char`, and `to_integer` gives the integer back. A string escape `\u{...}` takes the code point in hexadecimal:
+A `Char` can hold any code point from `0` to `1114111` (`0x10FFFF`). A `Char` literal is the character itself or its code point after `#`. `to_char` turns an integer into a `Char`, and `to_integer` gives the integer back. Inside a string, the escape `\u{...}` takes the code point in hexadecimal:
 
 ```
 nex> #😀 = #128512
 true
 nex> #😀.to_integer
 128512
-nex> (128512).to_char
+nex> 128512.to_char
 #😀
 nex> "\u{1F600}" = "😀"
 true
@@ -80,7 +84,7 @@ nex> #ß.to_upper
 "SS"
 ```
 
-We stop at code points on purpose. Finding grapheme clusters, the units a reader sees, needs Unicode's segmentation rules and data tables. Those change with each Unicode version. A code point is a fixed integer that never changes. Libraries can work with grapheme clusters and normalization on top of code points, but they could not build code points on top of UTF-16 units.
+We stop at code points on purpose. A code point is a fixed integer: `U+1F600` is 😀 in every Unicode version. Grapheme clusters, the units a reader sees, are found with segmentation rules and data tables that change with each Unicode version. If `length` counted grapheme clusters, the same string could get a different length after a Unicode upgrade. Libraries can provide grapheme clusters and normalization on top of code points.
 
 ## Inside: two forms of String
 
@@ -163,33 +167,34 @@ So `char_at` and `substring` take a short, bounded number of steps on a wide str
 
 The index costs one `int` for every 64 characters, and only strings that contain a surrogate have one.
 
-Neither the idea nor the name is ours. Swift's standard library has [`_StringBreadcrumbs`](https://github.com/swiftlang/swift/blob/main/stdlib/public/core/StringBreadcrumbs.swift), which also uses a spacing of 64 and a binary search for the reverse lookup. It works in the other direction from ours. Swift strings are stored as UTF-8, and the crumbs make UTF-16 offsets fast for Objective-C APIs. PyPy stores its strings as UTF-8 and keeps an [index of character positions](https://github.com/pypy/pypy/blob/main/rpython/rlib/rutf8.py). It skips the index entirely for ASCII text, just as Nex leaves strings without surrogates alone.
+The "breadcrumbs" idea is borrowed from Swift's standard library which has [`_StringBreadcrumbs`](https://github.com/swiftlang/swift/blob/main/stdlib/public/core/StringBreadcrumbs.swift), which also uses a spacing of 64 and a binary search for the reverse lookup. It works in the other direction from ours. Swift strings are stored as UTF-8, and the crumbs make UTF-16 offsets fast for Objective-C APIs. PyPy stores its strings as UTF-8 and keeps an [index of character positions](https://github.com/pypy/pypy/blob/main/rpython/rlib/rutf8.py). It skips the index entirely for ASCII text, just as Nex leaves strings without surrogates alone.
 
 ### One form per text
 
 The form depends only on the text. Every string that enters Nex goes through one function, `->nex-string`, and that rule holds for strings returned from Java, read from files and the console, received over HTTP, matched by a regex, parsed from JSON or decoded by `from_bytes`. The function checks for surrogates and wraps the string only when it finds one. Strings produced by a wide string's own methods go through the same function. That is why `equals` and `hashCode` above never have to compare a plain string with a wide one. Two equal texts always have the same form, so a wide string can be a `Map` key or a `Set` element without special cases.
 
-The rule also gives a few shortcuts:
+The rule also gives two shortcuts:
 
 - **Concatenation.** Joining two plain strings needs no scan, because neither has a surrogate, so the result cannot have one either.
 - **Substrings.** A piece of a wide string that happens to have no surrogates goes back through `->nex-string` and comes out as a plain string again.
-- **Missed boundaries.** If a host string ever reaches Nex without passing through `->nex-string`, nothing crashes. That one string just behaves as it did before 0.7.3, counting UTF-16 units.
 
-### Chars in the compiler
+The rule only holds if no string gets past `->nex-string`. A host string with a surrogate that skipped it would stay a plain Java String. It would count UTF-16 units, as before 0.7.3, and it would not be equal to the wide string with the same text, so as a `Map` key or `Set` element it would not be found. That is why the compiler routes every crossing from Java through the same function, as described below.
+
+### How Chars are represented
 
 At run time a `Char` is a `NexChar`, a small object around an `int` code point. One instance for each code point below 256 is created in advance, because most characters a program handles are ASCII or Latin-1.
 
 Compiled code stores a `Char` as a JVM `int`, not a JVM `char`. A JVM `char` has 16 bits and cannot hold `0x1F600`. When a `Char` is passed to or returned from a typed method, it is boxed as a `NexChar`. An `int` parameter would be ambiguous there, because a parameter typed `I` already means `Integer32`.
 
-The compiled code gives a Nex String the JVM type `Object`, since it is one of two classes. A string literal without surrogates is an ordinary `ldc` constant. A literal with surrogates is a `ConstantDynamic`, which calls `make-nex-string` the first time it is used. After that the JVM keeps the `NexWideString`, so the breadcrumbs are built once per class, not on every use of the literal.
+The compiled code gives a Nex String the JVM type `Object`, since it is one of two classes. A string literal without surrogates is an ordinary `ldc` constant. A literal with surrogates is a `ConstantDynamic`, which calls `->nex-string` the first time it is used. After that the JVM keeps the `NexWideString`, so the breadcrumbs are built once per class, not on every use of the literal.
 
 The compiler handles each crossing into Java:
 
 - **A String into Java.** The Java method receives the plain `java.lang.String` text.
-- **A String back from Java.** The returned string goes through `make-nex-string`.
+- **A String back from Java.** The returned string goes through `->nex-string`.
 - **A Char into a Java `char` parameter.** The Char must fit in 16 bits. Passing `#😀` to `Character.isSurrogate`, which takes only a `char`, is a type error. For a Java method that takes a code point as an `int`, pass `c.to_integer`.
 
-Callbacks work in both directions. A Nex class can implement `java.io.FilenameFilter`, for example, and the file names Java passes to it arrive as Nex Strings, emoji included.
+Callbacks work too. A Nex class can implement `java.io.FilenameFilter`, for example, and the file names Java passes to it arrive as Nex Strings, emoji included.
 
 ### Unpaired surrogates
 
@@ -208,8 +213,6 @@ Before 0.7.3, `to_bytes` wrote a `?` for the unpaired surrogate and the original
 
 Plain strings still use Java's own `length` and `charAt`, behind one type check. Wide strings pay for a short walk on each `char_at`. To measure it, I built a 9,000-character string and summed its code points with `char_at` 10,000 times, which is 90 million calls. One version of the string had only ASCII characters and the other had an emoji in every ninth position. With startup subtracted, each turn of the ASCII loop took about 33 ns and each turn of the emoji loop about 89 ns. So a loop that does nothing but index a wide string runs at less than half speed. A program that does any other work in its loop will notice the difference less, and text without characters beyond the BMP pays nothing.
 
-One trap turned up during the work. In Clojure 1.11, `(long c)` on a primitive `char` compiles to a reflective call, because Clojure has no `long` cast that takes a `char`. Each call takes about 5 µs, more than a hundred times the cost of a whole turn of the loop above. That one cast slowed `char_at` loops badly until it was changed to `(long (int c))`, which takes a few nanoseconds. The fix now has a comment next to it in the runtime.
-
 ## What's not done yet
 
 **String order is UTF-16 order.** `compare` and sorting order Strings as Java does, by code unit. `Char`s are ordered by code point. The two orders differ only when a character above `U+FFFF` meets one between `U+E000` and `U+FFFF`. Here 😀 is `U+1F600` and ｡ is the halfwidth full stop `U+FF61`:
@@ -221,8 +224,8 @@ nex> #😀.compare(#｡)
 1
 ```
 
-We kept Java's order so that Nex sorts strings the same way as the Java libraries it calls.
+I kept Java's order so that Nex sorts strings the same way as the Java libraries it calls.
 
 **Grapheme clusters and normalization.** As explained above, these belong in a library.
 
-To summarize: a `Char` is a code point, a `String` counts code points, and text with no characters beyond the BMP is still a plain Java String. The tests in [`test/nex/unicode_string_test.clj`](https://github.com/vijaymathew/nex/blob/main/test/nex/unicode_string_test.clj) check that the two forms never show in a program, on both backends.
+To summarize: a `Char` is a code point, a `String` counts code points, and text with no characters beyond the BMP is still a plain Java String.
