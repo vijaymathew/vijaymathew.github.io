@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Characters, not code units: Strings and Chars in Nex — Nex</title>
+  <meta name="description" content="How Nex Strings count Unicode characters without slowing down ordinary text.">
+  <link rel="canonical" href="https://schemer.in/nex/blog/strings-and-chars.html">
+  <meta property="og:site_name" content="Nex">
+  <meta property="og:url" content="https://schemer.in/nex/blog/strings-and-chars.html">
+  <meta property="og:title" content="Characters, not code units: Strings and Chars in Nex — Nex">
+  <meta property="og:description" content="How Nex Strings count Unicode characters without slowing down ordinary text.">
+  <meta property="og:image" content="https://schemer.in/nex/assets/social-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:type" content="article">
+  <meta property="article:published_time" content="2026-11-15">
+  <meta property="article:tag" content="unicode">
+  <meta property="article:tag" content="internals">
+  <link rel="alternate" type="application/atom+xml" title="The Nex Blog" href="https://schemer.in/nex/blog/feed.xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../site.css">
+  <script src="../site.js"></script>
+  <link rel="icon" href="../assets/icons/nex.svg" type="image/svg+xml">
+  <link rel="icon" href="../assets/icons/nex-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../assets/icons/nex-180.png">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="../../nex.html"><img src="../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-light="../assets/logo/nex-logo-concept-7-orbit-n-light.svg" data-dark="../assets/logo/nex-logo-concept-7-orbit-n-dark.svg" alt="">nex</a>
+    <div class="nav-links">
+      <a href="../tutorial.html">Tutorial</a>
+      <a href="../syntax.html">Syntax</a>
+      <a href="../../nex.html#learn">Learn</a>
+      <a href="../../nex.html#install">Install</a>
+      <a href="../blog/index.html">Blog</a>
+      <a class="gh" href="https://github.com/vijaymathew/nex" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <button class="toggle" id="theme" aria-label="Toggle dark mode" title="Toggle theme">🌙</button>
+  </div>
+</nav>
+
+<div class="wrap narrow">
+  <header class="page-head post-head">
+    <span class="eyebrow">// blog</span>
+    <h1>Characters, not code units: Strings and Chars in Nex</h1>
+    <p class="lead">How Nex Strings count Unicode characters without slowing down ordinary text.</p>
+    <p class="post-meta"><time datetime="2026-11-15">15 November 2026</time><span>13 min read</span><span class="chips"><a class="chip" href="./tags/unicode.html">unicode</a><a class="chip" href="./tags/internals.html">internals</a></span></p>
+  </header>
+
+  <article class="article prose post">
+<p>How long is <code>"😀"</code>? Ask Java or JavaScript and you get 2. Rust&rsquo;s <code>len</code> and Go&rsquo;s <code>len</code> say 4. Python says 1, and so does Swift. Each language is counting something different: UTF-16 code units, UTF-8 bytes, code points and grapheme clusters, in that order.</p>
+<p>In Nex a <code>Char</code> is a Unicode code point, and a <code>String</code> is a sequence of <code>Char</code>s (<a href="../docs/definition-of-nex/appendix-basis.html#sec-B.3">Appendix B.3</a>). So the answer is 1. Up to version 0.7.2, Nex Strings were Java Strings, and <code>"😀".length</code> came back as 2. An emoji could not be stored in a <code>Char</code> at all, and <code>across</code> split it into two halves, neither of which is a character. This post discusses the changes in release 0.7.3 that bring Nex strings closer to Unicode conformance, and the work in 0.7.4 that made them faster.</p>
+<h2 id="how-nex-sees-characters">How Nex sees characters</h2>
+<p>Lengths, positions and iteration count characters:</p>
+<pre><code>nex&gt; &quot;a😀b&quot;.length
+3
+nex&gt; &quot;a😀b&quot;.char_at(1)
+#😀
+nex&gt; &quot;a😀b&quot;.index_of(&quot;b&quot;)
+2
+nex&gt; &quot;a😀b&quot;.substring(1, 3)
+&quot;😀b&quot;
+nex&gt; across &quot;a😀b&quot; as c do print(c) end
+#a
+#😀
+#b
+nex&gt; &quot;a😀b&quot;.map(fn (x) =&gt; x.to_integer)
+[97, 128512, 98]
+</code></pre>
+<p><code>across "a😀b" as c do ... end</code> runs three times, and <code>c</code> is one whole character each time. <code>map</code>, <code>filter</code>, <code>fold</code> and the other functional methods also visit one character at a time.</p>
+<p>A <code>Char</code> can hold any code point from <code>0</code> to <code>1114111</code> (<code>0x10FFFF</code>). A <code>Char</code> literal is the character itself or its code point after <code>#</code>. <code>to_char</code> turns an integer into a <code>Char</code>, and <code>to_integer</code> gives the integer back. Inside a string, the escape <code>\u{...}</code> takes the code point in hexadecimal:</p>
+<pre><code>nex&gt; #😀 = #128512
+true
+nex&gt; #😀.to_integer
+128512
+nex&gt; 128512.to_char
+#😀
+nex&gt; &quot;\u{1F600}&quot; = &quot;😀&quot;
+true
+</code></pre>
+<p>The encoding shows up in only one place, which is converting to and from bytes. That conversion uses UTF-8:</p>
+<pre><code>nex&gt; &quot;😀&quot;.to_bytes
+[240, 159, 152, 128]
+nex&gt; create String.from_bytes(&quot;😀&quot;.to_bytes)
+&quot;😀&quot;
+nex&gt; &quot;こんにちは&quot;.length
+5
+nex&gt; &quot;こんにちは&quot;.to_bytes.length
+15
+</code></pre>
+<h2 id="code-points-vs-characters">Code points vs characters</h2>
+<p>A code point is not always what a reader thinks of as one character. An accented letter can be stored as a single code point, or as a base letter followed by a combining mark. A flag is two &ldquo;regional indicator&rdquo; code points. A family emoji is three people joined by two invisible joiners:</p>
+<pre><code>nex&gt; &quot;é&quot;.length
+1
+nex&gt; &quot;e\u{301}&quot;
+&quot;é&quot;
+nex&gt; &quot;e\u{301}&quot;.length
+2
+nex&gt; &quot;é&quot; = &quot;e\u{301}&quot;
+false
+nex&gt; &quot;🇮🇳&quot;.length
+2
+nex&gt; &quot;👨‍👩‍👧&quot;.length
+5
+</code></pre>
+<p>Nex does not normalize text. The two spellings of <code>é</code> above print the same, but they are different strings. Case changes can also change the length, which is why <code>Char.to_upper</code> returns a <code>String</code>:</p>
+<pre><code>nex&gt; #ß.to_upper
+&quot;SS&quot;
+</code></pre>
+<p>We stop at code points on purpose. A code point is a fixed integer: <code>U+1F600</code> is 😀 in every Unicode version. Grapheme clusters, the units a reader sees, are found with segmentation rules and data tables that change with each Unicode version. If <code>length</code> counted grapheme clusters, the same string could get a different length after a Unicode upgrade. Libraries can provide grapheme clusters and normalization on top of code points.</p>
+<h2 id="inside-two-forms-of-string">Inside: two forms of String</h2>
+<p>Nex runs on the JVM, where <code>java.lang.String</code> is a sequence of UTF-16 code units. Every character in the Basic Multilingual Plane (BMP), <code>U+0000</code> to <code>U+FFFF</code>, takes one unit. The characters beyond it take two, called a <em>surrogate pair</em>. These include emoji, some rare CJK ideographs, historic scripts and mathematical letters. Without surrogate pairs, unit <code>i</code> is character <code>i</code>. With them, finding character <code>i</code> means counting from the start.</p>
+<p>There were a few ways to build code-point strings on the JVM:</p>
+<ul>
+<li><strong>Store an <code>int</code> per character.</strong> Every string would take two to four times as much memory. Every call into Java would also need a conversion, and Nex calls into Java a lot: files, regex, the network and every library.</li>
+<li><strong>Store UTF-8 bytes.</strong> This has the same conversion problem, and finding character <code>i</code> still takes a scan.</li>
+<li><strong>Keep <code>java.lang.String</code> and scan.</strong> This is simple, but <code>char_at</code> and <code>length</code> would take time proportional to the string&rsquo;s length. A loop over the characters would take quadratic time.</li>
+</ul>
+<p>Nex uses a different approach. In almost all text, no character needs a surrogate pair, and for that text UTF-16 indexing already counts characters. So a Nex String has two runtime forms, and the text decides which one it gets:</p>
+<ul>
+<li>A <strong>plain <code>java.lang.String</code></strong> when the text has no surrogates. <code>length</code> and <code>char_at</code> are Java&rsquo;s own constant-time operations, so nothing changes for this text.</li>
+<li>A <strong><code>NexWideString</code></strong> when it has any. It keeps the same Java String along with its length in characters, a small index and a cursor.</li>
+</ul>
+<pre><code class="language-clojure">(deftype NexWideString [^String s ^int n ^ints crumbs ^AtomicLong cursor]
+  Object
+  (toString [_] s)
+  (equals [_ o] (and (instance? NexWideString o) (.equals s (.-s ^NexWideString o))))
+  (hashCode [_] (.hashCode s))
+  ...
+  ;; The UTF-16 view, for Java APIs that take a CharSequence.
+  CharSequence
+  (length [_] (.length s))
+  (charAt [_ i] (.charAt s i))
+  ...)
+</code></pre>
+<h3 id="breadcrumbs">Breadcrumbs</h3>
+<p>Take <code>"ab😀cd😀ef"</code>. It has 8 characters but 10 UTF-16 units, because each 😀 takes two:</p>
+<pre><code>character index:  0   1   2       3   4   5       6   7
+character:        a   b   😀      c   d   😀      e   f
+UTF-16 offset:    0   1   2  3    4   5   6  7    8   9
+</code></pre>
+<p><code>char_at(6)</code> should give <code>e</code>, which starts at offset 8. Java&rsquo;s <code>charAt(6)</code> gives the unit at offset 6, the first half of the second 😀. The only way to get from a character index to an offset is to walk from the start, adding 1 for each ordinary character and 2 for each 😀. On a long string, <code>char_at</code> near the end would take as many steps as there are characters. A loop calling it for every character would take time proportional to the square of the length.</p>
+<p>A <code>NexWideString</code> avoids the long walk with an index called breadcrumbs. Building the string already means walking it once to count its characters. During that walk the runtime writes down where every 32nd character starts.</p>
+<p>To keep the example small, suppose it wrote down every 4th character instead:</p>
+<pre><code>crumbs[0] = 0    -- character 0, a, starts at offset 0
+crumbs[1] = 5    -- character 4, d, starts at offset 5
+</code></pre>
+<p>Now <code>char_at(6)</code> takes three steps:</p>
+<ol>
+<li>Pick the crumb at or before character 6: 6 ÷ 4 = 1, so <code>crumbs[1]</code>. Character 4 starts at offset 5.</li>
+<li>Work out how many characters are left to walk: 6 mod 4 = 2.</li>
+<li>Walk 2 characters from offset 5. Stepping over <code>d</code> (one unit) reaches offset 6, and stepping over 😀 (two units) reaches offset 8, where <code>e</code> starts.</li>
+</ol>
+<p>The walk is never more than 3 characters long, because the nearest crumb is never more than 3 characters back. With the real spacing of 32 the walk is at most 31 characters, however long the string is. Because 32 is 2⁵, the division and remainder become bit operations, <code>i &gt;&gt; 5</code> and <code>i &amp; 31</code>. Leaving out the two shortcuts described below, the lookup is:</p>
+<pre><code class="language-clojure">(defn- wide-offset [^NexWideString w ^long i]
+  (if (&gt;= i (.-n w))
+    (long (.length ^String (.-s w)))
+    (let [^String s (.-s w)
+          k (bit-shift-right i crumb-shift)]          ; crumb-shift = 5
+      (loop [off (long (aget ^ints (.-crumbs w) k))
+             left (bit-and i crumb-mask)]             ; crumb-mask = 31
+        (if (zero? left)
+          off
+          (recur (+ off (Character/charCount (.codePointAt s (int off)))) (dec left)))))))
+</code></pre>
+<p>So <code>char_at</code> and <code>substring</code> take a short, bounded number of steps on a wide string, however long it is.</p>
+<h3 id="skipping-the-walk">Skipping the walk</h3>
+<p>A short walk still costs something on every call. Release 0.7.4 added two shortcuts that avoid most walks.</p>
+<p><strong>Blocks without surrogate pairs.</strong> The crumbs divide the string into blocks of 32 characters. A block that holds no surrogate pair spans exactly 32 UTF-16 units, so the next crumb is 32 units after its own. In such a block, character <code>i</code> is at its crumb&rsquo;s offset plus <code>i &amp; 31</code>, with no walk at all. Text with an occasional emoji is mostly blocks like that. Only the block that holds the emoji needs a walk.</p>
+<p><strong>A cursor.</strong> Most loops ask for character <code>i</code>, then <code>i + 1</code>, then <code>i + 2</code>. Each lookup would walk from the same crumb as the one before, over the same characters. So a wide string remembers the last character it found and its offset. When the next character asked for is in the same block and not before the cursor, the walk starts at the cursor. In the example, after <code>char_at(6)</code> has found offset 8, <code>char_at(7)</code> takes one step from there instead of three from <code>crumbs[1]</code>. A loop over every character then takes one step per character.</p>
+<p>A Nex String is immutable, but the cursor changes, and two threads can use the same string at once. The cursor is therefore one <code>long</code>, the character in the high 32 bits and the offset in the low 32, read and written as a single value through an <code>AtomicLong</code>. A thread may see a cursor that another thread just moved, but it always sees a character together with its own offset, and since the text never changes, any such pair is correct. The accesses use the <code>AtomicLong</code>&rsquo;s opaque mode, which guarantees exactly that and adds no memory fence.</p>
+<p><code>index_of</code> needs the reverse direction. It searches with Java&rsquo;s <code>indexOf</code> and gets back a UTF-16 offset that must become a character index. Suppose, in the example, Java reports offset 8:</p>
+<ol>
+<li>Find the last crumb at or before offset 8. That is <code>crumbs[1]</code>: offset 5, character 4. The crumbs are in increasing order, so a binary search finds the right one.</li>
+<li>Count the characters from offset 5 up to offset 8. There are two, <code>d</code> and 😀.</li>
+<li>Add them to the crumb&rsquo;s character: 4 + 2 = 6.</li>
+</ol>
+<p>The index costs one <code>int</code> for every 32 characters and one <code>AtomicLong</code> for the cursor, and only strings that contain a surrogate have them.</p>
+<p>The &ldquo;breadcrumbs&rdquo; idea is borrowed from Swift&rsquo;s standard library, which has <a href="https://github.com/swiftlang/swift/blob/main/stdlib/public/core/StringBreadcrumbs.swift"><code>_StringBreadcrumbs</code></a> with a binary search for the reverse lookup. Swift places a crumb every 64 characters. Nex started with 64 too, and moved to 32 in 0.7.4 because it made random access about a quarter faster, at the cost of twice as many crumbs: one <code>int</code> per 32 characters instead of one per 64. Swift&rsquo;s crumbs also work in the other direction from ours. Swift strings are stored as UTF-8, and the crumbs make UTF-16 offsets fast for Objective-C APIs. PyPy stores its strings as UTF-8 and keeps an <a href="https://github.com/pypy/pypy/blob/main/rpython/rlib/rutf8.py">index of character positions</a>. It skips the index entirely for ASCII text, just as Nex leaves strings without surrogates alone.</p>
+<h3 id="one-form-per-text">One form per text</h3>
+<p>The form depends only on the text. Every string that enters Nex goes through one function, <code>-&gt;nex-string</code>, and that rule holds for strings returned from Java, read from files and the console, received over HTTP, matched by a regex, parsed from JSON or decoded by <code>from_bytes</code>. The function checks for surrogates and wraps the string only when it finds one. Strings produced by a wide string&rsquo;s own methods go through the same function. That is why <code>equals</code> and <code>hashCode</code> above never have to compare a plain string with a wide one. Two equal texts always have the same form, so a wide string can be a <code>Map</code> key or a <code>Set</code> element without special cases.</p>
+<p>The rule also gives two shortcuts:</p>
+<ul>
+<li><strong>Concatenation.</strong> Joining two plain strings needs no scan, because neither has a surrogate, so the result cannot have one either.</li>
+<li><strong>Substrings.</strong> A piece of a wide string that happens to have no surrogates goes back through <code>-&gt;nex-string</code> and comes out as a plain string again.</li>
+</ul>
+<p>The rule only holds if no string gets past <code>-&gt;nex-string</code>. A host string with a surrogate that skipped it would stay a plain Java String. It would count UTF-16 units, as before 0.7.3, and it would not be equal to the wide string with the same text, so as a <code>Map</code> key or <code>Set</code> element it would not be found. That is why the compiler routes every crossing from Java through the same function, as described below.</p>
+<h3 id="how-chars-are-represented">How Chars are represented</h3>
+<p>At run time a <code>Char</code> is a <code>NexChar</code>, a small object around an <code>int</code> code point. One instance for each code point below 256 is created in advance, because most characters a program handles are ASCII or Latin-1.</p>
+<p>Compiled code stores a <code>Char</code> as a JVM <code>int</code>, not a JVM <code>char</code>. A JVM <code>char</code> has 16 bits and cannot hold <code>0x1F600</code>. When a <code>Char</code> is passed to or returned from a typed method, it is boxed as a <code>NexChar</code>. An <code>int</code> parameter would be ambiguous there, because a parameter typed <code>I</code> already means <code>Integer32</code>.</p>
+<p>The compiled code gives a Nex String the JVM type <code>Object</code>, since it is one of two classes. A string literal without surrogates is an ordinary <code>ldc</code> constant. A literal with surrogates is a <code>ConstantDynamic</code>, which calls <code>-&gt;nex-string</code> the first time it is used. After that the JVM keeps the <code>NexWideString</code>, so the breadcrumbs are built once per class, not on every use of the literal.</p>
+<p>The compiler handles each crossing into Java:</p>
+<ul>
+<li><strong>A String into Java.</strong> The Java method receives the plain <code>java.lang.String</code> text.</li>
+<li><strong>A String back from Java.</strong> The returned string goes through <code>-&gt;nex-string</code>.</li>
+<li><strong>A Char into a Java <code>char</code> parameter.</strong> The Char must fit in 16 bits. Passing <code>#😀</code> to <code>Character.isSurrogate</code>, which takes only a <code>char</code>, is a type error. For a Java method that takes a code point as an <code>int</code>, pass <code>c.to_integer</code>.</li>
+</ul>
+<p>Callbacks work too. A Nex class can implement <code>java.io.FilenameFilter</code>, for example, and the file names Java passes to it arrive as Nex Strings, emoji included.</p>
+<h3 id="unpaired-surrogates">Unpaired surrogates</h3>
+<p>Java text can contain half of a surrogate pair with no partner. This is usually a bug in some other program, but it does happen. Nex counts an unpaired surrogate as one character, so indexing still works. Converting it to UTF-8 is an error:</p>
+<pre><code>nex&gt; &quot;a\u{D800}b&quot;.length
+3
+nex&gt; &quot;a\u{D800}b&quot;.to_bytes
+Error: String.to_bytes: the text holds an unpaired surrogate, which is not a character
+</code></pre>
+<p>Before 0.7.3, <code>to_bytes</code> wrote a <code>?</code> for the unpaired surrogate and the original text was lost. Now <code>to_bytes</code> raises a <code>Conversion_Error</code> instead, as <code>from_bytes</code> does on bytes that are not UTF-8. As a result, <code>create String.from_bytes(s.to_bytes)</code> always gives back <code>s</code>.</p>
+<h2 id="what-it-costs">What it costs</h2>
+<p>Plain strings use Java&rsquo;s own <code>length</code> and <code>charAt</code>. Since 0.7.4, compiled code calls <code>char_at</code> through a small helper that takes and returns primitive values, and <code>Char.to_integer</code> compiles to a single JVM instruction, because a compiled <code>Char</code> is already an <code>int</code>. Wide strings pay for a shortcut or a short walk on each <code>char_at</code>.</p>
+<p>To measure it, the <a href="https://github.com/vijaymathew/nex/tree/main/benchmarks"><code>char_at</code> and <code>char_at_wide</code> benchmarks</a> build a 9,000-character string and sum its code points with <code>char_at</code> 10,000 times, which is 90 million calls. One string has only ASCII characters. The other has 😀 in every ninth position, so every 32-character block holds a surrogate pair and needs a walk. These are the times of the loop alone, the median of 5 runs of compiled code with Nex 0.7.4 on an Intel Core i5-10400F with OpenJDK 25:</p>
+<table>
+<thead>
+<tr>
+<th>string</th>
+<th style="text-align: right;">Nex</th>
+<th style="text-align: right;">Java</th>
+<th style="text-align: right;">Python</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ASCII</td>
+<td style="text-align: right;">238 ms (2.6 ns per call)</td>
+<td style="text-align: right;">70 ms</td>
+<td style="text-align: right;">5.37 s</td>
+</tr>
+<tr>
+<td>😀 in every ninth position</td>
+<td style="text-align: right;">1.34 s (15 ns per call)</td>
+<td style="text-align: right;">23 ms</td>
+<td style="text-align: right;">6.01 s</td>
+</tr>
+</tbody>
+</table>
+<p>Java has no constant-time indexing by code point, so its version of the second benchmark copies the code points into an <code>int</code> array first and indexes that. It shows what plain array access costs, not another way to store strings. Python indexes by code point natively.</p>
+<p>The cursor keeps the wide loop at 15 ns, because each call walks one character. Visiting the same string in a scattered order, where the cursor can&rsquo;t help, took about 49 ns per call in a separate run: the cost of the average walk of 15 characters. A string that was ASCII except for one emoji took about 11 ns, since all but one of its blocks skip the walk. A program that does any other work in its loop will notice these differences less, and text without characters beyond the BMP pays nothing.</p>
+<h2 id="whats-not-done-yet">What&rsquo;s not done yet</h2>
+<p><strong>String order is UTF-16 order.</strong> <code>compare</code> and sorting order Strings as Java does, by code unit. <code>Char</code>s are ordered by code point. The two orders differ only when a character above <code>U+FFFF</code> meets one between <code>U+E000</code> and <code>U+FFFF</code>. Here 😀 is <code>U+1F600</code> and ｡ is the halfwidth full stop <code>U+FF61</code>:</p>
+<pre><code>nex&gt; &quot;😀&quot;.compare(&quot;｡&quot;)
+-1
+nex&gt; #😀.compare(#｡)
+1
+</code></pre>
+<p>I kept Java&rsquo;s order so that Nex sorts strings the same way as the Java libraries it calls.</p>
+<p><strong>Grapheme clusters and normalization.</strong> As explained above, these belong in a library.</p>
+<p>To summarize: a <code>Char</code> is a code point, a <code>String</code> counts code points, and text with no characters beyond the BMP is still a plain Java String.</p>
+  </article>
+
+  <div class="post-foot">
+  <div class="next-cards">
+    <h2>Keep reading</h2>
+    <a class="next-card" href="./when-code-is-cheap.html"><small>older</small><b>When Code Is Cheap, Design the Promises</b><span>30 October 2026</span></a>
+    <a class="next-card" href="./index.html"><small>blog</small><b>All posts</b><span>Everything, newest first.</span></a>
+  </div>
+  <section class="comments" id="comments">
+    <h2>Comments</h2>
+    <p>Questions, corrections, a better way to do it? <a href="https://github.com/vijaymathew/nex/discussions/new?category=general&title=Characters%2C%20not%20code%20units%3A%20Strings%20and%20Chars%20in%20Nex" target="_blank" rel="noopener">Start a discussion on GitHub →</a></p>
+  </section>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span class="mono">nex</span>
+    <a href="https://github.com/vijaymathew/nex">GitHub</a>
+    <a href="../tutorial.html">Tutorial</a>
+    <a href="../syntax.html">Syntax</a>
+    <a href="../blog/index.html">Blog</a>
+    <a href="../blog/feed.xml">Feed</a>
+    <span class="r">by <a href="../../index.html">Vijay Mathew</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
