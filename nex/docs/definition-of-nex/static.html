@@ -335,7 +335,11 @@ in scope only within a routine that declares one (Section&nbsp;<a href="syntax-c
 
 <ul>
   <li><strong><code>this</code></strong> is in scope within the body of a
-  method or constructor, and has the type of the current class.</li>
+  method or constructor, and has the type of the current class. In a generic
+  class <code>C[T1, &hellip;, Tn]</code> that type is <code>C[T1, &hellip;,
+  Tn]</code>, each parameter standing for itself, so a call through
+  <code>this</code> accepts an argument whose type mentions a parameter, such
+  as a <code>Function(T): T</code>.</li>
   <li><strong><code>super</code></strong> is in scope there too, provided the
   current class inherits exactly one class. Its type is that class. In a class
   that has no <code>inherit</code> clause, or names more than one parent
@@ -471,7 +475,11 @@ of arguments, is a compile-time error.</p>
 <p>A bare call <code>m(e1, &hellip;, en)</code> is checked as a call on
 <code>this</code> if <code>m</code> is a method of the current class, and
 otherwise as a call of the free function <code>m</code>
-(Section&nbsp;<a href="#sec-4.8">4.8</a>).</p>
+(Section&nbsp;<a href="#sec-4.8">4.8</a>). A bare call that names a constructor of the current class,
+declared or inherited, and no method, is a compile-time error. A constructor
+runs only through <code>create</code> or a delegation, and delegating to one
+of the class&rsquo;s own constructors is written <code>this.k(&hellip;)</code>
+(below).</p>
 
 <div class="note">
   <span class="note-label">Overloading by number of arguments</span>
@@ -528,6 +536,22 @@ method found further up the ancestry. A constructor&rsquo;s job is to initialise
 the fields declared alongside it. Delegating to a constructor two levels up would
 skip whatever the intermediate ancestor&rsquo;s constructor sets up for its own
 fields.</p>
+
+<p>A constructor may also delegate to another constructor of its own class,
+written <code>this.k(e1, &hellip;, en)</code>, so that constructors can share
+their setup. Like a delegation to a parent, it may appear anywhere a statement
+may. It is accepted if:</p>
+
+<ul>
+  <li><code>k</code> is a constructor that the current class declares itself;
+  and</li>
+  <li>the type of each argument conforms to the type of the corresponding
+  parameter of <code>k</code>.</li>
+</ul>
+
+<p>A constructor that delegates this way attaches every field that
+<code>k</code> attaches, and makes every parent constructor call that
+<code>k</code> makes (Section&nbsp;<a href="#sec-4.9">4.9</a>).</p>
 
 <p>A delegation produces no value and declares no names; it is checked like a
 statement (Section&nbsp;<a href="#sec-4.5">4.5</a>), even though it is written as a call. Its run-time
@@ -1213,6 +1237,55 @@ end</code></pre></li>
   of its own constructors through one or the other. When the declaring class has
   constructors, <em>Parent construction</em>, below, already requires the
   first.</p></li>
+  <li><strong>Use before attachment.</strong>
+  <p>Attachment is judged path by path: at each point of a constructor body, a
+  field counts as attached only if every path that reaches the point assigns
+  it, or delegates with <code>this.k(&hellip;)</code> to a constructor that
+  does. A branch that cannot complete normally (it raises) contributes no
+  path. An inherited field counts as attached once the constructor has called
+  a constructor of each parent that <em>Parent construction</em>, below,
+  requires it to call.</p>
+  <p>The object is <em>ready</em> at a point where all its fields that need an
+  assignment are attached. Before that point, a field that is not attached
+  holds <code>nil</code>, and the constructor must not reach it. It is a
+  compile-time error for the constructor, before the object is ready, to:</p>
+  <ul>
+    <li>read a field that is not attached there;</li>
+    <li>call a routine on the current object, written <code>m(&hellip;)</code>,
+    <code>this.m(&hellip;)</code>, <code>super.m(&hellip;)</code> or
+    <code>P.m(&hellip;)</code>, when that routine can reach a read of such a
+    field. A routine reaches what its body reads, and what the routines it
+    calls on the current object reach, each taken as the class of the object
+    being constructed defines it. A routine that uses <code>this</code> as a
+    value can reach any routine of the object;</li>
+    <li>use <code>this</code> as a value: pass it as an argument, assign it, or
+    compare it.</li>
+  </ul>
+  <p>The body of an anonymous function created in the constructor is checked
+  at the point where the function is created, since it may be called there.
+  Delegations are exempt: <code>this.k(&hellip;)</code>, and a call
+  <code>P.k(&hellip;)</code> or <code>super.k(&hellip;)</code> of a parent
+  constructor, may be made before the object is ready.</p>
+  <p>A parent constructor runs on the object being constructed, so the
+  routines it calls on the current object are the class&rsquo;s overrides. A
+  call <code>P.k(&hellip;)</code> made while some of the class&rsquo;s own
+  fields are not attached is a compile-time error if <code>P.k</code> can reach
+  a read of one of them, in the sense above. The class must attach the field
+  before calling the parent&rsquo;s constructor:</p>
+  <pre><code>class Car
+inherit Vehicle            -- Vehicle.make calls describe
+feature
+  engine: Engine
+  describe: String do result := engine.status end
+create
+  make do
+    engine := create Engine  -- must come before Vehicle.make
+    Vehicle.make
+  end
+end</code></pre>
+  <p>These rules let a constructor call its parent first, as is usual, and
+  ensure that no field that is not detachable is observed to be
+  <code>nil</code>, during construction or after it.</p></li>
   <li><strong>Parent construction.</strong>
   <p>If a parent named in a class&rsquo;s <code>inherit</code> clause has
   constructors, declared or inherited, every constructor of the class must call
