@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The First Experiments — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Algorithm Lab</span>
+    <h1 class="opener-title">The First Experiments</h1>
+  </div>
+  <div class="prose">
+<p>Testing algorithm ideas on small systems before formal complexity notation.</p>
+<div class="note-lab">
+<p><strong>Lab Focus</strong> Run controlled experiments, collect evidence, and compare algorithm choices under explicit assumptions.</p>
+</div>
+<section class="level2" id="why-this-lab-exists">
+<h2 class="anchored" data-anchor-id="why-this-lab-exists">Why This Lab Exists</h2>
+<p><a class="xref" href="index.html#part-iii" title="Part III: The Shape of Algorithms">Part III</a> introduced algorithm thinking:</p>
+<ul>
+<li>define guarantees</li>
+<li>decompose work</li>
+<li>use recursion when structure fits</li>
+<li>reason about behavior under growth</li>
+</ul>
+<p>Now we run controlled experiments.</p>
+<p>The goal is not to chase micro-optimizations. The goal is to build engineering intuition by observing how different algorithm choices behave on the same task.</p>
+</section>
+<section class="level2" id="lab-objectives">
+<h2 class="anchored" data-anchor-id="lab-objectives">Lab Objectives</h2>
+<p>By the end of this lab, you should be able to:</p>
+<ul>
+<li>compare two algorithms for the same requirement</li>
+<li>collect simple evidence (operation counts, not just wall-clock time)</li>
+<li>explain when an approach is acceptable and when it breaks down</li>
+<li>preserve correctness contracts while changing strategy</li>
+</ul>
+</section>
+<section class="level2" id="experiment-theme">
+<h2 class="anchored" data-anchor-id="experiment-theme">Experiment Theme</h2>
+<p>Use one task, multiple strategies:</p>
+<blockquote class="blockquote">
+<p>“Find a target value in a sorted sequence.”</p>
+</blockquote>
+<p>Why this task:</p>
+<ul>
+<li>easy correctness criteria</li>
+<li>easy to vary input size</li>
+<li>clear contrast between algorithm behaviors</li>
+</ul>
+<p>Strategies:</p>
+<ul>
+<li>linear scan</li>
+<li>binary search</li>
+</ul>
+<p>We will track an explicit step counter to observe behavior directly.</p>
+</section>
+<section class="level2" id="nex-implementation">
+<h2 class="anchored" data-anchor-id="nex-implementation">Nex Implementation</h2>
+<p>Suggested file names:</p>
+<ul>
+<li><code>algorithm_lab_1.nex</code></li>
+<li><code>algorithm_lab_1_main.nex</code></li>
+</ul>
+<section class="level3" id="result-type">
+<h3 class="anchored" data-anchor-id="result-type">Result Type</h3>
+<pre class="nex"><code>class Search_Result
+create
+  make(found: Boolean, index: Integer, steps: Integer) do
+    this.found := found
+    this.index := index
+    this.steps := steps
+  end
+feature
+  found: Boolean
+  index: Integer
+  steps: Integer
+invariant
+  index_valid: index &gt;= -1
+  steps_non_negative: steps &gt;= 0
+  found_matches_index: found = (index &gt;= 0)
+end</code></pre>
+</section>
+<section class="level3" id="linear-search-with-step-counter">
+<h3 class="anchored" data-anchor-id="linear-search-with-step-counter">Linear Search With Step Counter</h3>
+<pre class="nex"><code>class Linear_Search_Algo
+feature
+  find(items: Array[Integer], target: Integer): Search_Result
+  do
+    let idx: Integer := -1
+    let steps: Integer := 0
+    from let i := 0 
+    until i &gt;= items.length or idx &gt;= 0 do
+      steps := steps + 1
+      if items.get(i) = target then
+        idx := i
+      end
+      i := i + 1
+    end
+    result := create Search_Result.make(idx &gt;= 0, idx, steps)
+  ensure
+    hit_is_correct: not result.found 
+                    or items.get(result.index) = target
+    bounded_steps: result.steps &lt;= items.length
+    miss_checks_every_item: result.found 
+                            or result.steps = items.length
+  end
+end</code></pre>
+</section>
+<section class="level3" id="binary-search-with-step-counter">
+<h3 class="anchored" data-anchor-id="binary-search-with-step-counter">Binary Search With Step Counter</h3>
+<pre class="nex"><code>class Binary_Search_Algo
+feature
+  is_sorted(items: Array[Integer]): Boolean do
+    result := true
+    from let i := 1 until i &gt;= items.length do
+      if items.get(i - 1) &gt; items.get(i) then
+        result := false
+      end
+      i := i + 1
+    end
+  end
+
+  -- How many times n can be halved before nothing is left:
+  -- the most probes a binary search over n items needs.
+  max_probes(n: Integer): Integer do
+    result := 0
+    from let k := n until k = 0 do
+      result := result + 1
+      k := k / 2
+    end
+  end
+
+  find(items: Array[Integer], target: Integer): Search_Result
+  require
+    sorted_input: is_sorted(items)
+  do
+    let lo: Integer := 0
+    let hi: Integer := items.length - 1
+    let idx: Integer := -1
+    let steps: Integer := 0
+    from until lo &gt; hi or idx &gt;= 0 do
+      let mid: Integer := (lo + hi) / 2
+      steps := steps + 1
+      if items.get(mid) = target then
+        idx := mid
+      elseif items.get(mid) &lt; target then
+        lo := mid + 1
+      else
+        hi := mid - 1
+      end
+    end
+    result := create Search_Result.make(idx &gt;= 0, idx, steps)
+  ensure
+    hit_is_correct: not result.found 
+                    or items.get(result.index) = target
+    logarithmic_steps: 
+      result.steps &lt;= max_probes(items.length)
+  end
+end</code></pre>
+</section>
+<section class="level3" id="driver-compare-behaviors">
+<h3 class="anchored" data-anchor-id="driver-compare-behaviors">Driver: Compare Behaviors</h3>
+<pre class="nex"><code>class App
+feature
+  run() do
+    let lin: Linear_Search_Algo 
+     := create Linear_Search_Algo
+    let bin: Binary_Search_Algo 
+     := create Binary_Search_Algo
+    let items: Array[Integer] 
+     := [3, 7, 10, 14, 19, 21, 25, 30]
+    let l_hit: Search_Result := lin.find(items, 30)
+    let b_hit: Search_Result := bin.find(items, 30)
+    let l_miss: Search_Result := lin.find(items, 11)
+    let b_miss: Search_Result := bin.find(items, 11)
+    print("Linear hit steps: " + l_hit.steps)
+    print("Binary hit steps: " + b_hit.steps)
+    print("Linear miss steps: " + l_miss.steps)
+    print("Binary miss steps: " + b_miss.steps)
+  end
+end
+
+-- Run the driver
+let app := create App
+app.run</code></pre>
+<p>Expected pattern:</p>
+<ul>
+<li>both algorithms are correct</li>
+<li>binary search usually uses fewer steps on sorted inputs</li>
+<li>binary search depends on stronger preconditions (<code>sorted_input</code>)</li>
+</ul>
+</section>
+</section>
+<section class="level2" id="lab-tasks">
+<h2 class="anchored" data-anchor-id="lab-tasks">Lab Tasks</h2>
+<section class="level3" id="task-a-correctness-check">
+<h3 class="anchored" data-anchor-id="task-a-correctness-check">Task A — Correctness Check</h3>
+<p>Run both strategies with:</p>
+<ul>
+<li>first element target</li>
+<li>middle element target</li>
+<li>last element target</li>
+<li>absent target</li>
+</ul>
+<p>Record:</p>
+<ul>
+<li>found or not found</li>
+<li>returned index</li>
+<li>steps</li>
+</ul>
+</section>
+<section class="level3" id="task-b-constraint-violation">
+<h3 class="anchored" data-anchor-id="task-b-constraint-violation">Task B — Constraint Violation</h3>
+<p>Call binary search with unsorted inputs and observe contract behavior.</p>
+<p>Question:</p>
+<ul>
+<li>what failure signal do you get?</li>
+<li>how is this better than silent wrong results?</li>
+</ul>
+</section>
+<section class="level3" id="task-c-extension">
+<h3 class="anchored" data-anchor-id="task-c-extension">Task C — Extension</h3>
+<p>Add one more strategy for comparison:</p>
+<ul>
+<li>jump search, or</li>
+<li>interpolation-inspired search (if values are uniformly distributed)</li>
+</ul>
+<p>Keep the same <code>Search_Result</code> format so results remain comparable.</p>
+</section>
+</section>
+<section class="level2" id="reflection-prompts">
+<h2 class="anchored" data-anchor-id="reflection-prompts">Reflection Prompts</h2>
+<p>Use evidence from your run logs:</p>
+<ol type="1">
+<li>Which strategy has stricter input assumptions?</li>
+<li>Which strategy is easier to reason about for correctness?</li>
+<li>At what scale would you stop using linear search for this task?</li>
+<li>Which contract prevented the most dangerous misuse?</li>
+</ol>
+</section>
+<section class="level2" id="deliverables">
+<h2 class="anchored" data-anchor-id="deliverables">Deliverables</h2>
+<ul>
+<li>runnable Nex code for at least two strategies</li>
+<li>output log showing hit and miss comparisons</li>
+<li>short write-up of strategy tradeoffs</li>
+<li>one paragraph on how contracts influenced your design</li>
+</ul>
+</section>
+<section class="level2" id="forward-link">
+<h2 class="anchored" data-anchor-id="forward-link">Forward Link</h2>
+<p>This lab gives you concrete intuition for how much an algorithm depends on the structure of its data.</p>
+<p>In <a class="xref" href="index.html#part-iv" title="Part IV: Organizing Data">Part IV</a>, we study lists, sets and maps, trees, and graphs so algorithm choices are supported by the right representation.</p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_III_14.html">← Chapter 14</a></div>
+    <div class="next"><a href="part_IV_15.html">Chapter 15 →<span class="next-title">Lists and Sequences</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

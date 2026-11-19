@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evolution — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Studio 6</span>
+    <h1 class="opener-title">Evolution</h1>
+  </div>
+  <div class="prose">
+<p>Evolving the reliable <a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> system into a long-lived platform.</p>
+<section class="level2" id="the-situation">
+<h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
+<p><a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> made the systems reliable: bounded retries, idempotent dispatch, safe fallbacks, and regression checks. Now the requirements are changing underneath them. Delivery priority must take a risk score into account, the knowledge engine must accept a user’s intent alongside the query, and the virtual world needs a new movement rule — all without breaking the clients and data that depend on today’s behavior. The challenge is no longer keeping the system working; it is changing it while it keeps working. The pressure points:</p>
+<ul>
+<li>new business rules that must coexist with legacy behavior</li>
+<li>API evolution without breaking existing consumers</li>
+<li>data migrations that must be reversible</li>
+<li>feature rollout risk in production environments</li>
+</ul>
+</section>
+<section class="level2" id="engineering-brief">
+<h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
+<p>Deliver new capabilities while preserving <a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> trust guarantees.</p>
+<p>Required outcomes:</p>
+<ul>
+<li>introduce versioned behavior behind stable contracts</li>
+<li>support compatibility mode for old clients</li>
+<li>add explicit migration path and rollback trigger</li>
+<li>preserve reliability checks from Studio 5</li>
+<li>define evolution governance: when old behavior is deprecated, the date it is removed (its sunset), and who owns each decision</li>
+</ul>
+<p>Implementation guidance:</p>
+<ul>
+<li>use additive changes before breaking replacements</li>
+<li>isolate v1 and v2 differences behind a strategy or adapter extension point</li>
+<li>treat migration as code, not informal operations notes</li>
+<li>gate rollout with measurable signals and exit criteria</li>
+</ul>
+</section>
+<section class="level2" id="implementation-in-nex">
+<h2 class="anchored" data-anchor-id="implementation-in-nex">Implementation In Nex</h2>
+<p>Suggested files:</p>
+<ul>
+<li><code>evolution_types.nex</code></li>
+<li><code>delivery_evolution.nex</code></li>
+<li><code>knowledge_evolution.nex</code></li>
+<li><code>world_evolution.nex</code></li>
+<li><code>migration_runner.nex</code></li>
+<li><code>studio_6_main.nex</code></li>
+</ul>
+<section class="level3" id="shared-evolution-types">
+<h3 class="anchored" data-anchor-id="shared-evolution-types">Shared Evolution Types</h3>
+<pre class="nex"><code>class Evolution_Result
+create
+  make(status: String, value: String, mode: String) do
+    this.status := status
+    this.value := value
+    this.mode := mode
+  end
+feature
+  status: String
+  value: String
+  mode: String
+invariant
+  status_present: status /= ""
+  value_present: value /= ""
+  mode_present: mode /= ""
+end
+
+class Rollout_Config
+create
+  make(use_v2: Boolean, compatibility_mode: Boolean) do
+    this.use_v2 := use_v2
+    this.compatibility_mode := compatibility_mode
+  end
+feature
+  use_v2: Boolean
+  compatibility_mode: Boolean
+end</code></pre>
+</section>
+<section class="level3" id="delivery-evolution-policy-v1---v2">
+<h3 class="anchored" data-anchor-id="delivery-evolution-policy-v1---v2">Delivery Evolution (Policy V1 to V2)</h3>
+<p>Continuation from <a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> delivery reliability flow.</p>
+<pre class="nex"><code>class Delivery_Policy_V1
+feature
+  decide_priority(tier: String): String
+  require
+    tier_present: tier /= ""
+  do
+    if tier = "PREMIUM" then
+      result := "FAST_TRACK"
+    else
+      result := "STANDARD_TRACK"
+    end
+  ensure
+    known_result: result = "FAST_TRACK" or result = "STANDARD_TRACK"
+  end
+end
+
+class Delivery_Policy_V2
+feature
+  decide_priority(tier: String, risk_score: Integer): String
+  require
+    tier_present: tier /= ""
+    risk_non_negative: risk_score &gt;= 0
+  do
+    if tier = "PREMIUM" and risk_score &lt; 50 then
+      result := "FAST_TRACK"
+    elseif tier = "PREMIUM" then
+      result := "SAFE_TRACK"
+    else
+      result := "STANDARD_TRACK"
+    end
+  ensure
+    known_result:
+      result = "FAST_TRACK" or
+      result = "SAFE_TRACK" or
+      result = "STANDARD_TRACK"
+  end
+end
+
+class Delivery_Evolution_Service
+create
+  make(
+    v1: Delivery_Policy_V1,
+    v2: Delivery_Policy_V2,
+    config: Rollout_Config
+  ) do
+    this.v1 := v1
+    this.v2 := v2
+    this.config := config
+  end
+feature
+  v1: Delivery_Policy_V1
+  v2: Delivery_Policy_V2
+  config: Rollout_Config
+
+  route_mode(tier: String, risk_score: Integer): Evolution_Result
+  require
+    tier_present: tier /= ""
+    risk_non_negative: risk_score &gt;= 0
+  do
+    if config.use_v2 then
+      result := create Evolution_Result.make(
+        "OK",
+        v2.decide_priority(tier, risk_score),
+        "V2"
+      )
+    else
+      result := create Evolution_Result.make(
+        "OK",
+        v1.decide_priority(tier),
+        "V1"
+      )
+    end
+  ensure
+    ok_status: result.status = "OK"
+  end
+end</code></pre>
+</section>
+<section class="level3" id="knowledge-evolution-compatibility-adapter">
+<h3 class="anchored" data-anchor-id="knowledge-evolution-compatibility-adapter">Knowledge Evolution (Compatibility Adapter)</h3>
+<p>Continuation from Studio 5 safe query and fallback logic.</p>
+<pre class="nex"><code>class Knowledge_Query_V1
+feature
+  run(query: String): String
+  require
+    query_present: query /= ""
+  do
+    result := "DOC:K-LEGACY"
+  ensure
+    non_empty: result /= ""
+  end
+end
+
+class Knowledge_Query_V2
+feature
+  run(query: String, intent: String): String
+  require
+    query_present: query /= ""
+    intent_present: intent /= ""
+  do
+    if intent = "deep" then
+      result := "DOC:K-DEEP"
+    else
+      result := "DOC:K-FAST"
+    end
+  ensure
+    non_empty: result /= ""
+  end
+end
+
+class Knowledge_Compatibility_Adapter
+create
+  make(v2: Knowledge_Query_V2) do
+    this.v2 := v2
+  end
+feature
+  v2: Knowledge_Query_V2
+
+  run_v1_shape(query: String): String
+  require
+    query_present: query /= ""
+  do
+    result := v2.run(query, "fast")
+  ensure
+    non_empty: result /= ""
+  end
+end
+
+class Knowledge_Evolution_Service
+create
+  make(
+    v1: Knowledge_Query_V1,
+    v2: Knowledge_Query_V2,
+    v1_on_v2: Knowledge_Compatibility_Adapter,
+    config: Rollout_Config
+  ) do
+    this.v1 := v1
+    this.v2 := v2
+    this.v1_on_v2 := v1_on_v2
+    this.config := config
+  end
+feature
+  v1: Knowledge_Query_V1
+  v2: Knowledge_Query_V2
+  v1_on_v2: Knowledge_Compatibility_Adapter
+  config: Rollout_Config
+
+  query(query: String): Evolution_Result
+  require
+    query_present: query /= ""
+  do
+    if config.use_v2 and not config.compatibility_mode then
+      result := create Evolution_Result.make(
+        "OK",
+        v2.run(query, "deep"),
+        "V2_NATIVE"
+      )
+    elseif config.use_v2 then
+      result := create Evolution_Result.make(
+        "OK",
+        v1_on_v2.run_v1_shape(query),
+        "V2_COMPAT"
+      )
+    else
+      result := create Evolution_Result.make(
+        "OK",
+        v1.run(query),
+        "V1"
+      )
+    end
+  ensure
+    ok_status: result.status = "OK"
+  end
+end</code></pre>
+</section>
+<section class="level3" id="world-evolution-feature-flagged-rule-extension">
+<h3 class="anchored" data-anchor-id="world-evolution-feature-flagged-rule-extension">World Evolution (Feature Flagged Rule Extension)</h3>
+<p>Continuation from Studio 5 safe world-step behavior.</p>
+<pre class="nex"><code>class World_Rules_V1
+feature
+  apply(x: Integer, delta: Integer, max_x: Integer): Integer
+  require
+    max_valid: max_x &gt;= 0
+  do
+    let next: Integer := x + delta
+    if next &lt; 0 then
+      result := 0
+    elseif next &gt; max_x then
+      result := max_x
+    else
+      result := next
+    end
+  ensure
+    bounded: result &gt;= 0 and result &lt;= max_x
+  end
+end
+
+class World_Rules_V2
+feature
+  apply(x: Integer, delta: Integer, max_x: Integer): Integer
+  require
+    max_valid: max_x &gt;= 0
+  do
+    -- New damping rule for safer high-velocity transitions.
+    let effective_delta: Integer := delta
+    if delta &gt; 3 then
+      effective_delta := 3
+    elseif delta &lt; -3 then
+      effective_delta := -3
+    end
+
+    let next: Integer := x + effective_delta
+    if next &lt; 0 then
+      result := 0
+    elseif next &gt; max_x then
+      result := max_x
+    else
+      result := next
+    end
+  ensure
+    bounded: result &gt;= 0 and result &lt;= max_x
+  end
+end
+
+class World_Evolution_Service
+create
+  make(
+    v1: World_Rules_V1,
+    v2: World_Rules_V2,
+    config: Rollout_Config
+  ) do
+    this.v1 := v1
+    this.v2 := v2
+    this.config := config
+  end
+feature
+  v1: World_Rules_V1
+  v2: World_Rules_V2
+  config: Rollout_Config
+
+  step(x: Integer, delta: Integer, max_x: Integer): Evolution_Result
+  require
+    max_valid: max_x &gt;= 0
+  do
+    if config.use_v2 then
+      result := create Evolution_Result.make(
+        "OK",
+        "X=" + v2.apply(x, delta, max_x),
+        "V2"
+      )
+    else
+      result := create Evolution_Result.make(
+        "OK",
+        "X=" + v1.apply(x, delta, max_x),
+        "V1"
+      )
+    end
+  ensure
+    ok_status: result.status = "OK"
+  end
+end</code></pre>
+</section>
+<section class="level3" id="migration-runner-rollback-trigger">
+<h3 class="anchored" data-anchor-id="migration-runner-rollback-trigger">Migration Runner and Rollback Trigger</h3>
+<pre class="nex"><code>class Migration_Runner
+create
+  make(initial_count: Integer) do
+    this.migrated_count := initial_count
+    this.baseline_count := initial_count
+  end
+feature
+  migrated_count: Integer
+  baseline_count: Integer   -- where a rollback returns to
+
+  run(canary_passed: Boolean): String
+  do
+    if canary_passed then
+      migrated_count := migrated_count + 100
+      result := "MIGRATION_CONTINUE"
+    else
+      -- Undo every batch migrated since the baseline.
+      migrated_count := baseline_count
+      result := "ROLLBACK"
+    end
+  ensure
+    known_result: result = "MIGRATION_CONTINUE" or result = "ROLLBACK"
+    rolled_back: result /= "ROLLBACK" 
+                 or migrated_count = baseline_count
+  end
+end
+
+class App
+feature
+  run() do
+    let cfg: Rollout_Config := create Rollout_Config.make(true, true)
+
+    -- Delivery evolution
+    let d1: Delivery_Policy_V1 := create Delivery_Policy_V1
+    let d2: Delivery_Policy_V2 := create Delivery_Policy_V2
+    let de: Delivery_Evolution_Service
+      := create Delivery_Evolution_Service.make(d1, d2, cfg)
+
+    let dr: Evolution_Result := de.route_mode("PREMIUM", 70)
+    print("Delivery: mode=" + dr.mode + " value=" + dr.value)
+
+    -- Knowledge evolution
+    let k1: Knowledge_Query_V1 := create Knowledge_Query_V1
+    let kv2: Knowledge_Query_V2 := create Knowledge_Query_V2
+    let ka: Knowledge_Compatibility_Adapter
+      := create Knowledge_Compatibility_Adapter.make(kv2)
+    let ke: Knowledge_Evolution_Service
+      := create Knowledge_Evolution_Service.make(k1, kv2, ka, cfg)
+
+    let kr: Evolution_Result := ke.query("contracts")
+    print("Knowledge: mode=" + kr.mode + " value=" + kr.value)
+
+    -- World evolution
+    let w1: World_Rules_V1 := create World_Rules_V1
+    let w2: World_Rules_V2 := create World_Rules_V2
+    let we: World_Evolution_Service
+      := create World_Evolution_Service.make(w1, w2, cfg)
+
+    let wr: Evolution_Result := we.step(2, 6, 10)
+    print("World: mode=" + wr.mode + " value=" + wr.value)  -- X=5 (damped)
+
+    -- The same step with the flag off still runs V1.
+    let v1_cfg: Rollout_Config := create Rollout_Config.make(false, false)
+    let we_v1: World_Evolution_Service
+      := create World_Evolution_Service.make(w1, w2, v1_cfg)
+    let wr_v1: Evolution_Result := we_v1.step(2, 6, 10)
+    print("World: mode=" + wr_v1.mode + " value=" + wr_v1.value)  -- X=8
+
+    -- Migration + rollback gate
+    let m: Migration_Runner := create Migration_Runner.make(0)
+    print("Migration gate: " + m.run(true))
+    print("Migration count: " + m.migrated_count)
+    print("Rollback gate: " + m.run(false))
+    print("Count after rollback: " + m.migrated_count)  -- 0
+  end
+end
+
+-- Run the driver
+let app := create App
+app.run</code></pre>
+<p>Expected outcomes:</p>
+<ul>
+<li>v2 behavior can be rolled out without breaking v1 clients</li>
+<li>compatibility mode supports gradual client migration</li>
+<li>migration continues only when canary checks pass (checks run on a small share of traffic before full rollout)</li>
+<li>rollback condition is explicit and executable</li>
+</ul>
+</section>
+</section>
+<section class="level2" id="studio-challenges">
+<h2 class="anchored" data-anchor-id="studio-challenges">Studio Challenges</h2>
+<section class="level3" id="level-1-one-evolution-path">
+<h3 class="anchored" data-anchor-id="level-1-one-evolution-path">Level 1 — One Evolution Path</h3>
+<ul>
+<li>evolve one <a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> service from v1 to v2 behind a stable contract</li>
+<li>add compatibility mode</li>
+<li>prove old client behavior still works</li>
+</ul>
+</section>
+<section class="level3" id="level-2-coordinated-multi-domain-evolution">
+<h3 class="anchored" data-anchor-id="level-2-coordinated-multi-domain-evolution">Level 2 — Coordinated Multi-Domain Evolution</h3>
+<ul>
+<li>add v2 behavior for delivery, knowledge, and world</li>
+<li>define one shared rollout policy</li>
+<li>show canary and rollback behavior with run logs</li>
+</ul>
+</section>
+<section class="level3" id="level-3-future-proofing-drill">
+<h3 class="anchored" data-anchor-id="level-3-future-proofing-drill">Level 3 — Future-Proofing Drill</h3>
+<ul>
+<li>simulate two additional future changes</li>
+<li>evaluate whether current extension points absorb them cleanly</li>
+<li>define deprecation timeline and ownership</li>
+</ul>
+</section>
+</section>
+<section class="level2" id="postmortem">
+<h2 class="anchored" data-anchor-id="postmortem">Postmortem</h2>
+<p>Discuss with evidence:</p>
+<ul>
+<li>Which extension point was most valuable for safe evolution?</li>
+<li>Which compatibility costs were worth paying?</li>
+<li>What should be deprecated next, and when?</li>
+<li>Which metrics should gate future rollouts?</li>
+</ul>
+</section>
+<section class="level2" id="deliverables">
+<h2 class="anchored" data-anchor-id="deliverables">Deliverables</h2>
+<ul>
+<li>versioning plan (a map of v1 and v2 behavior)</li>
+<li>compatibility matrix (client version against service mode)</li>
+<li>migration and rollback playbook with gate conditions</li>
+<li>updated Nex code and evolution run logs</li>
+<li>deprecation roadmap with dates and owners</li>
+</ul>
+</section>
+<section class="level2" id="exit-criteria">
+<h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
+<p>We are ready for <a class="xref" href="index.html#part-ix" title="Part IX: Programming in the Age of AI">Part IX</a> if:</p>
+<ul>
+<li>critical services evolve through versioned extension points, not rewrites</li>
+<li>compatibility behavior is explicit and tested</li>
+<li>migration and rollback are operationally defined</li>
+<li>reliability guarantees from <a class="xref" href="studio_5.html" title="Studio 5: Reliability">Studio 5</a> remain intact during evolution</li>
+</ul>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_VIII_33.html">← Chapter 33</a></div>
+    <div class="next"><a href="part_IX_34.html">Chapter 34 →<span class="next-title">Working With AI Coding Assistants</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

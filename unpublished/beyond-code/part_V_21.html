@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exploring Trees and Graphs — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 21</span>
+    <h1 class="opener-title">Exploring Trees and Graphs</h1>
+  </div>
+  <div class="prose">
+<p>Sorting organizes data for efficient access. Traversal navigates structure to answer questions about it. Once data is represented as a tree or graph, nearly every meaningful computation over that data — finding connected components, determining reachability, discovering paths, computing aggregates over hierarchies — is some form of traversal: a systematic visit to the nodes of the structure according to a defined order.</p>
+<p>Two fundamental orders exist, and they are not interchangeable. The right choice between them depends on what the traversal is trying to compute. A team that uses depth-first search where breadth-first is required will produce correct code that answers the wrong question.</p>
+<section class="level2" data-number="22.1" id="depth-first-search">
+<h2 class="anchored" data-anchor-id="depth-first-search" data-number="22.1"> Depth-First Search</h2>
+<p>Depth-first search commits fully to one direction before exploring any other. Starting from a node, it follows one outgoing edge to a neighbor, then one from that neighbor, continuing in this way until it reaches a node with no unvisited neighbors. Only then does it backtrack and try a different direction.</p>
+<p>Because of this commitment, DFS reaches distant nodes quickly but makes no guarantee about the distance at which it finds them. A DFS from node A may reach node Z before it has visited all of A’s immediate neighbors. If the goal is to find <em>any</em> path to Z, DFS will find one efficiently. If the goal is to find the <em>shortest</em> path to Z, DFS provides no such guarantee — it will find a path, but not necessarily the shortest one.</p>
+<p>DFS is naturally expressed as a recursive algorithm. The recursive structure mirrors the traversal structure: visiting a node means visiting the node itself and then recursively visiting each of its unvisited neighbors. This correspondence between the algorithm’s structure and the data’s structure is why DFS is the natural choice for operations over trees and hierarchies — structures that are themselves recursively defined. Computing the depth of a tree or evaluating an expression tree is a DFS computation, and it reads clearly as recursive code.</p>
+<p>DFS is also the natural choice for exhaustive exploration — when the goal is to visit every reachable node, not to find a specific one quickly. Cycle detection and topological sorting of a directed acyclic graph are both DFS computations. They require visiting all reachable nodes, and DFS’s commitment to depth makes it efficient for this class of problem.</p>
+</section>
+<section class="level2" data-number="22.2" id="breadth-first-search">
+<h2 class="anchored" data-anchor-id="breadth-first-search" data-number="22.2"> Breadth-First Search</h2>
+<p>Breadth-first search visits nodes in order of their distance from the starting node, measured in the number of edges traversed. It visits all of the start node’s neighbors before visiting any of their neighbors, and all of those before visiting any of their neighbors’ neighbors. It expands outward in concentric layers, one hop at a time.</p>
+<p>As a result, BFS finds the nearest node matching any criterion before it finds more distant ones. If the goal is to find the shortest path — in terms of hops — from A to any node satisfying a condition, BFS is guaranteed to find the shortest such path. DFS makes no such guarantee.</p>
+<p>BFS is naturally implemented iteratively, using a queue. The queue holds the frontier — the set of nodes that have been discovered but not yet processed. At each step, BFS removes a node from the front of the queue, processes it, and adds its unvisited neighbors to the back. The ordering of the queue is what enforces the layer-by-layer expansion: neighbors added at one step are processed before the neighbors of neighbors added at the next step.</p>
+<p>For the delivery system’s route-finding problem, BFS over an unweighted graph finds the route with fewest hops. The knowledge engine uses the same layering to discover documents: first those directly linked to the query result, then those one hop further.</p>
+</section>
+<section class="level2" data-number="22.3" id="traversal-safety-three-required-controls">
+<h2 class="anchored" data-anchor-id="traversal-safety-three-required-controls" data-number="22.3"> Traversal Safety: Three Required Controls</h2>
+<p>A traversal that visits the right nodes in the right order is correct. A traversal without safety controls is correct on graphs that cooperate and incorrect on graphs that do not.</p>
+<p><strong>Visited tracking</strong> is the first required control, and it is not optional for any graph that may contain cycles. A traversal that does not record which nodes have been visited will follow a cycle indefinitely, revisiting the same nodes without making progress. The visited set — introduced in <a class="xref" href="part_III_13.html">Thinking Recursively</a> for recursive DFS — is equally necessary for iterative BFS. Every node is added to the visited set at the moment it is first discovered, before it is processed, so that subsequent encounters with the same node are recognized and skipped.</p>
+<p><strong>Depth and expansion bounds</strong> are the second required control for traversals that must be bounded. A BFS over a document graph with no depth limit will explore the entire connected component of the starting node, which may be the entire document collection. A depth limit of two means: visit the start node and its direct neighbors (depth one) and their neighbors (depth two), then stop. The bound must be enforced explicitly — it does not emerge automatically from the traversal structure — and it must be chosen based on what the system needs to compute, not on what happens to work in testing.</p>
+<p><strong>Deterministic ordering</strong> is the third required control for traversals whose callers depend on output order. The order in which a node’s neighbors are processed during traversal may depend on the order in which they appear in the adjacency structure — and, ultimately, on when entities were created. A traversal that produces different output on different runs, or different output on different machines, is not a correct implementation of a deterministic algorithm — it is an algorithm whose correctness depends on an assumption it never stated. When the traversal’s output order is meaningful, the ordering must be declared explicitly and enforced.</p>
+</section>
+<section class="level2" data-number="22.4" id="from-requirement-to-traversal-design">
+<h2 class="anchored" data-anchor-id="from-requirement-to-traversal-design" data-number="22.4"> From Requirement to Traversal Design</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“From a starting document, discover connected documents up to depth two.”</em></p>
+</blockquote>
+<p><strong>Step 1: Define the reachability scope.</strong> Depth two means: the start document, the documents directly linked to it (depth one), and the documents linked from those (depth two). Documents at depth three or beyond are outside scope. The depth limit is a correctness constraint, not a performance optimization — the result at depth two is not a subset of the result at depth three; it is a different, defined output.</p>
+<p><strong>Step 2: Choose the traversal.</strong> BFS is the right choice because the requirement is organized by depth layer. BFS naturally produces depth-one results before depth-two results, which matches the structure of the output. DFS would find documents at varying depths in an order that depends on the graph’s shape, not on the depth criterion. The choice of BFS is a correctness decision.</p>
+<p><strong>Step 3: Define the duplicate policy.</strong> Each document is visited at most once. If document D is reachable from the start through two different paths — one of length one and one of length two — it appears in the output once, at the depth it was first reached. This policy is enforced by the visited set.</p>
+<p><strong>Step 4: Define the output semantics.</strong> The output is the sequence of discovered document identifiers in the order they were first reached: the start document, then its neighbors in the order they appear in the adjacency structure, then their unvisited neighbors in order. The visit order must be deterministic.</p>
+<p><strong>Step 5: Define failure behavior.</strong> An unknown start identifier produces <code>INVALID_START</code>. A start document with no outgoing links produces a result containing only the start document itself with status <code>ISOLATED</code>. Both cases are declared outcomes.</p>
+</section>
+<section class="level2" data-number="22.5" id="a-traversal-in-code">
+<h2 class="anchored" data-anchor-id="a-traversal-in-code" data-number="22.5"> A Traversal in Code</h2>
+<pre class="nex"><code>class Explore_Result
+create
+  make(status, discovered: String) do
+    this.status := status
+    this.discovered := discovered
+  end
+feature
+  status: String
+  discovered: String
+invariant
+  valid_status:
+    status = "OK" or
+    status = "ISOLATED" or
+    status = "INVALID_START"
+end
+
+class Graph_Explorer
+feature
+  -- Document -&gt; documents it links to, in a fixed order.
+  links: Map[String, Array[String]]
+
+  explore(start: String, max_depth: Integer): Explore_Result
+  require
+    start_present: start /= ""
+    depth_valid: max_depth &gt;= 0
+  do
+    if not links.contains_key(start) then
+      result := create Explore_Result.make("INVALID_START", "")
+    elseif links.get(start).is_empty then
+      result := create Explore_Result.make("ISOLATED", start)
+    else
+      -- depth doubles as the visited set; order is 
+      -- both the BFS queue and the discovery order.
+      let depth: Map[String, Integer] := {}
+      depth.put(start, 0)
+      let order: Array[String] := [start]
+      from let i := 0 until i &gt;= order.length do
+        let doc := order.get(i)
+        if depth.get(doc) &lt; max_depth then
+          across links.try_get(doc, []) as next do
+            if not depth.contains_key(next) then
+              depth.put(next, depth.get(doc) + 1)
+              order.add(next)
+            end
+          end
+        end
+        i := i + 1
+      end
+      let discovered := start
+      from let k := 1 until k &gt;= order.length do
+        discovered := discovered + "," + order.get(k)
+        k := k + 1
+      end
+      result := create Explore_Result.make("OK", discovered)
+    end
+  ensure
+    declared_status:
+      result.status = "OK" or
+      result.status = "ISOLATED" or
+      result.status = "INVALID_START"
+  end
+
+create
+  make(links: Map[String, Array[String]]) do
+    this.links := links
+  end
+end</code></pre>
+<p>The structure of <code>explore</code> encodes the five design decisions from the worked path. The depth limit from Step 1 is a parameter, and a document is expanded only while its depth is below the limit, so documents at depth three are discovered by nothing when the limit is two. The traversal from Step 2 is breadth-first: <code>order</code> serves as the queue, consumed from the front, so every document at depth one is discovered before any document at depth two. The duplicate policy from Step 3 is the <code>depth</code> map, which doubles as the visited set — a document reached a second time, by a longer path or around a cycle, is already in it and is ignored. Because <code>order</code> records documents in the order they were first reached, it is also the output from Step 4, and because each document’s links are visited in the order the map stores them, that output is deterministic. The two failure outcomes from Step 5, <code>INVALID_START</code> and <code>ISOLATED</code>, are checked before the traversal begins.</p>
+<p>The adjacency map <code>links</code> is the explicit representation of the graph’s structure. The traversal consults it directly rather than inferring connectivity from its own control flow. This is the same separation established in <a class="xref" href="part_IV_18.html">Graphs — Networks of Everything</a>: the graph structure and the traversal algorithm are distinct, and the traversal’s correctness depends only on what the adjacency structure reports, not on how it is stored.</p>
+<p>With links <code>A → B</code>, <code>A → C</code>, <code>B → D</code>, and <code>C → D</code>, exploring from <code>A</code> to depth two yields <code>A,B,C,D</code>: both depth-one documents before the depth-two document, and <code>D</code> once, although two paths reach it. To depth one, the same call yields <code>A,B,C</code>. Those two results are worth turning into tests, because they are exactly the properties the requirement states — layer order and no duplicates — and a traversal that violated either would still return a plausible-looking list.</p>
+</section>
+<section class="level2" data-number="22.6" id="the-question-decides-the-traversal">
+<h2 class="anchored" data-anchor-id="the-question-decides-the-traversal" data-number="22.6"> The Question Decides the Traversal</h2>
+<p>The delivery system shows most plainly that the traversal follows the question, not the graph. DFS over the road graph explores every location reachable from a starting point, which answers whether a destination is reachable at all and enumerates alternate routes when the primary one is blocked. BFS over the same graph finds the route with the fewest hops. The graph is the same; the question decides the traversal.</p>
+<p>The knowledge engine uses BFS to discover related documents in layers — those cited directly by a result, then those cited by them — up to a depth limit that stops the traversal from expanding to the whole collection when connectivity is dense. The virtual world uses both: DFS over the containment hierarchy visits every object in a zone before moving to the next, which suits operations that aggregate over a scope, while BFS over the interaction graph finds entities within a given number of interaction hops, for effects that propagate through chains of interactions.</p>
+</section>
+<section class="level2" data-number="22.7" id="where-traversal-design-fails">
+<h2 class="anchored" data-anchor-id="where-traversal-design-fails" data-number="22.7"> Where Traversal Design Fails</h2>
+<p><strong>No visited policy.</strong> A traversal without a visited set will follow cycles indefinitely. This is a latent bug in any codebase that uses traversal over graphs that may contain cycles — which includes every real-world graph. The visited set is mandatory. Omitting it because the current test graphs happen to be acyclic is not a defense; the first cyclic graph the traversal encounters will expose the missing control.</p>
+<p><strong>Wrong traversal for the objective.</strong> DFS used to find a shortest path will find <em>a</em> path, not necessarily the shortest one. BFS used for exhaustive structure exploration in a deep graph will require a large frontier queue before reaching deep nodes. The traversal algorithm must match the objective, and the objective must be stated before the algorithm is chosen. A team that always uses DFS because it is easy to write recursively, or always uses BFS because it feels safer, is making the choice before asking the question.</p>
+<p><strong>Implicit or absent bounds.</strong> A traversal with no depth or expansion limit will process the entire reachable component of the starting node. For a knowledge engine document graph where any document may be linked to any other, this can mean processing the entire collection. For a delivery network where the graph is fully connected, this means processing every location. Bounds must be chosen deliberately based on what the computation needs, not omitted because the test graphs are small. When a bound is required, its value must be visible in the design — a configurable parameter or a named constant — not buried in a loop condition.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Choose one graph or tree operation in your system and specify its traversal design with five components: the traversal type (DFS or BFS) and a one-sentence justification based on the objective, the visited policy and where it is enforced, the depth or expansion bound and how it is chosen, the output order rule and whether it must be deterministic, and the declared behavior for invalid input.</p>
+<p>Then consider: would swapping DFS for BFS, or BFS for DFS, change the results? If it would not, the traversal type may not have been chosen for a principled reason.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>DFS and BFS are not interchangeable. DFS is suited to exhaustive exploration and recursive decomposition; BFS is suited to minimum-hop reachability and layer-by-layer discovery. The objective determines the choice.</li>
+<li>A visited set is mandatory for any traversal over a graph that may contain cycles. It is not optional and not a performance concern — it is a correctness requirement.</li>
+<li>Depth and expansion bounds must be chosen deliberately and stated explicitly. A traversal without explicit bounds will process arbitrarily large subgraphs on sufficiently connected inputs.</li>
+<li>When callers depend on traversal output order, the ordering must be declared and enforced. An ordering that depends on insertion order or machine state is not a deterministic algorithm.</li>
+<li>The graph structure and the traversal algorithm are separate concerns. The traversal’s correctness depends on what the adjacency structure reports, not on how it is implemented.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_V_22.html">Finding the Best Path</a>, builds on traversal to address a more demanding question: not just which nodes are reachable, but which path to a destination is best by some defined criterion. Path optimization requires both traversal and a cost model, and the interplay between the two determines which algorithms are applicable and what guarantees they can provide.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_V_20.html">← Chapter 20</a></div>
+    <div class="next"><a href="part_V_22.html">Chapter 22 →<span class="next-title">Finding the Best Path</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

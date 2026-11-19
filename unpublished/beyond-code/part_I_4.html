@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edge Cases — Where Systems Break — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 4</span>
+    <h1 class="opener-title">Edge Cases — Where Systems Break</h1>
+  </div>
+  <div class="prose">
+<p>In the previous chapter, we wrote a contract: a precise statement of what a system must do. In this chapter, we try to break it.</p>
+<p>This is not destructiveness for its own sake. Breaking a specification is the fastest way to find out whether it is complete. Every gap that an edge case exposes is a requirement that would otherwise be discovered in production — which is to say, discovered expensively.</p>
+<section class="level2" data-number="5.1" id="the-structure-of-a-failure">
+<h2 class="anchored" data-anchor-id="the-structure-of-a-failure" data-number="5.1"> The Structure of a Failure</h2>
+<p>Most programs fail not because their central logic is wrong, but because they encounter situations nobody imagined. The algorithm works. The reasoning is sound. But somewhere, silently, the code assumed something it was never entitled to assume.</p>
+<p>These unexamined assumptions have a name: <strong>edge cases</strong>.</p>
+<p>Consider the delivery robot. Its pathfinding works correctly for any well-formed map with a reachable destination. Now ask: what is a “well-formed map”? What does “reachable” mean if the map changes while the robot is moving? The moment we push on the specification, we discover that it was never as complete as it appeared.</p>
+<p>This pattern repeats across every system:</p>
+<ul>
+<li>The knowledge engine ranks documents correctly — unless the query is empty, in which case its score, the fraction of query terms a document matches, divides by zero.</li>
+<li>The virtual world applies interaction rules correctly — unless two rules conflict, in which case it applies both, or neither, or crashes.</li>
+</ul>
+<p>The failure is not in the algorithm. It is in the <strong>boundary of the algorithm’s applicability</strong> — the unstated preconditions that the algorithm relied upon but nobody wrote down.</p>
+</section>
+<section class="level2" data-number="5.2" id="boundaries">
+<h2 class="anchored" data-anchor-id="boundaries" data-number="5.2"> Boundaries</h2>
+<p>Edge cases cluster around boundaries. A boundary is any point where the nature of the input changes qualitatively — where “more of the same” becomes “something different.”</p>
+<p>Some boundaries are numerical: the empty collection, or one large enough to exhaust memory. Others are structural: a graph with a cycle, or a route whose source and destination are the same node.</p>
+<p>Return to the delivery robot. Typical operation involves a map with several rooms and a clear path between them. But consider the boundary cases:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%"/>
+<col style="width: 50%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Situation</th>
+<th>What the algorithm must decide</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Start equals destination</td>
+<td>Return the trivial route, or report an error?</td>
+</tr>
+<tr class="even">
+<td>Destination is unreachable</td>
+<td>Report failure — but what failure?</td>
+</tr>
+<tr class="odd">
+<td>Multiple shortest paths exist</td>
+<td>Return one, return all, or declare a tie?</td>
+</tr>
+<tr class="even">
+<td>Map contains a cycle</td>
+<td>Does the algorithm terminate?</td>
+</tr>
+<tr class="odd">
+<td>Map is empty</td>
+<td>Fail immediately, or search and fail gracefully?</td>
+</tr>
+</tbody>
+</table>
+<p>None of these are exotic. Every one of them will occur in a real building with a real robot. The question is whether they are handled intentionally or accidentally.</p>
+<p>A famous class of boundary errors is the <strong>off-by-one error</strong>. A loop written as</p>
+<pre><code>for i from 0 to n</code></pre>
+<p>may process element <code>n</code>, which lies one step beyond the end of a zero-indexed array of length <code>n</code>. The loop is almost correct. It works for every index except the last one. That word — <em>almost</em> — is doing a great deal of damage.</p>
+<p>Almost correct is a category of wrong.</p>
+</section>
+<section class="level2" data-number="5.3" id="thinking-like-a-tester">
+<h2 class="anchored" data-anchor-id="thinking-like-a-tester" data-number="5.3"> Thinking Like a Tester</h2>
+<p>The most reliable way to find edge cases is to change perspective. Stop thinking like someone building the system. Start thinking like someone trying to make it fail.</p>
+<p>A tester does not ask: <em>does this work for the normal case?</em> A tester asks:</p>
+<ul>
+<li>What happens if the input is empty?</li>
+<li>What happens if the input is larger than expected?</li>
+<li>What happens if the input is malformed?</li>
+<li>What happens if two things occur at the same time?</li>
+<li>What happens if something fails halfway through?</li>
+</ul>
+<p>Applied to our three systems, this mindset produces specific, answerable questions.</p>
+<p><strong>Delivery robot.</strong> What if a path becomes blocked after the robot has begun moving, or two robots are routed through the same corridor simultaneously?</p>
+<p><strong>Knowledge engine.</strong> What if two highly-ranked documents directly contradict each other? And what if the same query, submitted twice in rapid succession, produces different rankings?</p>
+<p><strong>Virtual world.</strong> What if an interaction rule specifies a result that violates a physical invariant, or a thousand objects converge on the same point in a single step?</p>
+<p>These questions may seem adversarial. They are. That is the point. The adversary is reality, and reality will ask every one of these questions eventually. Better to ask them now, in a design document, than later, in a crash report.</p>
+</section>
+<section class="level2" data-number="5.4" id="edge-cases-refine-the-specification">
+<h2 class="anchored" data-anchor-id="edge-cases-refine-the-specification" data-number="5.4"> Edge Cases Refine the Specification</h2>
+<p>There is a deeper reason to take edge cases seriously. They do not merely reveal holes in a design — they reveal that the original problem statement was about a simpler problem than the one we actually need to solve.</p>
+<p>Return to the specification from <a class="xref" href="part_I_3.html">Writing a Problem Statement</a>:</p>
+<blockquote class="blockquote">
+<p><em>Given a starting location and a destination, the robot must find a route that reaches the destination while avoiding any blocked paths.</em></p>
+</blockquote>
+<p>This is clear and precise — for the case where such a route exists. But edge analysis forces three new questions:</p>
+<ol type="1">
+<li>What must the system do when no route exists?</li>
+<li>What must the system do when multiple equally valid routes exist?</li>
+<li>What must the system do when the map changes between queries?</li>
+</ol>
+<p>Each question extends the specification. After answering them, we have a richer, more realistic contract — one that a programmer can actually implement fully, and a tester can actually verify completely.</p>
+<p>This is the double value of edge analysis: it improves the design <em>and</em> makes the design testable.</p>
+</section>
+<section class="level2" data-number="5.5" id="the-three-category-inventory">
+<h2 class="anchored" data-anchor-id="the-three-category-inventory" data-number="5.5"> The Three-Category Inventory</h2>
+<p>When examining any feature or system, edge cases can be organized into three categories. Working through all three systematically is more reliable than relying on intuition alone.</p>
+<p><strong>Input edges.</strong> What are the degenerate inputs — empty, null, malformed, out of range? What is the smallest valid input? The largest? What inputs sit exactly at declared boundaries?</p>
+<p><strong>Size edges.</strong> What happens at scale? An algorithm that works for ten items may behave differently for ten million. Data structures have capacity limits. Networks have latency. Time constraints that hold for small inputs may not hold for large ones.</p>
+<p><strong>State edges.</strong> What if two operations occur simultaneously, or a previous operation left the system in a partially modified state?</p>
+<p>For the delivery robot: the empty map is an input edge; a building with ten thousand rooms is a size edge; a map update that arrives while a route is being computed is a state edge. Each category exposes a different class of assumption.</p>
+</section>
+<section class="level2" data-number="5.6" id="edge-cases-as-design-instruments">
+<h2 class="anchored" data-anchor-id="edge-cases-as-design-instruments" data-number="5.6"> Edge Cases as Design Instruments</h2>
+<p>It is tempting to treat edge cases as nuisances — special cases that complicate otherwise clean algorithms. This is the wrong way to see them.</p>
+<p>Edge cases are <strong>design instruments</strong>. Carefully analyzed, they often point toward better abstractions.</p>
+<p>Consider what happens when we ask: <em>what should the robot do if the start and destination are the same location?</em> One answer is to return the trivial route <code>[A]</code>. Another is to return the empty route <code>[]</code>. These are different answers with different implications for every piece of code that processes the result.</p>
+<p>Choosing between them forces a decision about the meaning of a route. That decision, once made, simplifies the code that calls the algorithm and makes the system’s behavior predictable in cases that the original specification left undefined.</p>
+<p>The edge case did not complicate the design. It completed it.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Take the problem statement you wrote at the end of <a class="xref" href="part_I_3.html">Writing a Problem Statement</a> and apply the three-category inventory to it.</p>
+<p>For each category — input edges, size edges, state edges — identify at least one case your current specification does not address. Then answer:</p>
+<ol type="1">
+<li>What should the system do in each unaddressed case?</li>
+<li>Does your answer require revising the specification, or adding to it?</li>
+<li>Which cases would you test first, and why?</li>
+</ol>
+<p>If your specification handles every case you can identify without modification, push harder. In my experience, a specification that survives its first edge analysis without revision is one whose edges were not examined closely enough.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Programs fail at the boundaries of their assumptions, not at the center of their logic.</li>
+<li>Edge cases cluster around boundaries: degenerate inputs, extreme sizes, conflicting states.</li>
+<li>Thinking like a tester — adversarially, systematically — is a critical skill.</li>
+<li>Edge analysis refines the specification: every gap it exposes is a requirement that was always there, waiting to be written down.</li>
+<li>Almost correct is a category of wrong.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_I_5.html">From Stories to Specifications</a>, takes the next step: turning problem statements, examples, and edge analyses into formal specifications — requirements precise enough that two programmers, working independently, build the same system.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_I_3.html">← Chapter 3</a></div>
+    <div class="next"><a href="part_I_5.html">Chapter 5 →<span class="next-title">From Stories to Specifications</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thinking Recursively — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 13</span>
+    <h1 class="opener-title">Thinking Recursively</h1>
+  </div>
+  <div class="prose">
+<p><a class="xref" href="part_III_12.html">Breaking Problems Apart</a> established that decomposition means dividing a problem into subproblems with clear interfaces and distinct responsibilities. Recursion is a special and important case of this principle: it applies when the subproblem has the same shape as the original problem, only smaller.</p>
+<p>This is not a trick or an advanced technique reserved for difficult cases. It is a natural way to express algorithms over data whose structure is self-referential — trees, graphs, nested containment hierarchies, any domain where the whole is made of parts that resemble the whole. In these domains, a recursive algorithm often expresses the solution more directly and more transparently than an iterative one, because the structure of the algorithm matches the structure of the data.</p>
+<p>The two are not always interchangeable in practice. A recursive algorithm that operates on deeply nested data may exhaust the call stack before it reaches a base case. A recursive algorithm that revisits already-explored nodes in a graph may run forever. Understanding recursion well means understanding not just how to write recursive algorithms, but when they are safe and what must be in place to make them reliable.</p>
+<section class="level2" data-number="14.1" id="the-shape-of-a-recursive-algorithm">
+<h2 class="anchored" data-anchor-id="the-shape-of-a-recursive-algorithm" data-number="14.1"> The Shape of a Recursive Algorithm</h2>
+<p>Every correct recursive algorithm has exactly two components, and both must be present for the algorithm to be correct.</p>
+<p>The <strong>base case</strong> is the simplest possible instance of the problem — the version that can be solved directly, without recursion. For counting reachable nodes in a graph, the base case is a node that has already been visited: the answer is zero, because the node has already been counted. For computing the depth of a tree, the base case is a leaf: the depth is one. The base case is not optional. An algorithm without a reachable base case does not terminate.</p>
+<p>The <strong>recursive step</strong> reduces the original problem to one or more smaller instances of the same problem, solves those instances by calling itself, and combines their results into the answer for the original. The word <em>smaller</em> is critical. Each recursive call must bring the computation measurably closer to the base case. If the recursive step does not make progress — if a call with input of size <em>n</em> produces a recursive call with input also of size <em>n</em> — the algorithm will not terminate either.</p>
+<p>The relationship between these two components mirrors the structure of a proof by induction: the base case establishes correctness for the smallest input; the recursive step establishes that correctness for any input of size <em>n</em> follows from correctness for inputs smaller than <em>n</em>. An algorithm that satisfies both components is correct for all valid inputs. An algorithm that satisfies only one is not an algorithm — it is a procedure that works on some inputs by accident.</p>
+</section>
+<section class="level2" data-number="14.2" id="when-recursion-fits">
+<h2 class="anchored" data-anchor-id="when-recursion-fits" data-number="14.2"> When Recursion Fits</h2>
+<p>The choice between recursion and iteration is a choice about how to express the algorithm’s logic, and it should be made based on which expression more clearly reflects the structure of the problem.</p>
+<p>Recursion tends to be the more natural expression when the data is hierarchical or graph-like: trees where each subtree is itself a tree, or graph traversals where each neighbor is itself a node to be explored. In these cases, the recursive structure of the algorithm corresponds directly to the recursive structure of the data, and the algorithm reads as a statement about the data rather than as a sequence of bookkeeping steps.</p>
+<p>Iteration tends to be the more natural expression for linear workflows: processing a sequence from start to finish, accumulating a result as you go. A loop that sums the elements of a list is not hiding a self-similar structure; it is doing the same thing repeatedly, and saying so directly is clearer than encoding it as recursion.</p>
+<p>Choosing recursion for a linear workflow, or iteration for a hierarchical one, produces code that works but does not communicate. The algorithm’s structure and the problem’s structure are misaligned, and a reader must work to find the correspondence that the code does not make visible.</p>
+</section>
+<section class="level2" data-number="14.3" id="graph-recursion-and-the-necessity-of-bounds">
+<h2 class="anchored" data-anchor-id="graph-recursion-and-the-necessity-of-bounds" data-number="14.3"> Graph Recursion and the Necessity of Bounds</h2>
+<p>The systems we develop are all graph-like in some respect, and each needs recursion that is careful about bounds.</p>
+<p>The delivery network and the knowledge engine share the main hazard: cycles. Two locations can be connected through several paths, and two documents can each list the other as related, so a recursive traversal that does not track which nodes it has visited will follow those cycles indefinitely. The knowledge engine also needs its depth bounded: without a limit, a search for indirectly relevant material can expand to cover the entire document collection.</p>
+<p>The virtual world’s containment hierarchy — zones contain regions, regions contain objects — is a tree, so cycles cannot occur. Depth still affects performance, and traversal order affects correctness: if the same hierarchy is processed in different orders on different runs, the simulation is not reproducible.</p>
+<p>Recursion without bounds is unsafe in every one of these settings, and the pattern that makes graph recursion safe is always the same: keep a set of visited nodes, and check and update it before every recursive call. Optionally, enforce a depth limit as a second line of defense against graphs that are technically acyclic but too deep for the call stack to handle.</p>
+</section>
+<section class="level2" data-number="14.4" id="from-requirement-to-recursive-algorithm">
+<h2 class="anchored" data-anchor-id="from-requirement-to-recursive-algorithm" data-number="14.4"> From Requirement to Recursive Algorithm</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“Count the number of locations reachable from a starting node.”</em></p>
+</blockquote>
+<p>The problem has a self-similar structure. A node is reachable from the start if it is the start itself, or if it is reachable from any neighbor of the start. The count of reachable nodes from a given node is one (for the node itself) plus the sum of reachable nodes from each unvisited neighbor. This is a recursive definition, and it maps directly to a recursive algorithm.</p>
+<p><strong>Base case.</strong> If the current node has already been visited, return zero. The node has already been counted, and counting it again would produce an incorrect total.</p>
+<p><strong>Recursive step.</strong> Mark the current node as visited. Count it (contributing one to the total). For each neighbor, add the count returned by a recursive call on that neighbor. Return the sum.</p>
+<p><strong>Progress metric.</strong> The recursion terminates because the visited set grows with each call, and the graph is finite. Every recursive call either finds a visited node and returns immediately, or visits a new node and reduces the number of unvisited nodes by one. The total number of recursive calls is bounded by the number of nodes in the graph.</p>
+<p><strong>Cycle guard.</strong> The visited set is the cycle guard. A node that has been visited will not be visited again, which breaks any cycle the graph might contain.</p>
+<p>These four elements — base case, recursive step, progress metric, cycle guard — are the complete specification of the algorithm. The implementation follows directly from them.</p>
+</section>
+<section class="level2" data-number="14.5" id="a-recursive-algorithm-in-code">
+<h2 class="anchored" data-anchor-id="a-recursive-algorithm-in-code" data-number="14.5"> A Recursive Algorithm in Code</h2>
+<pre class="nex"><code>class Reachability
+feature
+  neighbors: Map[String, Array[String]]
+  visited: Set[String]
+
+  count_from(node: String): Integer
+  require
+    node_known: neighbors.contains_key(node)
+  do
+    if visited.contains(node) then
+      result := 0
+    else
+      visited.add(node)
+      result := 1
+      across neighbors.get(node) as next do
+        result := result + count_from(next)
+      end
+    end
+  ensure
+    non_negative_count: result &gt;= 0
+    now_visited: visited.contains(node)
+  end
+
+create
+  make(neighbors: Map[String, Array[String]]) do
+    this.neighbors := neighbors
+    visited := #{}
+  end
+end</code></pre>
+<p>Read this sketch against the four elements above. The first branch of the conditional is the base case: the node has been visited, return zero. The second branch is the recursive step: mark the node visited, count it, and add the counts returned for each of its neighbors. The <code>visited</code> set is the cycle guard. Because a node enters it before any of its neighbors are explored, a cycle that leads back to the node ends in the base case rather than in another round of recursion. The progress metric is implicit — each call either terminates immediately or adds a new node to <code>visited</code> before recursing, and <code>visited</code> can grow no larger than the map — but it is worth making explicit, and the <code>now_visited</code> postcondition records half of the argument: no call returns without its node in the set. The precondition <code>node_known</code> keeps the recursion inside the map: every node it reaches, including every neighbor, must be one the map knows.</p>
+<p>The postcondition <code>result &gt;= 0</code> is minimal but meaningful. A negative count is nonsensical, and guaranteeing non-negativity allows the caller to depend on this property rather than defensively check for it. As with the decomposed stages in <a class="xref" href="part_III_12.html">Breaking Problems Apart</a>, the contract at the boundary is what allows the piece to be composed with other pieces safely.</p>
+</section>
+<section class="level2" data-number="14.6" id="where-recursive-algorithms-fail">
+<h2 class="anchored" data-anchor-id="where-recursive-algorithms-fail" data-number="14.6"> Where Recursive Algorithms Fail</h2>
+<p><strong>Missing base case.</strong> Without a reachable base case, the recursion has no stopping condition. The call stack grows without bound until the runtime exhausts its stack space and the program terminates with an error. The remedy is to write and test the base case before writing the recursive step. An algorithm whose base case is correct for the smallest input is an algorithm that has been verified to stop.</p>
+<p><strong>No progress metric.</strong> A recursive call that does not reduce the problem — that calls itself with the same input, or with an input of the same size — will not reach the base case. This is a subtler failure than a missing base case, because the code may look correct: there is a base case, and there are recursive calls, but the calls never get closer to the base. Defining a progress metric explicitly — the number of unvisited nodes, say, or the remaining depth — and verifying that each recursive call strictly reduces it is the discipline that prevents this failure.</p>
+<p><strong>Ignoring cycles.</strong> In any graph that may contain cycles, a recursive traversal without a visited set will follow cycles indefinitely. The algorithm may look correct on acyclic inputs and fail silently on cyclic ones. Since the presence or absence of cycles is a property of the data, not of the algorithm, the safe assumption is that cycles may exist and the visited set is always required.</p>
+<p><strong>Recomputing identical subproblems.</strong> Some recursive algorithms naturally decompose a problem into overlapping subproblems — the same subproblem arises from multiple different paths through the recursion. Without caching, each instance is recomputed independently, and the total work grows exponentially in the number of overlapping subproblems. The signature of this failure is an algorithm that is correct on small inputs and runs for an unacceptable amount of time on larger ones. The remedy is to record the result of each subproblem the first time it is computed and return the recorded result on subsequent calls (a technique known as <i>memoization</i>).</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Design one recursive routine for a problem in your system and specify it completely with five components: the base case, the recursive step, the progress metric, the cycle guard (or an explicit argument that none is needed), and a worst-case bound on the depth of recursion.</p>
+<p>Then test it against three inputs: a trivial input that exercises only the base case, a normal input that exercises the recursive step, and an adversarial input that contains a cycle or approaches the depth bound. If the adversarial input produces unbounded behavior, the specification is incomplete. Revise it before writing the implementation.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Recursion is decomposition applied to self-similar structure. It is not a general-purpose technique but a natural fit for hierarchical and graph-like problems.</li>
+<li>Every correct recursive algorithm has a base case and a progress metric. Both are mandatory. An algorithm missing either one is not correct.</li>
+<li>Graph recursion requires cycle guards. The visited set is not an optimization — it is the mechanism that prevents the algorithm from following cycles indefinitely.</li>
+<li>Overlapping subproblems require memoization. An algorithm that recomputes the same subproblem repeatedly is correct but not acceptable; recognizing the overlap is the first step toward fixing it.</li>
+<li>The four elements of a safe recursive design — base case, recursive step, progress metric, cycle guard — are a complete specification. The implementation follows from them directly.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_III_14.html">Measuring Algorithm Behavior</a>, shifts from the correctness of algorithms to their cost. A correct algorithm that is too slow for its inputs is not a usable algorithm. Understanding how algorithmic cost grows with input size is what makes it possible to choose between correct alternatives — and to predict, before deployment, whether an algorithm will hold up under real conditions.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_III_12.html">← Chapter 12</a></div>
+    <div class="next"><a href="part_III_14.html">Chapter 14 →<span class="next-title">Measuring Algorithm Behavior</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

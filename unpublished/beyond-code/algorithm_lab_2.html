@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>When Algorithms Compete — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Algorithm Lab</span>
+    <h1 class="opener-title">When Algorithms Compete</h1>
+  </div>
+  <div class="prose">
+<p>Benchmarking competing algorithm choices under controlled workloads.</p>
+<section class="level2" id="why-this-lab-exists">
+<h2 class="anchored" data-anchor-id="why-this-lab-exists">Why This Lab Exists</h2>
+<p>The first algorithm lab built intuition that different strategies behave differently.</p>
+<p>This lab goes one step further: direct competition under controlled scenarios.</p>
+<p>The goal is to answer engineering questions with evidence:</p>
+<ul>
+<li>Which algorithm wins for our workload profile?</li>
+<li>Where does each algorithm break down?</li>
+<li>Which assumptions must hold for the chosen strategy?</li>
+</ul>
+</section>
+<section class="level2" id="lab-objectives">
+<h2 class="anchored" data-anchor-id="lab-objectives">Lab Objectives</h2>
+<p>By the end of this lab, you should be able to:</p>
+<ul>
+<li>compare competing algorithms for the same requirement</li>
+<li>evaluate normal-case versus adverse-case behavior</li>
+<li>separate asymptotic reasoning from measured behavior</li>
+<li>justify a strategy choice with explicit tradeoffs</li>
+</ul>
+</section>
+<section class="level2" id="competition-setup">
+<h2 class="anchored" data-anchor-id="competition-setup">Competition Setup</h2>
+<p>Use one concrete problem:</p>
+<blockquote class="blockquote">
+<p>“Find a path from A to G in an unweighted graph, preferably the shortest.”</p>
+</blockquote>
+<p>Competing strategies:</p>
+<ul>
+<li>DFS-style search (finds a path, not guaranteed shortest by hops)</li>
+<li>BFS-style search (guarantees minimum hops in unweighted graphs)</li>
+</ul>
+<p>Why this setup works:</p>
+<ul>
+<li>same input graph</li>
+<li>same success and failure contract</li>
+<li>different quality and cost behavior</li>
+</ul>
+</section>
+<section class="level2" id="nex-implementation">
+<h2 class="anchored" data-anchor-id="nex-implementation">Nex Implementation</h2>
+<p>Suggested files:</p>
+<ul>
+<li><code>algorithm_lab_2.nex</code></li>
+<li><code>algorithm_lab_2_main.nex</code></li>
+</ul>
+<section class="level3" id="shared-result-type">
+<h3 class="anchored" data-anchor-id="shared-result-type">Shared Result Type</h3>
+<pre class="nex"><code>class Path_Run_Result
+create
+  make(strategy, status, path: String, hops: Integer, steps: Integer) do
+    this.strategy := strategy
+    this.status := status
+    this.path := path
+    this.hops := hops
+    this.steps := steps
+  end
+feature
+  strategy: String
+  status: String
+  path: String
+  hops: Integer
+  steps: Integer
+invariant
+  strategy_present: strategy /= ""
+  status_present: status /= ""
+  hops_non_negative: hops &gt;= 0
+  steps_non_negative: steps &gt;= 0
+end</code></pre>
+</section>
+<section class="level3" id="graph-fixture">
+<h3 class="anchored" data-anchor-id="graph-fixture">Graph Fixture</h3>
+<pre class="nex"><code>class Graph_Fixture
+create
+  make_default() do
+    -- Teaching-sized directed graph. Neighbor order is
+    -- fixed, so both searches are deterministic.
+    edges := {
+      "A": ["B", "C"],
+      "B": ["D"],
+      "C": ["F"],
+      "D": ["E"],
+      "E": ["G"],
+      "F": ["G"],
+      "G": []
+    }
+  ensure
+    short_branch_open: has_edge("C", "F")
+  end
+feature
+  edges: Map[String, Array[String]]
+
+  has_edge(from_node, to_node: String): Boolean do
+    result := edges.contains_key(from_node)
+              and edges.get(from_node).contains(to_node)
+  end
+
+  disable_short_branch() do
+    let out := edges.get("C")
+    if out.contains("F") then
+      out.remove(out.index_of("F"))
+    end
+  ensure
+    disabled: not has_edge("C", "F")
+  end
+
+  -- Rebuild the path to goal from the node each 
+  -- node was first reached from.
+  trace(came_from: Map[String, String], 
+        goal: String): String do
+    result := goal
+    from let prev := came_from.get(goal) 
+    until prev = "" do
+      result := prev + "-&gt;" + result
+      prev := came_from.get(prev)
+    end
+  end
+end</code></pre>
+</section>
+<section class="level3" id="dfs-style-competitor">
+<h3 class="anchored" data-anchor-id="dfs-style-competitor">DFS-Style Competitor</h3>
+<pre class="nex"><code>class DFS_Competitor
+feature
+  steps: Integer
+  came_from: Map[String, String]
+
+  run(g: Graph_Fixture): Path_Run_Result
+  do
+    steps := 0
+    came_from := {}
+    came_from.put("A", "")
+    if visit(g, "A", "G") then
+      let path := g.trace(came_from, "G")
+      result := create Path_Run_Result.make(
+        "DFS", "FOUND", path, 
+        path.split("-&gt;").length - 1, steps
+      )
+    else
+      result := create Path_Run_Result.make(
+        "DFS", "UNREACHABLE", "", 0, steps
+      )
+    end
+  ensure
+    known_status:
+      result.status = "FOUND" or
+      result.status = "UNREACHABLE"
+  end
+
+  -- Go as deep as possible along the first unvisited
+  -- neighbor before trying the next one.
+  visit(g: Graph_Fixture, node, goal: String): Boolean
+  do
+    steps := steps + 1
+    if node = goal then
+      result := true
+    else
+      result := false
+      across g.edges.get(node) as next do
+        if not result 
+           and not came_from.contains_key(next) then
+          came_from.put(next, node)
+          result := visit(g, next, goal)
+        end
+      end
+    end
+  end
+end</code></pre>
+</section>
+<section class="level3" id="bfs-style-competitor">
+<h3 class="anchored" data-anchor-id="bfs-style-competitor">BFS-Style Competitor</h3>
+<pre class="nex"><code>class BFS_Competitor
+feature
+  run(g: Graph_Fixture): Path_Run_Result
+  do
+    -- Expand nodes in the order they were discovered,
+    -- so every node one hop out is expanded before any
+    -- node two hops out.
+    let steps: Integer := 0
+    let came_from: Map[String, String] := {}
+    came_from.put("A", "")
+    let frontier: Array[String] := ["A"]
+    from let i := 0
+    until i &gt;= frontier.length 
+          or came_from.contains_key("G") do
+      steps := steps + 1
+      across g.edges.get(frontier.get(i)) as next do
+        if not came_from.contains_key(next) then
+          came_from.put(next, frontier.get(i))
+          frontier.add(next)
+        end
+      end
+      i := i + 1
+    end
+    if came_from.contains_key("G") then
+      let path := g.trace(came_from, "G")
+      result := create Path_Run_Result.make(
+        "BFS", "FOUND", path, 
+        path.split("-&gt;").length - 1, steps
+      )
+    else
+      result := create Path_Run_Result.make(
+        "BFS", "UNREACHABLE", "", 0, steps
+      )
+    end
+  ensure
+    known_status:
+      result.status = "FOUND" or
+      result.status = "UNREACHABLE"
+  end
+end</code></pre>
+</section>
+<section class="level3" id="driver-run-competitions">
+<h3 class="anchored" data-anchor-id="driver-run-competitions">Driver: Run Competitions</h3>
+<pre class="nex"><code>class App
+feature
+  run() do
+    let g: Graph_Fixture := create Graph_Fixture.make_default
+
+    let dfs: DFS_Competitor := create DFS_Competitor
+    let bfs: BFS_Competitor := create BFS_Competitor
+
+    let r_dfs: Path_Run_Result := dfs.run(g)
+    let r_bfs: Path_Run_Result := bfs.run(g)
+
+    print(
+      "DFS: " + r_dfs.status +
+      " " + r_dfs.path +
+      " hops=" + r_dfs.hops +
+      " steps=" + r_dfs.steps
+    )
+    print(
+      "BFS: " + r_bfs.status +
+      " " + r_bfs.path +
+      " hops=" + r_bfs.hops +
+      " steps=" + r_bfs.steps
+    )
+
+    -- Adverse scenario: disable shorter branch.
+    g.disable_short_branch
+    let r_dfs_2: Path_Run_Result := dfs.run(g)
+    let r_bfs_2: Path_Run_Result := bfs.run(g)
+
+    print(
+      "DFS adverse: " + r_dfs_2.status +
+      " " + r_dfs_2.path +
+      " hops=" + r_dfs_2.hops +
+      " steps=" + r_dfs_2.steps
+    )
+    print(
+      "BFS adverse: " + r_bfs_2.status +
+      " " + r_bfs_2.path +
+      " hops=" + r_bfs_2.hops +
+      " steps=" + r_bfs_2.steps
+    )
+  end
+end
+
+-- Run the driver
+let app := create App
+app.run</code></pre>
+<p>Expected observations:</p>
+<ul>
+<li>both may find paths in nominal case</li>
+<li>BFS-style competitor returns shorter route in default fixture</li>
+<li>DFS-style competitor can return longer-but-valid route depending on branch order</li>
+</ul>
+</section>
+</section>
+<section class="level2" id="lab-tasks">
+<h2 class="anchored" data-anchor-id="lab-tasks">Lab Tasks</h2>
+<section class="level3" id="task-a-nominal-competition">
+<h3 class="anchored" data-anchor-id="task-a-nominal-competition">Task A — Nominal Competition</h3>
+<p>Run both competitors on the default graph and record:</p>
+<ul>
+<li>status (found or unreachable)</li>
+<li>returned path</li>
+<li>hop count</li>
+<li>step count</li>
+</ul>
+</section>
+<section class="level3" id="task-b-workload-variation">
+<h3 class="anchored" data-anchor-id="task-b-workload-variation">Task B — Workload Variation</h3>
+<p>Modify graph shape and rerun:</p>
+<ul>
+<li>remove one shortcut edge</li>
+<li>add one distracting dead-end edge</li>
+</ul>
+<p>Document which strategy is more sensitive to each change.</p>
+</section>
+<section class="level3" id="task-c-constraint-stress">
+<h3 class="anchored" data-anchor-id="task-c-constraint-stress">Task C — Constraint Stress</h3>
+<p>Introduce an explicit depth cap and evaluate:</p>
+<ul>
+<li>when DFS fails due to depth bound</li>
+<li>when BFS frontier growth becomes expensive</li>
+</ul>
+</section>
+</section>
+<section class="level2" id="decision-template">
+<h2 class="anchored" data-anchor-id="decision-template">Decision Template</h2>
+<p>Use this template for final strategy choice:</p>
+<ol type="1">
+<li>problem objective (reachability or shortest path)</li>
+<li>dominant workload nature</li>
+<li>correctness requirement (any path or the best path)</li>
+<li>preferred algorithm and why</li>
+<li>fallback strategy under stress</li>
+</ol>
+</section>
+<section class="level2" id="deliverables">
+<h2 class="anchored" data-anchor-id="deliverables">Deliverables</h2>
+<ul>
+<li>runnable Nex code for both competitors</li>
+<li>experiment table across at least three graph variants</li>
+<li>one-page decision note with selected strategy</li>
+<li>explicit list of assumptions that must remain true</li>
+</ul>
+</section>
+<section class="level2" id="forward-link">
+<h2 class="anchored" data-anchor-id="forward-link">Forward Link</h2>
+<p>This lab closes <a class="xref" href="index.html#part-v" title="Part V: Algorithms That Power Systems">Part V</a> by turning algorithm choice into measurable engineering practice.</p>
+<p>In <a class="xref" href="index.html#part-vi" title="Part VI: Building Real Software">Part VI</a>, we move from algorithm decisions to software architecture decisions: components, boundaries, and interfaces.</p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_V_22.html">← Chapter 22</a></div>
+    <div class="next"><a href="part_VI_23.html">Chapter 23 →<span class="next-title">From Algorithms to Components</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

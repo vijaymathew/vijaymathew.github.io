@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refactoring Without Fear — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 33</span>
+    <h1 class="opener-title">Refactoring Without Fear</h1>
+  </div>
+  <div class="prose">
+<p>A system that grows must change its structure. The elegant abstractions of yesterday often become the bottlenecks of today. But change is dangerous. In a complex system, a structural modification can have unintended behavioral effects that ripple through unrelated modules. This danger often leads to “architectural paralysis,” where teams avoid necessary improvements because they fear breaking the system.</p>
+<p>Refactoring is the engineering discipline that addresses this fear. It is the process of improving the internal structure of code without changing its observable behavior. When done correctly, refactoring is not a high-risk event; it is a routine, verified, and reversible part of the development lifecycle.</p>
+<section class="level2" data-number="34.1" id="behavior-preservation-first">
+<h2 class="anchored" data-anchor-id="behavior-preservation-first" data-number="34.1"> Behavior Preservation First</h2>
+<p>The defining characteristic of refactoring is that it is behavior-neutral. If the observable behavior of the system changes — even if it becomes “better” — you are not refactoring; you are rewriting.</p>
+<p>To ensure behavior preservation, we rely on safety nets. In the Nex philosophy, these safety nets are not just external tests, but internal contracts. A refactor is successful if: <ol><li><strong>Contract checks pass:</strong> The <code>require</code> and <code>ensure</code> clauses of the refactored modules are still honored.</li><li><strong>Regression tests pass:</strong> The suite of automated tests still produces the same results.</li><li><strong>Parity is maintained:</strong> On a representative sample of inputs, the new structure produces the exact same outputs as the old structure.</li></ol></p>
+<p>Without these safety nets, refactoring is guesswork. With them, it is a controlled transformation.</p>
+</section>
+<section class="level2" data-number="34.2" id="the-incremental-refactor-pattern">
+<h2 class="anchored" data-anchor-id="the-incremental-refactor-pattern" data-number="34.2"> The Incremental Refactor Pattern</h2>
+<p>The most effective way to reduce the risk of a refactor is to break it into small, verified slices. A “big bang” refactor — where a developer spends a week rewriting a major component and only tests it at the end — is a recipe for disaster.</p>
+<p>A more reliable sequence is the Incremental Refactor Pattern:</p>
+<ol type="1">
+<li><strong>Capture current behavior:</strong> Before touching the code, ensure you have a baseline of tests or contracts that define what “correct” looks like.</li>
+<li><strong>Extract the extension point:</strong> Introduce an interface or a boundary that separates the code you want to change from the code that uses it.</li>
+<li><strong>Move one responsibility:</strong> Perform the smallest possible structural change. This might be moving a single method or splitting a single class.</li>
+<li><strong>Run parity checks:</strong> Verify that the system still works exactly as it did before the move.</li>
+<li><strong>Iterate:</strong> Repeat the process until the desired structure is achieved.</li>
+<li><strong>Remove the old path:</strong> Only once the new structure is proven stable do you delete the legacy code.</li>
+</ol>
+<p>This pattern minimizes the “distance” between a mistake and its discovery. If step 4 fails, you know exactly what caused the regression: the small change you just made in step 3.</p>
+</section>
+<section class="level2" data-number="34.3" id="from-problem-to-refactored-design">
+<h2 class="anchored" data-anchor-id="from-problem-to-refactored-design" data-number="34.3"> From Problem to Refactored Design</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“The knowledge service has grown too large. It now handles both document retrieval and relevance ranking. We need to split these into two independent services.”</em></p>
+</blockquote>
+<p>A naive approach might be to create two new classes and move code between them. A disciplined approach follows the incremental pattern:</p>
+<ol type="1">
+<li><strong>Baseline:</strong> We verify that the current <code>Legacy_Knowledge_Service.query()</code> produces known results for a set of test queries.</li>
+<li><strong>The Extension Point:</strong> We define <code>Retrieval_Service</code> and <code>Ranking_Service</code> classes but keep them empty for now.</li>
+<li><strong>The Move:</strong> We move the retrieval logic into <code>Retrieval_Service.retrieve()</code> and the ranking logic into <code>Ranking_Service.rank()</code>. The service, now <code>Refactored_Knowledge_Service</code>, calls the two in turn instead of doing the work itself.</li>
+<li><strong>Parity:</strong> We run the same queries as in step 1. If the results are identical, we have successfully refactored the logic without breaking the behavior.</li>
+</ol>
+<p>The outward contract of the search system — “given a query, return ranked results” — remains unchanged. The internal structure — “how those results are retrieved and ranked” — is now more modular and maintainable.</p>
+</section>
+<section class="level2" data-number="34.4" id="implementation-in-nex">
+<h2 class="anchored" data-anchor-id="implementation-in-nex" data-number="34.4"> Implementation in Nex</h2>
+<p>In Nex, we can use the <code>Refactored_Knowledge_Service</code> to demonstrate how internal decomposition preserves the external contract.</p>
+<pre class="nex"><code>-- Original (Legacy) Service
+class Legacy_Knowledge_Service
+feature
+  query(q: String): String
+  require
+    query_present: q /= ""
+  do
+    -- Retrieval: collect the documents that match the query
+    let candidates: Array[String] := ["DOC:GENERIC"]
+    if q = "graphs" then
+      candidates := ["DOC:G-2", "DOC:G-1", "DOC:G-3"]
+    end
+    -- Ranking: keep the candidate with the highest relevance score
+    let scores: Map[String, Integer] := {"DOC:G-1": 9, "DOC:G-2": 7, "DOC:G-3": 4}
+    result := candidates.get(0)
+    let best := 0
+    across candidates as c do
+      if scores.contains_key(c) and scores.get(c) &gt; best then
+        best := scores.get(c)
+        result := c
+      end
+    end
+  ensure
+    non_empty: result /= ""
+  end
+end
+
+-- After Refactoring: Two focused services
+class Retrieval_Service
+feature
+  retrieve(q: String): Array[String]
+  require
+    query_present: q /= ""
+  do
+    result := ["DOC:GENERIC"]
+    if q = "graphs" then
+      result := ["DOC:G-2", "DOC:G-1", "DOC:G-3"]
+    end
+  ensure
+    has_candidates: result.length &gt; 0
+  end
+end
+
+class Ranking_Service
+feature
+  rank(candidates: Array[String]): String
+  require
+    has_candidates: candidates.length &gt; 0
+  do
+    let scores: Map[String, Integer] := {"DOC:G-1": 9, "DOC:G-2": 7, "DOC:G-3": 4}
+    result := candidates.get(0)
+    let best := 0
+    across candidates as c do
+      if scores.contains_key(c) and scores.get(c) &gt; best then
+        best := scores.get(c)
+        result := c
+      end
+    end
+  ensure
+    chosen_from_candidates: candidates.contains(result)
+  end
+end
+
+-- The Refactored Orchestrator: Same contract as Legacy
+class Refactored_Knowledge_Service
+create
+  make(retrieval: Retrieval_Service, ranking: Ranking_Service) do
+    this.retrieval := retrieval
+    this.ranking := ranking
+  end
+feature
+  retrieval: Retrieval_Service
+  ranking: Ranking_Service
+
+  query(q: String): String
+  require
+    query_present: q /= ""
+  do
+    let candidates: Array[String] := retrieval.retrieve(q)
+    result := ranking.rank(candidates)
+  ensure
+    non_empty: result /= ""
+  end
+end</code></pre>
+<p>The <code>Refactored_Knowledge_Service.query()</code> has the exact same <code>require</code> and <code>ensure</code> as the legacy version. Any client using the legacy service can switch to the refactored one without knowing that the internal implementation has changed from a single tangled block to a clean two-service architecture.</p>
+</section>
+<section class="level2" data-number="34.5" id="parity-checks-in-practice">
+<h2 class="anchored" data-anchor-id="parity-checks-in-practice" data-number="34.5"> Parity Checks in Practice</h2>
+<p>Each running system has a typical refactor, and each needs a parity check suited to it.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%"/>
+<col style="width: 46%"/>
+<col style="width: 36%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>System</th>
+<th>Typical refactor</th>
+<th>Parity check</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Delivery network</td>
+<td>Move state transition logic out of a generic “task manager” into specific “state machine” objects.</td>
+<td>The task still moves through the correct lifecycle.</td>
+</tr>
+<tr class="even">
+<td>Knowledge engine</td>
+<td>Split the “indexing” pipeline into separate “extraction” and “storage” stages.</td>
+<td>A document indexed by the new pipeline is still retrievable and carries the same metadata.</td>
+</tr>
+<tr class="odd">
+<td>Virtual world</td>
+<td>Extract the collision detection algorithm into its own module.</td>
+<td>Entities still collide at exactly the same coordinates as before.</td>
+</tr>
+</tbody>
+</table>
+<p>The goal is to improve the “how” while strictly preserving the “what.”</p>
+</section>
+<section class="level2" data-number="34.6" id="where-refactoring-fails">
+<h2 class="anchored" data-anchor-id="where-refactoring-fails" data-number="34.6"> Where Refactoring Fails</h2>
+<p><strong>The “Big Bang” Temptation.</strong> As we noted, trying to fix everything at once is the fastest way to break a system. The remedy is to force yourself to work in slices that can be committed and verified in a single hour.</p>
+<p><strong>Missing Parity Checks.</strong> Assuming that “the tests passed” is enough can be dangerous if the test suite is sparse. The remedy is to use real-world data (or high-fidelity samples) to compare the output of the old and new paths before making the switch permanent.</p>
+<p><strong>Early Deletion.</strong> Deleting the legacy code before the new path has survived a production workload is a common source of “no-way-back” incidents. The remedy is to keep both paths alive for a short period — perhaps behind a feature flag — so that you can roll back instantly if a subtle behavioral difference is discovered.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Identify one “tangled” method in your system that performs more than one responsibility. Plan a three-step refactor to split it: 1. What is the baseline behavior you will verify? 2. What is the first small move (e.g., extracting one responsibility into its own method)? 3. How will you prove that the behavior is still identical after the move?</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Refactoring is the routine improvement of internal structure without changing external behavior.</li>
+<li>Behavior preservation is not a guess; it is a verified state proven by contracts, tests, and parity checks.</li>
+<li>The risk of a refactor is inversely proportional to its size. Small, incremental steps are the path to safety.</li>
+<li>Parity testing — comparing the outputs of old and new paths — is the ultimate confidence mechanism for structural change.</li>
+<li>Fear of change is a symptom of a system without safety nets. Building those nets is the first step toward a system that can grow.</li>
+</ul>
+</div>
+<p><em><a class="xref" href="index.html#part-viii" title="Part VIII: Systems That Grow">Part VIII</a> established the discipline of growth. In <a class="xref" href="index.html#part-ix" title="Part IX: Programming in the Age of AI">Part IX</a>, we look toward the future: how these engineering principles apply in an age where AI assistants are helping us write and review the code we build.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_VIII_32.html">← Chapter 32</a></div>
+    <div class="next"><a href="studio_6.html">Studio 6 →<span class="next-title">Evolution</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Designing for Change — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 32</span>
+    <h1 class="opener-title">Designing for Change</h1>
+  </div>
+  <div class="prose">
+<p>Managing complexity, as we saw in <a class="xref" href="part_VIII_31.html">Managing Complexity</a>, is the discipline of keeping a system understandable today. It is about drawing boundaries so that the cost of reasoning remains within our budget. But a system that is easy to understand today may still be prohibitively expensive to change tomorrow. Requirements evolve and business models pivot. If every such change requires reaching across boundaries and rewriting stable logic, the system has failed a fundamental engineering test.</p>
+<p>Designing for change is the practice of building “extension points” into a system — locations where behavior can vary without breaking the contracts that surround them. The goal is not to predict the future, which is impossible, but to build a system that can absorb it.</p>
+<section class="level2" data-number="33.1" id="the-concept-of-change-extension-points">
+<h2 class="anchored" data-anchor-id="the-concept-of-change-extension-points" data-number="33.1"> The Concept of Extension Points</h2>
+<p>An extension point is a place where we can alter behavior without editing the code that uses that behavior. In a well-designed system, extension points are placed at the points of highest likely volatility.</p>
+<p>Consider a notification system. Today, it sends emails. Tomorrow, it might need to send SMS messages or push notifications. If the logic for “how to send an email” is hardcoded into the heart of the dispatch workflow, then adding SMS support requires modifying the dispatch workflow. The dispatch workflow is now coupled to the notification transport.</p>
+<p>An extension point decouples them. By defining a stable contract — <code>Notification_Transport.send(message)</code> — the dispatch workflow can remain entirely ignorant of how the message is delivered. It depends on the <em>interface</em> of the transport, not its implementation. When a new transport is added, we don’t change the dispatch logic; we simply provide a different implementation of the extension point.</p>
+<p>Good extension points isolate volatility. They allow the stable parts of the system (the “what”) to remain unchanged while the volatile parts (the “how”) evolve independently.</p>
+</section>
+<section class="level2" data-number="33.2" id="stable-contracts-and-the-cost-of-evolution">
+<h2 class="anchored" data-anchor-id="stable-contracts-and-the-cost-of-evolution" data-number="33.2"> Stable Contracts and the Cost of Evolution</h2>
+<p>The backbone of a change-safe system is the stable contract. A contract is an agreement about behavior, inputs, and outputs. When a contract is stable, the code on either side of it can change freely as long as the agreement is honored.</p>
+<p>The most dangerous kind of change is the “breaking” change — an alteration to a contract that forces every consumer of that contract to change as well. In a large system, a single breaking change at a low level can trigger a cascade of updates that consumes weeks of engineering time.</p>
+<p>To minimize this cost, we adopt a discipline of additive evolution: <ul><li><strong>Prefer additive fields:</strong> When a data structure needs more information, add a new field rather than repurposing an old one.</li><li><strong>Maintain deprecation windows:</strong> Give consumers time to migrate to new interfaces before removing old ones.</li><li><strong>Provide compatibility adapters:</strong> If a contract must change, provide a layer that allows old clients to talk to the new implementation.</li></ul></p>
+<p>Without versioning discipline and contract stability, every “improvement” to the system becomes a migration crisis for the rest of the team.</p>
+</section>
+<section class="level2" data-number="33.3" id="from-requirement-to-flexible-design">
+<h2 class="anchored" data-anchor-id="from-requirement-to-flexible-design" data-number="33.3"> From Requirement to Flexible Design</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“We need to experiment with a new ranking algorithm for search results, but we must be able to switch back to the old one instantly if the metrics drop.”</em></p>
+</blockquote>
+<p>Without an extension point, the ranking logic is likely embedded in the search service. Switching algorithms means a code change and a risky deployment.</p>
+<p>With an extension point, we design for variation:</p>
+<ol type="1">
+<li><strong>Define the Port:</strong> We create a stable interface, <code>Ranking_Strategy</code>, with a single operation: <code>rank(query, candidates)</code>, which returns the same candidates in ranked order.</li>
+<li><strong>Implement the Variants:</strong> We create <code>Legacy_Ranking</code> and <code>Experimental_Ranking</code>, both adhering to the <code>Ranking_Strategy</code> contract.</li>
+<li><strong>Introduce the Switch:</strong> The search service is given an instance of <code>Ranking_Strategy</code> at runtime. Which implementation it gets is decided by a configuration setting or a feature flag.</li>
+</ol>
+<p>The search service remains unchanged. Its contract is satisfied by any object that knows how to rank. We can now swap algorithms — to run an A/B test, or to roll back a failure — without touching the core search orchestration.</p>
+</section>
+<section class="level2" data-number="33.4" id="implementation-in-nex">
+<h2 class="anchored" data-anchor-id="implementation-in-nex" data-number="33.4"> Implementation in Nex</h2>
+<p>In Nex, we use classes and features to define these extension points. The <code>require</code> and <code>ensure</code> clauses make the contract explicit, ensuring that any new implementation of the extension point honors the same behavioral guarantees as the old one.</p>
+<pre class="nex"><code>-- The Extension Point Definition
+deferred class Ranking_Strategy
+feature
+  rank(query: String, candidates: Array[String]): Array[String]
+  require
+    query_present: query /= ""
+    has_candidates: candidates.length &gt; 0
+  deferred
+  ensure
+    results_match_input_size: 
+      result.length = candidates.length
+  end
+end
+
+-- Variant 1: Legacy
+class Legacy_Ranking
+  inherit Ranking_Strategy
+feature
+  rank(query: String, candidates: Array[String]): Array[String]
+  do
+    -- Keep the order the index returned.
+    result := candidates
+  end
+end
+
+-- Variant 2: Experimental (ML-based)
+class Experimental_Ranking
+  inherit Ranking_Strategy
+feature
+  rank(query: String, candidates: Array[String]): Array[String]
+  do
+    -- Stand-in for a learned model: favor the most
+    -- recently indexed documents, which come last.
+    result := []
+    from let i := candidates.length - 1 until i &lt; 0 do
+      result.add(candidates.get(i))
+      i := i - 1
+    end
+  end
+end
+
+-- The Consumer: Unchanged by variation
+class Search_Service
+create
+  make(strategy: Ranking_Strategy) do
+    this.strategy := strategy
+  end
+feature
+  strategy: Ranking_Strategy
+
+  fetch_from_index(q: String): Array[String]
+  require
+    query_present: q /= ""
+  do
+    result := ["DOC:A", "DOC:B"]
+  ensure
+    has_candidates: result.length &gt; 0
+  end
+
+  execute_search(q: String): Array[String]
+  require
+    query_present: q /= ""
+  do
+    let initial_docs: Array[String] := fetch_from_index(q)
+    result := strategy.rank(q, initial_docs)
+  ensure
+    has_candidates: result.length &gt; 0
+  end
+end</code></pre>
+<p>The <code>deferred</code> class <code>Ranking_Strategy</code> acts as the port. The <code>Search_Service</code> depends only on this abstraction. Whether the <code>strategy</code> is an instance of <code>Legacy_Ranking</code> or <code>Experimental_Ranking</code> is a configuration detail. Given the same candidates, <code>DOC:A</code> and <code>DOC:B</code>, the legacy strategy returns them in index order and the experimental one returns <code>DOC:B</code> first; <code>execute_search</code> is identical in both cases. The search logic is protected from the volatility of the ranking algorithm.</p>
+</section>
+<section class="level2" data-number="33.5" id="choosing-the-extension-point">
+<h2 class="anchored" data-anchor-id="choosing-the-extension-point" data-number="33.5"> Choosing the Extension Point</h2>
+<p>Each running system has an obvious place for one.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%"/>
+<col style="width: 20%"/>
+<col style="width: 32%"/>
+<col style="width: 30%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>System</th>
+<th>Extension point</th>
+<th>What varies behind it</th>
+<th>What stays unchanged</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Delivery network</td>
+<td><code>Routing_Policy</code></td>
+<td>The routing objective, such as shortest distance or minimum fuel.</td>
+<td>The dispatch engine that executes the routes.</td>
+</tr>
+<tr class="even">
+<td>Knowledge engine</td>
+<td><code>Document_Parser</code></td>
+<td>One parser per supported file format, such as PDF or Markdown.</td>
+<td>The indexing pipeline, which depends only on the <code>Parsed_Content</code> contract.</td>
+</tr>
+<tr class="odd">
+<td>Virtual world</td>
+<td><code>Entity_Behavior</code></td>
+<td>Decision-making logic, which differs between, say, a “Player” and an “NPC”.</td>
+<td>The physics engine and the simulation rules all entities share.</td>
+</tr>
+</tbody>
+</table>
+<p>The pattern is to find the part most likely to vary and put a stable contract in front of it, so that the rest of the system depends on the contract rather than on the variation.</p>
+</section>
+<section class="level2" data-number="33.6" id="where-design-for-change-fails">
+<h2 class="anchored" data-anchor-id="where-design-for-change-fails" data-number="33.6"> Where Design for Change Fails</h2>
+<p><strong>Premature Abstraction.</strong> The most common mistake is building extension points for variations that never happen. Every extension point adds a layer of indirection and a small cost to reasoning. If you build five different “strategy” ports for logic that hasn’t changed in three years, you have wasted complexity budget. The remedy is to add extension points only when volatility is evidenced or highly probable.</p>
+<p><strong>Leaky Abstractions.</strong> An extension point is useless if the contract requires the caller to know about the implementation. If <code>Ranking_Strategy</code> requires the caller to pass database-specific credentials, the extension point has leaked infrastructure details into the domain. The remedy is to keep contracts focused on the <em>intent</em> of the operation, not the <em>mechanics</em> of the implementation.</p>
+<p><strong>The “Big Bang” Migration.</strong> Designing for change implies that the system will evolve. If a team introduces a new version of a service but provides no compatibility for old clients, they haven’t designed for change — they’ve designed for disruption. The remedy is to make compatibility a first-class architectural requirement, using adapters and versioned interfaces to bridge the gap.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Pick one part of your system that you expect to change in the next six months. Define the “Port” (the stable contract) that would allow that change to happen without affecting the surrounding code.</p>
+<ol type="1">
+<li>What is the name of the contract?</li>
+<li>What are its <code>require</code> and <code>ensure</code> conditions?</li>
+<li>What information must stay <em>out</em> of the contract to keep it implementation-agnostic?</li>
+</ol>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Designing for change is about building extension points where volatility can land without causing system-wide damage.</li>
+<li>An extension point is a boundary that allows behavior to vary while the contract remains stable.</li>
+<li>Stable contracts are the prerequisite for safe evolution. Additive changes are almost always cheaper than breaking ones.</li>
+<li>Over-engineering is as dangerous as under-engineering. Build extension points where change is likely, not where it is merely possible.</li>
+<li>Compatibility is not a release chore; it is an architectural discipline that allows a system to grow without leaving its users behind.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_VIII_33.html">Refactoring Without Fear</a>, examines the practical discipline of refactoring — how to move a system from its current structure to a better one while proving that its behavior remains unchanged.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_VIII_31.html">← Chapter 31</a></div>
+    <div class="next"><a href="part_VIII_33.html">Chapter 33 →<span class="next-title">Refactoring Without Fear</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

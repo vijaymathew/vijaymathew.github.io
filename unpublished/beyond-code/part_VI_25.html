@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Object-Oriented Thinking — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 25</span>
+    <h1 class="opener-title">Object-Oriented Thinking</h1>
+  </div>
+  <div class="prose">
+<p><a class="xref" href="part_VI_24.html">The last chapter</a> showed that functional thinking organizes a system as a pipeline of transformations: data flows in, computations happen, results flow out, effects are confined to the edges. This model is powerful for systems where the dominant question is <em>what should be computed?</em> But many systems also have to answer a different kind of question: <em>who is responsible for maintaining this constraint?</em> When a delivery task transitions to a delivered state, something must ensure that it cannot transition back to pending; when two world objects interact, something must ensure that the interaction rules for their types are consulted.</p>
+<p>These are questions about ownership and responsibility, and they are the domain where object-oriented thinking provides its clearest value. Not the value of classes and inheritance as syntactic features, but the value of a design discipline that assigns behavior to the objects that own the relevant state — that makes each object responsible for the invariants it is best positioned to enforce, rather than scattering that responsibility across the system.</p>
+<section class="level2" data-number="26.1" id="responsibility-as-the-organizing-principle">
+<h2 class="anchored" data-anchor-id="responsibility-as-the-organizing-principle" data-number="26.1"> Responsibility as the Organizing Principle</h2>
+<p>Useful object-oriented design begins not with the question “what classes should I create?” but with the question “what is responsible for what?” Behavior belongs with the object that owns the state the behavior depends on. An object that stores delivery task status, for example, should be the object that validates status transitions.</p>
+<p>This principle has a name in the design literature: the <em>information expert</em> — behavior belongs with the object that has the information needed to perform it. But the deeper reason for the principle is not organizational tidiness. It is that when behavior is separated from the state it depends on, the invariants that behavior is supposed to enforce become unenforced. A status transition that can be performed by any code anywhere in the system is a status transition that can be performed incorrectly anywhere in the system. A status transition that can only be performed through the owning object’s defined operation is a transition that is checked every time.</p>
+<p>The three questions that a good object-oriented boundary answers are: who owns this data, who is permitted to change this state, and who enforces the legality of transitions? If the same answer applies to all three, the boundary is in the right place.</p>
+</section>
+<section class="level2" data-number="26.2" id="collaboration-through-protocols">
+<h2 class="anchored" data-anchor-id="collaboration-through-protocols" data-number="26.2"> Collaboration Through Protocols</h2>
+<p>An object-oriented system is not a collection of objects that act independently. It is a collection of objects that collaborate — that ask each other for behavior and rely on each other’s contracts. The discipline of collaboration is what separates a system of well-designed objects from a system where objects reach into each other’s internal state and the invariants of each are at the mercy of all the others.</p>
+<p>A well-designed collaboration protocol has two sides. The requesting object asks for a defined behavior through a method with a declared contract. The responding object performs the behavior and enforces its own invariants, returning a result through the same contract. Neither object inspects or modifies the other’s internal fields. The boundary between them is the contract.</p>
+<p>When collaborations become complex — when multiple objects must participate in a single workflow — a coordinator is the right structure. The coordinator calls each object’s methods in the right order and handles the cases where any call fails. It owns no domain state and contains no domain logic. Its only responsibility is orchestration. This is the same coordinator design from <a class="xref" href="part_VI_23.html">From Algorithms to Components</a>, now applied to object collaboration rather than component assembly: the coordinator orchestrates, the objects enforce, and neither responsibility leaks into the other’s domain.</p>
+</section>
+<section class="level2" data-number="26.3" id="from-requirement-to-object-design">
+<h2 class="anchored" data-anchor-id="from-requirement-to-object-design" data-number="26.3"> From Requirement to Object Design</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“Assign a task to a robot and start movement only when both are ready.”</em></p>
+</blockquote>
+<p>The two entities involved — a delivery task and a robot — each have state that determines whether the workflow can proceed. The task must be in a state that permits assignment. The robot must be marked as ready. These are local conditions, owned by the respective objects. A coordinator must check both before proceeding, but the checking should be done through the objects’ own interfaces, not by inspecting their internal fields directly.</p>
+<p><strong><code>Robot</code></strong> owns the readiness state. It exposes an operation to mark itself ready and an invariant that requires every robot to have a non-empty identifier. Whether a robot is ready is a fact about the robot, and the robot is the right place to record and expose it.</p>
+<p><strong><code>Delivery_Task</code></strong> owns the assignment operation and the status transitions. Assignment is only legal from the <code>PENDING</code> or <code>FAILED</code> states — attempting to assign a task that is already <code>IN_TRANSIT</code> or <code>DELIVERED</code> must be rejected. The task enforces this precondition. The invariant that the status is always one of the four declared values is also the task’s responsibility to maintain.</p>
+<p><strong><code>Dispatch_Service</code></strong> is the coordinator. Before calling <code>task.assign</code>, it verifies that the robot is ready and the task is in an assignable state. Both verifications are expressed as preconditions on the <code>dispatch</code> operation — they are part of the coordinator’s contract. The coordinator does not implement assignment logic; it calls the task’s <code>assign</code> method, which implements its own.</p>
+<p>This design enforces two distinct invariant layers. The task’s invariants — valid status, legal transitions — are enforced by the task. The workflow preconditions — robot must be ready, task must be assignable — are enforced by the coordinator. Neither layer depends on the other’s internals.</p>
+</section>
+<section class="level2" data-number="26.4" id="an-object-collaboration-in-code">
+<h2 class="anchored" data-anchor-id="an-object-collaboration-in-code" data-number="26.4"> An Object Collaboration in Code</h2>
+<pre class="nex"><code>class Robot
+create
+  make(robot_id: String) do
+    this.robot_id := robot_id
+    ready := false
+  end
+feature
+  robot_id: String
+  ready: Boolean
+
+  mark_ready() do
+    ready := true
+  ensure
+    now_ready: ready = true
+  end
+
+  mark_busy()
+  require
+    was_ready: ready = true
+  do
+    ready := false
+  ensure
+    now_busy: ready = false
+  end
+invariant
+  id_present: robot_id /= ""
+end
+
+class Delivery_Task
+create
+  pending(task_id: String) do
+    this.task_id := task_id
+    status := "PENDING"
+    assigned_robot_id := ""
+  end
+feature
+  task_id: String
+  status: String
+  assigned_robot_id: String
+
+  assign(robot_id: String)
+  require
+    robot_present: robot_id /= ""
+    can_assign: status = "PENDING" 
+                 or status = "FAILED"
+  do
+    assigned_robot_id := robot_id
+    status := "IN_TRANSIT"
+  ensure
+    assigned: assigned_robot_id = robot_id 
+              and status = "IN_TRANSIT"
+  end
+invariant
+  id_present: task_id /= ""
+  valid_status:
+    status = "PENDING" or
+    status = "IN_TRANSIT" or
+    status = "DELIVERED" or
+    status = "FAILED"
+end
+
+class Dispatch_Service
+feature
+  dispatch(task: Delivery_Task, robot: Robot): String
+  require
+    robot_ready: robot.ready = true
+    task_pending_or_failed:
+      task.status = "PENDING" or
+      task.status = "FAILED"
+  do
+    task.assign(robot.robot_id)
+    robot.mark_busy
+    result := "DISPATCHED"
+  ensure
+    known_result: result = "DISPATCHED"
+    robot_taken: robot.ready = false
+  end
+end</code></pre>
+<p><code>Robot</code> and <code>Delivery_Task</code> enforce their own invariants and transitions, while <code>Dispatch_Service</code> enforces the workflow-level preconditions and delegates the domain-level operations to the objects themselves: the task moves itself into transit, and the robot marks itself busy, so a robot that has just been dispatched fails the <code>robot_ready</code> check if anyone tries to dispatch it again.</p>
+<p>The precondition on <code>Dispatch_Service.dispatch</code> — <code>robot.ready = true</code> and the task’s status condition — duplicates part of the task’s own precondition. This is not redundant. The coordinator’s precondition is checked before <code>task.assign</code> is called; the task’s precondition is checked when <code>task.assign</code> is called. The coordinator’s check is the gate that prevents the call from being made when preconditions are not met; the task’s check is the guarantee that its own invariants are always enforced, regardless of whether the coordinator checked first. Both are necessary, and they serve different purposes.</p>
+<p>What the sketch does not show is equally important. No code outside <code>Robot</code> sets <code>robot.ready</code> directly. No code outside <code>Delivery_Task</code> sets <code>task.status</code> directly. The objects’ internal fields are accessible to them through their own operations and to no one else. This constraint — that state changes flow through defined operations rather than through direct field assignment — is what makes the invariants enforceable. An invariant that can be bypassed by direct field mutation is an invariant in name only.</p>
+</section>
+<section class="level2" data-number="26.5" id="objects-enforce-coordinators-orchestrate">
+<h2 class="anchored" data-anchor-id="objects-enforce-coordinators-orchestrate" data-number="26.5"> Objects Enforce, Coordinators Orchestrate</h2>
+<p>The virtual world shows how ownership divides between objects and a coordinator. Each <code>World_Object</code> owns its position and current state and enforces the rules that govern its transitions. An interaction coordinator finds pairs of objects that have entered each other’s interaction range and calls the appropriate interaction operation on each. The objects enforce their own rules; the coordinator enforces only one rule of its own, that interactions are triggered by proximity.</p>
+<p>In the knowledge engine, a <code>Document</code> owns its metadata integrity and link structure, and a <code>Tag</code> owns its label and membership rules; the ranking coordinator calls pure scoring functions and never learns how a document stores its metadata. In the delivery system, <code>Robot</code> and <code>Delivery_Task</code> own their transitions as in the worked example above, while the route computation from <a class="xref" href="part_V_22.html">Finding the Best Path</a> stays a pure function outside both objects, because it neither depends on nor modifies their state.</p>
+</section>
+<section class="level2" data-number="26.6" id="where-object-oriented-thinking-goes-wrong">
+<h2 class="anchored" data-anchor-id="where-object-oriented-thinking-goes-wrong" data-number="26.6"> Where Object-Oriented Thinking Goes Wrong</h2>
+<p><strong>Anemic models.</strong> A model in which objects store data but contain no behavior — where all logic lives in external service classes that operate on the objects’ fields — is an object-oriented design in syntax only. The objects have no invariants of their own, because the operations that would enforce those invariants are not methods on the objects. Status transitions are performed by external services that set fields directly. The result is a system where invariants must be re-enforced everywhere the fields are accessed, and where a single external service that sets a field incorrectly silently corrupts the model. The remedy is to move behavior into the objects that own the relevant state — to make the objects, not the services, responsible for what they are permitted to do.</p>
+<p><strong>God objects.</strong> The opposite of the anemic model is the object that has absorbed responsibilities that belong elsewhere: the task object that also handles notification delivery, or the robot object that also contains route computation logic. A god object accumulates behavior until it has multiple, unrelated reasons to change. The remedy is to ask, for each method on an object, whether that method genuinely depends on the object’s state and enforces its invariants, or whether it belongs in a separate component or coordinator.</p>
+<p><strong>Cross-object field mutation.</strong> Code that modifies another object’s fields directly — reaching past the object’s interface to set internal state — bypasses the invariants those fields are meant to maintain. A status field set to an undeclared value by external code is a status field whose invariant has been violated. A readiness flag cleared by a coordinator without going through the robot’s interface is a readiness flag whose semantics have been overridden. The discipline is to expose state changes only through defined operations with contracts, and to treat direct field mutation from outside an object as a design error.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Choose one workflow in your system that involves two or more collaborating entities and redesign it using the three-part structure from this chapter: a state-owning object for each entity, each enforcing its own transition rules and invariants through defined operations; and a coordinator that orchestrates the workflow without owning any domain state.</p>
+<p>For each object, identify one transition it must enforce and write the precondition and postcondition for the operation that performs it. For the coordinator, write the precondition that it must check before calling each object’s operations. Then identify one place in your current implementation where domain state is being modified by code outside the owning object, and describe what would be required to route that modification through the object’s interface instead.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Object-oriented design is responsibility design. The right question is not how many classes to create but who owns which state and who is responsible for which invariants.</li>
+<li>Behavior belongs with the object that owns the state the behavior depends on. An invariant that can only be enforced through the owning object’s operations is an invariant that is always enforced.</li>
+<li>Collaboration happens through contracts, not field access. An object that reaches into another’s internal fields has bypassed the other’s invariants and introduced a coupling that will produce failures when the other changes.</li>
+<li>Coordinators orchestrate without owning. A coordinator that accumulates domain logic or domain state has violated the separation that makes both the coordinator and the domain objects independently understandable.</li>
+<li>Anemic models and god objects are opposite failures of the same principle. In both cases, responsibility and the state it governs are in different places.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_VI_26.html">Designing Interfaces</a>, formalizes interface design — the discipline of defining stable contracts between components that allows each side of a boundary to evolve independently. An interface is the promise a component makes to its callers, and the quality of that promise determines how much of the system must be understood before any part of it can be changed.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_VI_24.html">← Chapter 24</a></div>
+    <div class="next"><a href="part_VI_26.html">Chapter 26 →<span class="next-title">Designing Interfaces</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Working With AI Coding Assistants — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 34</span>
+    <h1 class="opener-title">Working With AI Coding Assistants</h1>
+  </div>
+  <div class="prose">
+<p>The arrival of AI coding assistants represents one of the most significant shifts in the history of software development. For the first time, we have collaborators that can draft implementation and generate tests in seconds. But this speed comes with a profound risk: if we use AI to bypass the rigors of software engineering, we will simply build fragile systems faster.</p>
+<p>The key to effective AI collaboration is not learning the right “magic words.” It is applying the same engineering constraints to the AI that we apply to ourselves. When we treat the AI as a junior implementation partner working within a strictly defined architectural sandbox, it becomes a powerful accelerator. When we treat it as an oracle that defines our architecture, it becomes a source of systemic debt.</p>
+<section class="level2" data-number="34.1" id="ai-as-a-collaborator-not-an-authority">
+<h2 class="anchored" data-anchor-id="ai-as-a-collaborator-not-an-authority" data-number="34.1"> AI as a Collaborator, Not an Authority</h2>
+<p>An AI assistant is an implementation engine, not a design authority. It is excellent at “filling in the blanks” once the boundaries, contracts, and invariants have been established. It is much less effective at determining what those boundaries should be.</p>
+<p>The most common failure mode in AI-assisted development is the “vague prompt”: <em>“Write a service that handles delivery task rerouting.”</em> This prompt provides no constraints. The AI will likely generate plausible-looking code that bypasses your domain invariants and ignores your system’s existing state management.</p>
+<p>A successful collaborator provides context and constraints. The AI needs to know: - <strong>What is the goal?</strong> (The high-level intent). - <strong>What are the boundaries?</strong> (The existing interfaces it must use). - <strong>What are the invariants?</strong> (The rules it must not break). - <strong>What are the acceptance criteria?</strong> (The tests it must pass).</p>
+</section>
+<section class="level2" data-number="34.2" id="constraint-driven-prompting">
+<h2 class="anchored" data-anchor-id="constraint-driven-prompting" data-number="34.2"> Constraint-Driven Prompting</h2>
+<p>Instead of asking the AI to “write code,” we should ask it to “solve a problem within these constraints.” This is the discipline of constraint-driven prompting.</p>
+<p>A robust prompt follows a structured pattern: <ol><li><strong>Task Objective:</strong> Define exactly what the new behavior should be.</li><li><strong>System Context:</strong> Provide the existing class definitions and contracts.</li><li><strong>Non-Negotiable Constraints:</strong> Explicitly forbid certain types of changes (e.g., “Do not modify the <code>Delivery_Task</code> class,” “Use the existing <code>Logger</code> interface”).</li><li><strong>Verification Requirements:</strong> Specify that the AI must also provide the unit tests or contract checks required to verify the new logic.</li></ol></p>
+<p>By anchoring the AI in your system’s existing contracts, you force its output to be “born” into your architecture rather than imported as a foreign body.</p>
+</section>
+<section class="level2" data-number="34.3" id="from-requirement-to-ai-assisted-implementation">
+<h2 class="anchored" data-anchor-id="from-requirement-to-ai-assisted-implementation" data-number="34.3"> From Requirement to AI-Assisted Implementation</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“Add a fallback mechanism to our Knowledge Query Service so that if the primary retrieval fails, it returns a cached result.”</em></p>
+</blockquote>
+<p>An undisciplined prompt might just ask for “fallback logic.” A disciplined workflow looks like this:</p>
+<ol type="1">
+<li><strong>Provide the Interface:</strong> Give the AI the current <code>Knowledge_Query_Service</code> contract.</li>
+<li><strong>Define the Extension Point:</strong> Tell the AI to implement a <code>Knowledge_Fallback_Wrapper</code> that implements the same interface but takes the original service as a dependency.</li>
+<li><strong>Specify Invariants:</strong> “The wrapper must return a cached result only if the core service returns <code>UNAVAILABLE</code>. It must never return an empty string.”</li>
+<li><strong>Request Parity Tests:</strong> “Provide a test case showing that when the core service succeeds, the wrapper returns the exact same result.”</li>
+</ol>
+<p>The AI is now working in a very small, well-defined space. The resulting code is much more likely to be correct, maintainable, and aligned with your system’s existing patterns.</p>
+</section>
+<section class="level2" data-number="34.4" id="implementation-in-nex">
+<h2 class="anchored" data-anchor-id="implementation-in-nex" data-number="34.4"> Implementation in Nex</h2>
+<p>In Nex, our contracts and invariants are the perfect “anchors” for AI prompts. They translate our engineering intent into a form the AI can use to validate its own suggestions.</p>
+<pre class="nex"><code>-- Current Interface (Context for the AI)
+class Knowledge_Query_Service
+feature
+  query(q: String): String
+  require
+    query_present: q /= ""
+  do
+    -- Simple implementation
+    if q = "contracts" then
+      result := "DOC:K-101"
+    else
+      result := "UNAVAILABLE"
+    end
+  ensure
+    non_empty: result /= ""
+  end
+end
+
+-- AI-Generated Wrapper (Constrained by the interface)
+class Knowledge_Fallback_Wrapper
+create
+  make(core: Knowledge_Query_Service) do
+    this.core := core
+  end
+feature
+  core: Knowledge_Query_Service
+
+  query_safe(q: String): String
+  require
+    query_present: q /= ""
+  do
+    let raw: String := core.query(q)
+    if raw = "UNAVAILABLE" then
+      result := "DOC:CACHED-001"
+    else
+      result := raw
+    end
+  ensure
+    non_empty: result /= ""
+  end
+end</code></pre>
+<p>By providing the <code>Knowledge_Query_Service</code> as the context, we ensure the AI understands the <code>require</code> and <code>ensure</code> expectations. The <code>Knowledge_Fallback_Wrapper</code> is then generated to respect those same expectations, preserving the system’s trustworthiness.</p>
+</section>
+<section class="level2" data-number="34.5" id="building-the-sandbox">
+<h2 class="anchored" data-anchor-id="building-the-sandbox" data-number="34.5"> Building the Sandbox</h2>
+<p>Suppose we ask an assistant to propose several “fallback route” algorithms for the delivery system. The sandbox is the <code>Routing_Contract</code>, plus the requirement that every proposal honor the “delivery window” invariant. Within those walls the assistant can try any approach it likes; a proposal that breaks the invariant fails its contract checks, and the discussion ends there.</p>
+<p>The same move works in the other systems. A new <code>Document_Parser</code> for a specialized file format is constrained by the <code>Parser_Interface</code> and a set of “adversarial” inputs it must handle safely. A draft set of “NPC interaction rules” is constrained by the <code>Simulation_State</code> invariant, so the assistant cannot produce rules that let entities enter illegal states.</p>
+<p>The engineer defines the sandbox; the AI explores the implementation within it.</p>
+</section>
+<section class="level2" data-number="34.6" id="where-ai-collaboration-fails">
+<h2 class="anchored" data-anchor-id="where-ai-collaboration-fails" data-number="34.6"> Where AI Collaboration Fails</h2>
+<p><strong>Prompting without context.</strong> Asking an AI to solve a problem without showing it the existing code is like asking a chef to cook in a kitchen they’ve never seen. The result will likely be incompatible with your environment. The remedy is to always include relevant interfaces, contracts, and a summary of your system’s architecture in your prompts.</p>
+<p><strong>Accepting the first draft.</strong> AI output is a draft, not a final product. It often contains subtle “hallucinations” — calls to methods that don’t exist or logic that almost, but not quite, satisfies the invariants. The remedy is to treat AI code with extreme skepticism until it has passed your full battery of contract checks and tests.</p>
+<p><strong>Asking for too much at once.</strong> Asking an AI to “redesign the entire dispatch system” is a recipe for a high-risk, unreviewable mess. The remedy is to scope your AI tasks to small, bounded changes — the same kind of slices you would use in a manual refactor.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Pick a small feature you need to implement. Write an AI prompt that includes: 1. The high-level goal. 2. The existing Nex class and its contracts. 3. Two explicit “non-negotiable” constraints. 4. A requirement for a specific test case.</p>
+<p>Compare the quality of the AI’s output with what you might have gotten from a one-sentence prompt.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>AI coding assistants are powerful implementation engines, but they require human-defined constraints to be effective.</li>
+<li>Prompting is not an art; it is an engineering discipline of defining goals, contexts, and boundaries.</li>
+<li>Contracts and interfaces are the essential “anchors” that keep AI-generated code aligned with your architecture.</li>
+<li>AI is best used for bounded implementation tasks, not for high-level architectural design.</li>
+<li>The faster an AI can write code, the more important your verification safety nets become.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_IX_35.html">Reviewing AI-Generated Code</a>, moves from generation to validation: how to rigorously review AI-generated code to ensure it meets our standards for safety and correctness.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="studio_6.html">← Studio 6</a></div>
+    <div class="next"><a href="part_IX_35.html">Chapter 35 →<span class="next-title">Reviewing AI-Generated Code</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

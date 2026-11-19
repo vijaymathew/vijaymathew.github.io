@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Testing as Exploration — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 29</span>
+    <h1 class="opener-title">Testing as Exploration</h1>
+  </div>
+  <div class="prose">
+<p>Contracts make assumptions explicit and promises verifiable. But a contract is an assertion, not evidence. The precondition on <code>assign</code> asserts that the caller must provide a non-empty robot identifier; the postcondition asserts that the task will be in <code>IN_TRANSIT</code> afterward. These assertions may be written correctly and violated by the implementation. A routine whose postcondition is stated correctly but whose body computes the wrong result does not fail because of a bad contract — it fails because the contract was never confronted with evidence.</p>
+<p>Testing provides that evidence. A test is an experiment: choose inputs, call the routine, observe the outputs, and compare the observations against the expected behavior. When the expected and actual outputs agree, the test provides evidence — not proof, but evidence — that the routine behaves correctly for that input. When they disagree, the test has found a defect. The quality of a test portfolio depends on how well the chosen inputs cover the space of possible failures and how precisely the expected behavior is stated.</p>
+<p>The mindset that produces good tests has little to do with confirmation — verifying that the routine works for the inputs you expect to appear. It's about exploration: discovering the inputs for which the routine fails to satisfy its contract. Confirmation produces evidence of correctness for the cases you already understood. Exploration discovers the cases you did not.</p>
+<section class="level2" data-number="30.1" id="three-kinds-of-tests">
+<h2 class="anchored" data-anchor-id="three-kinds-of-tests" data-number="30.1"> Three Kinds of Tests</h2>
+<p>A test portfolio that covers only one kind of input is a portfolio with gaps. Three kinds of tests together provide substantially more coverage than any one kind alone.</p>
+<p><strong>Example tests</strong> are tests of concrete, known scenarios. Choose a specific input, state the expected output, call the routine, compare. For <code>plan_route("A", "C")</code>, the expected output is <code>"A-&gt;B-&gt;C"</code>. For <code>plan_route("C", "C")</code>, the expected output is <code>"C"</code>. These tests verify the nominal behavior that the routine was built to provide. They are the foundation of a test portfolio, but they are insufficient alone: they cover only the cases the developer thought of when writing them, which are typically the cases where the routine works correctly.</p>
+<p><strong>Boundary tests</strong> probe the edges of the input space — the cases that sit at or near the limits of what the routine accepts. An empty identifier is a boundary, and so is a route whose start equals its destination. Boundary tests are the most reliable way to discover off-by-one errors, incorrect base case handling, and the implicit assumptions that example tests leave unexplored. The failure of a boundary test is evidence that the routine’s behavior at the boundary was never fully defined.</p>
+<p><strong>Property-based checks</strong> assert truths that should hold across a range of inputs, rather than for a single specific input. If the route planner returns <code>FOUND</code>, the path must be non-empty. If the task’s <code>assign</code> operation returns <code>"ASSIGNED"</code>, the task’s status must be <code>IN_TRANSIT</code>. These are properties derivable from the contract, and they should hold for every input satisfying the precondition. Testing them across a range of inputs — generated programmatically, if the language permits, or across a set of representative cases otherwise — provides evidence that the contract holds generally, not just for the specific inputs of the example tests.</p>
+</section>
+<section class="level2" data-number="30.2" id="oracles-how-a-test-decides">
+<h2 class="anchored" data-anchor-id="oracles-how-a-test-decides" data-number="30.2"> Oracles: How a Test Decides</h2>
+<p>A test can only be as strong as its oracle — the criterion by which it decides whether the outcome is correct. A weak oracle fails to detect most meaningful defects. A strong oracle detects defects that the weak one would miss.</p>
+<p>The weakest oracle is “did not crash.” A routine that produces a wrong result without throwing an exception passes this oracle. Nearly every serious defect produces a wrong result rather than a crash.</p>
+<p>A stronger oracle is a specific expected value: <code>result = "A-&gt;B-&gt;C"</code>. This oracle detects any deviation from the expected output, including wrong paths and missing nodes. It is strong for the specific input it tests, and it requires that the developer knows what the correct output is before writing the test.</p>
+<p>The strongest oracle for a component is its contract. If the postcondition of <code>plan_route</code> asserts that the returned status is always one of three declared values and that a <code>FOUND</code> result comes with a non-empty path, then a test that verifies these properties is a test that detects any implementation that violates the contract — including implementations that the developer has not specifically imagined. Contract-derived oracles extend naturally to inputs that specific expected-value oracles do not cover.</p>
+<p>A test whose oracle is “the result equals what the implementation computed” isn't a test at all — it's a transcript of execution. The oracle must be independent of the implementation: it must state what the correct output is, derived from the specification, before the implementation has run.</p>
+</section>
+<section class="level2" data-number="30.3" id="from-requirement-to-test-portfolio">
+<h2 class="anchored" data-anchor-id="from-requirement-to-test-portfolio" data-number="30.3"> From Requirement to Test Portfolio</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“The route planner should return a valid route or an explicit unreachable status.”</em></p>
+</blockquote>
+<p>The word “valid” is not self-defining. A valid route is a connected sequence of traversable edges from the start to the destination. The contract from <a class="xref" href="part_VII_27.html">Preconditions and Postconditions</a> made this precise: status is <code>FOUND</code>, <code>UNREACHABLE</code>, or <code>INVALID_INPUT</code>; a <code>FOUND</code> result’s path uses only existing edges; the path’s first node is the start and last node is the destination. The test portfolio explores whether the implementation satisfies this contract.</p>
+<p><strong>Nominal case.</strong> Start is <code>A</code>, destination is <code>C</code>, a path exists: <code>A→B→C</code>. Expected status: <code>FOUND</code>. Expected path: <code>"A-&gt;B-&gt;C"</code>. This is the case the routine was primarily designed for.</p>
+<p><strong>Trivial boundary.</strong> Start equals destination. Expected status: <code>FOUND</code>. Expected path: the start location alone. This is the smallest possible “found” case — a route of length zero.</p>
+<p><strong>Unknown inputs.</strong> Start is <code>"X"</code>, destination is <code>"Z"</code>, neither exists in the graph. Expected status: <code>INVALID_INPUT</code>. This tests the input-validation boundary: what happens when the identifiers are well-formed but name no location in the graph.</p>
+<p><strong>Disconnected graph.</strong> Start and destination both exist but are not connected. Expected status: <code>UNREACHABLE</code>. This tests the second failure mode.</p>
+<p><strong>Property check.</strong> For any input where the returned status is <code>FOUND</code>, the path must be non-empty and the first node must be the start location. This property should hold for every <code>FOUND</code> result, not just for specific inputs.</p>
+<p>Together, these five tests cover the three declared statuses, the boundaries between them, and a property that should hold globally. No single test could discover all the defects this portfolio can discover.</p>
+</section>
+<section class="level2" data-number="30.4" id="a-test-suite-in-code">
+<h2 class="anchored" data-anchor-id="a-test-suite-in-code" data-number="30.4"> A Test Suite in Code</h2>
+<pre class="nex"><code>class Route_Planner
+feature
+  -- Fixture map: A -&gt; B -&gt; C. D is a known
+  -- location with no paths to or from it.
+  is_known(loc: String): Boolean do
+    result := loc = "A" or loc = "B" 
+              or loc = "C" or loc = "D"
+  end
+
+  plan(start_loc, end_loc: String): String
+  require
+    inputs_present: start_loc /= "" and end_loc /= ""
+  do
+    if not is_known(start_loc) 
+       or not is_known(end_loc) then
+      result := "INVALID_INPUT"
+    elseif start_loc = end_loc then
+      result := start_loc
+    elseif start_loc = "A" and end_loc = "B" then
+      result := "A-&gt;B"
+    elseif start_loc = "B" and end_loc = "C" then
+      result := "B-&gt;C"
+    elseif start_loc = "A" and end_loc = "C" then
+      result := "A-&gt;B-&gt;C"
+    else
+      result := "UNREACHABLE"
+    end
+  ensure
+    non_empty_result: result /= ""
+  end
+end
+
+class Route_Planner_Tests
+feature
+  run_all(): String
+  do
+    let p: Route_Planner := create Route_Planner
+    let t1: String := p.plan("A", "C")
+    let t2: String := p.plan("C", "C")
+    let t3: String := p.plan("X", "Z")
+    let t4: String := p.plan("A", "D")
+    if t1 = "A-&gt;B-&gt;C" and t2 = "C" 
+       and t3 = "INVALID_INPUT" 
+       and t4 = "UNREACHABLE" then
+      result := "PASS"
+    else
+      result := "FAIL"
+    end
+  ensure
+    known_result: result = "PASS" or result = "FAIL"
+  end
+end</code></pre>
+<p><code>Route_Planner_Tests.run_all</code> is minimal but candid about what it does: it calls the routine with four inputs and compares each result to a specific expected value. The oracle for each test is a specific expected string — <code>"A-&gt;B-&gt;C"</code>, <code>"C"</code>, <code>"INVALID_INPUT"</code>, <code>"UNREACHABLE"</code> — derived from the contract and the fixture map stated at the top of <code>Route_Planner</code>, rather than from running the implementation. <code>A</code> to <code>D</code> is the disconnected case: <code>D</code> exists, but nothing leads to it.</p>
+<p>What this sketch does not show — and what a full test suite for a production route planner would require — is the property-based check that <code>FOUND</code> results always have non-empty paths that begin at the start location. The four tests here provide evidence for the nominal case, the same-node boundary, and both failure statuses. They do not provide evidence that the contract holds generally. A portfolio that adds the property check approaches the coverage that the contract’s three-outcome structure warrants.</p>
+<p>The postcondition on <code>run_all</code> — <code>result = "PASS" or result = "FAIL"</code> — is the test framework’s own contract: the test runner always returns a declared outcome, never an undefined one. A test runner that crashes or returns an undeclared value on a test failure provides weaker evidence than one whose own behavior is defined.</p>
+</section>
+<section class="level2" data-number="30.5" id="testing-for-determinism-and-legal-transitions">
+<h2 class="anchored" data-anchor-id="testing-for-determinism-and-legal-transitions" data-number="30.5"> Testing for Determinism and Legal Transitions</h2>
+<p>In the virtual world, the most valuable tests are bounded update tests. Does the state update for any tick leave every entity in a state that satisfies the world’s invariants? Does the same initial state always produce the same next state? Both properties must hold for every tick, not just for ticks with typical inputs, which makes them natural candidates for property-based checks.</p>
+<p>The knowledge engine needs similar evidence in a different form: determinism, meaning the same query on the same collection returns the same ranking on consecutive calls, and miss semantics, meaning a query that matches nothing returns the declared empty result rather than null or an exception. Example tests rarely cover either unless they are designed to. In the delivery system, the critical tests probe transition legality — <code>assign</code> must be rejected on a <code>DELIVERED</code> task and must succeed on a <code>FAILED</code> one — so that illegal transitions are stopped at the boundary instead of silently corrupting state.</p>
+<p>The portfolio worth having covers failure modes, not code paths, and it is designed from the contract outward.</p>
+</section>
+<section class="level2" data-number="30.6" id="where-testing-fails">
+<h2 class="anchored" data-anchor-id="where-testing-fails" data-number="30.6"> Where Testing Fails</h2>
+<p><strong>Happy-path-only testing.</strong> A portfolio that tests only the inputs the developer expected to work provides evidence that the routine handles the cases the developer already understood. It provides no evidence about cases the developer did not consider — which is precisely the space where production failures occur. The test portfolio must be designed to find failures, not to demonstrate that expected inputs produce expected outputs.</p>
+<p><strong>Fragile assertions.</strong> A test that asserts the exact string representation of a complex result, including incidental whitespace and ordering that are not part of the contract, will fail when the formatting changes even if the behavior is correct. A test whose oracle is weaker than the contract — that asserts only that the result is non-empty rather than that it satisfies the contract’s properties — will pass when the behavior is wrong. The oracle should assert exactly what the contract guarantees, no more and no less.</p>
+<p><strong>Shared assumptions between test and implementation.</strong> A test written by the same developer who wrote the implementation, immediately after writing the implementation, will often encode the same assumptions as the implementation. If the implementation misunderstands the requirement, the test will likely misunderstand it the same way. The oracle should be derived from the specification — the contract, and the edge cases from <a class="xref" href="part_I_4.html">Edge Cases — Where Systems Break</a> — not from the implementation the developer just wrote. When possible, tests should be written before the implementation, so the oracle is derived from the requirement rather than from the code.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Choose one routine in your system and design a test portfolio with five tests: two example tests of the nominal behavior, two boundary tests at the edges of the input space, and one property-based check derived from the postcondition that should hold across a range of inputs.</p>
+<p>For each test, write the oracle explicitly — the specific property that the output must satisfy, stated without reference to the implementation. Then map each test to the specific failure mode it is designed to detect. If a test is not clearly targeted at a specific failure mode, revise it until it is.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Testing is exploration, not confirmation. The goal is to discover failures, not to demonstrate that the cases you already understood work correctly.</li>
+<li>Three kinds of tests cover different parts of the failure space: example tests for nominal behavior, boundary tests for edge cases, and property-based checks for contract-wide guarantees.</li>
+<li>An oracle is how a test decides whether the outcome is correct. The oracle must be independent of the implementation and derived from the specification. A weak oracle misses most meaningful defects.</li>
+<li>The strongest oracles are derived from contracts. A test that verifies the postcondition holds for a range of inputs provides more evidence than a test that verifies a single expected value for a single input.</li>
+<li>A test portfolio designed from the contract outward — asking what inputs would violate the contract — is more reliable than one designed from the implementation inward.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_VII_30.html">Debugging Like an Engineer</a>, examines debugging as a hypothesis-driven engineering process. When tests discover a failure, debugging is the discipline of reasoning from the failure to its cause — treating the failed test as an observation that constrains the set of possible explanations, and designing experiments to narrow that set until the cause is identified.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_VII_28.html">← Chapter 28</a></div>
+    <div class="next"><a href="part_VII_30.html">Chapter 30 →<span class="next-title">Debugging Like an Engineer</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

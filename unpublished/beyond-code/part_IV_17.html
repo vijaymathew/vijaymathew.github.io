@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trees — Structured Data — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 17</span>
+    <h1 class="opener-title">Trees — Structured Data</h1>
+  </div>
+  <div class="prose">
+<p>Lists preserve order. Maps and sets provide direct access by key. Both are flat: their elements have no structural relationship to one another beyond position or association. Trees introduce a third kind of organization, one that neither flat structure offers — hierarchy.</p>
+<p>A tree is a collection in which elements stand in parent-child relationships, forming a layered structure from a single root down through branches to leaves. This hierarchy is not merely a way of storing data. It encodes meaning about the data — that one thing contains or governs another, and that a search can be focused by branching in one direction rather than the other. When that meaning is genuine, a tree makes it explicit and exploits it. When it is not, a tree is unnecessary complexity layered over a problem that a map would have solved more simply.</p>
+<section class="level2" data-number="18.1" id="when-hierarchy-is-real">
+<h2 class="anchored" data-anchor-id="when-hierarchy-is-real" data-number="18.1"> When Hierarchy Is Real</h2>
+<p>The first question to ask before introducing a tree is whether the data is genuinely hierarchical — whether the parent-child relationship corresponds to something meaningful in the domain rather than being an artifact of the storage choice.</p>
+<p>Each running system offers a candidate. In the knowledge engine, topics contain narrower subtopics, so a search for notes on a topic can be confined to that topic’s subtree instead of the whole collection. The delivery network’s dispatch zones can be organized the same way, from city down to district and block, and the virtual world places objects within regions and regions within zones; in each case, a decision made at one level can apply to everything beneath it.</p>
+<p>None of these hierarchies is a storage convenience. Each reflects how the domain itself is organized, and the tree makes that fact computationally exploitable.</p>
+</section>
+<section class="level2" data-number="18.2" id="tree-invariants">
+<h2 class="anchored" data-anchor-id="tree-invariants" data-number="18.2"> Tree Invariants</h2>
+<p>A tree’s usefulness depends entirely on its structural invariants. A collection of nodes with parent-child links that does not maintain these invariants is not a tree — it is a graph with aspirations. Once the invariants are violated, the algorithms that rely on them produce incorrect results, and the failures are often silent: a search that should find an element returns <code>NOT_FOUND</code> because the path the algorithm would have taken no longer leads where it should.</p>
+<p>Three invariants define the basic tree structure. First, there are no cycles: following parent links from any node eventually reaches the root and stops. Second, every non-root node has exactly one parent: a node that has two parents is not a tree node, it is a graph node, and the single-path property that makes tree traversal efficient and predictable no longer holds. Third, for a binary search tree, there is an ordering rule: every key in a node’s left subtree is smaller than the node’s key, and every key in its right subtree is larger. It is this ordering invariant that makes logarithmic search possible — at each node, the comparison eliminates half the remaining search space.</p>
+<p>Maintaining these invariants requires that every insertion and update operation enforces them, not just checks them. An insertion that places a new node without verifying the ordering rule produces a tree that looks correct and searches incorrectly.</p>
+</section>
+<section class="level2" data-number="18.3" id="from-requirement-to-tree-design">
+<h2 class="anchored" data-anchor-id="from-requirement-to-tree-design" data-number="18.3"> From Requirement to Tree Design</h2>
+<p>Consider the requirement:</p>
+<blockquote class="blockquote">
+<p><em>“Organize notes by topic hierarchy and find the first matching topic quickly.”</em></p>
+</blockquote>
+<p>Two things are embedded here. The first is a structural question: what is the shape of the hierarchy? The second is an operational question: how does a search navigate that shape efficiently?</p>
+<p><strong>Step 1: Identify the hierarchy.</strong> The domain has root topics, subtopics nested within them, and leaf notes attached to the most specific topics. The parent-child relationship is: each subtopic belongs to exactly one parent topic, and each note belongs to exactly one topic. This satisfies the single-parent invariant.</p>
+<p><strong>Step 2: Choose a representation.</strong> For the search operation, a binary search tree organized by a numeric topic key is a natural teaching representation: each node has a key, a label, and references to a left child (with smaller keys) and a right child (with larger keys).</p>
+<p><strong>Step 3: Define the search operation.</strong> At each node, compare the target key with the current node’s key. If they match, return the label. If the target is smaller, continue left. If larger, continue right. If neither child exists in the direction of travel, return <code>NOT_FOUND</code>. Each comparison eliminates one branch of the remaining tree from consideration, producing a search whose cost grows with the depth of the tree rather than its total size.</p>
+<p><strong>Step 4: Define miss behavior.</strong> A search that reaches a node with no child in the required direction has exhausted the relevant portion of the tree. The result is <code>NOT_FOUND</code> — an explicit, declared outcome, not a null or an exception.</p>
+<p><strong>Step 5: Preserve invariants on modification.</strong> Every insertion must place the new node in the position that preserves the ordering invariant. If the tree is allowed to receive insertions that violate the ordering rule — a new node placed on the wrong side of its parent — subsequent searches will fail to find elements that are structurally present.</p>
+</section>
+<section class="level2" data-number="18.4" id="a-tree-in-code">
+<h2 class="anchored" data-anchor-id="a-tree-in-code" data-number="18.4"> A Tree in Code</h2>
+<pre class="nex"><code>class Topic_Node
+create
+  make(
+    key: Integer,
+    label: String,
+    left_key: Integer,
+    right_key: Integer
+  ) do
+    this.key := key
+    this.label := label
+    this.left_key := left_key
+    this.right_key := right_key
+  end
+feature
+  key: Integer
+  label: String
+  left_key: Integer
+  right_key: Integer
+invariant
+  label_present: label /= ""
+  no_self_child: left_key /= key 
+                 and right_key /= key
+end
+
+class Topic_Tree
+create
+  make(root: Topic_Node, left: Topic_Node, right: Topic_Node) do
+    this.root := root
+    this.left := left
+    this.right := right
+  end
+feature
+  root: Topic_Node
+  left: Topic_Node
+  right: Topic_Node
+
+  find_label(target: Integer): String
+  do
+    if target = root.key then
+      result := root.label
+    elseif target &lt; root.key 
+           and target = left.key then
+      result := left.label
+    elseif target &gt; root.key 
+           and target = right.key then
+      result := right.label
+    else
+      result := "NOT_FOUND"
+    end
+  ensure
+    non_empty: result /= ""
+  end
+invariant
+  linked: root.left_key = left.key 
+          and root.right_key = right.key
+  ordered: left.key &lt; root.key 
+           and root.key &lt; right.key
+end</code></pre>
+<p><code>Topic_Node</code> carries two invariants worth examining. <code>label_present</code> ensures that every node in the tree has a non-empty label — a node with no label is a structural placeholder masquerading as an element that carries content, and the invariant rejects it. <code>no_self_child</code> ensures that a node does not list itself as a child — the minimal check against a trivially cyclic structure that would cause any traversal to loop.</p>
+<p><code>Topic_Tree</code> adds the invariant the search depends on. <code>ordered</code> is the ordering rule from Step 5: the left child’s key is smaller than the root’s and the right child’s key is larger. <code>linked</code> ties the child keys the root records to the nodes the tree actually holds, so the structure the search walks and the structure the root describes cannot drift apart. A tree assembled with its children swapped is rejected at construction rather than discovered later as a search that cannot find elements that are present.</p>
+<p><code>find_label</code> demonstrates the branching search that trees make possible. The comparison at each level directs the search toward the relevant subtree. In this three-node sketch, the depth is fixed at two and the cost is constant. In a full implementation over a balanced tree with a million nodes, the same logic would require at most twenty comparisons. A linear scan over a million elements would require up to a million. The invariant is what makes that difference real: without the ordering rule, the branching decision at each node is meaningless, and the search degenerates to a scan.</p>
+</section>
+<section class="level2" data-number="18.5" id="balance-and-its-consequences">
+<h2 class="anchored" data-anchor-id="balance-and-its-consequences" data-number="18.5"> Balance and Its Consequences</h2>
+<p>A binary search tree’s logarithmic search cost depends on one assumption that the structure itself does not automatically guarantee: that the tree is approximately balanced — that no path from root to leaf is dramatically longer than any other.</p>
+<p>A tree built by inserting elements in sorted order — first the smallest key, then the next smallest, and so on — is not balanced. Each new insertion adds a node to the rightmost branch, and the result is a structure that looks like a tree and behaves like a linked list: every search must traverse every node from the root to the target, and the cost is linear in the number of nodes, not logarithmic.</p>
+<p>This is the most common tree performance failure, and it occurs silently. The structure is correct — the invariants hold, the searches return the right results — but the performance guarantee that motivated the use of a tree has evaporated. The fix is either to use a self-balancing tree variant — one that restructures itself after insertions to maintain approximate balance — or to monitor the depth distribution of the tree in production and restructure it when the distribution degrades.</p>
+</section>
+<section class="level2" data-number="18.6" id="where-tree-design-goes-wrong">
+<h2 class="anchored" data-anchor-id="where-tree-design-goes-wrong" data-number="18.6"> Where Tree Design Goes Wrong</h2>
+<p><strong>Using a tree without genuine hierarchy.</strong> A tree is more complex to build, maintain, and reason about than a map. If the data does not have genuine hierarchical structure — if there is no meaningful parent-child relationship, no search path that exploits the structure — the complexity is not justified. A map with the same keys will answer the same queries more simply. The check is to ask whether the parent-child relationship corresponds to something real in the domain, or whether it is an artifact of the storage decision.</p>
+<p><strong>Ignoring balance.</strong> An unbalanced tree loses its performance advantage and retains its structural complexity. The worst case is a fully degenerate tree — effectively a linked list — which produces O(N) search on a structure that was introduced for O(log N) search. If the input distribution is not controlled, balance must be actively maintained.</p>
+<p><strong>Violating the ordering invariant.</strong> A search tree whose ordering invariant has been violated by a bad insertion will fail to find elements that are structurally present. The failure presents as incorrect search results, not as a structural error, and the element that cannot be found may be anywhere in the tree. Preventing this requires enforcing the ordering rule at every insertion and every modification that affects a node’s key.</p>
+<p><strong>Confusing trees with graphs.</strong> A node that acquires two parents, or a sequence of nodes that forms a cycle, is no longer a tree node. The tree algorithms — depth-first search, binary search, hierarchical aggregation — do not handle multiple parents or cycles correctly, and the failures they produce are often difficult to reproduce because they depend on the order in which the problematic structure was created. Enforcing the single-parent and acyclic invariants at insertion time is what prevents the tree from silently becoming a graph.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Choose one place in your system where data has genuine hierarchical structure — a containment relationship, say, or a classification taxonomy — and model it as a tree with five components: the node identity key and a justification for its stability and uniqueness within the hierarchy, the parent-child rule, one search operation and its contract, one structural invariant beyond what is already implied by the tree shape, and one invalid state the structure must reject.</p>
+<p>Then answer this question: why would a map from key to value lose information that the tree preserves? If you cannot give a specific answer — if the map would serve just as well — reconsider whether the hierarchy is genuine.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>Trees represent genuine hierarchy and make structured search efficient. They are not a substitute for maps when the data is flat.</li>
+<li>The ordering invariant of a binary search tree is what makes logarithmic search possible. Maintaining it at every modification is mandatory, not optional.</li>
+<li>Balance is not guaranteed by tree structure alone. An unbalanced tree provides the complexity of a tree with the performance of a list.</li>
+<li>Tree algorithms depend on three structural invariants: no cycles, single parent for every non-root node, and (for search trees) the ordering rule. Violations produce silent correctness failures.</li>
+<li>Use a tree when the parent-child relationship corresponds to something real in the domain and when search can exploit that structure. When neither is true, a map is simpler and sufficient.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_IV_18.html">Graphs — Networks of Everything</a>, generalizes from trees to graphs — structures in which the restriction to a single parent is lifted and cycles are permitted. Graphs model the most general form of connected data, and they are the natural representation for routing, dependency, and reachability problems that trees cannot express.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_IV_16.html">← Chapter 16</a></div>
+    <div class="next"><a href="part_IV_18.html">Chapter 18 →<span class="next-title">Graphs — Networks of Everything</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

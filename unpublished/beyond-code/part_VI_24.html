@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Functional Thinking — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 24</span>
+    <h1 class="opener-title">Functional Thinking</h1>
+  </div>
+  <div class="prose">
+<p><a class="xref" href="part_VI_23.html">From Algorithms to Components</a> established that component boundaries determine where responsibilities live and how changes propagate. This chapter examines a complementary question: within those boundaries, how should behavior be structured so that it stays testable and resists the errors that boundary design alone cannot prevent?</p>
+<p>The answer is functional thinking — the practice of representing logic as explicit transformations over data, with no hidden state and no side effects. This isn't a requirement to work in a functional programming language, or to eliminate all mutable state from a system — it's a discipline of design: separate the code that computes from the code that acts, and keep the computing parts testable in isolation.</p>
+<section class="level2" data-number="25.1" id="pure-functions-and-why-they-matter">
+<h2 class="anchored" data-anchor-id="pure-functions-and-why-they-matter" data-number="25.1"> Pure Functions and Why They Matter</h2>
+<p>A pure function has two properties. First, given the same inputs, it always produces the same output. Second, it has no observable effects beyond returning a value — it does not modify shared state, write to a database, send a network request, or log to a file. These two properties together are what makes a pure function independently testable: to test it, provide inputs and examine the output. There is nothing to set up beforehand and nothing to clean up afterward.</p>
+<p>This testability is worth more than convenience — it amounts to a form of correctness guarantee. A function that depends on hidden state — the current time, say, or a cache filled by an earlier call — may produce different outputs for the same inputs depending on when it is called or what other code has run before it. Its behavior is a function not just of its inputs but of the context in which it executes, and that context cannot be fully controlled in a test. A pure function has no such dependency. Its behavior is fully determined by its inputs, which means it can be tested exhaustively on inputs chosen to cover all cases, and the test results will hold in any context.</p>
+<p>The parallel with the contract discipline from earlier chapters is direct. A contract specifies what a function requires (preconditions) and what it guarantees (postconditions). A pure function’s contract is especially strong: the postcondition holds for every call with inputs satisfying the precondition, regardless of execution context. An impure function’s contract may be technically correct and practically unreliable if the hidden state it depends on is not in the expected configuration.</p>
+</section>
+<section class="level2" data-number="25.2" id="the-pure-core-effectful-shell">
+<h2 class="anchored" data-anchor-id="the-pure-core-effectful-shell" data-number="25.2"> The Pure Core, Effectful Shell</h2>
+<p>Most systems cannot be pure throughout. They must persist data, deliver messages, respond to external events, and interact with infrastructure. The discipline is not to eliminate effects but to confine them. The pattern that accomplishes this is the separation of a pure core from an effectful shell.</p>
+<p>The <strong>pure core</strong> contains the domain logic: the computations, decisions, transformations, and scoring operations that define what the system does. These are pure functions, so they can be tested without infrastructure and understood from their contracts alone. When a ranking algorithm is wrong, the failure is in the pure core, and it can be reproduced and diagnosed by calling the function with the failing inputs.</p>
+<p>The <strong>effectful shell</strong> contains the operations that interact with the outside world: reading from and writing to databases, sending network requests, logging events, rendering output. These operations are inherently impure — they depend on and affect state that exists outside the function — and they cannot be meaningfully tested in isolation. They are thin: they call pure functions to compute what should happen, then execute the effect. A shell function that contains domain logic has violated the separation.</p>
+<p>The benefit of this split has little to do with architectural elegance. It's that the system’s most important behavior lives in a layer that can be tested anywhere, with no infrastructure and no knowledge of the deployment context. Swapping the database or the message queue means changing the shell; the core is never touched.</p>
+</section>
+<section class="level2" data-number="25.3" id="composition-of-pure-functions">
+<h2 class="anchored" data-anchor-id="composition-of-pure-functions" data-number="25.3"> Composition of Pure Functions</h2>
+<p>Pure functions compose cleanly. The output of one can be the input of the next, and the composed pipeline inherits the testability and reasoning properties of its parts. A pipeline of pure functions can be tested at each stage independently, and when a stage produces an incorrect result, the failure is localized to that stage.</p>
+<p>The knowledge engine requirement from the original chapter illustrates this clearly:</p>
+<blockquote class="blockquote">
+<p><em>“Rank documents for a query and emit the top three identifiers.”</em></p>
+</blockquote>
+<p>A naive implementation mixes ranking logic and output delivery in a single function. It is correct but untestable in isolation — testing it requires either a live output channel or a mock, and its behavior depends on both the ranking logic and whatever the output channel does.</p>
+<p>A functional decomposition separates the pipeline into stages:</p>
+<ol type="1">
+<li><code>tokenize(query)</code> converts the raw query string into normalized search terms.</li>
+<li><code>score(document, tokens)</code> computes a relevance score for a single document.</li>
+<li><code>sort_by_score(scored_documents)</code> orders the documents from most to least relevant.</li>
+<li><code>take_top(sorted_documents, 3)</code> returns the first three elements.</li>
+<li>The effect layer delivers the result.</li>
+</ol>
+<p>Stages one through four are pure. Each can be tested in isolation — <code>sort_by_score</code>, for instance, can be checked directly against the sort invariant from <a class="xref" href="part_V_20.html">Sorting the World</a>. Stage five is effectful, but it is also thin: it receives the computed result and delivers it. When stage five fails, the failure is in delivery. When stages one through four produce wrong results, the failure is in computation. The separation makes diagnosis local.</p>
+</section>
+<section class="level2" data-number="25.4" id="a-functional-design-in-code">
+<h2 class="anchored" data-anchor-id="a-functional-design-in-code" data-number="25.4"> A Functional Design in Code</h2>
+<pre class="nex"><code>class Rank_Functions
+feature
+  score(doc, query: String): Integer
+  require
+    inputs_present: doc /= "" and query /= ""
+  do
+    if doc = query then
+      result := 100
+    else
+      result := 20
+    end
+  ensure
+    non_negative: result &gt;= 0
+  end
+
+  pick_top(doc1, doc2, doc3, query: String): String
+  require
+    docs_present:
+      doc1 /= "" and
+      doc2 /= "" and
+      doc3 /= "" and
+      query /= ""
+  do
+    let s1: Integer := score(doc1, query)
+    let s2: Integer := score(doc2, query)
+    let s3: Integer := score(doc3, query)
+
+    if s1 &gt;= s2 and s1 &gt;= s3 then
+      result := doc1
+    elseif s2 &gt;= s1 and s2 &gt;= s3 then
+      result := doc2
+    else
+      result := doc3
+    end
+  ensure
+    from_inputs: result = doc1 or result = doc2 or result = doc3
+  end
+end
+
+class Rank_Publisher
+feature
+  publish(top_doc: String): String
+  require
+    doc_present: top_doc /= ""
+  do
+    result := "PUBLISHED"
+  ensure
+    known_status: result = "PUBLISHED" or result = "FAILED"
+  end
+end</code></pre>
+<p><code>Rank_Functions</code> is the pure core. <code>score</code> is a pure function: given a document and a query, it returns a non-negative score, with no side effects and no dependencies on external state. <code>pick_top</code> is also pure: it calls <code>score</code> three times and returns the identifier of the highest-scoring document. Neither function touches anything beyond its own arguments, so its behavior is fully determined by its inputs.</p>
+<p><code>Rank_Publisher</code> is the effectful shell. Its <code>publish</code> operation delivers a result and returns a status. It is separated from <code>Rank_Functions</code> completely — it knows nothing about how the top document was selected, and <code>Rank_Functions</code> knows nothing about how results are delivered. The separation means that <code>Rank_Functions</code> can be tested by calling its operations directly with controlled inputs. <code>Rank_Publisher</code> can be tested by providing a mock delivery target and verifying that the correct status is returned.</p>
+<p>The postcondition on <code>pick_top</code> — <code>result = doc1 or result = doc2 or result = doc3</code> — is the contract a caller depends on. Whatever the scoring logic produces, the result is always one of the three input documents. This guarantee holds independently of the scoring values and independently of any external state. It is the kind of guarantee that is only possible for a pure function: a function that depends on hidden state cannot make unconditional guarantees about its output.</p>
+</section>
+<section class="level2" data-number="25.5" id="determinism-from-a-pure-core">
+<h2 class="anchored" data-anchor-id="determinism-from-a-pure-core" data-number="25.5"> Determinism from a Pure Core</h2>
+<p>The knowledge engine’s ranking pipeline is the example this chapter has already worked through. The virtual world shows the same split under more pressure. Its next-state computation — given the current state of all entities and the interaction rules, compute the state at the next tick — is pure, while rendering and event emission are effectful. Because the next-state function depends only on its inputs, the simulation logic can be verified by comparing its output against expected states for known inputs, with no rendering pipeline running. The same property makes the world deterministic: two runs from the same state produce the same tick, which is what makes a reported simulation bug reproducible.</p>
+<p>The delivery system follows the same pattern. Route scoring is pure; recording the new assignment and notifying clients are not. With the two kept apart, a new routing algorithm can be introduced without reading the dispatch infrastructure, and a new notification channel without re-reading the routing logic.</p>
+</section>
+<section class="level2" data-number="25.6" id="where-functional-thinking-goes-wrong">
+<h2 class="anchored" data-anchor-id="where-functional-thinking-goes-wrong" data-number="25.6"> Where Functional Thinking Goes Wrong</h2>
+<p><strong>Hidden side effects in apparently pure functions.</strong> A function that reads a global configuration value or the current time is not pure even if it looks pure — it has hidden inputs that are not visible in its signature. When its output changes unexpectedly, the cause may be an invisible input that changed, and tracing the failure requires understanding the hidden dependency. The remedy is to make every dependency explicit: if a function needs the current time, pass the time in as a parameter.</p>
+<p><strong>Over-fragmentation.</strong> Decomposing a computation into the smallest possible functions does not automatically improve clarity. A chain of functions that each wrap a single arithmetic expression is not a composition of meaningful transformations; it is indirection for its own sake. The value of functional decomposition comes from dividing a computation at its natural semantic boundaries, such as the line between scoring documents and sorting them. Dividing within those stages produces fragments with no independent meaning and no testable behavior that could not be tested as part of the larger stage.</p>
+<p><strong>Dogmatic purity in the wrong places.</strong> Some operations are inherently effectful, and structuring them as pure functions requires contortions that reduce clarity without improving testability. Logging and rendering are the obvious cases. Forcing these into a pure functional style — by threading state through every function or returning effect descriptions rather than performing effects — produces code that is harder to read and harder to modify than a pragmatic effectful implementation would be. The discipline is to apply functional thinking where it provides leverage, in the domain logic, and to use straightforward effectful code where effects are unavoidable and the goal is clarity.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Choose one feature in your system that currently mixes computation and effects — a function that both calculates a result and writes it somewhere — and decompose it into three parts: a pure decision function that takes inputs and returns a decision, a pure transformation function that takes the decision and produces a result, and an effectful output function that delivers the result.</p>
+<p>Write one contract for each part. Then run tests for the two pure functions with every external system switched off. If the tests require external systems, the boundary between pure and effectful has not been fully established.</p>
+</div>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>A pure function always produces the same output for the same inputs and has no side effects. This is not a style preference — it is the property that makes a function independently testable and unconditionally reliable.</li>
+<li>The pure core, effectful shell pattern is a practical architecture: domain logic lives in the pure core and is testable without infrastructure; effects live in the shell and are thin by design.</li>
+<li>Composition of pure functions is clean and reliable. Each stage in a pure pipeline can be tested and verified in isolation, and failures are localized to the stage where they occur.</li>
+<li>Functional decomposition should follow semantic boundaries, not minimize function size. Stages with independent meaning are the right unit of decomposition.</li>
+<li>Pragmatic purity beats dogmatic purity. Apply functional thinking where it provides the most leverage: in the domain logic that determines what the system does. Use straightforward effectful code where effects are unavoidable and clarity is worth more than purism.</li>
+</ul>
+</div>
+<p><em>The next chapter, <a class="xref" href="part_VI_25.html">Object-Oriented Thinking</a>, turns to object-oriented thinking — the complementary approach to organizing behavior around entities that own state and expose operations through defined interfaces. Where functional thinking decomposes computation into transformations, object-oriented thinking decomposes a system into collaborating agents, each responsible for its own state and behavior.</em></p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_VI_23.html">← Chapter 23</a></div>
+    <div class="next"><a href="part_VI_25.html">Chapter 25 →<span class="next-title">Object-Oriented Thinking</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

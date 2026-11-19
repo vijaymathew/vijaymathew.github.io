@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Architecture Refactor — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Studio 4</span>
+    <h1 class="opener-title">The Architecture Refactor</h1>
+  </div>
+  <div class="prose">
+<p>Evolving <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> optimizations into stable component architecture.</p>
+<section class="level2" id="the-situation">
+<h2 class="anchored" data-anchor-id="the-situation">The Situation</h2>
+<p><a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> made the common lookups fast by adding indexes around the <a class="xref" href="studio_2.html" title="Studio 2: The Model Redesign">Studio 2</a> classes. The speed came at a price. The delivery workflow now calls <code>Delivery_Task_Store_V3</code> directly, so it knows how tasks are stored as well as what they mean, and the same coupling repeats in the knowledge and world code. Swapping a store, or testing a workflow without one, now means touching code that has nothing to do with the change. The symptoms:</p>
+<ul>
+<li>orchestration logic mixed with storage details</li>
+<li>duplicate workflow rules across modules</li>
+<li>direct dependency on concrete classes everywhere</li>
+<li>difficult integration testing due to tight coupling</li>
+</ul>
+</section>
+<section class="level2" id="engineering-brief">
+<h2 class="anchored" data-anchor-id="engineering-brief">Engineering Brief</h2>
+<p>Refactor around components, ports, and contracts without changing externally visible behavior.</p>
+<p>Required outcomes:</p>
+<ul>
+<li>preserve <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> semantics and performance intent</li>
+<li>define explicit component boundaries</li>
+<li>introduce interface-style ports for collaboration</li>
+<li>isolate domain logic from infrastructure details</li>
+<li>keep dependencies pointing toward domain intent</li>
+</ul>
+<p>Implementation guidance:</p>
+<ul>
+<li>start from existing V3 code paths</li>
+<li>create extension points first, then move logic behind them</li>
+<li>prove behavior parity with before-and-after run checks</li>
+</ul>
+</section>
+<section class="level2" id="implementation-in-nex">
+<h2 class="anchored" data-anchor-id="implementation-in-nex">Implementation In Nex</h2>
+<p>Suggested files:</p>
+<ul>
+<li><code>architecture_ports.nex</code></li>
+<li><code>delivery_arch_refactor.nex</code></li>
+<li><code>knowledge_arch_refactor.nex</code></li>
+<li><code>world_arch_refactor.nex</code></li>
+<li><code>studio_4_main.nex</code></li>
+</ul>
+<section class="level3" id="shared-ports-interfaces-by-contract">
+<h3 class="anchored" data-anchor-id="shared-ports-interfaces-by-contract">Shared Ports (Interfaces By Contract)</h3>
+<p>These ports abstract over concrete V3 storage and index implementations from <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a>. Each port is a <code>deferred</code> class: it states the contract and leaves the implementation to an adapter. The adapters below wrap the Studio 3 V3 classes directly, so this studio builds on the Studio 2 and Studio 3 files, and every service depends on a port rather than on the adapter behind it.</p>
+<pre class="nex"><code>deferred class Task_Query_Port
+feature
+  status_of(task_id: String): String
+  require
+    id_present: task_id /= ""
+  deferred
+  ensure
+    non_empty: result /= ""
+  end
+end
+
+deferred class Doc_Query_Port
+feature
+  has_doc(doc_id: String): Boolean
+  require
+    id_present: doc_id /= ""
+  deferred
+end
+
+deferred class World_Update_Port
+feature
+  step_object(object_id: String, max_x: Integer): String
+  require
+    id_present: object_id /= ""
+    valid_bound: max_x &gt;= 0
+  deferred
+  ensure
+    known_result: result = "UPDATED" 
+                  or result = "NOT_FOUND"
+  end
+end</code></pre>
+</section>
+<section class="level3" id="delivery-refactor-using-studio-3-v3-store">
+<h3 class="anchored" data-anchor-id="delivery-refactor-using-studio-3-v3-store">Delivery Refactor (Using Studio 3 V3 Store)</h3>
+<p>Before (Studio 3): callers directly used <code>Delivery_Task_Store_V3</code>.</p>
+<p>After (Studio 4): callers depend on <code>Task_Query_Port</code>; concrete store is adapted behind it.</p>
+<pre class="nex"><code>class Delivery_Task_Adapter
+  inherit Task_Query_Port
+create
+  make(store: Delivery_Task_Store_V3) do
+    this.store := store
+  end
+feature
+  store: Delivery_Task_Store_V3
+
+  status_of(task_id: String): String do
+    result := store.find_status(task_id).value
+  end
+end
+
+class Delivery_Workflow
+create
+  make(tasks: Task_Query_Port) do
+    this.tasks := tasks
+  end
+feature
+  tasks: Task_Query_Port
+
+  dispatch_view(task_id: String): String
+  require
+    id_present: task_id /= ""
+  do
+    let st: String := tasks.status_of(task_id)
+    if st = "NOT_FOUND" then
+      result := "UNKNOWN_TASK"
+    else
+      result := "TASK_STATUS:" + st
+    end
+  ensure
+    non_empty: result /= ""
+  end
+end</code></pre>
+</section>
+<section class="level3" id="knowledge-refactor-port-validator-service">
+<h3 class="anchored" data-anchor-id="knowledge-refactor-port-validator-service">Knowledge Refactor (Port and Validator Service)</h3>
+<pre class="nex"><code>class Doc_Query_Adapter
+  inherit Doc_Query_Port
+create
+  make(model: Knowledge_Model_V3) do
+    this.model := model
+  end
+feature
+  model: Knowledge_Model_V3
+
+  has_doc(doc_id: String): Boolean do
+    result := model.by_id.contains_key(doc_id)
+  end
+end
+
+class Link_Validation_Service
+create
+  make(docs: Doc_Query_Port) do
+    this.docs := docs
+  end
+feature
+  docs: Doc_Query_Port
+
+  validate(from_id, to_id: String): String
+  require
+    ids_present: from_id /= "" and to_id /= ""
+  do
+    if not docs.has_doc(from_id) then
+      result := "MISSING_FROM"
+    elseif not docs.has_doc(to_id) then
+      result := "MISSING_TO"
+    else
+      result := "VALID"
+    end
+  ensure
+    known_result:
+      result = "VALID" or
+      result = "MISSING_FROM" or
+      result = "MISSING_TO"
+  end
+end</code></pre>
+</section>
+<section class="level3" id="world-refactor-port-use-case-service">
+<h3 class="anchored" data-anchor-id="world-refactor-port-use-case-service">World Refactor (Port and Use Case Service)</h3>
+<pre class="nex"><code>class World_Update_Adapter
+  inherit World_Update_Port
+create
+  make(model: World_Model_V3) do
+    this.model := model
+  end
+feature
+  model: World_Model_V3
+
+  step_object(object_id: String, max_x: Integer): String do
+    result := model.step_by_id(object_id, max_x).value
+  end
+end
+
+class World_Step_Service
+create
+  make(updater: World_Update_Port, max_x: Integer) do
+    this.updater := updater
+    this.max_x := max_x
+  end
+feature
+  updater: World_Update_Port
+  max_x: Integer
+
+  advance(object_id: String): String
+  require
+    id_present: object_id /= ""
+  do
+    result := updater.step_object(object_id, max_x)
+  ensure
+    known_result: result = "UPDATED" 
+                  or result = "NOT_FOUND"
+  end
+invariant
+  bound_valid: max_x &gt;= 0
+end</code></pre>
+</section>
+<section class="level3" id="studio-driver-behavior-parity-check">
+<h3 class="anchored" data-anchor-id="studio-driver-behavior-parity-check">Studio Driver (Behavior Parity Check)</h3>
+<pre class="nex"><code>class App
+feature
+  run() do
+    -- Delivery setup (Studio 2 tasks, Studio 3 store)
+    let t1 := create Delivery_Task.pending("T-1", "Hub-A", "Zone-1")
+    let t2 := create Delivery_Task.pending("T-2", "Hub-A", "Zone-2")
+    t2.assign("R-2")
+    let ds := create Delivery_Task_Store_V3.make([t1, t2])
+    let dw := create Delivery_Workflow.make(
+      create Delivery_Task_Adapter.make(ds)
+    )
+    print(dw.dispatch_view("T-2"))   -- TASK_STATUS:IN_TRANSIT
+    print(dw.dispatch_view("T-99"))  -- UNKNOWN_TASK
+    -- Parity: the port answers what the Studio 3 store answers.
+    print(dw.dispatch_view("T-2") 
+          = "TASK_STATUS:" + ds.find_status("T-2").value)  -- true
+    -- Knowledge setup (Studio 2 documents, Studio 3 index)
+    let km := create Knowledge_Model_V3.make([
+      create Document.make("D-1", "Graphs"),
+      create Document.make("D-2", "Trees"),
+      create Document.make("D-3", "Maps")
+    ])
+    let lvs := create Link_Validation_Service.make(
+      create Doc_Query_Adapter.make(km)
+    )
+    print(lvs.validate("D-1", "D-3"))   -- VALID
+    print(lvs.validate("D-9", "D-3"))   -- MISSING_FROM
+    -- Parity: same verdicts as the Studio 3 model.
+    print(lvs.validate("D-1", "D-3") = km.validate_link(
+      create Doc_Link.make("D-1", "D-3", "references")).value)  -- true
+    print(lvs.validate("D-9", "D-3") = km.validate_link(
+      create Doc_Link.make("D-9", "D-3", "references")).value)  -- true
+    -- World setup (Studio 2 objects, Studio 3 index)
+    let wm := create World_Model_V3.make([
+      create World_Object.make("E-1", 8, 2)
+    ])
+    let wss := create World_Step_Service.make(
+      create World_Update_Adapter.make(wm), 10
+    )
+    print(wss.advance("E-1"))  -- UPDATED
+    print(wss.advance("E-9"))  -- NOT_FOUND
+    -- Parity: the same step on a twin object, straight
+    -- through the Studio 3 model, lands in the same place.
+    let twin := create World_Object.make("E-1", 8, 2)
+    create World_Model_V3.make([twin]).step_by_id("E-1", 10)
+    print(twin.x = wm.by_id.get("E-1").x)  -- true
+  end
+end
+
+-- Run the driver
+let app := create App
+app.run</code></pre>
+<p>Expected outcome:</p>
+<ul>
+<li>same core behavior as Studio 3 refactored paths</li>
+<li>clearer component boundaries</li>
+<li>easier component-level testing due to port boundaries</li>
+</ul>
+</section>
+</section>
+<section class="level2" id="studio-challenges">
+<h2 class="anchored" data-anchor-id="studio-challenges">Studio Challenges</h2>
+<section class="level3" id="level-1-one-architectural-extension-point">
+<h3 class="anchored" data-anchor-id="level-1-one-architectural-extension-point">Level 1 — One Architectural Extension Point</h3>
+<ul>
+<li>pick one <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> optimized path</li>
+<li>introduce a port-and-adapter boundary</li>
+<li>prove behavior parity on nominal and edge cases</li>
+</ul>
+</section>
+<section class="level3" id="level-2-three-domain-architecture-pass">
+<h3 class="anchored" data-anchor-id="level-2-three-domain-architecture-pass">Level 2 — Three-Domain Architecture Pass</h3>
+<ul>
+<li>apply the port-and-adapter pattern, with service orchestration, to delivery, knowledge, and world</li>
+<li>remove at least one direct concrete dependency per domain</li>
+<li>document dependency direction before and after</li>
+</ul>
+</section>
+<section class="level3" id="level-3-alternative-architecture-experiment">
+<h3 class="anchored" data-anchor-id="level-3-alternative-architecture-experiment">Level 3 — Alternative Architecture Experiment</h3>
+<ul>
+<li>compare two styles:
+<ul>
+<li>ports and adapters with thin services</li>
+<li>feature modules with internal adapters</li>
+</ul></li>
+<li>evaluate maintainability and migration cost</li>
+</ul>
+</section>
+</section>
+<section class="level2" id="postmortem">
+<h2 class="anchored" data-anchor-id="postmortem">Postmortem</h2>
+<p>Discuss with evidence:</p>
+<ul>
+<li>Which extension point reduced coupling the most?</li>
+<li>Which abstraction clarified behavior, and which added unnecessary ceremony?</li>
+<li>Which components are still doing too much?</li>
+<li>What is the next architecture risk if the system doubles again?</li>
+</ul>
+</section>
+<section class="level2" id="deliverables">
+<h2 class="anchored" data-anchor-id="deliverables">Deliverables</h2>
+<ul>
+<li>architecture diagram with components and dependency direction</li>
+<li>refactored Nex code using ports and adapters over <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> V3 logic</li>
+<li>behavior-parity run log (before-and-after outputs)</li>
+<li>short architecture decision record (ADR): a note stating the chosen architecture, the alternative we rejected, and why</li>
+</ul>
+</section>
+<section class="level2" id="exit-criteria">
+<h2 class="anchored" data-anchor-id="exit-criteria">Exit Criteria</h2>
+<p>We are ready for <a class="xref" href="index.html#part-vii" title="Part VII: Making Software Trustworthy">Part VII</a> if:</p>
+<ul>
+<li>key use cases depend on ports, not concrete storage classes</li>
+<li>orchestration logic is separated from storage and index details</li>
+<li>cross-component contracts are explicit and testable</li>
+<li>behavior parity with <a class="xref" href="studio_3.html" title="Studio 3: The Scaling Crisis">Studio 3</a> is demonstrated</li>
+</ul>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="part_VI_26.html">← Chapter 26</a></div>
+    <div class="next"><a href="part_VII_27.html">Chapter 27 →<span class="next-title">Preconditions and Postconditions</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>

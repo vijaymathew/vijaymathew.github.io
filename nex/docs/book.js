@@ -1,6 +1,9 @@
 /* Nex books: apply the saved site theme and add a theme toggle + home crumb. */
 (function () {
   var root = document.documentElement;
+  // Books live at different depths (nex/docs/<book>/, books/<book>/), so the
+  // home crumb is resolved against this script's own address.
+  var scriptSrc = document.currentScript && document.currentScript.src;
   try { var t = localStorage.getItem('nex-theme'); if (t) root.dataset.theme = t; } catch (e) {}
 
   var KEYWORDS = new RegExp('^(?:across|alias|and|as|assert|await|case|class|convert|create|declare|deferred|do|else|elseif|end|ensure|enum|false|feature|fn|from|function|if|implies|import|inherit|intern|invariant|let|match|nil|not|note|of|old|once|or|private|raise|repeat|require|rescue|result|retry|sealed|select|spawn|super|then|this|timeout|to|true|type|union|until|variant|when|where|with)$');
@@ -128,7 +131,7 @@
     if (!inner) return;
 
     var home = document.createElement('a');
-    home.className = 'site-crumb'; home.textContent = 'nex'; home.href = '../../../nex.html';
+    home.className = 'site-crumb'; home.textContent = 'nex'; home.href = scriptSrc ? new URL('../../nex.html', scriptSrc).href : '../../../nex.html';
     var sep = document.createElement('span');
     sep.className = 'site-sep'; sep.textContent = '/';
     inner.insertBefore(sep, inner.firstChild);

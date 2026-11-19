@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-book="bc">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What Problem Are We Actually Solving? — Beyond Code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../nex/docs/book.css">
+<script src="../../nex/docs/book.js"></script>
+<link rel="icon" href="../../nex/assets/icons/nex.svg" type="image/svg+xml">
+<link rel="icon" href="../../nex/assets/icons/nex-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../nex/assets/icons/nex-180.png">
+</head>
+<body>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="book-title" href="cover.html">Beyond Code</a>
+    <nav class="book-nav">
+      <a href="index.html">Contents</a>
+    </nav>
+  </div>
+</header>
+<div class="page">
+  <div class="opener">
+    <span class="opener-label">Chapter 1</span>
+    <h1 class="opener-title">What Problem Are We Actually Solving?</h1>
+  </div>
+  <div class="prose">
+<p>A team designing a delivery robot for a large office building faces what appears to be a well-defined problem: compute shortest paths through the building and execute them. The path-finding algorithms are well-understood; the implementation is straightforward. After several months the robot navigates reliably — until the building changes, and it stops in corridors its map still says are open.</p>
+<p>The algorithm was correct. The problem was wrong.</p>
+<p>Buildings change. Hallways become blocked and elevators fail. The engineers had modeled the building as a fixed graph and optimized movement through it. But the actual challenge was not path-finding in a known environment — it was decision-making in an uncertain one. These are structurally different problems, requiring different solutions. No improvement to the path-finding algorithm could have fixed the system, because the algorithm was not the source of the failure.</p>
+<p>This distinction — between the problem as initially described and the problem as it actually exists — is one of the most important in software engineering.</p>
+<section class="level2" data-number="2.1" id="symptoms-and-problems">
+<h2 class="anchored" data-anchor-id="symptoms-and-problems" data-number="2.1"> Symptoms and Problems</h2>
+<p>What the team described as their problem — “compute the shortest path from A to B” — was in fact a symptom: a visible manifestation of a deeper structural condition. The underlying problem was that the environment was dynamic and the system assumed it was not.</p>
+<p>A symptom names the observable failure. A problem names the structural condition that makes the failure inevitable. Treating a symptom may eliminate the immediate manifestation while leaving the condition intact, producing either the same failure under different circumstances, or a different failure entirely.</p>
+<p>The distinction appears throughout software:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%"/>
+<col style="width: 50%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symptom</th>
+<th>Underlying problem</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>“The database is slow.”</td>
+<td>The data model does not match the query patterns.</td>
+</tr>
+<tr class="even">
+<td>“Search results are irrelevant.”</td>
+<td>The system does not model user intent.</td>
+</tr>
+<tr class="odd">
+<td>“The robot cannot find a route.”</td>
+<td>The environment is dynamic; the model is static.</td>
+</tr>
+<tr class="even">
+<td>“The system cannot scale.”</td>
+<td>The architecture assumes a fixed workload.</td>
+</tr>
+</tbody>
+</table>
+<p>In each case, the symptom suggests a local repair: tune a query, adjust a ranking, retry the route, add a server. The problem demands a different kind of response: a change to the model, the architecture, or the representation. Conflating the two leads to systems that are locally optimized and globally broken.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>Each description below names a symptom. Restate it as a structural problem, and identify one constraint that any valid solution must satisfy.</p>
+<ol type="1">
+<li>“Our build times are too slow.”</li>
+<li>“Users keep entering invalid data.”</li>
+<li>“The recommendation engine suggests items users already own.”</li>
+</ol>
+</div>
+</section>
+<section class="level2" data-number="2.2" id="three-systems">
+<h2 class="anchored" data-anchor-id="three-systems" data-number="2.2"> Three Systems</h2>
+<p>Throughout, we will return to three systems that appear unrelated but share a common difficulty: in each case, the problem as naively described obscures the problem as it actually exists.</p>
+<p><strong>A delivery robot</strong> must move through a large office building and deliver packages. The naive formulation — find shortest paths, execute them — collapses once the map changes, the elevator fails, or a hallway is blocked. What actually needs solving isn't path optimization — it's planning under uncertainty: how does an agent act rationally when its model of the world is incomplete or out of date?</p>
+<p><strong>A knowledge engine</strong> answers questions using a large document collection. The naive formulation — index the documents, rank by relevance — breaks down immediately. Relevant to what? The system must model what the user is trying to accomplish, not merely what words they used. It must recognize when its sources disagree, and when its knowledge is insufficient to answer. Retrieval was never the hard part. The hard part is reasoning about the reliability and scope of knowledge.</p>
+<p><strong>A virtual world</strong> contains thousands of objects interacting in real time — characters, physics, events, behaviors. The naive formulation frames this as a performance problem: make it fast enough. But the real difficulty is structural. How can large numbers of independently evolving components interact without producing chaos? Throughput turns out to be a red herring; the real problem is managing complexity through representation.</p>
+<p>In each system, the naive formulation leads to a dead end. The engineers who succeed are those who see past the initial description to the structure underneath.</p>
+</section>
+<section class="level2" data-number="2.3" id="the-shape-of-a-problem">
+<h2 class="anchored" data-anchor-id="the-shape-of-a-problem" data-number="2.3"> The Shape of a Problem</h2>
+<p>Different problems have different structures, and the structure of a problem constrains the space of reasonable solutions.</p>
+<p>Consider what distinguishes the three systems above: each belongs to a different class of problem. The delivery robot is an agent acting over time in a changing environment, so it needs state and a way to recover from failure. The other two face different kinds of difficulty: the knowledge engine must represent the limits of what it knows, while the virtual world must keep the emergent behavior of many interacting components under control.</p>
+<p>These structural differences are not incidental. A solution suited to one class will not transfer to another. Applying retrieval techniques to the robot problem, or path-planning techniques to the knowledge problem, will not produce a working system. The mismatch between problem structure and solution structure is the primary source of software that works technically while failing practically.</p>
+<p>Recognizing the structure of a problem is therefore not preliminary to engineering — it <em>is</em> the central act of engineering. The choice of algorithm, data structure, and architecture all follow from it. A team that misidentifies the structure will make systematically wrong choices throughout the project, and no amount of subsequent optimization will recover the loss.</p>
+<div class="note-exercise">
+<p><strong>Quick Exercise</strong></p>
+<p>For each of the three systems described above, identify one design decision that would be correct given the naive formulation but wrong given the actual problem structure.</p>
+</div>
+</section>
+<section class="level2" data-number="2.4" id="before-the-first-line-of-code">
+<h2 class="anchored" data-anchor-id="before-the-first-line-of-code" data-number="2.4"> Before the First Line of Code</h2>
+<p>Software projects fail for many reasons, but one cause appears with unusual regularity: the problem was never clearly defined. This failure rarely looks dramatic. It appears in small decisions made early, when the cost of changing direction seems low:</p>
+<ul>
+<li>requirements specify features rather than goals</li>
+<li>performance is optimized before correctness is established</li>
+<li>tools and frameworks are chosen before the problem is understood</li>
+</ul>
+<p>Each of these is a form of the same error: beginning to construct a solution before the problem has been examined. The cost is not immediately visible, because early code still compiles and the tests still pass. The failure emerges later, when the system meets the actual problem and the mismatch cannot be patched away.</p>
+<p>The discipline we develop is the habit of stopping before that first line of code and asking a harder set of questions:</p>
+<ul>
+<li>What is the system actually trying to accomplish?</li>
+<li>What assumptions are hidden in the problem description?</li>
+<li>What would constitute a failure, and what would cause it?</li>
+<li>What is the structure of this problem, and what class of solutions does that structure admit?</li>
+</ul>
+<p>These questions slow the process at the beginning. They prevent a larger, costlier slowdown later.</p>
+<p>Programming begins with code. Engineering begins with understanding.</p>
+<div class="note-takeaways">
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>A symptom names the observable failure; a problem names the structural condition that makes the failure inevitable.</li>
+<li>Treating a symptom leaves the condition intact, and the failure returns in another form.</li>
+<li>The delivery robot, the knowledge engine, and the virtual world each look like one kind of problem and turn out to be another.</li>
+<li>The structure of a problem constrains which solutions can work; the choice of algorithm, data structure, and architecture follows from it.</li>
+<li>Programming begins with code. Engineering begins with understanding.</li>
+</ul>
+</div>
+</section>
+<section class="level2" data-number="2.5" id="looking-ahead">
+<h2 class="anchored" data-anchor-id="looking-ahead" data-number="2.5"> Looking Ahead</h2>
+<p>The next chapter introduces a concrete method for examining systems before designing them: how to observe real behavior, surface hidden assumptions, and state constraints precisely enough that they can be violated, tested, and refined. We will apply this method first to the delivery robot, where the gap between naive description and actual problem is clearest. By the end of <a class="xref" href="index.html#part-i" title="Part I: Seeing The Problem">Part I</a>, the three systems will each have yielded a precise problem statement — and the algorithms we build in <a class="xref" href="index.html#part-ii" title="Part II: Modeling the World">Part II</a> will follow from those statements almost without choice.</p>
+</section>
+
+  </div>
+  <nav class="chapter-nav" aria-label="Chapter navigation">
+    <div class="prev"><a href="prologue.html">← Prologue</a></div>
+    <div class="next"><a href="part_I_2.html">Chapter 2 →<span class="next-title">Looking at the Real World</span></a></div>
+  </nav>
+</div>
+
+  <script>
+    document.querySelectorAll('div.sourceCode').forEach(function(block) {
+      const btn = document.createElement('button');
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      block.style.position = 'relative';
+      block.appendChild(btn);
+      btn.addEventListener('click', function() {
+        const code = block.querySelector('code');
+        navigator.clipboard.writeText(code.innerText).then(function() {
+          btn.textContent = 'Copied';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+        });
+      });
+    });
+  </script>
+
+</body>
+</html>
