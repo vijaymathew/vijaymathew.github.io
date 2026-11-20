@@ -64,7 +64,7 @@ nex&gt; x
 <pre><code>nex&gt; total := 5
 Error: Cannot assign to undefined variable: total</code></pre>
 <p>The REPL is forgiving in the other direction. A second <code>let x := ...</code> simply replaces the earlier <code>x</code>, so you can redefine things freely while experimenting. A program in a file is stricter: declaring the same name twice in the same block is an error. Use <code>let</code> once for each variable and plain <code>:=</code> after that.</p>
-<p>Variable names are case-sensitive, so <code>x</code>, <code>X</code> and <code>total_cost</code> are three different names. By convention, names use lowercase letters with underscores between words: <code>total_cost</code>, <code>start_location</code>, <code>item_count</code>. At the REPL, <code>:vars</code> lists every variable you have defined, with its current value.</p>
+<p>Variable names are case-sensitive, so <code>x</code> and <code>X</code> represent two different values. By convention, names use lowercase letters with underscores between words. Some examples are: <code>total_cost</code>, <code>item_count</code> and <code>cost_per_item</code>. At the REPL, <code>:vars</code> lists every variable you have defined, with its current value.</p>
 </section>
 <section class="level2" data-number="3.3" id="integers">
 <h2 class="anchored" data-anchor-id="integers" data-number="3.3"> Integers</h2>
@@ -103,7 +103,7 @@ nex&gt; 0xFF
 nex&gt; 1_000_000
 1000000</code></pre>
 <p>These are different ways of writing the same <code>Integer</code> values: <code>0xFF</code> and <code>255</code> are the same number. The prefixes must be lowercase, but the hexadecimal digits may be in either case.</p>
-<p>Integers also have methods. Methods are operations invoked with dot notation:</p>
+<p>Integers also have methods, which are operations or queries invoked with dot notation:</p>
 <pre><code>nex&gt; (-7).abs
 7
 
@@ -126,7 +126,7 @@ true</code></pre>
 <p>One method worth knowing early is <code>pick</code>:</p>
 <pre><code>nex&gt; 6.pick
 4</code></pre>
-<p><code>pick</code> returns a random integer in the range from zero up to but not including the value it is called on. <code>6.pick</code> returns a random integer from 0 to 5. The result will differ each time you call it. This is useful for simulations and exercises, and we will use it in several places later on. (When a program needs the <em>same</em> random numbers on every run, say to repeat a simulation exactly, the <code>math/Random</code> library makes them from a seed; see Appendix C.)</p>
+<p><code>pick</code> returns a random integer in the range from zero up to but not including the value it is called on. <code>6.pick</code> returns a random integer from 0 to 5. The result will differ each time you call it. This is useful for simulations and exercises, and we will use it in several places later on. (When a program needs the <em>same</em> random numbers on every run, say to repeat a simulation exactly, the <code>math/Random</code> library makes them from a seed; see <a href="appendix_c.html" title="Appendix C: The Standard Library">Appendix C</a>.)</p>
 <section class="level3" data-number="3.3.1" id="bytes-and-fixed-width-integers">
 <h3 class="anchored" data-anchor-id="bytes-and-fixed-width-integers" data-number="3.3.1"> Bytes and Fixed-Width Integers</h3>
 <p>Most programs never need to care how many bits an integer occupies: <code>Integer</code> is a 64-bit value, which is plenty. (<code>Integer64</code> is another name for the same type.) Programs that read files or parse network messages sometimes do care, because the data they handle has an exact width. For those, Nex has three more integer types:</p>
@@ -148,7 +148,7 @@ print(offset)   -- -70000</code></pre>
 let small: Integer16 := n.to_integer16()   -- fine
 print(small)                               -- 300
 print(n.to_byte())                         -- error: 300 is not in 0..255</code></pre>
-<p>Arithmetic on these types gives an <code>Integer</code>, so the result cannot overflow the narrow type. If you want a narrow value back, convert it, and that conversion is where the range is checked:</p>
+<p>Arithmetic on these types gives an <code>Integer</code>, so the result cannot overflow the narrow type. If you want a narrow value back, convert it, where the range will be checked:</p>
 <pre class="nex"><code>let a: Byte := 100u8
 let total: Integer := a + a          -- 200, an Integer
 let doubled: Byte := (a + a).to_byte()
@@ -349,33 +349,16 @@ nil</code></pre>
        print(maybe_name.length)
      end</code></pre>
 <p>This check is not optional. Calling a method on a nil value would produce an error, and Nex requires you to guard against it. The <code>?</code> in the type annotation is a signal to both the programmer and the system: this variable might be nil, and code that uses it must account for that possibility.</p>
-<p>For most variables in early chapters, you will not need detachable types. They become more important when working with class fields and collections, which we reach in Chapters <a href="chapter_12.html" title="Chapter 12: Classes">12</a> and <a href="chapter_9.html" title="Chapter 9: Arrays">9</a> respectively.</p>
+<p>Another idiom for working safely with detachable values is:</p>
+<pre><code>nex&gt; if ? maybe_name as name then
+       print(name.length)
+    end</code></pre>
+<p>The <code>? var1 as var2</code> form will bind <code>var2</code> to the value of <code>var1</code> and return <code>true</code> only if <code>var1</code> is not <code>nil</code>. This will become important once you start working with concurrent tasks in your programs. Think of what could happen if you don't bind the value of <code>maybe_name</code> to the local variable before entering the body of the <code>if</code> statement — another task might set <code>maybe_name</code> to <code>nil</code> just before your <code>print</code> statement executes and this will result in a runtime error. It's perfectly fine to use the simpler check in single-threaded programs, but always use the <code>? ... as</code> form in larger programs and libraries. In any case, the Nex compiler will not let you access a detachable variable outside of a check.</p>
+
+<p>Most languages treat <code>nil</code> or <code>null</code> as the default value of objects and this has been <a href="https://www.infoq.com/presentations/Null-References-The-Billion-Dollar-Mistake-Tony-Hoare/" target="_blank" title="The billion dollar mistake">a costly mistake</a>. The concept of "nothingness" can be useful in certain cases and Nex provides a safe way to express it. As you work through the examples in this book, you will see that we use that quite sparingly.</p>
 <p><em>Note:</em> You can use the <code>?.</code> safe-access operator for reading a field through a detachable reference — <code>maybe_name?.length</code> evaluates to <code>nil</code> if <code>maybe_name</code> is <code>nil</code>, and to <code>maybe_name.length</code> otherwise, without a separate guard.</p>
 </section>
-<section class="level2" data-number="3.11" id="reading-input-a-first-interactive-program">
-<h2 class="anchored" data-anchor-id="reading-input-a-first-interactive-program" data-number="3.11"> Reading Input: A First Interactive Program</h2>
-<p>All the programs so far have been self-contained — they produce output but never ask the user for anything. Reading input goes through the console, a <code>Console</code> object that every Nex program and REPL session already has under the name <code>console</code>. You do not declare it; it is <em>predeclared</em>, as if each program began with</p>
-<pre><code>let console := create Console</code></pre>
-<p>The <code>create</code> keyword is how all objects are constructed in Nex; <a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a> explains it fully. For now, just use <code>console</code>. (You cannot assign a new value to it, but you may declare your own variable named <code>console</code>, which then hides the predeclared one.)</p>
-<p>The <code>read_line</code> method reads a line of text from the user and returns it as a string:</p>
-<pre><code>nex&gt; console.print_line("What is your name?")
-What is your name?
-nex&gt; let name := console.read_line</code></pre>
-<p>At the <code>read_line</code> call the program pauses and waits. Type your name and press Enter. Then:</p>
-<pre><code>nex&gt; console.print_line("Hello, " + name + "!")
-Hello, Ada!</code></pre>
-<p>Notice <code>console.print_line</code> rather than the bare <code>print</code>. Both write output, but they write it differently. <code>print</code> shows a value the way the REPL does, so a string appears in quotes. <code>print_line</code> writes just the text and ends the line. Use <code>print</code> for quick checks, and <code>print_line</code> for messages meant for people.</p>
-<p>Here is the complete interactive program as you would enter it at the REPL:</p>
-<pre><code>nex&gt; console.print_line("Enter your age:")
-Enter your age:
-nex&gt; let input := console.read_line
-nex&gt; let age: Integer := input.to_integer
-nex&gt; let birth_year: Integer := 2026 - age
-nex&gt; console.print_line("You were born around " + birth_year.to_string)
-You were born around 2000</code></pre>
-<p>This small program touches everything introduced in this chapter: a typed variable, string input, explicit type conversion from string to integer and back, and arithmetic on the result.</p>
-</section>
-<section class="level2" data-number="3.12" id="summary">
+<section class="level2" data-number="3.11" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="3.12"> Summary</h2>
 <ul>
 <li>Every value in Nex has a type: <code>Integer</code>, <code>Real</code>, <code>Boolean</code>, <code>String</code> and <code>Char</code> cover most cases</li>
@@ -391,7 +374,7 @@ You were born around 2000</code></pre>
 <li>The predeclared <code>console</code> gives access to keyboard input via <code>read_line</code></li>
 </ul>
 </section>
-<section class="level2" data-number="3.13" id="exercises">
+<section class="level2" data-number="3.12" id="exercises">
 <h2 class="anchored" data-anchor-id="exercises" data-number="3.13"> Exercises</h2>
 <p><strong>1.</strong> Define variables for the three sides of a right triangle — call them <code>a</code>, <code>b</code>, and <code>c</code> — with values <code>3</code>, <code>4</code>, and <code>5</code>. Verify that <code>a * a + b * b = c * c</code> by printing the result of the comparison.</p>
 <p><strong>2.</strong> The <code>Integer</code> method <code>pick</code> returns a random integer in <code>[0, n)</code>. At the REPL, call <code>100.pick</code> several times and observe the results. Then write an expression that produces a random integer between 1 and 10 inclusive.</p>
