@@ -58,18 +58,17 @@ nex&gt; greet("Alan")
 
 nex&gt; add(3, 7)
 10</code></pre>
-<p>Nex also supports grouped parameter syntax when multiple parameters share the same type:</p>
+<p>Nex also supports a more concise grouped parameter syntax when multiple parameters share the same type:</p>
 <pre><code>nex&gt; function add(a, b: Integer) 
      do
        print(a + b)
      end</code></pre>
-<p>Both forms are equivalent. Grouped syntax is more concise when several parameters are of the same type.</p>
 <p>Parameters are local to the function body — they exist only for the duration of the call, and they are independent of any variables outside the function with the same name. If you have a variable <code>a</code> in your REPL session and call <code>add(3, 7)</code>, the <code>a</code> inside <code>add</code> refers to the argument <code>3</code>, not to the session variable.</p>
 </section>
 <section class="level2" data-number="7.3" id="returning-a-value">
 <h2 class="anchored" data-anchor-id="returning-a-value" data-number="7.3"> Returning a Value</h2>
 <p>A function that only produces side effects — like printing — is useful, but a function that computes and <em>returns</em> a value is more versatile. The return value is assigned to the special variable <code>result</code>:</p>
-<pre><code>nex&gt; function double(n: Integer): Integer 
+<pre><code>nex&gt; function double(n: Integer): Integer
      do
        result := n * 2
      end
@@ -83,15 +82,28 @@ nex&gt; double(x)
 32</code></pre>
 <p>The return type is declared after the parameter list, separated by a colon. The body assigns to <code>result</code> to specify what the function returns. When the function finishes, whatever value <code>result</code> holds is returned to the caller.</p>
 <p>Because <code>double</code> returns a value, it can be used anywhere an expression of the right type is expected: inside <code>print</code>, say, or as an argument to another function call.</p>
-<p>Return values are not limited to single-parameter functions. A function can take several inputs and still behave like an ordinary expression:</p>
-<pre><code>nex&gt; function rectangle_area(width, height: Real): Real 
-     do
-       result := width * height
-     end
+<p>If a function body does not assign to <code>result</code>, the function will return the default value of its return type. For example, the following function explicitly assigns to <code>result</code> only if its second argument is non-zero. Otherwise it will return the default value of <code>Integer</code>, which is zero.</p>
+<pre><code>nex&gt; function safe_divide(a, b: Integer): Integer
+do
+  if b /= 0 then
+    result := a / b
+  end
+end
 
-nex&gt; rectangle_area(4.0, 5.0)
-20.0</code></pre>
-<p>If a function body does not assign to <code>result</code>, the return value depends on whether a return type was declared. If a return type is specified, <code>result</code> holds the default value of that type (for example, <code>0</code> for <code>Integer</code>), and that default is returned. If no return type is specified, the function returns a <code>Void</code>, which is a special value that cannot be used in a computation.</p>
+nex&gt; safe_divide(10, 2)
+5
+nex&gt; safe_divide(10, 0)
+0</code></pre>
+<p>Types with their default values are listed below:</p>
+<table>
+  <tr><td>Integer, Byte</td><td>0</td></tr>
+  <tr><td>Real</td><td>0.0</td></tr>
+  <tr><td>String</td><td>""</td></tr>
+  <tr><td>Array</td><td>[]</td></tr>
+  <tr><td>Map</td><td>{}</td></tr>
+  <tr><td>Set</td><td>#{}</td></tr>
+</table>
+<p>Some types don't have a default value. For functions returning such a type, the Nex compiler will raise an error if any execution path fails to assign a value to <code>result</code>. If no return type is specified, the function returns a <code>Void</code>, which is a special value that cannot be used in a computation.</p>
 </section>
 <section class="level2" data-number="7.4" id="the-result-variable">
 <h2 class="anchored" data-anchor-id="the-result-variable" data-number="7.4"> The <code>result</code> Variable</h2>
@@ -182,15 +194,15 @@ nex&gt; sum_of_squares(3, 4)
 <p>Sometimes a function needs to call another function whose body will be defined later. If the typechecker sees the first definition before it has seen the later function’s signature, it does not yet know what type that call should return. The solution is to declare the later function’s signature first and define its body afterwards.</p>
 <p>In the REPL, this comes up when static checking is enabled:</p>
 <pre><code>nex&gt; :typecheck on
-"Type checking enabled. Code will be validated before execution."</code></pre>
+Type checking enabled. Code will be validated before execution.</code></pre>
 <pre><code>nex&gt; declare function normalize_name(name: String): String
 
-nex&gt; function greet_user(name: String): String 
+nex&gt; function greet_user(name: String): String
      do
        result := "Hello, " + normalize_name(name)
      end
 
-nex&gt; function normalize_name(name: String): String 
+nex&gt; function normalize_name(name: String): String
      do
        result := name.trim()
      end
@@ -198,7 +210,7 @@ nex&gt; function normalize_name(name: String): String
 nex&gt; greet_user("  Vijay  ")
 "Hello, Vijay"</code></pre>
 <p>The first line is a declaration only. The <code>declare function</code> form introduces the function name, parameter type, and return type. The later full definition must match that signature exactly.</p>
-<p>This preserves static typechecking and keeps the program structure explicit.</p>
+<p>Note that usually you don't have to forward declare functions in a script (a <code>.nex</code> file) because the Nex compiler will do an initial pass to collect all global function, class and variable declarations. So <code>declare function</code> is mostly useful in the REPL only.</p>
 </section>
 <section class="level2" data-number="7.7" id="anonymous-functions">
 <h2 class="anchored" data-anchor-id="anonymous-functions" data-number="7.7"> Anonymous Functions</h2>
