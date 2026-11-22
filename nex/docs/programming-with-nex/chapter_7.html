@@ -186,40 +186,119 @@ nex&gt; function temperature_report(c: Real): String
 "Mild: 22.0 deg C / 71.6 deg F"</code></pre>
 <p>The reader of <code>temperature_report</code> does not need to know how Celsius-to-Fahrenheit conversion works or how temperature labels are determined. The function names carry that meaning. The body of <code>temperature_report</code> reads as a sequence of named steps rather than a block of arithmetic.</p>
 <p>This is the promise of good function design: each function is a vocabulary word, and programs built from good vocabulary read like clear prose.</p>
+<p>In <code>temperature_report</code>, the building blocks sit side by side: two independent helpers feed one function. Building blocks can also be stacked, each function standing on the one below it. Consider checking whether a day, month and year form a real calendar date. The bottom layer is the <code>is_leap_year</code> function from the Chapter 6 exercises:</p>
+<pre><code>nex&gt; function is_leap_year(y: Integer): Boolean
+     do
+       result := (y % 4 = 0 and y % 100 /= 0) or y % 400 = 0
+     end
+
+nex&gt; function days_in_month(m, y: Integer): Integer
+     do
+       if m = 2 then
+         if is_leap_year(y) then result := 29 else result := 28 end
+       elseif m = 4 or m = 6 or m = 9 or m = 11 then
+         result := 30
+       else
+         result := 31
+       end
+     end
+
+nex&gt; function is_valid_date(d, m, y: Integer): Boolean
+     do
+       result := m &gt;= 1 and m &lt;= 12 and d &gt;= 1 and d &lt;= days_in_month(m, y)
+     end</code></pre>
+<p>The body of <code>is_valid_date</code> reads almost exactly like the rule it implements: <em>a date is valid if the month is between 1 and 12 and the day is between 1 and the number of days in that month</em>. How many days February has, and the century rules for leap years, are hidden two layers down:</p>
+<pre><code>nex&gt; is_valid_date(29, 2, 2024)
+true
+nex&gt; is_valid_date(29, 2, 2025)
+false
+nex&gt; is_valid_date(31, 4, 2025)
+false</code></pre>
+<p>Stacking also helps with testing. Each layer can be tested on its own, starting from the bottom:</p>
+<pre><code>nex&gt; is_leap_year(1900)
+false
+nex&gt; is_leap_year(2000)
+true
+nex&gt; days_in_month(2, 2024)
+29
+nex&gt; days_in_month(4, 2025)
+30</code></pre>
+<p>Once <code>is_leap_year</code> and <code>days_in_month</code> have been checked, a test of <code>is_valid_date</code> needs to check only its own logic. If <code>is_valid_date(29, 2, 2000)</code> ever gave the wrong answer, the layer tests would already show whether the bug was in the date check or in the calendar arithmetic beneath it.</p>
 </section>
 <section class="level2" data-number="8.6" id="recognising-when-a-function-is-doing-too-much">
 <h2 class="anchored" data-anchor-id="recognising-when-a-function-is-doing-too-much" data-number="8.6"> Recognising When a Function Is Doing Too Much</h2>
 <p>A function that is hard to name is often doing too much. If the best name you can find is something like <code>process_and_format_and_print</code>, the function has at least three responsibilities, and each deserves its own function.</p>
 <p>A function body that is longer than about ten to fifteen lines is a candidate for decomposition. Not every long function needs to be broken up — some computations are genuinely sequential and benefit from being in one place. But length is a signal worth examining.</p>
-<p>A function that contains deeply nested conditionals or loops within loops is harder to test and harder to read. Extracting the inner loop or the innermost condition into its own named function often makes both the outer function and the extracted function clearer:</p>
+<p>A function that contains deeply nested conditionals or loops within loops is harder to test and harder to read. Extracting the inner loop or the innermost condition into its own named function often makes both the outer function and the extracted function clearer.</p>
+<p>Consider a function that counts the <em>perfect numbers</em> up to a limit. A number is perfect when it equals the sum of its proper divisors (the divisors smaller than the number itself): 6 = 1 + 2 + 3 and 28 = 1 + 2 + 4 + 7 + 14 are the first two. Written as one function, it needs a loop inside a loop:</p>
 <pre><code>nex&gt; -- before: inner loop mixed with outer logic
-nex&gt; function count_divisors(n: Integer): Integer 
+nex&gt; function count_perfect(limit: Integer): Integer
      do
-       let i := 1
-       repeat n do
-         if n % i = 0 then
+       let n := 1
+       repeat limit do
+         let sum := 0
+         let i := 1
+         repeat n - 1 do
+           if n % i = 0 then
+             sum := sum + i
+           end
+           i := i + 1
+         end
+         if sum = n then
            result := result + 1
          end
-       i := i + 1
+         n := n + 1
        end
      end
-nex&gt; -- after: inner check extracted
-nex&gt; function is_divisor(n, i: Integer): Boolean 
+
+nex&gt; count_perfect(1000)
+3</code></pre>
+<p>To understand this function, the reader has to keep two counters, a running sum and two loops in mind at once. The inner loop computes something with a name of its own, the sum of a number's proper divisors, but the code never says so. Extracting the inner loop, and then the test that uses its result, gives each idea a name:</p>
+<pre><code>nex&gt; -- after: inner loop and condition extracted
+nex&gt; function is_divisor(n, i: Integer): Boolean
      do
        result := n % i = 0
      end
 
-nex&gt; function count_divisors(n: Integer): Integer 
+nex&gt; function sum_of_proper_divisors(n: Integer): Integer
      do
        let i := 1
-       repeat n do
+       repeat n - 1 do
          if is_divisor(n, i) then
-           result := result + 1
+           result := result + i
          end
          i := i + 1
        end
-     end</code></pre>
-<p>Both versions produce the same results. The second names the concept of divisibility explicitly, making the loop body read as: <em>for each i from 1 to n, if i is a divisor of n, count it</em>. The extracted function <code>is_divisor</code> is also independently testable, which is a benefit in itself.</p>
+     end
+
+nex&gt; function is_perfect(n: Integer): Boolean
+     do
+       result := sum_of_proper_divisors(n) = n
+     end
+
+nex&gt; function count_perfect(limit: Integer): Integer
+     do
+       let n := 1
+       repeat limit do
+         if is_perfect(n) then
+           result := result + 1
+         end
+         n := n + 1
+       end
+     end
+
+nex&gt; count_perfect(1000)
+3</code></pre>
+<p>Both versions produce the same results. But the new <code>count_perfect</code> has a single loop that reads as: <em>for each n from 1 to the limit, if n is perfect, count it</em>. How divisors are found and summed is now the business of the functions below it. The pieces that were buried inside the nested loops can also be tested on their own, which was impossible before:</p>
+<pre><code>nex&gt; is_divisor(12, 4)
+true
+nex&gt; sum_of_proper_divisors(12)
+16
+nex&gt; is_perfect(28)
+true
+nex&gt; is_perfect(12)
+false</code></pre>
+<p>If <code>count_perfect</code> ever returned the wrong answer, these smaller tests would show where the mistake lies. With everything in one function, the only thing you could check was the final count.</p>
 </section>
 <section class="level2" data-number="8.7" id="functions-as-values">
 <h2 class="anchored" data-anchor-id="functions-as-values" data-number="8.7"> Functions as Values</h2>
@@ -263,23 +342,38 @@ nex&gt; counter()
 3</code></pre>
 <p>Each call to <code>counter()</code> returns a different result, even though <code>counter()</code> takes no arguments and <code>make_counter</code> has long since finished running. Somewhere, the value of <code>count</code> is being kept alive between calls. That somewhere is the function value itself: when <code>make_counter</code> returns the <code>fn (): Integer do ... end</code> literal, that literal takes <code>count</code> with it. A function value that remembers a variable from the scope in which it was created, even after that scope's own function has returned, is called a <em>closure</em>. <code>counter</code> is a closure over <code>count</code> — it <em>captures</em> <code>count</code>, and every call to <code>counter</code> reads and writes that one captured variable, not a fresh copy.</p>
 <p>Notice what this means for purity, in the sense <a href="chapter_7.html#pure-functions" title="Section 7.2: Pure Functions">Section 7.2</a> defined it. <code>counter()</code> takes no inputs, yet it does not always return the same output — calling it twice in a row gives <code>1</code> then <code>2</code>. A closure that mutates something it captured is an effectful function by that definition, exactly as much as one that prints or writes a file; the effect is simply invisible at the call site, because the state it touches is hidden inside the closure rather than passed around openly. So keep this in mind: effects are sometimes exactly what you want, but a mutating closure should be recognised and used as the effectful thing it is, not treated as though it were as easy to reason about as a pure function.</p>
-<p>Here are two closures that act as two windows into a shared value:</p>
-<pre><code>nex&gt; function adder(init: Integer)
+<p>Closures can do more than count. A closure can bundle data together with the code that answers questions about that data, which is the central idea of <em>objects</em>. Here is a location on a map, built entirely from a closure:</p>
+<pre><code>nex&gt; declare type Location = Function(String): Real
+nex&gt; function location(latitude, longitude: Real): Location
      do
-       let total := init
-       let add := fn (x: Integer) do total := total + x end
-       let peek := fn (): Integer do result := total end
-       add(5)
-       print(peek())
-       add(10)
-       print(peek())
-       print(total)
+       result := fn(message: String): Real do
+         case message of
+           "lat" then result := latitude
+           "long" then result := longitude
+           else raise "Invalid message: " + message
+         end
+       end
      end
-nex&gt; adder(2)
-7
-17
-17</code></pre>
-<p><code>add</code> and <code>peek</code> are two separate function values, but they share one captured <code>total</code>. A write through <code>add</code> is visible through <code>peek</code>, and even the enclosing scope's own later read of <code>total</code> sees it. <code>adder</code> is an <em>object</em> with one private state (<code>total</code>) and two methods — one that changes the field, one that reads it. This is Object Oriented Programming in its miniature form. (We will learn more about this style of programming in <a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a>).</p>
+
+nex&gt; let loc1 := location(12.3, 5.5)
+nex&gt; let loc2 := location(loc1("lat") + 9.0, 10.3)
+nex&gt; loc2("lat")
+21.3
+nex&gt; loc2("long")
+10.3</code></pre>
+<p>The <code>declare type</code> from <a href="chapter_6.html" title="Chapter 6: Functions">Chapter 6</a> names the shape every location has: a function that takes a <code>String</code> and returns a <code>Real</code>. Calling <code>location(12.3, 5.5)</code> returns a closure that captures <code>latitude</code> and <code>longitude</code>. Nothing outside the closure can reach those two variables directly. The only way to learn anything about <code>loc1</code> is to call it with a string and see what it answers.</p>
+<p>Look at the code in those terms and the parts of an object appear:</p>
+<ul>
+<li><strong>State.</strong> The captured <code>latitude</code> and <code>longitude</code> are the object's <em>fields</em>. Each call to <code>location</code> creates a fresh pair, so <code>loc1</code> and <code>loc2</code> are independent objects, each with its own state.</li>
+<li><strong>Messages.</strong> The strings <code>"lat"</code> and <code>"long"</code> are <em>messages</em>: requests sent to the object. <code>loc1("lat")</code> can be read as <em>send the message <code>lat</code> to <code>loc1</code></em>.</li>
+<li><strong>Methods.</strong> The <code>case</code> decides how to respond to each message. Each branch is a <em>method</em>, the code the object runs when it receives that message.</li>
+<li><strong>Refusal.</strong> A message the object does not understand falls through to the <code>else</code> branch. <code>raise</code> stops the computation with an error, which we will study in <a href="chapter_21.html" title="Chapter 21: Errors and Exceptions">Chapter 21</a>. Here it reports that the object has no method for that message:</li>
+</ul>
+<pre><code>nex&gt; loc1("height")
+Error: Invalid message: height</code></pre>
+<p>The most important property of this design is <em>encapsulation</em>. Code that uses a location depends only on the messages it answers, never on how the location stores its data. <code>location</code> could store its coordinates in radians, or in a map, and convert when asked. As long as <code>"lat"</code> and <code>"long"</code> return the same answers, no caller would need to change. <code>loc2</code> shows objects working together: it was built from the answer <code>loc1</code> gave to a message, with no knowledge of how <code>loc1</code> works inside.</p>
+<p>A location's state never changes once it is created. Add the mutation we saw in <code>make_counter</code>, with a closure that assigns to a variable it captured, and you get an object whose state changes as it receives messages. Exercise 6 asks you to build one.</p>
+<p>This is object-oriented programming in miniature, and it also shows why languages provide something better. Every message must return the same type, here <code>Real</code>. The messages are plain strings, so a misspelling such as <code>loc1("lattitude")</code> is caught only when the program runs, not when it is written. <a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a> introduces <em>classes</em>, which keep the idea of state together with the methods that work on it. Classes also give each method a name, its own parameter and result types, and compile-time checking.</p>
 </section>
 <section class="level2" data-number="8.8" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="8.8"> Summary</h2>
@@ -293,7 +387,7 @@ nex&gt; adder(2)
 <li>A function is a value like any other: it can be passed as an argument or returned as a result. A function that accepts or returns another function is a higher-order function.</li>
 <li>Arrays, sets, maps and strings come with higher-order methods: <code>map</code>, <code>filter</code>, <code>fold</code>, <code>reduce</code>, <code>any</code>, <code>all</code>, <code>count</code> and <code>find</code>.</li>
 <li>A function that returns another function can build that returned function around variables from its own scope. Such a returned function is a closure — it captures and remembers the enclosing scope's variables even after that scope has finished running.</li>
-<li>Two closures that capture the same mutable variable share it: a write through one is visible through the other. This makes closures a lightweight way to pair private, shared state with the small number of operations that touch it — useful for a single value and a couple of operations, but a class is the clearer tool once either grows.</li>
+<li>A closure can act as a small object. Its captured variables are private state, the arguments it accepts are messages, and the code that responds to each message is a method. Callers depend only on the messages, not on how the state is stored. This works for a few simple messages, but a class is the clearer tool once an object grows.</li>
 </ul>
 </section>
 <section class="level2" data-number="8.9" id="exercises">
