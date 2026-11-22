@@ -61,7 +61,7 @@ nex&gt; sum_to(5)
 = 4 + 6
 = 10</code></pre>
 <p>Each call suspends and waits for the result of the next call. When <code>sum_to(0)</code> returns <code>0</code>, the waiting calls can resolve from the inside out: <code>sum_to(1)</code> returns <code>1</code>, <code>sum_to(2)</code> returns <code>3</code>, and so on up to <code>sum_to(4)</code>, which returns <code>10</code>.</p>
-<p>This expansion — called the <em>call stack</em> — builds up as the recursion descends and collapses as it returns. For deep recursion this stack can become large. We return to this practical concern in <a href="chapter_8.html#when-a-loop-is-clearer-than-recursion" title="Section 8.7: When a Loop Is Clearer Than Recursion">Section 8.7</a>.</p>
+<p>This expansion — called the <em>call stack</em> — builds up as the recursion descends and collapses as it returns. For deep recursion this stack can become large. We return to this practical concern in <a href="chapter_8.html#when-a-loop-is-clearer-than-recursion" title="Section 8.6: When a Loop Is Clearer Than Recursion">Section 8.6</a>.</p>
 </section>
 <section class="level2" data-number="9.3" id="identifying-the-base-case-and-the-recursive-case">
 <h2 class="anchored" data-anchor-id="identifying-the-base-case-and-the-recursive-case" data-number="9.3"> Identifying the Base Case and the Recursive Case</h2>
@@ -85,7 +85,8 @@ nex&gt; factorial(5)
 120</code></pre>
 <p>Base case: <code>factorial(0)</code> is <code>1</code> (the empty product, by convention). Recursive case: <code>n!</code> is <code>n * (n-1)!</code>.</p>
 <p>For counting down and printing:</p>
-<pre><code>nex&gt; function count_down(n: Integer) do
+<pre><code>nex&gt; function count_down(n: Integer)
+     do
        if n = 0 then
          print("Go!")
        else
@@ -102,39 +103,8 @@ nex&gt; count_down(3)
 <p>Base case: when <code>n = 0</code>, print <code>"Go!"</code> and stop. Recursive case: print <code>n</code>, then count down from <code>n - 1</code>.</p>
 <p>The pattern is always the same: find the simplest instance, then express the general case in terms of a simpler one.</p>
 </section>
-<section class="level2" data-number="9.4" id="recursion-on-lists">
-<h2 class="anchored" data-anchor-id="recursion-on-lists" data-number="9.4"> Recursion on Lists</h2>
-<p>Recursion becomes particularly natural when working with lists and other data structures that can be thought of recursively: it is either empty, or it has a first element followed by the rest of the data. Many operations on such structures have elegant recursive expressions.</p>
-<p>In this section we shall write a recursive function that processes a string character by character, as a string is essentially a list of characters.</p>
-<p>Before we get to that function, let me introduce to you the <code>Char</code> type. A <code>Char</code> is a single character, written with a <code>#</code> prefix:</p>
-<pre><code>nex&gt; let c: Char := #s
-
-nex&gt; let newline: Char := #newline
-
-nex&gt; let tab: Char := #tab</code></pre>
-<p><code>Char</code> is distinct from <code>String</code> — <code>#s</code> is a single character value, not the one-character string <code>"s"</code>. Special characters are written by name: <code>#newline</code>, <code>#space</code>, <code>#tab</code>. The <code>to_string</code> method converts a <code>Char</code> to a <code>String</code> when needed for comparison or concatenation.</p>
-<p>With that in hand:</p>
-<pre><code>nex&gt; function count_char(s: String, ch: Char): Integer 
-     do
-       if s.length = 0 then
-         result := 0
-       else
-         let head := s.char_at(0)
-         let tail := s.substring(1, s.length)
-         result := count_char(tail, ch)
-         if head = ch then
-           result := result + 1
-         end
-       end
-     end
-
-nex&gt; count_char("mississippi", #s)
-4</code></pre>
-<p>The base case is an empty string: no characters to count, result is <code>0</code>. The recursive case separates the first character (<code>head</code>) from the rest (<code>tail</code>), counts occurrences in <code>tail</code>, and adds 1 if <code>head</code> matches the target character.</p>
-<p>Notice the structure: <em>process the first element, then recurse on the rest</em>. This head-and-tail decomposition is the canonical recursive pattern for sequences, and we will use it extensively in Chapters <a href="chapter_9.html" title="Chapter 9: Arrays">9</a> and <a href="chapter_11.html" title="Chapter 11: Nested and Composite Structures">11</a>.</p>
-</section>
-<section class="level2" data-number="9.5" id="mutual-recursion">
-<h2 class="anchored" data-anchor-id="mutual-recursion" data-number="9.5"> Mutual Recursion</h2>
+<section class="level2" data-number="9.4" id="mutual-recursion">
+<h2 class="anchored" data-anchor-id="mutual-recursion" data-number="9.4"> Mutual Recursion</h2>
 <p>Two functions can be mutually recursive — each calling the other. A classic example is testing whether a number is even or odd without using <code>%</code>:</p>
 <pre><code>nex&gt; declare function is_even(n: Integer): Boolean
 
@@ -155,12 +125,12 @@ true
 
 nex&gt; is_odd(7)
 true</code></pre>
-<p>The first two lines are forward declarations. They tell the typechecker the signatures of both functions before either body is checked. Without those declarations, the first function body would refer to a function whose return type is not yet known.</p>
+<p>The first two lines are forward declarations which are required in the REPL. They tell the typechecker the signatures of both functions before either body is checked. Without those declarations, the first function body would refer to a function whose return type is not yet known.</p>
 <p><code>is_even(4)</code> calls <code>is_odd(3)</code>, which calls <code>is_even(2)</code>, which calls <code>is_odd(1)</code>, which calls <code>is_even(0)</code>, which returns <code>true</code>. The base cases anchor both functions: zero is even and zero is not odd.</p>
 <p>Mutual recursion is less common than direct recursion but appears naturally in parsers and state machines. The same principles apply: every chain of calls must reach a base case, and each call must make progress toward it.</p>
 </section>
-<section class="level2" data-number="9.6" id="when-recursion-is-clearer-than-a-loop">
-<h2 class="anchored" data-anchor-id="when-recursion-is-clearer-than-a-loop" data-number="9.6"> When Recursion Is Clearer Than a Loop</h2>
+<section class="level2" data-number="9.5" id="when-recursion-is-clearer-than-a-loop">
+<h2 class="anchored" data-anchor-id="when-recursion-is-clearer-than-a-loop" data-number="9.5"> When Recursion Is Clearer Than a Loop</h2>
 <p>Recursion and loops are interchangeable in the sense that anything computable by one is computable by the other. The question is which expresses the solution more clearly for a given problem.</p>
 <p>Recursion tends to be clearer when:</p>
 <p><strong>The problem is defined recursively.</strong> Fibonacci numbers and many other mathematical sequences are defined in terms of smaller instances of themselves. A recursive function mirrors that definition directly:</p>
@@ -179,8 +149,8 @@ nex&gt; fibonacci(10)
 <p><strong>The data structure is recursive.</strong> Trees and other hierarchically structured data are defined recursively — each node contains sub-nodes of the same type. Functions that process them naturally follow the same shape. We will see this clearly in <a href="chapter_10.html" title="Chapter 10: Maps">Chapter 10</a>.</p>
 <p><strong>The solution has a clean decomposition.</strong> Some problems break cleanly into: handle the base case, do something with the first element, recurse on the rest. When that decomposition exists and is natural, a recursive function expresses it with minimal noise.</p>
 </section>
-<section class="level2" data-number="9.7" id="when-a-loop-is-clearer-than-recursion">
-<h2 class="anchored" data-anchor-id="when-a-loop-is-clearer-than-recursion" data-number="9.7"> When a Loop Is Clearer Than Recursion</h2>
+<section class="level2" data-number="9.6" id="when-a-loop-is-clearer-than-recursion">
+<h2 class="anchored" data-anchor-id="when-a-loop-is-clearer-than-recursion" data-number="9.6"> When a Loop Is Clearer Than Recursion</h2>
 <p>Recursion is not always the right choice. Loops tend to be clearer when:</p>
 <p><strong>The iteration is straightforward.</strong> Printing numbers from 1 to 10 or summing an array — these have obvious loop forms. A recursive version adds the cognitive overhead of the call stack without adding clarity:</p>
 <pre><code>nex&gt; -- loop: immediately clear
@@ -214,15 +184,15 @@ nex&gt; total
 50005000</code></pre>
 <p><strong>The recursion repeats work.</strong> The naive recursive Fibonacci from <a href="chapter_8.html#when-recursion-is-clearer-than-a-loop" title="Section 8.6: When Recursion Is Clearer Than a Loop">Section 8.6</a> is correct but slow. <code>fibonacci(40)</code> requires computing <code>fibonacci(39)</code> and <code>fibonacci(38)</code>, each of which recomputes overlapping sub-problems. The number of calls grows exponentially with <code>n</code>. A loop-based version with two accumulator variables computes the same result in linear time. When a recursive solution recomputes the same sub-problems repeatedly, a loop — or a more advanced technique called memoisation, which stores previously computed results so the same sub-problem is not solved repeatedly — will be significantly faster.</p>
 </section>
-<section class="level2" data-number="9.8" id="thinking-recursively-a-discipline">
-<h2 class="anchored" data-anchor-id="thinking-recursively-a-discipline" data-number="9.8"> Thinking Recursively: A Discipline</h2>
+<section class="level2" data-number="9.7" id="thinking-recursively-a-discipline">
+<h2 class="anchored" data-anchor-id="thinking-recursively-a-discipline" data-number="9.7"> Thinking Recursively: A Discipline</h2>
 <p>Beginners often try to trace through the full execution of a recursive function to convince themselves it is correct. This works for small inputs but becomes impractical quickly. The more powerful discipline is to <em>trust the recursive call</em>.</p>
 <p>When writing a recursive function, assume that the recursive call does what it is supposed to do for smaller inputs. Then ask: given that the recursive call works correctly, does the function as a whole work correctly for <code>n</code>?</p>
 <p>For <code>sum_to(n)</code>: - Assume <code>sum_to(n - 1)</code> correctly returns the sum of integers from 1 to <code>n - 1</code>. - Then <code>n + sum_to(n - 1)</code> is the sum from 1 to <code>n</code>. - The base case handles <code>n = 0</code> correctly. - Therefore <code>sum_to</code> is correct.</p>
 <p>This is the recursive analogue of mathematical induction, and it is the right way to verify a recursive function. You do not need to trace all the way down to the base case and back up again — you need to verify the base case and verify that the recursive step is correct given a correct sub-result.</p>
 </section>
-<section class="level2" data-number="9.9" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="9.9"> Summary</h2>
+<section class="level2" data-number="9.8" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="9.8"> Summary</h2>
 <ul>
 <li>A recursive function calls itself with a smaller or simpler argument</li>
 <li>Every recursive function needs a base case — a condition under which it returns without further recursion — and a recursive case that makes progress toward the base case</li>
@@ -232,13 +202,12 @@ nex&gt; total
 <li>The right mental model for verifying recursion is inductive: verify the base case, then verify that the recursive step is correct assuming the sub-call works correctly</li>
 </ul>
 </section>
-<section class="level2" data-number="9.10" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="9.10"> Exercises</h2>
+<section class="level2" data-number="9.9" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="9.9"> Exercises</h2>
 <p><strong>1.</strong> Write a recursive function <code>power(base, exp: Integer): Integer</code> that computes <code>base</code> raised to the power <code>exp</code> for non-negative <code>exp</code>. Do not use the <code>^</code> operator. Verify that <code>power(2, 10)</code> returns 1024 and <code>power(5, 0)</code> returns 1.</p>
-<p><strong>2.</strong> Write a recursive function <code>reverse_string(s: String): String</code> that returns the characters of <code>s</code> in reverse order. Use the head-and-tail pattern from <a href="chapter_8.html#recursion-on-lists" title="Section 8.4: Recursion on Lists">Section 8.4</a>: the reverse of a string is the reverse of its tail followed by its head. Verify that <code>reverse_string("hello")</code> returns <code>"olleh"</code> and <code>reverse_string("")</code> returns <code>""</code>.</p>
-<p><strong>3.</strong> The greatest common divisor (GCD) of two positive integers can be computed by Euclid’s algorithm: <code>gcd(a, b)</code> is <code>a</code> when <code>b = 0</code>, and <code>gcd(b, a % b)</code> otherwise. Write a recursive function <code>gcd(a, b: Integer): Integer</code> and verify that <code>gcd(48, 18)</code> returns 6 and <code>gcd(100, 75)</code> returns 25.</p>
-<p><strong>4.</strong> Write a recursive function <code>count_digits(n: Integer): Integer</code> that returns the number of digits in a positive integer. The base case is a single-digit number (0–9). The recursive case removes the last digit with <code>/</code>. Verify that <code>count_digits(1)</code> returns 1, <code>count_digits(42)</code> returns 2, and <code>count_digits(10000)</code> returns 5.</p>
-<p><strong>5.*</strong> The naive recursive Fibonacci from <a href="chapter_8.html#when-recursion-is-clearer-than-a-loop" title="Section 8.6: When Recursion Is Clearer Than a Loop">Section 8.6</a> is exponentially slow because it recomputes sub-problems. Write an alternative function <code>fibonacci_fast(n: Integer): Integer</code> using a loop and two accumulator variables <code>a</code> and <code>b</code>, where at each step <code>a</code> holds F(i) and <code>b</code> holds F(i+1). Verify it gives the same results as the recursive version for <code>n</code> from 0 to 10, then time both versions informally at the REPL by calling them with <code>n = 35</code> and observing the difference in response time.</p>
+<p><strong>2.</strong> The greatest common divisor (GCD) of two positive integers can be computed by Euclid’s algorithm: <code>gcd(a, b)</code> is <code>a</code> when <code>b = 0</code>, and <code>gcd(b, a % b)</code> otherwise. Write a recursive function <code>gcd(a, b: Integer): Integer</code> and verify that <code>gcd(48, 18)</code> returns 6 and <code>gcd(100, 75)</code> returns 25.</p>
+<p><strong>3.</strong> Write a recursive function <code>count_digits(n: Integer): Integer</code> that returns the number of digits in a positive integer. The base case is a single-digit number (0–9). The recursive case removes the last digit with <code>/</code>. Verify that <code>count_digits(1)</code> returns 1, <code>count_digits(42)</code> returns 2, and <code>count_digits(10000)</code> returns 5.</p>
+<p><strong>4.*</strong> The naive recursive Fibonacci from <a href="chapter_8.html#when-recursion-is-clearer-than-a-loop" title="Section 8.6: When Recursion Is Clearer Than a Loop">Section 8.6</a> is exponentially slow because it recomputes sub-problems. Write an alternative function <code>fibonacci_fast(n: Integer): Integer</code> using a loop and two accumulator variables <code>a</code> and <code>b</code>, where at each step <code>a</code> holds F(i) and <code>b</code> holds F(i+1). Verify it gives the same results as the recursive version for <code>n</code> from 0 to 10, then time both versions informally at the REPL by calling them with <code>n = 35</code> and observing the difference in response time.</p>
 </section>
 
   </div>
