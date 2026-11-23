@@ -41,7 +41,7 @@ nex&gt; capitals.get("France")
 
 nex&gt; capitals.get("Japan")
 "Tokyo"</code></pre>
-<p>The type of <code>capitals</code> is <code>Map[String, String]</code> — a map from string keys to string values. The key type and value type can be any types that support equality comparison. Common combinations are <code>Map[String, Integer]</code>, <code>Map[String, String]</code>, and <code>Map[Integer, String]</code>.</p>
+<p>The type of <code>capitals</code> is <code>Map[String, String]</code> — a map from string keys to string values. The key type and value type can be any types that support equality comparison.</p>
 <p>An empty map requires a type annotation:</p>
 <pre><code>nex&gt; let prices: Map[String, Real] := {}</code></pre>
 <p>Note that <code>{}</code> is the empty map literal, just as <code>[]</code> is the empty array literal.</p>
@@ -154,21 +154,18 @@ nex&gt; word_lengths
 <p>This builds a map from each word to its length. The loop body calls <code>set</code> once per word; each call either adds a new entry or — if a word appeared before — replaces it.</p>
 </section>
 <section class="level2" data-number="11.8" id="maps-and-functions">
-<h2 class="anchored" data-anchor-id="maps-and-functions" data-number="11.8"> Maps and Functions</h2>
-<p>Maps are values and can be passed to and returned from functions:</p>
-<pre><code>nex&gt; function invert(m: Map[String, String]): Map[String, String]
-     do
-       result := {}
-       across m as entry do
-         result.set(entry.value, entry.key)
-       end
-     end
-
-nex&gt; let capitals := {"France": "Paris", "Japan": "Tokyo", "Brazil": "Brasília"}
-nex&gt; let by_capital := invert(capitals)
-nex&gt; by_capital.get("Tokyo")
-"Japan"</code></pre>
-<p><code>invert</code> builds a new map that swaps keys and values. This has an implicit precondition: the values in the original map must all be distinct, otherwise some entries will silently overwrite others in the result. A note in a comment — or, as we will do in Part V, a <code>require</code> clause — should state this assumption.</p>
+<h2 class="anchored" data-anchor-id="maps-and-functions" data-number="11.8"> Higher-order Map Functions</h2>
+<p>Just like arrays, the higher-order functions <code>map</code>, <code>filter</code> and <code>fold</code> are defined for maps. Note that the <code>map</code> function always returns an array. If you want a <code>Map[K, V]</code> result, create that explicitly from an array of <code>Map_Entry[K, V]</code> objects.</p>
+<pre><code>nex&gt; let scores := {"Alan": 92, "Bob": 87, "Ada": 93}
+nex&gt; scores.map(fn(entry) => entry.value + 1)
+[93, 88, 94]
+nex&gt; create Map.from_entries(scores.map(fn(entry) => create Map_Entry.make(entry.key, entry.value + 1)))
+{"Alan": 93, "Bob": 88, "Ada": 94}
+nex&gt; scores.fold(0, fn(init, entry) => init + entry.value) / scores.size -- mean score
+90</code></pre>
+<p>The filtering operation returns a <code>Map[K, V]</code>, so no <code>from_entries</code> call is needed here:</p>
+<pre><code>nex> scores.filter(fn(entry) => entry.key.char_at(0) = #A)
+{"Alan": 92, "Ada": 93}</pre></code>
 </section>
 <section class="level2" data-number="11.9" id="choosing-between-arrays-and-maps">
 <h2 class="anchored" data-anchor-id="choosing-between-arrays-and-maps" data-number="11.9"> Choosing Between Arrays and Maps</h2>
@@ -179,7 +176,7 @@ nex&gt; by_capital.get("Tokyo")
 </section>
 <section class="level2" data-number="11.10" id="a-worked-example-word-frequency-counter">
 <h2 class="anchored" data-anchor-id="a-worked-example-word-frequency-counter" data-number="11.10"> A Worked Example: Word Frequency Counter</h2>
-<p>A word frequency counter reads a string of text and counts how many times each word appears. Maps are the natural structure: the keys are words, the values are counts.</p>
+<p>A word frequency counter reads a string of text and counts how many times each word appears. Maps are the natural structure here: the keys are words, the values are counts.</p>
 <pre><code>nex&gt; function word_frequencies(text: String): Map[String, Integer]
      do
        result := {}
