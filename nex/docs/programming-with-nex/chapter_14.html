@@ -29,291 +29,334 @@
     <h1 class="opener-title">Inheritance and Polymorphism</h1>
   </div>
   <div class="prose">
-<p>In the last chapter we established that a class should model one concept well. Sometimes concepts form families — a <code>Savings_Account</code> and a <code>Current_Account</code> are both bank accounts; a <code>Circle</code> and a <code>Rectangle</code> are both shapes. These families share common behaviour while differing in specifics. Inheritance is the mechanism for expressing that relationship in code.</p>
+<p>In the last chapter we established that a class should model one concept well. Sometimes concepts form families. A rook and a knight are both chess pieces: each belongs to a side, white or black, and each stands on a square of the board, but each moves by its own rule. Members of a family share common behaviour while differing in specifics. Inheritance is the mechanism for expressing that relationship in code.</p>
 <section class="level2" data-number="15.1" id="what-inheritance-is">
 <h2 class="anchored" data-anchor-id="what-inheritance-is" data-number="15.1"> What Inheritance Is</h2>
 <p>Inheritance allows one class — the <em>subclass</em> — to extend another — the <em>superclass</em>. The subclass inherits all the fields and methods of the superclass and can add new ones or override existing ones.</p>
-<p>The relationship is <em>is-a</em>: a <code>Circle</code> is a <code>Shape</code>. This is not just a programming convenience — it reflects a genuine conceptual relationship. If the is-a relationship does not hold, inheritance is probably the wrong tool.</p>
-<p>In Nex, inheritance is declared with <code>inherit</code>:</p>
-<pre><code>nex&gt; class Shape
+<p>The relationship is <em>is-a</em>: a <code>Rook</code> is a <code>Piece</code>. This is not just a programming convenience — it reflects a genuine conceptual relationship. If the is-a relationship does not hold, inheritance is probably the wrong tool.</p>
+<p>In Nex, inheritance is declared with <code>inherit</code>. A move is described by how far a piece travels: <code>dx</code> squares sideways and <code>dy</code> squares up the board.</p>
+<pre><code>nex&gt; class Piece
      create
-       make(c: String) do
-         colour := c
+       make(s: String) do
+         side := s
        end
      feature
-       colour: String
-       area: Real do result := 0.0 end
+       side: String
+       name(): String do result := "piece" end
+       can_move(dx, dy: Integer): Boolean do result := false end
        describe(): String do
-         result := "A " + colour + " shape"
+         result := side + " " + name
        end
      end
 
-nex&gt; class Circle inherit Shape
+nex&gt; class Rook inherit Piece
      create
-       make(c: String, r: Real) do
-         Shape.make(c)
-         radius := r
+       make(s: String) do
+         Piece.make(s)
        end
      feature
-       radius: Real
-       area(): Real do
-         result := 3.14159 * radius * radius
-       end
-       describe(): String do
-         result := "A " + colour + " circle with radius " + radius.to_string
+       name(): String do result := "rook" end
+       can_move(dx, dy: Integer): Boolean do
+         result := (dx = 0) /= (dy = 0)
        end
      end
 
-nex&gt; class Rectangle inherit Shape
+nex&gt; class Pawn inherit Piece
      create
-       make(c: String, w, h: Real) do
-         Shape.make(c)
-         width := w
-         height := h
+       make(s: String) do
+         Piece.make(s)
+         direction := when s = "white" then 1 else -1 end
        end
      feature
-       width: Real
-       height: Real
-       area(): Real do
-         result := width * height
-       end
-       describe(): String do
-         result := "A " + colour + " rectangle (" + width.to_string + " x " + height.to_string + ")"
+       direction: Integer
+       name(): String do result := "pawn" end
+       can_move(dx, dy: Integer): Boolean do
+         result := dx = 0 and dy = direction
        end
      end</code></pre>
-<p>Both <code>Circle</code> and <code>Rectangle</code> inherit the <code>colour</code> field from <code>Shape</code>. Each has its own additional fields and overrides <code>area</code> and <code>describe</code>.</p>
+<p>Both <code>Rook</code> and <code>Pawn</code> inherit the <code>side</code> field and the <code>describe</code> method from <code>Piece</code>. Each overrides <code>name</code> and <code>can_move</code> with its own version. A rook moves along a row or a column: exactly one of <code>dx</code> and <code>dy</code> is zero, which is what <code>(dx = 0) /= (dy = 0)</code> says. A pawn moves one square straight ahead, and "ahead" depends on its side, so <code>Pawn</code> adds a field of its own, <code>direction</code>: up the board for white, down for black.</p>
 <p>Public class constants are inherited as well. If a parent class defines:</p>
-<pre class="nex"><code>class Shape
+<pre class="nex"><code>class Piece
 feature
-  DEFAULT_COLOUR = "black"
+  BOARD_SIZE = 8
 end</code></pre>
-<p>then child classes may use <code>DEFAULT_COLOUR</code> directly inside their own features, and external code may still refer to it with a class name such as <code>Shape.DEFAULT_COLOUR</code>.</p>
+<p>then child classes may use <code>BOARD_SIZE</code> directly inside their own features, and external code may still refer to it with a class name such as <code>Piece.BOARD_SIZE</code>.</p>
 <p>This is useful for shared limits, default labels, configuration values, and other facts that belong to the class definition rather than to each object.</p>
 </section>
 <section class="level2" data-number="15.2" id="the-super-class-calls">
 <h2 class="anchored" data-anchor-id="the-super-class-calls" data-number="15.2"> Superclass Calls</h2>
 <p>When a subclass constructor runs, it must also initialise the fields inherited from the superclass. Naming the superclass explicitly delegates to its constructor:</p>
-<pre><code>make(c: String, r: Real) do
-  Shape.make(c)   -- initialises colour in Shape
-  radius := r     -- initialises radius in Circle
+<pre><code>make(s: String) do
+  Piece.make(s)                                      -- initialises side in Piece
+  direction := when s = "white" then 1 else -1 end   -- initialises direction in Pawn
 end</code></pre>
-<p><code>Shape.make(c)</code> runs <code>Shape</code>’s <code>make</code> constructor, setting <code>colour := c</code>. Then the <code>Circle</code> constructor sets <code>radius := r</code>. Both fields are properly initialised.</p>
+<p><code>Piece.make(s)</code> runs <code>Piece</code>’s <code>make</code> constructor, setting <code>side := s</code>. Then the <code>Pawn</code> constructor sets <code>direction</code>. Both fields are properly initialised.</p>
 <p>When a class inherits from exactly one parent — the usual case — the keyword <code>super</code> says the same thing without naming it:</p>
-<pre><code>make(c: String, r: Real) do
-  super.make(c)   -- same as Shape.make(c)
-  radius := r
+<pre><code>make(s: String) do
+  super.make(s)   -- same as Piece.make(s)
+  direction := when s = "white" then 1 else -1 end
 end</code></pre>
-<p><code>super</code> resolves to whichever class <code>Circle</code> inherits from, so the call still reads correctly if <code>Shape</code> is later renamed. This only works because <code>Circle</code> has a single parent — a class declared with <code>inherit A, B</code> has two, and <code>super</code> would have no way to choose between them, so it is rejected at compile time there; the one you mean must be named explicitly, as above.</p>
-<p><code>super</code> can call an overridden superclass method from within an override the same way:</p>
+<p><code>super</code> resolves to whichever class <code>Pawn</code> inherits from, so the call still reads correctly if <code>Piece</code> is later renamed. This only works because <code>Pawn</code> has a single parent — a class declared with <code>inherit A, B</code> has two, and <code>super</code> would have no way to choose between them, so it is rejected at compile time there; the one you mean must be named explicitly, as above.</p>
+<p><code>super</code> can call an overridden superclass method from within an override the same way. Suppose a pawn should also say which way it is heading:</p>
 <pre><code>describe(): String do
-  result := super.describe + ", area: " + area.to_string
+  result := super.describe + " moving " + when direction = 1 then "up" else "down" end
 end</code></pre>
-<p>This builds on <code>Shape</code>’s <code>describe</code> rather than duplicating it — and, as with the constructor, <code>Shape.describe</code> would do exactly the same thing here, since <code>Circle</code> has only the one parent. Reach for the explicit form when you need to be precise about which ancestor you mean, or when <code>super</code> alone would be ambiguous; otherwise <code>super</code> is the more direct way to say “my superclass’s version of this.”</p>
+<p>A black pawn with this <code>describe</code> calls itself <code>"black pawn moving down"</code>. The method builds on <code>Piece</code>’s <code>describe</code> rather than duplicating it — and, as with the constructor, <code>Piece.describe</code> would do exactly the same thing here, since <code>Pawn</code> has only the one parent. Reach for the explicit form when you need to be precise about which ancestor you mean, or when <code>super</code> alone would be ambiguous; otherwise <code>super</code> is the more direct way to say “my superclass’s version of this.”</p>
 </section>
 <section class="level2" data-number="15.3" id="overriding-methods">
 <h2 class="anchored" data-anchor-id="overriding-methods" data-number="15.3"> Overriding Methods</h2>
-<p>When a subclass defines a feature with the same name as a superclass feature, the subclass version <em>overrides</em> it. Calling <code>describe</code> on a <code>Circle</code> runs <code>Circle</code>’s version, not <code>Shape</code>’s:</p>
-<pre><code>nex&gt; let c := create Circle.make("red", 5.0)
-nex&gt; c.describe
-"A red circle with radius 5.0"
-
-nex&gt; let r := create Rectangle.make("blue", 4.0, 3.0)
+<p>When a subclass defines a feature with the same name as a superclass feature, the subclass version <em>overrides</em> it. Calling <code>can_move</code> on a <code>Rook</code> runs <code>Rook</code>’s version, not <code>Piece</code>’s; <code>describe</code>, which <code>Rook</code> does not override, runs <code>Piece</code>’s version, and that in turn calls <code>Rook</code>’s <code>name</code>:</p>
+<pre><code>nex&gt; let r := create Rook.make("white")
 nex&gt; r.describe
-"A blue rectangle (4.0 x 3.0)"</code></pre>
+"white rook"
+
+nex&gt; r.can_move(0, 3)
+true
+
+nex&gt; r.can_move(1, 2)
+false</code></pre>
 <p>When you override a method, its <em>signature</em> may change in only one safe direction. The overriding version may <strong>widen</strong> a parameter — accept a more general type than the inherited method did — and may <strong>narrow</strong> the return type — promise a more specific result. It may not do the reverse. The rule has a name: parameters are <em>contravariant</em> and the return type is <em>covariant</em>.</p>
-<p>The reason is substitutability. Because a <code>Circle</code> can be used wherever a <code>Shape</code> is expected, anyone holding one as a <code>Shape</code> may call its methods in the way <code>Shape</code> allows. If a subclass redefined a method to demand a <em>narrower</em> argument than the superclass promised to accept, such a call could hand the override a value it cannot handle. Nex rejects that at compile time, naming the method and the offending parameter. When you really do want a subclass method to treat one subtype specially, keep the wider parameter type and narrow inside the body with <code>convert</code> or <code>match</code>.</p>
+<p>The reason is substitutability. Because a <code>Rook</code> can be used wherever a <code>Piece</code> is expected, anyone holding one as a <code>Piece</code> may call its methods in the way <code>Piece</code> allows. If a subclass redefined a method to demand a <em>narrower</em> argument than the superclass promised to accept, such a call could hand the override a value it cannot handle. Nex rejects that at compile time, naming the method and the offending parameter. When you really do want a subclass method to treat one subtype specially, keep the wider parameter type and narrow inside the body with <code>convert</code> or <code>match</code>.</p>
 </section>
 <section class="level2" data-number="15.4" id="polymorphism">
 <h2 class="anchored" data-anchor-id="polymorphism" data-number="15.4"> Polymorphism</h2>
 <p>The most powerful consequence of inheritance is <em>polymorphism</em>: the ability to treat objects of different subclasses through a common superclass type.</p>
-<p>An <code>Array[Shape]</code> can hold circles, rectangles, or any other shape subclass:</p>
-<pre><code>nex&gt; let shapes: Array[Shape] := []
-nex&gt; shapes.add(create Circle.make("red", 5.0))
-nex&gt; shapes.add(create Rectangle.make("blue", 4.0, 3.0))
-nex&gt; shapes.add(create Circle.make("green", 2.0))
+<p>Add one more kind of piece. A knight jumps in an L: two squares one way and one square the other, so the product of the two distances is always 2:</p>
+<pre><code>nex&gt; class Knight inherit Piece
+     create
+       make(s: String) do
+         Piece.make(s)
+       end
+     feature
+       name(): String do result := "knight" end
+       can_move(dx, dy: Integer): Boolean do
+         result := dx.abs * dy.abs = 2
+       end
+     end</code></pre>
+<p>An <code>Array[Piece]</code> can hold rooks, knights, pawns, or any other piece subclass:</p>
+<pre><code>nex&gt; let pieces: Array[Piece] := []
+nex&gt; pieces.add(create Rook.make("white"))
+nex&gt; pieces.add(create Knight.make("black"))
+nex&gt; pieces.add(create Pawn.make("black"))
 
-nex&gt; across shapes as s do
-       print(s.describe)
-    end
-"A red circle with radius 5.0"
-"A blue rectangle (4.0 x 3.0)"
-"A green circle with radius 2.0"</code></pre>
-<p>When <code>s.describe</code> is called, Nex dispatches to the correct <code>describe</code> for the actual runtime type of each object. This is <em>dynamic dispatch</em>: the method called is determined by the object’s type at runtime, not by the declared type of the variable.</p>
-<p>Polymorphism means code written against the superclass type works correctly with any subclass — including subclasses not yet written. Adding a <code>Triangle</code> that inherits <code>Shape</code> and overrides <code>describe</code> would work with the loop above without changing it.</p>
-<p>This idea is closely related to the <strong>Liskov Substitution Principle</strong>: if a routine expects a <code>Shape</code>, it should be able to work with a <code>Circle</code> or <code>Rectangle</code> without needing special-case knowledge. In practical terms, a subclass should behave like a valid, more specific version of its superclass. It may extend behaviour, but it should not violate the expectations established by the parent type.</p>
+nex&gt; across pieces as p do
+       print(p.describe)
+     end
+"white rook"
+"black knight"
+"black pawn"</code></pre>
+<p>When <code>p.describe</code> is called, it calls <code>name</code>, and Nex dispatches to the correct <code>name</code> for the actual runtime type of each object. This is <em>dynamic dispatch</em>: the method called is determined by the object’s type at runtime, not by the declared type of the variable.</p>
+<p>The same holds for <code>can_move</code>. Which pieces can make a given move? Ask each of them, without knowing or caring what kind it is:</p>
+<pre><code>nex&gt; pieces.filter(fn (p) =&gt; p.can_move(1, 2)).map(fn (p) =&gt; p.describe)
+["black knight"]
+
+nex&gt; pieces.filter(fn (p) =&gt; p.can_move(0, -1)).map(fn (p) =&gt; p.describe)
+["white rook", "black pawn"]</code></pre>
+<p>Polymorphism means code written against the superclass type works correctly with any subclass — including subclasses not yet written. Adding a <code>Bishop</code> that inherits <code>Piece</code> and overrides <code>name</code> and <code>can_move</code> would work with the code above without changing it.</p>
+<p>This idea is closely related to the <strong>Liskov Substitution Principle</strong>: if a routine expects a <code>Piece</code>, it should be able to work with a <code>Rook</code> or a <code>Knight</code> without needing special-case knowledge. In practical terms, a subclass should behave like a valid, more specific version of its superclass. It may extend behaviour, but it should not violate the expectations established by the parent type.</p>
 </section>
 <section class="level2" data-number="15.5" id="when-inheritance-is-the-right-tool">
 <h2 class="anchored" data-anchor-id="when-inheritance-is-the-right-tool" data-number="15.5"> When Inheritance Is the Right Tool</h2>
 <p>Inheritance is appropriate when:</p>
-<p><strong>The is-a relationship is genuine.</strong> A <code>Circle</code> is a <code>Shape</code>. A <code>Savings_Account</code> is a <code>Bank_Account</code>. The subclass is a more specific version of the superclass concept.</p>
+<p><strong>The is-a relationship is genuine.</strong> A <code>Knight</code> is a <code>Piece</code>. A <code>Pawn</code> is a <code>Piece</code>. The subclass is a more specific version of the superclass concept.</p>
 <p><strong>The subclass shares and specialises superclass behaviour.</strong> It uses the inherited methods and overrides some to provide specialised behaviour. It does not ignore or neutralise what it inherits.</p>
 <p><strong>You need polymorphism.</strong> You want to write code against the superclass type and have it work correctly on any subclass instance.</p>
 <p>Inheritance is not appropriate when:</p>
-<p><strong>The relationship is has-a, not is-a.</strong> A <code>Car</code> has an <code>Engine</code> — it does not extend <code>Engine</code>. Using inheritance to share code between conceptually unrelated classes produces fragile designs.</p>
-<p><strong>You only want to reuse code.</strong> If the goal is to avoid duplicating a few methods, <em>composition</em> — giving a class a field of another class type and delegating to its methods — is usually better.</p>
+<p><strong>The relationship is has-a, not is-a.</strong> A <code>Board</code> has pieces — it does not extend <code>Piece</code>. Using inheritance to share code between conceptually unrelated classes produces fragile designs.</p>
+<p><strong>You only want to reuse code.</strong> If the goal is to avoid duplicating a few methods, <em>composition</em> — giving a class a field of another class type and delegating to its methods — is usually better. The queen is the classic trap. A queen moves like a rook <em>or</em> like a bishop, so it is tempting to write <code>class Queen inherit Rook, Bishop</code> and get both movement rules for free. But a queen is not a rook: every routine that expects a <code>Rook</code> would now accept a queen, and every change to <code>Rook</code> would silently change the queen. A <code>Queen</code> is a <code>Piece</code>, and its <code>can_move</code> should say what a queen does — the rook's rule or the bishop's — whether it spells the rules out or borrows them from a helper both classes share.</p>
 <p><strong>The subclass needs to override most of what it inherits.</strong> A subclass that overrides everything is not a specialisation — it is a different class wearing a misleading name.</p>
 </section>
 <section class="level2" data-number="15.6" id="feature-override">
 <h2 class="anchored" data-anchor-id="feature-override" data-number="15.6"> Feature Override</h2>
 <p>A superclass can provide a default implementation for a method that subclasses override with specialised behaviour. This is useful when the superclass defines a general structure and the subclass fills in the details.</p>
-<p>Every shape has an area, but “the area of a shape” has no general formula. The superclass provides a safe default:</p>
-<pre><code>nex&gt; class Shape
+<p>Every move must stay on the board, whatever the piece. That part of the rule is the same for every piece, so it belongs in <code>Piece</code>. Which moves a piece can make at all is different for each kind, so <code>Piece</code> only provides a safe default for it:</p>
+<pre><code>nex&gt; class Piece
      create
-       make(c: String) do
-         colour := c
+       make(s: String) do
+         side := s
        end
      feature
-       colour: String
-       area(): Real do result := 0.0 end
+       BOARD_SIZE = 8
+       side: String
+       name(): String do result := "piece" end
+       can_move(dx, dy: Integer): Boolean do result := false end
+       can_reach(dx, dy: Integer): Boolean do
+         result := dx.abs &lt; BOARD_SIZE and dy.abs &lt; BOARD_SIZE and can_move(dx, dy)
+       end
        describe(): String do
-         result := "A " + colour + " shape with area " + area.to_string
+         result := side + " " + name
        end
      end</code></pre>
-<p><code>area</code> returns <code>0.0</code> by default. The <code>describe</code> method in <code>Shape</code> calls <code>area</code>, and subclasses override <code>area</code> with their own formula:</p>
-<pre><code>nex&gt; class Circle inherit Shape
+<p><code>can_move</code> returns <code>false</code> by default. The <code>can_reach</code> method in <code>Piece</code> checks the board size and then calls <code>can_move</code>, and subclasses override <code>can_move</code> with their own rule:</p>
+<pre><code>nex&gt; class Rook inherit Piece
      create
-       make(c: String, r: Real) do
-         Shape.make(c)
-         radius := r
+       make(s: String) do
+         Piece.make(s)
        end
      feature
-       radius: Real
-       area(): Real do
-         result := 3.14159 * radius * radius
+       name(): String do result := "rook" end
+       can_move(dx, dy: Integer): Boolean do
+         result := (dx = 0) /= (dy = 0)
        end
      end
 
-nex&gt; let c := create Circle.make("red", 5.0)
-nex&gt; c.describe
-"A red shape with area 78.53975"</code></pre>
-<p><code>describe</code> in <code>Shape</code> calls <code>area</code> — which runs <code>Circle</code>’s <code>area</code> because <code>c</code> is a <code>Circle</code>. The superclass defines the structure; the subclass fills in the detail. This is the <em>template method</em> pattern: a superclass method calls an overridable method whose behaviour varies by subclass.</p>
+nex&gt; let r := create Rook.make("white")
+nex&gt; r.can_reach(0, 7)
+true
+
+nex&gt; r.can_reach(0, 9)
+false</code></pre>
+<p><code>can_reach</code> in <code>Piece</code> calls <code>can_move</code> — which runs <code>Rook</code>’s <code>can_move</code> because <code>r</code> is a <code>Rook</code>. A rook may move along a column as far as it likes, but nine squares would take it off the board. The superclass defines the structure; the subclass fills in the detail. This is the <em>template method</em> pattern: a superclass method calls an overridable method whose behaviour varies by subclass.</p>
 </section>
-<section class="level2" data-number="15.7" id="a-worked-example-an-account-hierarchy">
-<h2 class="anchored" data-anchor-id="a-worked-example-an-account-hierarchy" data-number="15.7"> A Worked Example: An Account Hierarchy</h2>
-<pre><code>nex&gt; class Account
+<section class="level2" data-number="15.7" id="a-worked-example-pieces-on-a-board">
+<h2 class="anchored" data-anchor-id="a-worked-example-pieces-on-a-board" data-number="15.7"> A Worked Example: Pieces on a Board</h2>
+<p>So far a piece has known only how it moves, not where it is. In this example each piece also remembers its square, as a column <code>col</code> and a row <code>row</code>, both counted from 0. Moving a piece checks the move and, if it is allowed, updates the square:</p>
+<pre><code>nex&gt; class Piece
      create
-       make(name: String, initial: Real) do
-         owner := name
-         balance := initial
+       make(s: String, c, r: Integer) do
+         side := s
+         col := c
+         row := r
        end
      feature
-       owner: String
-       balance: Real
-       deposit(amount: Real) do
-         balance := balance + amount
+       BOARD_SIZE = 8
+       side: String
+       col: Integer
+       row: Integer
+       name(): String do result := "piece" end
+       can_move(dx, dy: Integer): Boolean do result := false end
+       on_board(c, r: Integer): Boolean do
+         result := c &gt;= 0 and c &lt; BOARD_SIZE and r &gt;= 0 and r &lt; BOARD_SIZE
        end
-       withdraw(amount: Real): Boolean do
-         if amount &lt;= balance then
-           balance := balance - amount
+       move_to(c, r: Integer): Boolean do
+         if on_board(c, r) and can_move(c - col, r - row) then
+           col := c
+           row := r
            result := true
          else
            result := false
          end
        end
-       set_balance(new_balance: Real) do
-         balance := new_balance
-       end
-       get_balance(): Real do
-         result := balance
+       square(): String do
+         result := "abcdefgh".char_at(col).to_string + (row + 1).to_string
        end
        describe(): String do
-         result := owner + ": " + balance.to_string
+         result := side + " " + name + " on " + square
        end
      end
 
-nex&gt; class Savings_Account inherit Account
+nex&gt; class Knight inherit Piece
      create
-       make(name: String, initial, rate: Real) do
-         Account.make(name, initial)
-         interest_rate := rate
+       make(s: String, c, r: Integer) do
+         Piece.make(s, c, r)
        end
      feature
-       interest_rate: Real
-       apply_interest() do
-         Account.set_balance(balance + balance * interest_rate)
-       end
-       describe(): String do
-         result := Account.describe + " (savings, rate: " + interest_rate.to_string + ")"
+       name(): String do result := "knight" end
+       can_move(dx, dy: Integer): Boolean do
+         result := dx.abs * dy.abs = 2
        end
      end
 
-nex&gt; class Overdraft_Account inherit Account
+nex&gt; class Pawn inherit Piece
      create
-       make(name: String, initial, limit: Real) do
-         Account.make(name, initial)
-         overdraft_limit := limit
+       make(s: String, c, r: Integer) do
+         Piece.make(s, c, r)
+         direction := when s = "white" then 1 else -1 end
+         moved := false
        end
      feature
-       overdraft_limit: Real
-       withdraw(amount: Real): Boolean do
-         if balance - amount &gt;= -overdraft_limit then
-           Account.set_balance(balance - amount)
-           result := true
-         else
-           result := false
+       direction: Integer
+       moved: Boolean
+       name(): String do result := "pawn" end
+       can_move(dx, dy: Integer): Boolean do
+         result := dx = 0 and (dy = direction or (not moved and dy = 2 * direction))
+       end
+       move_to(c, r: Integer): Boolean do
+         result := Piece.move_to(c, r)
+         if result then
+           moved := true
          end
        end
        describe(): String do
-         result := Account.describe + " (overdraft limit: " + overdraft_limit.to_string + ")"
+         result := Piece.describe + when moved then "" else " (not yet moved)" end
        end
      end</code></pre>
-<pre><code>nex&gt; let accounts: Array[Account] := []
-nex&gt; accounts.add(create Account.make("Alice", 500.0))
-nex&gt; accounts.add(create Savings_Account.make("Bob", 1000.0, 0.02))
-nex&gt; accounts.add(create Overdraft_Account.make("Carol", 200.0, 500.0))
+<p><code>square</code> names a square the way chess players do: columns are the letters <code>a</code> to <code>h</code> and rows the numbers 1 to 8, so column 6, row 0 is <code>g1</code>.</p>
+<pre><code>nex&gt; let knight := create Knight.make("white", 6, 0)
+nex&gt; let pawn := create Pawn.make("white", 4, 1)
+nex&gt; let pieces: Array[Piece] := [knight, pawn, create Pawn.make("black", 3, 6)]
+nex&gt; across pieces as p do
+       print(p.describe)
+     end
+"white knight on g1"
+"white pawn on e2 (not yet moved)"
+"black pawn on d7 (not yet moved)"
 
-nex&gt; across accounts as acc do
-       print(acc.describe)
-    end
-"Alice: 500.0"
-"Bob: 1000.0 (savings, rate: 0.02)"
-"Carol: 200.0 (overdraft limit: 500.0)"</code></pre>
-<p>Each account type inherits <code>deposit</code> and <code>get_balance</code> from <code>Account</code>. <code>Savings_Account</code> adds <code>apply_interest</code>. <code>Overdraft_Account</code> overrides <code>withdraw</code> to permit negative balances within the limit. Both override <code>describe</code> using <code>Account.describe</code> to build on the base description. The array holds all three as <code>Account</code>; <code>describe</code> dispatches polymorphically.</p>
+nex&gt; knight.move_to(5, 2)    -- g1 to f3
+true
+nex&gt; knight.move_to(5, 3)    -- f3 to f4: not a knight's move
+false
+nex&gt; pawn.move_to(4, 3)      -- e2 to e4: two squares, allowed on a first move
+true
+nex&gt; pawn.move_to(4, 5)      -- e4 to e6: two squares again
+false
+nex&gt; pawn.move_to(4, 4)      -- e4 to e5
+true
+
+nex&gt; across pieces as p do
+       print(p.describe)
+     end
+"white knight on f3"
+"white pawn on e5"
+"black pawn on d7 (not yet moved)"
+
+nex&gt; knight.move_to(7, 3)    -- f3 to h4
+true
+nex&gt; knight.move_to(8, 5)    -- h4 to "i6": a knight's move, but off the board
+false</code></pre>
+<p><code>Knight</code> inherits <code>move_to</code>, <code>square</code> and <code>describe</code> unchanged and supplies only its movement rule. <code>Pawn</code> needs more. A pawn may move two squares on its first move, so it has to remember whether it has moved, and its <code>can_move</code> consults that field. To keep the field up to date, <code>Pawn</code> overrides <code>move_to</code>.</p>
+<p>Notice how it does that. <code>Pawn</code> does not assign <code>col</code> and <code>row</code> itself: those fields belong to <code>Piece</code>, and only code in <code>Piece</code> may assign them. Instead, <code>Pawn.move_to</code> calls <code>Piece.move_to</code> to do the actual move, then records that the pawn has moved if the move succeeded. And <code>Piece.move_to</code> calls <code>can_move</code>, which dispatches back to <code>Pawn</code>’s version — the template method of <a href="chapter_14.html#feature-override" title="Section 14.6: Feature Override">Section 14.6</a> again. Both <code>describe</code> overrides build on <code>Piece.describe</code>. The array holds all three pieces as <code>Piece</code>, and every call dispatches to the right class.</p>
 </section>
 <section class="level2" data-number="15.8" id="deferred-classes">
 <h2 class="anchored" data-anchor-id="deferred-classes" data-number="15.8"> Deferred Classes</h2>
 <p>Sometimes a class exists to define a common interface that subclasses must fill in. The superclass itself has no meaningful implementation for certain methods — only its subclasses do. Nex captures this with the <code>deferred</code> modifier.</p>
 <p>A <code>deferred class</code> cannot be instantiated directly. It exists to be inherited:</p>
-<pre><code>deferred class Shape
+<pre><code>deferred class Piece
 feature
-  colour: String
-  set_colour(c: String) do colour := c end
-  area(): Real deferred
-  perimeter(): Real deferred
+  side: String
+  set_side(s: String) do side := s end
+  name(): String deferred
+  can_move(dx, dy: Integer): Boolean deferred
   describe(): String do
-    result := "A " + colour + " shape with area " + area.to_string
+    result := side + " " + name
   end
 end</code></pre>
-<p><code>area</code> and <code>perimeter</code> are declared with the <code>deferred</code> keyword in place of a body. These are <em>deferred features</em>: the class announces what every shape can do, but leaves the how to each subclass. <code>describe</code> has a body and is inherited as-is; it calls <code>area</code>, which will dispatch to the subclass implementation at runtime.</p>
-<p><code>set_colour</code> is here because <code>Shape</code> has no constructor of its own: <code>colour</code> can only ever be assigned by code belonging to <code>Shape</code>, the class that declares it — a subclass may read <code>colour</code> directly, exactly as <code>describe</code> above does, but not assign it, even from its own constructor. This is the same rule the account hierarchy in <a href="chapter_14.html#a-worked-example-an-account-hierarchy" title="Section 14.7: A Worked Example: An Account Hierarchy">section 14.7</a> already followed with <code>Account.set_balance</code>: it exists to protect whatever <code>Shape</code> itself guarantees about <code>colour</code> from being bypassed by a subclass writing straight to the field.</p>
+<p><code>name</code> and <code>can_move</code> are declared with the <code>deferred</code> keyword in place of a body. These are <em>deferred features</em>: the class announces what every piece can do, but leaves the how to each subclass. <code>describe</code> has a body and is inherited as-is; it calls <code>name</code>, which will dispatch to the subclass implementation at runtime.</p>
+<p><code>set_side</code> is here because <code>Piece</code> has no constructor of its own: <code>side</code> can only ever be assigned by code belonging to <code>Piece</code>, the class that declares it — a subclass may read <code>side</code> directly, exactly as <code>describe</code> above does, but not assign it, even from its own constructor. This is the same rule the pawn in <a href="chapter_14.html#a-worked-example-pieces-on-a-board" title="Section 14.7: A Worked Example: Pieces on a Board">Section 14.7</a> already followed when it moved through <code>Piece.move_to</code>: it exists to protect whatever <code>Piece</code> itself guarantees about <code>side</code> from being bypassed by a subclass writing straight to the field.</p>
 <p>Any concrete subclass must implement all deferred features:</p>
-<pre><code>class Circle
-  inherit Shape
+<pre><code>class Knight
+  inherit Piece
   create
-    make(c: String, r: Real) do
-      set_colour(c)
-      radius := r
+    make(s: String) do
+      set_side(s)
     end
   feature
-    radius: Real
-    area(): Real do
-      result := 3.14159 * radius * radius
-    end
-    perimeter(): Real do
-      result := 2.0 * 3.14159 * radius
+    name(): String do result := "knight" end
+    can_move(dx, dy: Integer): Boolean do
+      result := dx.abs * dy.abs = 2
     end
 end
 
-nex&gt; let c := create Circle.make("red", 5.0)
-nex&gt; c.describe
-"A red shape with area 78.53975"</code></pre>
-<p><code>Circle</code> provides <code>area</code> and <code>perimeter</code>, so it is concrete and can be instantiated. If it omitted either, the compiler would report an error. A subclass that does not implement all deferred features must itself be declared <code>deferred</code>.</p>
+nex&gt; let k := create Knight.make("black")
+nex&gt; k.describe
+"black knight"</code></pre>
+<p><code>Knight</code> provides <code>name</code> and <code>can_move</code>, so it is concrete and can be instantiated. If it omitted either, the compiler would report an error. A subclass that does not implement all deferred features must itself be declared <code>deferred</code>.</p>
 <p>Attempting to instantiate a deferred class directly is a compile-time error:</p>
-<pre><code>let s: Shape := create Shape.make(...)   -- error: cannot instantiate deferred class</code></pre>
-<p>The value of <code>deferred</code> is polymorphism without a misleading default. Compare it to the feature-override approach from <a href="chapter_14.html#feature-override" title="Section 14.6: Feature Override">section 14.6</a>: there, <code>area</code> returned <code>0.0</code> as a fallback — a silent wrong answer that compiles and runs. With <code>deferred</code>, the compiler enforces that every concrete subclass provides a real implementation. A missing override is a compile-time error, not a runtime surprise.</p>
+<pre><code>let p: Piece := create Piece.make(...)   -- error: cannot instantiate deferred class</code></pre>
+<p>The value of <code>deferred</code> is polymorphism without a misleading default. Compare it to the feature-override approach from <a href="chapter_14.html#feature-override" title="Section 14.6: Feature Override">Section 14.6</a>: there, <code>can_move</code> returned <code>false</code> as a fallback. A new kind of piece that forgot to override it would compile, run, and silently never move. With <code>deferred</code>, the compiler enforces that every concrete subclass provides a real implementation. A missing override is a compile-time error, not a runtime surprise.</p>
 <p><code>deferred</code> is the right choice when:</p>
-<p><strong>The concept is meaningful but has no implementation at the abstract level.</strong> A shape has an area; "the area of a shape in general" has no formula.</p>
-<p><strong>Every subclass must override a method, and a default would be misleading or dangerous.</strong> A default <code>withdraw</code> that always succeeds, a default <code>authenticate</code> that always returns <code>true</code> — these are traps. <code>deferred</code> removes the trap.</p>
+<p><strong>The concept is meaningful but has no implementation at the abstract level.</strong> Every piece has a way of moving; "how a piece in general moves" has no answer.</p>
+<p><strong>Every subclass must override a method, and a default would be misleading or dangerous.</strong> A default <code>can_move</code> that always says no, a default <code>authenticate</code> that always returns <code>true</code> — these are traps. <code>deferred</code> removes the trap.</p>
 <p><strong>You want the compiler to enforce completeness.</strong> Each new subclass is checked at compile time. No subclass can slip through without satisfying the contract.</p>
 <p>When the set of subclasses is also fixed and known, <code>deferred</code> can be combined with <code>sealed</code> to close the hierarchy entirely — that is the subject of the next section.</p>
 </section>
@@ -360,28 +403,29 @@ end</code></pre>
   Ok(value: Integer)
   Err(msg: String)
 end</code></pre>
-<p>This is not a new kind of type — it <em>expands</em> to the same <code>sealed deferred class Result</code> with an <code>Ok</code> and an <code>Err</code> subclass, each with the listed fields and a matching <code>make</code> constructor. Construction and <code>match</code> are identical to before: <code>create Ok.make(42)</code> builds an <code>Ok</code>, and a <code>match</code> over a <code>Result</code> is still checked for exhaustiveness. A variant with no data is written as a bare name:</p>
-<pre><code>union Shape
-  Circle(radius: Real)
-  Rectangle(width: Real, height: Real)
-  Empty
+<p>This is not a new kind of type — it <em>expands</em> to the same <code>sealed deferred class Result</code> with an <code>Ok</code> and an <code>Err</code> subclass, each with the listed fields and a matching <code>make</code> constructor. Construction and <code>match</code> are identical to before: <code>create Ok.make(42)</code> builds an <code>Ok</code>, and a <code>match</code> over a <code>Result</code> is still checked for exhaustiveness. A variant with no data is written as a bare name. Here is a union for the moves a player can make in a turn: step a piece by some distance, castle on one side or the other, or resign:</p>
+<pre><code>union Move
+  Step(dx: Integer, dy: Integer)
+  Castle(king_side: Boolean)
+  Resign
 end</code></pre>
+<p>A variant with no data has nothing to initialise, so, like any class without fields, it gets no constructor and is created with a plain <code>create Resign</code>. A variant with data names its constructor and passes the data, as in <code>create Step.make(0, 2)</code>.</p>
 <p>Because a union only declares data, it synthesises no methods, invariants, or contracts. When a variant needs any of these, write it in the full <code>sealed deferred class</code> form — the two forms describe the same kind of hierarchy, and you can mix them as a design grows.</p>
 <h3 class="anchored" data-anchor-id="enum-unions">Enumerations</h3>
-<p>A special case is worth its own word. When every variant is a bare tag with no data — the days of the week, or the suits of a deck — you have an <em>enumeration</em>: a small, fixed set of named values. Prefix the declaration with <code>enum</code> and Nex treats it as one:</p>
-<pre><code>enum union Color
-  Red
-  Green
-  Blue
+<p>A special case is worth its own word. When every variant is a bare tag with no data — the days of the week, the suits of a deck, or the two sides in a game of chess — you have an <em>enumeration</em>: a small, fixed set of named values. Prefix the declaration with <code>enum</code> and Nex treats it as one:</p>
+<pre><code>enum union Side
+  White
+  Black
 end</code></pre>
 <p>This is still the same sealed hierarchy underneath, so <code>match</code> and its exhaustiveness check work exactly as above. The <code>enum</code> keyword adds three conveniences you would otherwise write by hand:</p>
-<pre><code>print(Color.Red == Color.Red)      -- true: Color.Red is one canonical value
-print(Color.Red &lt; Color.Green)     -- true: members order by how they are written
-print(Color.values.length())       -- 3: an array of every member, in order
-across Color.values as c do
-  print(c.ordinal)                 -- 0, then 1, then 2
+<pre><code>print(Side.White == Side.White)    -- true: Side.White is one canonical value
+print(Side.White &lt; Side.Black)     -- true: members order by how they are written
+print(Side.values.length())        -- 2: an array of every member, in order
+across Side.values as s do
+  print(s.ordinal)                 -- 0, then 1
 end</code></pre>
-<p>Each member is a constant on the type — <code>Color.Red</code> is <em>the</em> Red, not a fresh object every time you name it, which is why comparing two of them with <code>==</code> is true. The members are ordered by their declaration order, so a <code>Color</code> is <code>Comparable</code> without your writing a <code>compare</code>. And <code>Color.values</code> gives you the whole set to loop over.</p>
+<p>Each member is a constant on the type — <code>Side.White</code> is <em>the</em> White, not a fresh object every time you name it, which is why comparing two of them with <code>==</code> is true. The members are ordered by their declaration order, so a <code>Side</code> is <code>Comparable</code> without your writing a <code>compare</code>. And <code>Side.values</code> gives you the whole set to loop over.</p>
+<p>The pieces in this chapter kept their side in a <code>String</code>, so nothing stopped a typo like <code>"whte"</code>, and a pawn created with it would quietly march down the board. Declared as <code>side: Side</code>, the field can only ever hold <code>Side.White</code> or <code>Side.Black</code>.</p>
 <p>The <code>enum</code> form asks for all of this deliberately: a plain <code>union</code>, even one whose variants happen to be data-free, stays a bare sum type with none of these extras. <code>enum</code> is allowed only when no variant carries a payload and the union is not generic — its members are fixed values, which need a concrete type — and no variant may be named <code>ordinal</code>, <code>compare</code>, or <code>values</code>, since those name the generated members.</p>
 <h3 class="anchored" data-anchor-id="matching-into-values">Matching into values</h3>
 <p>Binding the whole variant with <code>as</code> and then reading its fields (<code>ok.value</code>) is fine, but a <code>match</code> can also take a variant apart directly. Naming the payload fields in the pattern binds them as locals of the same name:</p>
@@ -390,13 +434,13 @@ end</code></pre>
   Err(msg)   then print(msg)
 end</code></pre>
 <p>A field pattern can rename a field (<code>Err(msg as reason)</code> binds it to <code>reason</code>), ignore one with <code>_</code>, or constrain it to a literal or a type (<code>Err(msg: String)</code>). A clause may also carry an <code>if</code> <em>guard</em> — a boolean tested after the variant matches, with the destructured names in scope; when it is false, matching continues with the following clauses:</p>
-<pre><code>match shape of
-  Circle(radius) if radius &gt; 100.0 then print("huge circle")
-  Circle(radius)                    then print("circle")
-  Rectangle(width, height)          then print(width * height)
-  Empty                             then print("nothing")
+<pre><code>match move of
+  Step(dx, dy) if dx.abs &gt; 1 or dy.abs &gt; 1 then print("a long move")
+  Step(dx, dy)                             then print("a single step")
+  Castle(king_side)                        then print("castling")
+  Resign                                   then print("game over")
 end</code></pre>
-<p>Because a guarded clause can fail after its variant matches, it does not by itself satisfy exhaustiveness: the guarded <code>Circle</code> clause above needs the plain <code>Circle</code> clause (or a wildcard, or <code>else</code>) to cover the case where the guard is false. A lone <code>_</code> pattern is a catch-all, a spelling of <code>else</code>.</p>
+<p>Because a guarded clause can fail after its variant matches, it does not by itself satisfy exhaustiveness: the guarded <code>Step</code> clause above needs the plain <code>Step</code> clause (or a wildcard, or <code>else</code>) to cover the case where the guard is false. A lone <code>_</code> pattern is a catch-all, same as <code>else</code>.</p>
 </section>
 <section class="level2" data-number="15.10" id="once-fields">
 <h2 class="anchored" data-anchor-id="once-fields" data-number="15.10"> Once Fields</h2>
@@ -445,7 +489,7 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="summary" data-number="15.11"> Summary</h2>
 <ul>
 <li><code>class SubClass inherit SuperClass</code> declares the relationship; the subclass inherits all fields and methods</li>
-<li>An inherited field may be read directly from the subclass, but assigned only by code belonging to the class that declares it — a subclass writes it through a method the declaring class provides, such as <code>Account.set_balance</code> above, never by assigning the field itself</li>
+<li>An inherited field may be read directly from the subclass, but assigned only by code belonging to the class that declares it — a subclass writes it through a method the declaring class provides, such as <code>Piece.move_to</code> in Section 14.7, never by assigning the field itself</li>
 <li><code>SuperClass.constructor_name(   )</code> calls the superclass constructor from the subclass constructor; <code>super.constructor_name(   )</code> does the same when there is exactly one superclass</li>
 <li><code>this.constructor_name(   )</code> delegates to another constructor of the <em>same</em> class (<a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a>) — the same idea, one level narrower</li>
 <li><code>SuperClass.method_name(   )</code> calls an overridden superclass method from within an override; <code>super.method_name(   )</code> is the equivalent shorthand with a single superclass</li>
@@ -462,8 +506,8 @@ end</code></pre>
 <section class="level2" data-number="15.12" id="exercises">
 <h2 class="anchored" data-anchor-id="exercises" data-number="15.12"> Exercises</h2>
 <p><strong>1.</strong> Define a class <code>Animal</code> with a field <code>name: String</code>, a constructor <code>make</code>, and a method <code>sound(): String</code> that returns <code>"..."</code> by default. Define subclasses <code>Dog</code>, <code>Cat</code>, and <code>Cow</code> each overriding <code>sound</code>. Create an <code>Array[Animal]</code>, add one of each, and print each animal’s name and sound.</p>
-<p><strong>2.</strong> Add a method <code>perimeter(): Real</code> to the <code>Shape</code> class with a default return of <code>0.0</code>. Override it in <code>Circle</code> (<code>2 * 3.14159 * radius</code>) and <code>Rectangle</code> (<code>2 * (width + height)</code>). Update <code>describe</code> in <code>Shape</code> to report both area and perimeter.</p>
-<p><strong>3.</strong> The <code>withdraw</code> method in <code>Overdraft_Account</code> overrides the one in <code>Account</code>. Does the override honour the Liskov Substitution Principle — that is, can an <code>Overdraft_Account</code> be used anywhere an <code>Account</code> is expected without surprising the caller? Does it accept the same inputs? Does it make the same kind of promise — returning <code>true</code> on success and <code>false</code> on failure? What does a caller of <code>Account</code> need to know about <code>Overdraft_Account.withdraw</code>?</p>
+<p><strong>2.</strong> Add three more pieces to the hierarchy of <a href="chapter_14.html#a-worked-example-pieces-on-a-board" title="Section 14.7: A Worked Example: Pieces on a Board">Section 14.7</a>. A <code>Bishop</code> moves any distance diagonally (<code>dx.abs = dy.abs</code>, and it must actually move). A <code>King</code> moves one square in any direction. A <code>Queen</code> moves like a rook or like a bishop. Write <code>Queen</code> without inheriting from <code>Rook</code> or <code>Bishop</code>, and explain why. Test each one with <code>move_to</code>, including a move that would leave the board.</p>
+<p><strong>3.</strong> A pawn's answer to <code>can_move(0, 2)</code> depends on its side and on whether it has moved: the same pawn says <code>true</code> before its first move and <code>false</code> after it. Does <code>Pawn</code> honour the Liskov Substitution Principle — can a pawn be used anywhere a <code>Piece</code> is expected without surprising the caller? To answer, first write down what <code>Piece.can_move</code> actually promises. Does it promise the same answer every time, or only a truthful answer about this piece right now? What would a caller that cached the answers for every piece get wrong?</p>
 <p><strong>4.</strong> Define a class <code>Vehicle</code> with fields <code>make: String</code> and <code>speed: Real</code>, and methods <code>fuel_type(): String</code> and <code>max_speed(): Real</code> with sensible defaults. Define <code>Electric_Car</code> and <code>Petrol_Car</code> overriding those methods. Add <code>can_reach(distance, fuel: Real): Boolean</code> to each — <code>Petrol_Car</code> uses 10 litres per 100 km; <code>Electric_Car</code> uses 20 kWh per 100 km.</p>
 <p><strong>5.*</strong> Define a <code>Logger</code> base class with a method <code>log(message: String)</code> that prints with a prefix. Define <code>File_Logger</code> that also appends to a <code>log_history: String</code> field, and <code>Silent_Logger</code> that discards all messages. Create an <code>Array[Logger]</code> with one of each and call <code>log("test")</code> on each. What does this demonstrate about polymorphism and swappable implementations?</p>
 </section>
