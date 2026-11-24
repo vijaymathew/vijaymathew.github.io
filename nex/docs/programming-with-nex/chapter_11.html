@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nested and Composite Structures — Programming with Nex</title>
+  <title>Project: An Expense Tracker — Programming with Nex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
@@ -26,314 +26,862 @@
 <div class="page">
   <div class="opener">
     <span class="opener-label">Chapter 11</span>
-    <h1 class="opener-title">Nested and Composite Structures</h1>
+    <h1 class="opener-title">Project: An Expense Tracker</h1>
   </div>
   <div class="prose">
-<p>So far we have used arrays and maps as separate tools. Real data rarely fits neatly into one or the other. For instance, a gradebook is not just an array of scores, nor just a map from names to numbers — it's a map from student names to arrays of scores. Similarly, a directory is not just a list of contacts — it is a collection of records, each containing multiple named fields. This chapter is about combining arrays and maps to model data that has genuine structure, and about what that combination makes possible.</p>
-<section class="level2" data-number="12.1" id="arrays-of-maps">
-<h2 class="anchored" data-anchor-id="arrays-of-maps" data-number="12.1"> Arrays of Maps</h2>
-<p>An array of maps is useful when you have a sequence of records, each with the same set of named fields. Consider a list of books:</p>
-<pre><code>nex&gt; let books: Array[Map[String, Any]] := [
-     {"title": "Dune", "author": "Frank Herbert", "year": 1965},
-     {"title": "Neuromancer", "author": "William Gibson", "year": 1984},
-     {"title": "Foundation", "author": "Isaac Asimov", "year": 1951}
-  ]
-
-nex&gt; books.length
-3
-
-nex&gt; books.get(0).get("title")
-"Dune"
-
-nex&gt; books.get(1).get("author")
-"William Gibson"</code></pre>
-<p>Each element of the array is a map from field name to field value. The value type is <code>Any</code> because different fields hold different types — strings for title and author, an integer for year.</p>
-<p>Accessing a field in a record requires two steps: first retrieve the map from the array by index, then retrieve the value from the map by key. The chain <code>books.get(0).get("title")</code> reads naturally as: <em>the title of the first book</em>.</p>
-<p>Iterating over all records follows the same pattern as iterating over any array:</p>
-<pre><code>nex&gt; across books as book do
-     print(book.get("title") + " (" + book.get("year").to_string + ")")
-  end
-"Dune (1965)"
-"Neuromancer (1984)"
-"Foundation (1951)"</code></pre>
+<p>The last ten chapters each introduced one idea at a time: values, expressions, decisions, loops, functions, recursion, arrays and maps. This chapter builds one complete program, an expense tracker, from start to finish, and uses nearly everything you have learned along the way.</p>
+<p>Also, we introduce two new ideas here. The first is reading and writing files. The tracker keeps its data in a <em>file</em>, so your expenses will survive a program restart. The second idea is type <em>coercion</em> or type <em>conversion</em>. Each expense is stored in a map whose values have different types. Getting a typed value back out of such a map needs a new expression, <code>convert</code>.</p>
+<section class="level2" data-number="11.1" id="the-project">
+<h2 class="anchored" data-anchor-id="the-project" data-number="11.1"> The Project</h2>
+<p>Here is what the finished tracker will do. You start it from the command line, and it waits for commands:</p>
+<pre><code>$ nex tracker.nex
+8 expenses loaded
+&gt; months
+2026-10  961.15
+2026-11  341.75
+&gt; budget
+month (YYYY-MM): 2026-11
+Food: 112.45 of 120.00  close
+Housing: 204.30 of 1000.00  ok
+Transport: 25.00 of 20.00  OVER
+&gt; quit</code></pre>
+<p>It can list every expense, total them by month, print a report broken down by category and subcategory, compare a month's spending against a budget, and record new expenses. Every new expense is written to a file straight away, so the next run starts with everything recorded so far.</p>
+<p>We build the tracker one function at a time in the REPL, testing each piece as we go. Section 11.13 puts the pieces together into a program file.</p>
 </section>
-<section class="level2" data-number="12.2" id="the-convert-expression">
-<h2 class="anchored" data-anchor-id="the-convert-expression" data-number="12.2"> The <code>convert</code> Expression</h2>
-<p>Nested structures often use <code>Any</code> at the boundary, because not every value in a map has the same type. Before using one of those values as an <code>Integer</code>, <code>String</code>, or some other specific type, you often need to check whether it really has that type.</p>
-<p>That is what <code>convert</code> does:</p>
+<section class="level2" data-number="11.2" id="designing-the-log-file">
+<h2 class="anchored" data-anchor-id="designing-the-log-file" data-number="11.2"> Designing the Log File</h2>
+<p>Before writing any code, decide how the data will be stored. Each expense has three facts: the date it happened, what it was for, and how much it cost. We store one expense per line of a plain text file called <code>expenses.txt</code>, with the three facts separated by commas:</p>
+<pre><code>2026-10-28,Housing/Rent,900.00
+2026-10-30,Food/Groceries,61.15
+2026-11-01,Housing/Utilities,84.30
+2026-11-02,Food/Groceries,42.50
+2026-11-03,Food/Dining out,31.20
+2026-11-04,Food/Groceries,12,40
+2026-11-05,Transport,25.00
+2026-11-08,Food/Groceries,38.75
+2026-11-09,Housing/Repairs/Plumbing,120.00</code></pre>
+<p>A few decisions are packed into this format:</p>
+<ul>
+<li><strong>Plain text.</strong> You can read the file, and fix a mistake in it, with any text editor. Nothing about it is specific to Nex.</li>
+<li><strong>One line per expense.</strong> Recording a new expense means adding one line at the end. The lines that are already there never need to change.</li>
+<li><strong>Dates as <code>YYYY-MM-DD</code>.</strong> Written this way, dates sort correctly as plain strings, and every date in November 2026 starts with <code>2026-11</code>.</li>
+<li><strong>Categories as paths.</strong> <code>Food/Groceries</code> means "Groceries, which is part of Food". A category can go as deep as it needs to: <code>Housing/Repairs/Plumbing</code>. This is what will let us total spending at every level later on.</li>
+</ul>
+<p>Look closely at the sixth line. Someone typed <code>12,40</code>, using a comma as the decimal point, so the line now has four fields instead of three. Files that people edit by hand contain mistakes like this, and the tracker must not trip over them. We will come back to this line in Section 11.4.</p>
+</section>
+<section class="level2" data-number="11.3" id="reading-and-writing-files">
+<h2 class="anchored" data-anchor-id="reading-and-writing-files" data-number="11.3"> Reading and Writing Files</h2>
+<p>The finished tracker will run as a program file, and Nex always checks the types in a program file before running it. So let the REPL check types too, as we did in <a href="chapter_6.html#forward-declarations" title="Section 6.6: Forward Declarations">Section 6.6</a>, and every piece we write will be checked as we go:</p>
+<pre><code>nex&gt; :typecheck on
+Type checking enabled. Code will be validated before execution.</code></pre>
+<p>Nex works with files through <code>Path</code>, a type from its standard library that stands for a file or folder. You saw it briefly in the word counter of <a href="chapter_1.html" title="Chapter 1: A Quick Tour of Nex">Chapter 1</a>. A library type has to be brought in with <code>intern</code> before you can use it:</p>
+<pre><code>nex&gt; intern io/Path
+nex&gt; let notes: Path := create Path.make("notes.txt")
+notes.txt
+nex&gt; notes.exists
+false</code></pre>
+<p><code>create Path.make("notes.txt")</code> makes a <code>Path</code> object for the file name you give it. A relative name like this one is looked up in the folder Nex was started from. Making a <code>Path</code> does not touch the disk, so it is fine that the file does not exist yet: <code>exists</code> says so. (<code>Path</code> is a <em>class</em>, and <code>create</code> is how you make an object of a class. You have used <code>create</code> before, for <code>Map.from_entries</code> in <a href="chapter_10.html" title="Chapter 10: Maps">Chapter 10</a>. <a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a> shows how classes like this are written.)</p>
+<p>Three methods do almost all the work:</p>
+<ul>
+<li><code>write_text(text)</code> replaces the whole file with <code>text</code>, creating it if necessary.</li>
+<li><code>append_text(text)</code> adds <code>text</code> to the end of the file, creating it if necessary.</li>
+<li><code>read_text</code> returns the whole file as one <code>String</code>.</li>
+</ul>
+<pre><code>nex&gt; notes.write_text("milk\n")
+nex&gt; notes.append_text("bread\n")
+nex&gt; notes.read_text
+"milk
+bread
+"
+nex&gt; notes.exists
+true</code></pre>
+<p><code>"\n"</code> is the newline character. Files do not end lines by themselves, so each line we write must end with one. To work with a file line by line, read it and split the text at the newlines:</p>
+<pre><code>nex&gt; notes.read_text.split("\n")
+["milk", "bread"]</code></pre>
+<p>Notice that the newline at the very end does not produce an empty last line. <code>split</code> drops it for us.</p>
+<p>The difference between <code>write_text</code> and <code>append_text</code> matters for the tracker. Recording an expense only needs <code>append_text</code>: the new line goes at the end and nothing else is touched. Changing or deleting an expense would need <code>write_text</code>, because the whole file has to be written out again. Exercise 2 asks you to do exactly that.</p>
+<p>Now point a <code>Path</code> at the real log. With <code>expenses.txt</code> from Section 11.2 saved in the folder you started Nex from:</p>
+<pre><code>nex&gt; let file: Path := create Path.make("expenses.txt")
+expenses.txt
+nex&gt; file.read_text.split("\n").length
+9</code></pre>
+<p>Next we turn the nine lines into expenses.</p>
+</section>
+<section class="level2" data-number="11.4" id="parsing-a-line">
+<h2 class="anchored" data-anchor-id="parsing-a-line" data-number="11.4"> Parsing a Line</h2>
+<p>Turning text into data is called <em>parsing</em>. A line of the log is easy to take apart: split it at the commas.</p>
+<pre><code>nex&gt; let fields := "2026-11-02,Food/Groceries,42.50".split(",")
+["2026-11-02", "Food/Groceries", "42.50"]
+nex&gt; fields.get(2)
+"42.50"
+nex&gt; fields.get(2).to_real
+42.5</code></pre>
+<p>The amount arrives as a <code>String</code>, and <code>to_real</code> converts it into a number. Before we store amounts as <code>Real</code>s, though, look at this:</p>
+<pre><code>nex&gt; 0.1 + 0.2
+0.30000000000000004</code></pre>
+<p>A <code>Real</code> stores a number in binary, and most decimal fractions, like 0.1, have no exact binary form. The error is tiny, but it shows up as soon as you add many amounts together and print the total. Money has to add up exactly. The usual remedy is to count money in its smallest unit: store 42.50 as 4250 <em>cents</em>, an <code>Integer</code>, and add integers, which are always exact.</p>
+<pre><code>nex&gt; (42.50 * 100.0).round
+4250</code></pre>
+<p>There is a catch. <code>to_real</code> raises an error if the text is not a number, and one bad line should not stop the program. So check the text first. A valid amount is non-empty, made only of digits and dots, and has at most one dot:</p>
+<pre><code>nex&gt; function is_amount(text: String): Boolean
+     do
+       result := text.length &gt; 0
+         and text.all(fn (c) =&gt; "0123456789.".contains(c.to_string))
+         and text.count(fn (c) =&gt; c = #.) &lt;= 1
+     end
+nex&gt; is_amount("42.50")
+true
+nex&gt; is_amount("4x.50")
+false
+nex&gt; is_amount("1.2.3")
+false</code></pre>
+<p>A string is a sequence of characters, and like an array it has <code>all</code> and <code>count</code> (<a href="chapter_9.html#arrays-and-functions" title="Section 9.9: Arrays and Functional Programming">Section 9.9</a>). Here they visit each character <code>c</code> in turn. <code>#.</code> is the character literal for a dot.</p>
+<p>Now the whole line. <code>parse_line</code> checks each part and returns the expense if everything is in order, or <code>nil</code> if anything is wrong. Its return type is detachable, <code>?Map[String, Any]</code>, because "no expense on this line" is a normal outcome, not an error (<a href="chapter_2.html#nil-and-detachable-types" title="Section 2.10: Nil and Detachable Types">Section 2.10</a>).</p>
+<pre><code>nex&gt; function parse_line(line: String): ?Map[String, Any]
+     do
+       result := nil
+       let fields := line.split(",")
+       if fields.length = 3 then
+         let date := fields.get(0).trim
+         let category := fields.get(1).trim
+         let amount := fields.get(2).trim
+         if date.length = 10 and category.length &gt; 0 and is_amount(amount) then
+           result := {"date": date, "category": category,
+                      "cents": (amount.to_real * 100.0).round}
+         end
+       end
+     end
+nex&gt; parse_line("2026-11-02,Food/Groceries,42.50")
+{"date": "2026-11-02", "category": "Food/Groceries", "cents": 4250}
+nex&gt; parse_line("2026-11-04,Food/Groceries,12,40") = nil
+true</code></pre>
+<p>The line with <code>12,40</code> has four fields, so <code>parse_line</code> turns it down. The checks are deliberately simple: a date is anything ten characters long, for instance. They catch the common mistakes without making the function hard to read.</p>
+<p>An expense comes back as a map with three entries: two strings and an integer. Because the values have different types, the map's value type has to be <code>Any</code>. We will see what that costs us in Section 11.6.</p>
+</section>
+<section class="level2" data-number="11.5" id="arrays-of-maps">
+<h2 class="anchored" data-anchor-id="arrays-of-maps" data-number="11.5"> An Array of Records</h2>
+<p>Each expense is a small <em>record</em>: a few named fields that belong together. A whole log is a sequence of them, so it is an <em>array of maps</em>, <code>Array[Map[String, Any]]</code>. Loading the log means reading the file, parsing every line, and keeping the expenses that parse:</p>
+<pre><code>nex&gt; function load_expenses(file: Path): Array[Map[String, Any]]
+     do
+       result := []
+       if file.exists then
+         across file.read_text.split("\n") as line do
+           if ? parse_line(line) as expense then
+             result.add(expense)
+           end
+         end
+       end
+     end
+nex&gt; let expenses := load_expenses(file)
+nex&gt; expenses.length
+8</code></pre>
+<p>Of the nine lines in the file only eight were turned into expenses: the line with <code>12,40</code> was skipped. Two details are worth noticing. If the file does not exist yet, which is true the first time anyone runs the tracker, <code>load_expenses</code> returns an empty array instead of failing. And <code>if ? parse_line(line) as expense then</code> is the binding form from <a href="chapter_2.html#nil-and-detachable-types" title="Section 2.10: Nil and Detachable Types">Section 2.10</a>: inside the <code>then</code> branch, <code>expense</code> is the parsed map and is known not to be <code>nil</code>.</p>
+<p>Reading a field takes two steps: pick the record from the array by position, then the value from the record by key.</p>
+<pre><code>nex&gt; expenses.get(3)
+{"date": "2026-11-02", "category": "Food/Groceries", "cents": 4250}
+nex&gt; expenses.get(3).get("category")
+"Food/Groceries"</code></pre>
+<p>The chain <code>expenses.get(3).get("category")</code> reads as "the category of the expense at index 3", which is the fourth expense, since indexes count from zero (<a href="chapter_9.html#accessing-elements" title="Section 9.2: Accessing Elements">Section 9.2</a>).</p>
+</section>
+<section class="level2" data-number="11.6" id="the-convert-expression">
+<h2 class="anchored" data-anchor-id="the-convert-expression" data-number="11.6"> The <code>convert</code> Expression</h2>
+<p>Now try to use an amount:</p>
+<pre><code>nex&gt; let first := expenses.get(0)
+{"date": "2026-10-28", "category": "Housing/Rent", "cents": 90000}
+nex&gt; first.get("cents") + 1
+Type error at line 1, column 1: Operator + requires numeric or String operands, got Any and Integer
+Error: Type checking failed
+nex&gt; let c: Integer := first.get("cents")
+Type error at line 1, column 1: Cannot assign Any to variable 'c' of type Integer without narrowing it first. Use `convert ... to &lt;name&gt;: Integer then ... end`.
+Error: Type checking failed</code></pre>
+<p>We know the value is <code>90000</code>, but Nex does not. The record is a <code>Map[String, Any]</code>, so as far as the type checker can tell, <code>get</code> could return anything at all: a string, a number, an array. With type checking on, the REPL shows this by printing each result's type in front of it. For <code>expenses.get(3).get("category")</code> it prints <code>Any "Food/Groceries"</code>. You cannot add one to <em>anything</em>, so Nex refuses.</p>
+<p>The error message names the way out. The <code>convert</code> expression checks, while the program runs, whether a value really has the type you expect:</p>
 <pre class="text"><code>if convert expr to name: Type then
    -- use name here
 end</code></pre>
-<p>If the conversion succeeds, <code>name</code> is bound inside the <code>then</code> branch with the requested type. If it fails, the branch is skipped.</p>
-<p>For example:</p>
-<pre class="text"><code>nex&gt; if convert books.get(0).get("year") to year: Integer then
-     print(year + 1)
-  end
-1966</code></pre>
-<p>This is especially useful when working with maps such as <code>Map[String, Any]</code>, where a key may or may not hold the kind of value you expect.</p>
-<p>To find records matching a condition — all books published before 1970, say:</p>
-<pre><code>nex&gt; across books as book do
-     if convert book.get("year") to year: Integer then
-        if year &lt; 1970 then
-           print(book.get("title"))
-        end
+<p>If the value of <code>expr</code> is a <code>Type</code>, the conversion succeeds, and inside the <code>then</code> branch <code>name</code> holds the value with that type. If it is not, the conversion fails and the <code>else</code> branch, if there is one, runs instead:</p>
+<pre><code>nex&gt; if convert first.get("cents") to cents: Integer then
+       print(cents + 1)
      end
-  end
-"Dune"
-"Foundation"</code></pre>
-</section>
-<section class="level2" data-number="12.3" id="maps-of-arrays">
-<h2 class="anchored" data-anchor-id="maps-of-arrays" data-number="12.3"> Maps of Arrays</h2>
-<p>A map of arrays is useful when you want to group items under named categories. Consider a timetable that maps each day of the week to a list of classes:</p>
-<pre><code>nex&gt; let timetable: Map[String, Array[String]] := {
-     "Monday":    ["Maths", "Physics", "History"],
-     "Tuesday":   ["English", "Chemistry"],
-     "Wednesday": ["Maths", "Biology", "PE"]
-  }
-
-nex&gt; timetable.get("Monday")
-["Maths", "Physics", "History"]
-
-nex&gt; timetable.get("Monday").length
-3
-
-nex&gt; timetable.get("Tuesday").get(0)
-"English"</code></pre>
-<p>Accessing the first class on Tuesday requires two steps: retrieve the array for <code>"Tuesday"</code>, then get its first element. The chain <code>timetable.get("Tuesday").get(0)</code> reads as: <em>the first class on Tuesday</em>.</p>
-<p>To iterate over all days and their classes:</p>
-<pre><code>nex&gt; across timetable.keys as day do
-     print(day + ":")
-     across timetable.get(day) as cls do
-        print("  " + cls)
+90001
+nex&gt; if convert first.get("date") to n: Integer then
+       print("a number")
+     else
+       print("not an Integer")
      end
-  end
-"Monday:"
-  "Maths"
-  "Physics"
-  "History"
-"Tuesday:"
-  "English"
-  "Chemistry"
-"Wednesday:"
-  "Maths"
-  "Biology"
-  "PE"</code></pre>
-<p>The outer loop iterates over days; the inner loop iterates over the classes for each day. This nested <code>across</code> pattern is the natural way to traverse a map of arrays.</p>
+"not an Integer"</code></pre>
+<p>Writing a <code>convert</code> every time we read a field would bury the interesting code. So we do what <a href="chapter_7.html#functions-as-building-blocks" title="Section 7.5: Functions as Building Blocks">Chapter 7</a> recommends and hide the detail inside small functions, one for each kind of field:</p>
+<pre><code>nex&gt; function text_of(record: Map[String, Any], key: String): String
+     do
+       result := ""
+       if convert record.get(key) to text: String then
+         result := text
+       end
+     end
+nex&gt; function cents_of(record: Map[String, Any]): Integer
+     do
+       result := 0
+       if convert record.get("cents") to cents: Integer then
+         result := cents
+       end
+     end
+nex&gt; text_of(first, "category")
+"Housing/Rent"
+nex&gt; cents_of(first)
+90000</code></pre>
+<p>If a field is missing or holds the wrong type, these functions return a harmless default: an empty string or zero. That suits the tracker, because every record comes from <code>parse_line</code>, which always fills in all three fields with the right types. The conversions will always succeed. They are there because the type checker cannot know that, and <code>convert</code> is how we tell it what we know.</p>
+<p>One more helper turns cents back into the familiar form for printing:</p>
+<pre><code>nex&gt; function format_cents(cents: Integer): String
+     do
+       let rest := cents % 100
+       result := (cents / 100).to_string + "." + when rest &lt; 10 then "0" else "" end + rest.to_string
+     end
+nex&gt; format_cents(cents_of(first))
+"900.00"
+nex&gt; format_cents(5)
+"0.05"</code></pre>
+<p>Dividing two integers gives an integer, so <code>cents / 100</code> is the whole part and <code>cents % 100</code> is what is left over. The <code>when</code> expression adds a leading zero when there are fewer than ten cents, so that five cents prints as <code>0.05</code>, not <code>0.5</code>.</p>
 </section>
-<section class="level2" data-number="12.4" id="building-nested-structures-programmatically">
-<h2 class="anchored" data-anchor-id="building-nested-structures-programmatically" data-number="12.4"> Building Nested Structures Programmatically</h2>
-<p>Nested structures are often built up incrementally rather than written as literals. As an example, let's see how a gradebook could be made: given a list of (student, score) pairs, create a map from each student to their array of scores.</p>
-<pre><code>nex&gt; function build_gradebook(entries: Array[Map[String, Any]]): Map[String, Array[Integer]] 
+<section class="level2" data-number="11.7" id="questions-about-the-log">
+<h2 class="anchored" data-anchor-id="questions-about-the-log" data-number="11.7"> Asking Questions</h2>
+<p>With the expenses loaded and the accessors written, questions about our spending become short functions. The total of a list of expenses is a fold (<a href="chapter_9.html#arrays-and-functions" title="Section 9.9: Arrays and Functional Programming">Section 9.9</a>):</p>
+<pre><code>nex&gt; function total(expenses: Array[Map[String, Any]]): Integer
+     do
+       result := expenses.fold(0, fn (sum, e) =&gt; sum + cents_of(e))
+     end
+nex&gt; format_cents(total(expenses))
+"1302.90"</code></pre>
+<p>The expenses for one month are a filter: an expense belongs to November 2026 exactly when its date starts with <code>2026-11</code>.</p>
+<pre><code>nex&gt; function in_month(expenses: Array[Map[String, Any]], month: String): Array[Map[String, Any]]
+     do
+       result := expenses.filter(fn (e) =&gt; text_of(e, "date").starts_with(month))
+     end
+nex&gt; let november := in_month(expenses, "2026-11")
+nex&gt; november.length
+6
+nex&gt; format_cents(total(november))
+"341.75"</code></pre>
+<p>Both functions are pure (<a href="chapter_7.html#pure-functions" title="Section 7.2: Pure Functions">Section 7.2</a>): they compute an answer from their arguments and change nothing. That is why they combine so easily: <code>total(in_month(expenses, "2026-11"))</code> is the November total.</p>
+<p>How much went on each top-level category? First, a function to pick the top level out of a category path:</p>
+<pre><code>nex&gt; function top_level(category: String): String
+     do
+       result := category.split("/").get(0)
+     end
+nex&gt; top_level("Housing/Repairs/Plumbing")
+"Housing"</code></pre>
+<p>Then the counting pattern from the word-frequency counter of <a href="chapter_10.html" title="Chapter 10: Maps">Chapter 10</a>, adding up cents instead of counting words:</p>
+<pre><code>nex&gt; function totals_by_category(expenses: Array[Map[String, Any]]): Map[String, Integer]
      do
        result := {}
-       across entries as entry do
-         if convert entry.get("name") to name: String then
-           let current := result.try_get(name, [])
-             if convert entry.get("score") to score: Integer then
-               current.add(score)
-               result.set(name, current)
-             end
-          end
+       across expenses as e do
+         let name := top_level(text_of(e, "category"))
+         result.set(name, result.try_get(name, 0) + cents_of(e))
+       end
      end
-   end</code></pre>
-<pre><code>nex&gt; let entries: Array[Map[String, Any]] := [
-     {"name": "Alice", "score": 85},
-     {"name": "Bob",   "score": 72},
-     {"name": "Alice", "score": 91},
-     {"name": "Bob",   "score": 68},
-     {"name": "Alice", "score": 88}
-  ]
-
-nex&gt; let gradebook := build_gradebook(entries)
-nex&gt; gradebook.get("Alice")
-[85, 91, 88]
-
-nex&gt; gradebook.get("Bob")
-[72, 68]</code></pre>
-<p>The <code>try_get(name, [])</code> call retrieves the existing array for that student, or an empty array if the student has not appeared yet. Then <code>add</code> appends the new score, and <code>set</code> stores the updated array back. This try-get-modify-set sequence is the standard idiom for building maps of mutable values.</p>
+nex&gt; let totals := totals_by_category(november)
+{"Housing": 20430, "Food": 11245, "Transport": 2500}
+nex&gt; across totals.keys.sort as name do
+       console.print_line(name + ": " + format_cents(totals.get(name)))
+     end
+Food: 112.45
+Housing: 204.30
+Transport: 25.00</code></pre>
+<p>The report uses <code>console.print_line</code> rather than <code>print</code>, because <code>print</code> would put quotes around each line. Sorting the keys first gives the categories in alphabetical order rather than the order they were first seen.</p>
+<p>Finally, what share of the month went where? This is a job for the map functions of <a href="chapter_10.html#maps-and-functions" title="Section 10.8: Higher-order Map Functions">Section 10.8</a>. <code>map</code> turns each entry into a new entry holding a percentage, and <code>Map.from_entries</code> collects the entries into a map:</p>
+<pre><code>nex&gt; let grand := total(november)
+34175
+nex&gt; create Map.from_entries(totals.map(fn (e) =&gt; create Map_Entry.make(e.key, e.value * 100 / grand)))
+{"Housing": 59, "Food": 32, "Transport": 7}</code></pre>
+<p>Integer division rounds each share down, which is why the shares add up to 98 rather than 100.</p>
 </section>
-<section class="level2" data-number="12.5" id="when-flat-structures-are-enough">
-<h2 class="anchored" data-anchor-id="when-flat-structures-are-enough" data-number="12.5"> When Flat Structures Are Enough</h2>
-<p>Nesting adds expressive power but also adds complexity. Before reaching for a nested structure, ask whether a flat one would serve equally well.</p>
-<p>A flat structure is sufficient when:</p>
-<ul>
-<li>Each item has only one piece of associated data. A map from student name to a single score does not need an array as the value type.</li>
-<li>The relationships between items are simple and uniform. If every student has exactly three scores, three separate maps — one per assignment — may be clearer than one map of arrays.</li>
-<li>You need to sort, filter, or search across the whole collection. Flat arrays are easier to sort and filter than nested maps.</li>
-</ul>
-<p>Nesting becomes necessary when:</p>
-<ul>
-<li>Items have a variable number of associated values. A student may have one score or twenty; an array of arrays handles both without special cases.</li>
-<li>Items have multiple named attributes of different types. A book record with title, author, and year cannot be represented as a single flat value.</li>
-<li>The data has genuine hierarchical structure — categories containing items, items containing sub-items — that would be obscured by flattening.</li>
-</ul>
-<p>The rule of thumb is use the simplest structure that accurately represents the data. Nesting for its own sake makes code harder to read and harder to get right.</p>
-</section>
-<section class="level2" data-number="12.6" id="tree-shaped-data">
-<h2 class="anchored" data-anchor-id="tree-shaped-data" data-number="12.6"> Tree-Shaped Data</h2>
-<p>Some data is genuinely hierarchical: file systems with directories containing files and subdirectories, or organisation charts with managers having direct reports. These are tree-shaped — each node may contain other nodes of the same kind.</p>
-<p>Nex does not have a built-in tree type. Trees are represented using maps, where each node is a map with a value field and a children field that holds an array of child nodes. Here is a simple representation of a file system fragment:</p>
-<pre><code>nex&gt; let filesystem: Map[String, Any] := {
-     "name": "root",
-     "type": "dir",
-     "children": [
-        {
-           "name": "documents",
-           "type": "dir",
-           "children": [
-              {"name": "report.txt", "type": "file", "children": []},
-              {"name": "notes.txt", "type": "file", "children": []}
-           ]
-        },
-        {
-           "name": "pictures",
-           "type": "dir",
-           "children": [
-              {"name": "photo.jpg", "type": "file", "children": []}
-           ]
-        }
-     ]
-  }</code></pre>
-<p>Each node is a <code>Map[String, Any]</code>: a <code>"name"</code> field (string), a <code>"type"</code> field (string), and a <code>"children"</code> field (array of maps). Files have empty children arrays; directories have non-empty ones.</p>
-</section>
-<section class="level2" data-number="12.7" id="traversing-a-tree">
-<h2 class="anchored" data-anchor-id="traversing-a-tree" data-number="12.7"> Traversing a Tree</h2>
-<p>Traversing a tree — visiting every node — is a naturally recursive operation. The base case is a node with no children (a leaf). The recursive case processes the node and then recursively traverses each child.</p>
-<pre><code>nex&gt; function print_tree(node: Map[String, Any], indent: Integer) 
+<section class="level2" data-number="11.8" id="maps-of-arrays">
+<h2 class="anchored" data-anchor-id="maps-of-arrays" data-number="11.8"> Grouping by Month</h2>
+<p>An array of maps keeps records in sequence. The opposite shape, a <em>map of arrays</em>, is the natural way to group records under a name. Grouping the expenses by month gives a map from each month to the array of that month's expenses, <code>Map[String, Array[Map[String, Any]]]</code>:</p>
+<pre><code>nex&gt; function by_month(expenses: Array[Map[String, Any]]): Map[String, Array[Map[String, Any]]]
      do
-       let padding: String := ""
-       from let i := 0 until i &gt;= indent do
-         padding := padding + "  "
-         i := i + 1
+       result := {}
+       across expenses as e do
+         let month := text_of(e, "date").substring(0, 7)
+         let group := result.try_get(month, [])
+         group.add(e)
+         result.set(month, group)
        end
-       if convert node.get("name") to name: String then
-         print(padding + name)
-       end
+     end
+nex&gt; let months := by_month(expenses)
+nex&gt; months.keys
+["2026-10", "2026-11"]
+nex&gt; months.get("2026-10").length
+2</code></pre>
+<p>The body of the loop is the standard way to build up a nested structure one item at a time: <em>get</em> the inner array (or an empty one if this month has not appeared yet), <em>modify</em> it, and <em>set</em> it back. Setting it back is what stores a brand-new array in the map. For a month already in the map, <code>group</code> is the very array stored there, so <code>add</code> changes it in place and <code>set</code> just stores it again.</p>
+<p>With the groups built, a monthly summary is a loop over the months:</p>
+<pre><code>nex&gt; across months.keys as month do
+       console.print_line(month + ": " + format_cents(total(months.get(month))))
+     end
+2026-10: 961.15
+2026-11: 341.75</code></pre>
+<p>Notice how much of this is reuse. <code>total</code> was written for "all expenses", but it works on any array of expenses, including one month's group. Small functions with clear jobs keep paying off.</p>
+</section>
+<section class="level2" data-number="11.9" id="tree-shaped-data">
+<h2 class="anchored" data-anchor-id="tree-shaped-data" data-number="11.9"> A Tree of Categories</h2>
+<p>Top-level totals hide the detail: was it groceries or eating out that made Food so expensive? The category paths say how the categories nest. Food contains Groceries and Dining out. Housing contains Rent, Utilities and Repairs, and Repairs contains Plumbing. Drawn out, the categories form a <em>tree</em>:</p>
+<pre class="text"><code>All
+├── Housing
+│   ├── Rent
+│   ├── Utilities
+│   └── Repairs
+│       └── Plumbing
+├── Food
+│   ├── Groceries
+│   └── Dining out
+└── Transport</code></pre>
+<p>Each box in the tree is a <em>node</em>. Each node has a name, the amount recorded directly against it, and any number of child nodes, each of the same kind. Nex has no built-in tree type, so we build one from what we have: a node is a map with a <code>"name"</code>, its own <code>"cents"</code>, and a <code>"children"</code> array holding the child nodes. The three values have three different types, so this is another <code>Map[String, Any]</code>, and reading it needs <code>convert</code> again:</p>
+<pre><code>nex&gt; function new_node(name: String): Map[String, Any]
+     do
+       result := {"name": name, "cents": 0, "children": []}
+     end
+nex&gt; function children_of(node: Map[String, Any]): Array[Map[String, Any]]
+     do
+       result := []
        if convert node.get("children") to children: Array[Map[String, Any]] then
-         across children as child do
-           print_tree(child, indent + 1)
+         result := children
+       end
+     end
+nex&gt; function child_named(node: Map[String, Any], name: String): ?Map[String, Any]
+     do
+       result := nil
+       across children_of(node) as child do
+         if text_of(child, "name") = name then
+           result := child
          end
        end
      end</code></pre>
-<pre><code>nex&gt; print_tree(filesystem, 0)
-"root"
-  "documents"
-    "report.txt"
-    "notes.txt"
-  "pictures"
-    "photo.jpg"</code></pre>
-<p>The function takes a node and an indentation level. It prints the node’s name with the appropriate leading spaces, then recursively prints each child at one level deeper. The recursion terminates when <code>children</code> is empty — <code>across</code> on an empty array performs zero iterations, so no further calls are made.</p>
-<p>This is the recursive structure from <a href="chapter_8.html" title="Chapter 8: Recursion">Chapter 8</a> applied to a tree: process the current element, then recurse on the rest. The difference from list recursion is that each node may have multiple children, not just one, so the recursion branches at each level.</p>
-</section>
-<section class="level2" data-number="12.8" id="searching-a-tree">
-<h2 class="anchored" data-anchor-id="searching-a-tree" data-number="12.8"> Searching a Tree</h2>
-<p>Finding a node by name requires the same recursive structure:</p>
-<pre><code>nex&gt; function find_node(node: Map[String, Any], target: String): ?Map[String, Any]
+<p><code>text_of</code> and <code>cents_of</code> work unchanged on nodes, because a node keeps its name under <code>"name"</code> and its amount under <code>"cents"</code>, just as a record does.</p>
+<p>Adding an expense to the tree means following its category path down from the root, one name at a time, and creating any node that does not exist yet. That is a recursive process (<a href="chapter_8.html" title="Chapter 8: Recursion">Chapter 8</a>):</p>
+<ul>
+<li><strong>Base case:</strong> the path is empty. We have arrived at the right node, so add the amount to it.</li>
+<li><strong>Recursive case:</strong> find the child named by the first step of the path, creating it if necessary, and add the expense to that child using the rest of the path.</li>
+</ul>
+<pre><code>nex&gt; function add_to_tree(node: Map[String, Any], path: Array[String], cents: Integer)
      do
-       if node.get("name") = target then
+       if path.is_empty then
+         node.set("cents", cents_of(node) + cents)
+       else
+         let name := path.get(0)
+         let rest := path.slice(1, path.length)
+         if ? child_named(node, name) as child then
+           add_to_tree(child, rest, cents)
+         else
+           let child := new_node(name)
+           children_of(node).add(child)
+           add_to_tree(child, rest, cents)
+         end
+       end
+     end</code></pre>
+<p>Each recursive call is given a shorter path, so the recursion must reach the base case. Watch a small tree grow:</p>
+<pre><code>nex&gt; let small := new_node("All")
+{"name": "All", "cents": 0, "children": []}
+nex&gt; add_to_tree(small, ["Food", "Groceries"], 4250)
+nex&gt; small
+{"name": "All", "cents": 0, "children": [{"name": "Food", "cents": 0, "children": [{"name": "Groceries", "cents": 4250, "children": []}]}]}
+nex&gt; add_to_tree(small, ["Food", "Dining out"], 3120)
+nex&gt; small
+{"name": "All", "cents": 0, "children": [{"name": "Food", "cents": 0, "children": [{"name": "Groceries", "cents": 4250, "children": []}, {"name": "Dining out", "cents": 3120, "children": []}]}]}</code></pre>
+<p>The second call found the existing Food node and added Dining out beside Groceries. This only works because maps and arrays are shared, not copied. The node that <code>children_of(node).add(child)</code> puts into the tree is the very map that the next line passes to the recursive call, so the amount set in that call is set in the tree.</p>
+<p>Building the tree for a list of expenses adds them one by one, each with its category path split at the slashes:</p>
+<pre><code>nex&gt; function build_tree(expenses: Array[Map[String, Any]]): Map[String, Any]
+     do
+       result := new_node("All")
+       across expenses as e do
+         add_to_tree(result, text_of(e, "category").split("/"), cents_of(e))
+       end
+     end
+nex&gt; let tree := build_tree(november)</code></pre>
+</section>
+<section class="level2" data-number="11.10" id="traversing-a-tree">
+<h2 class="anchored" data-anchor-id="traversing-a-tree" data-number="11.10"> Walking the Tree</h2>
+<p>The total for a node is its own amount plus the totals of all its children, and each child's total is worked out the same way. The definition is recursive, so the function is too:</p>
+<pre><code>nex&gt; function tree_total(node: Map[String, Any]): Integer
+     do
+       result := cents_of(node)
+       across children_of(node) as child do
+         result := result + tree_total(child)
+       end
+     end
+nex&gt; format_cents(tree_total(tree))
+"341.75"</code></pre>
+<p>There is no separate base case to write. A node with no children is a leaf, and for a leaf the <code>across</code> loop runs zero times, so <code>tree_total</code> just returns the node's own amount.</p>
+<p>Printing the whole report is a <em>traversal</em>: visit every node, print it, then print its children one level further in:</p>
+<pre><code>nex&gt; function print_tree(node: Map[String, Any], indent: Integer)
+     do
+       let padding := ""
+       repeat indent do
+         padding := padding + "  "
+       end
+       console.print_line(padding + text_of(node, "name") + "  " + format_cents(tree_total(node)))
+       across children_of(node) as child do
+         print_tree(child, indent + 1)
+       end
+     end
+nex&gt; print_tree(tree, 0)
+All  341.75
+  Housing  204.30
+    Utilities  84.30
+    Repairs  120.00
+      Plumbing  120.00
+  Food  112.45
+    Groceries  81.25
+    Dining out  31.20
+  Transport  25.00</code></pre>
+<p>Every line shows the total for everything underneath it: Food's 112.45 is Groceries plus Dining out. <code>repeat</code> (<a href="chapter_5.html#the-repeat-loop" title="Section 5.6: The repeat Loop">Section 5.6</a>) builds the indentation, two spaces per level. Rent does not appear, because the rent was paid in October.</p>
+<p>The shape of the code follows the shape of the data. A tree is a node with a list of smaller trees, so a function over a tree handles one node and then calls itself on each smaller tree. Once you have seen this pattern, you will recognise it in file systems, organisation charts, and the structure of programs themselves.</p>
+</section>
+<section class="level2" data-number="11.11" id="searching-a-tree">
+<h2 class="anchored" data-anchor-id="searching-a-tree" data-number="11.11"> Searching the Tree</h2>
+<p>To answer "how much went on Food, and on what?", find the Food node and print just that part of the tree. Searching uses the same recursive shape. Check this node; if it is not the one, search each child in turn until one of them finds it:</p>
+<pre><code>nex&gt; function find_node(node: Map[String, Any], name: String): ?Map[String, Any]
+     do
+       result := nil
+       if text_of(node, "name") = name then
          result := node
        else
-         result := nil
-         if convert node.get("children") to children: Array[Map[String, Any]] then
-           across children as child do
-             let found := find_node(child, target)
-             if found /= nil then
-               result := found
-             end
+         across children_of(node) as child do
+           if result = nil then
+             result := find_node(child, name)
            end
          end
        end
      end
-</code></pre>
-<pre><code>nex&gt; let found := find_node(filesystem, "notes.txt")
-nex&gt; if found /= nil then
-     print(found.get("name"))
-  end
-"notes.txt"
-
-nex&gt; let missing := find_node(filesystem, "missing.txt")
-nex&gt; missing
-nil</code></pre>
-<p>The return type is <code>?Map[String, Any]</code> — a detachable map, because the search may find nothing. The function returns the node if its name matches, otherwise searches the children and returns the first match found, or <code>nil</code> if none is found.</p>
-<p>This pattern — returning <code>nil</code> to signal “not found” — is the right use of detachable types: the absence of a result is a meaningful outcome, not an error.</p>
+nex&gt; if ? find_node(tree, "Food") as food then
+       print_tree(food, 0)
+     end
+Food  112.45
+  Groceries  81.25
+  Dining out  31.20
+nex&gt; find_node(tree, "Travel") = nil
+true</code></pre>
+<p>The return type is detachable, because a search can come back empty-handed. The test <code>if result = nil</code> stops the search once something has been found, so a later child cannot overwrite the answer.</p>
 </section>
-<section class="level2" data-number="12.9" id="a-worked-example-category-totals">
-<h2 class="anchored" data-anchor-id="a-worked-example-category-totals" data-number="12.9"> A Worked Example: Category Totals</h2>
-<p>Consider an expense tracker where expenses are grouped by category, and categories can contain subcategories. Each node has a <code>"label"</code>, an <code>"amount"</code> (its own expenses, not including children), and a <code>"children"</code> array of subcategory nodes.</p>
-<pre><code>nex&gt; let expenses := {
-     "label": "Total",
-     "amount": 0,
-     "children": [
-        {
-           "label": "Housing",
-           "amount": 1200,
-           "children": [
-              {"label": "Rent",       "amount": 900,  "children": []},
-              {"label": "Utilities", "amount": 300, "children": []}
-           ]
-        },
-        {
-           "label": "Food",
-           "amount": 150,
-           "children": [
-              {"label": "Groceries",  "amount": 400,  "children": []},
-              {"label": "Dining out", "amount": 200, "children": []}
-           ]
-        }
-     ]
-  }</code></pre>
-<p>A function that computes the total amount for a node, including all descendants:</p>
-<pre><code>nex&gt; function total_amount(node: Map[String, Any]): Integer
+<section class="level2" data-number="11.12" id="budgets">
+<h2 class="anchored" data-anchor-id="budgets" data-number="11.12"> Budgets</h2>
+<p>A budget sets a monthly limit for each top-level category. It is naturally a map from category to limit, in cents:</p>
+<pre><code>nex&gt; let budgets: Map[String, Integer] := {"Food": 12000, "Housing": 100000, "Transport": 2000}
+{"Food": 12000, "Housing": 100000, "Transport": 2000}</code></pre>
+<p>Comparing what was spent against a limit gives one of three answers. Choosing a value from a condition is what <code>when</code> is for (<a href="chapter_4.html#the-when-expression" title="Section 4.4: The when Expression">Section 4.4</a>), and two of them nest to make three choices:</p>
+<pre><code>nex&gt; function budget_status(spent, limit: Integer): String
      do
-       if convert node.get("amount") to amt: Integer then
-         result := amt
-       end
-       if convert node.get("children") to children: Array[Any] then
-         across children as child do
-           if convert child to c: Map[String, Any] then
-             result := result + total_amount(c)
-           end
-         end
+       let percent := spent * 100 / limit
+       result := when percent &gt; 100 then "OVER"
+                 else when percent &gt;= 90 then "close" else "ok" end end
+     end
+nex&gt; budget_status(11245, 12000)
+"close"</code></pre>
+<p><code>budget_status</code> divides by <code>limit</code>, so it only works when <code>limit</code> is not zero. That is its precondition, in the language of <a href="chapter_7.html#a-function-as-a-contract" title="Section 7.1: A Function as a Contract">Section 7.1</a>. A budget of zero would make no sense anyway, and Part V shows how to write such a condition into the function so that Nex checks it.</p>
+<p>The budget report puts together pieces we already have:</p>
+<pre><code>nex&gt; function print_budgets(expenses: Array[Map[String, Any]], budgets: Map[String, Integer])
+     do
+       let spent := totals_by_category(expenses)
+       across budgets.keys.sort as name do
+         let used := spent.try_get(name, 0)
+         let limit := budgets.get(name)
+         console.print_line(name + ": " + format_cents(used) + " of " + format_cents(limit)
+                            + "  " + budget_status(used, limit))
        end
      end
-  
-nex&gt; total_amount(expenses)
-3150
-
-nex&gt; when convert expenses.get("children") to children: Array[Map[String, Any]] then 
-       total_amount(children.get(0)) 
-     else 
-       0 
-     end
-2400</code></pre>
-<p>Each <code>child</code> is an <code>Any</code>, since that is what the array holds, so it is converted to a map before the recursive call, just as the amount and the children were.</p>
-<p>The total for the root node is the sum of every amount in the tree: 0 (root) + 1200 (Housing) + 900 (Rent) + 300 (Utilities) + 150 (Food) + 400 (Groceries) + 200 (Dining out) = 3150. Work through it by hand before trusting the function — the recursive structure makes it easy to miscount.</p>
-<pre><code>nex&gt; total_amount(expenses)
-3150</code></pre>
-<p>The function is concise because the recursive structure of the data and the recursive structure of the function align perfectly. Each node’s total is its own amount plus the sum of its children’s totals — and that is exactly what the function computes.</p>
-<p>One last word about <code>across</code> before we leave composite data. Every loop in this chapter has run over a built-in collection, or a nesting of them. But <code>across</code> is not restricted to built-in types. It works with any object that can hand it a <em>cursor</em>: a small helper that visits the elements one at a time. That is how a type you write yourself becomes iterable with exactly the loop form you already know, and it is why one loop reads the same whether it walks an array or something of your own. We build such a type in <a href="chapter_15.html#iterating-your-own-types">Section 15.8</a>, once classes and generics are in hand.</p>
+nex&gt; print_budgets(november, budgets)
+Food: 112.45 of 120.00  close
+Housing: 204.30 of 1000.00  ok
+Transport: 25.00 of 20.00  OVER</code></pre>
+<p><code>try_get(name, 0)</code> matters here: a category with a budget but no spending this month has spent nothing, not caused an error.</p>
 </section>
-<section class="level2" data-number="12.10" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="12.10"> Summary</h2>
+<section class="level2" data-number="11.13" id="the-complete-program">
+<h2 class="anchored" data-anchor-id="the-complete-program" data-number="11.13"> The Complete Program</h2>
+<p>All that remains is a loop that reads commands and runs them. Here is the complete program. Save it as <code>tracker.nex</code> in the same folder as <code>expenses.txt</code>:</p>
+<pre><code>-- tracker.nex: an expense tracker that keeps its data in expenses.txt.
+intern io/Path
+
+-- Reading the log ---------------------------------------------------
+
+function is_amount(text: String): Boolean
+do
+  result := text.length &gt; 0
+    and text.all(fn (c) =&gt; "0123456789.".contains(c.to_string))
+    and text.count(fn (c) =&gt; c = #.) &lt;= 1
+end
+
+function parse_line(line: String): ?Map[String, Any]
+do
+  result := nil
+  let fields := line.split(",")
+  if fields.length = 3 then
+    let date := fields.get(0).trim
+    let category := fields.get(1).trim
+    let amount := fields.get(2).trim
+    if date.length = 10 and category.length &gt; 0 and is_amount(amount) then
+      result := {"date": date, "category": category,
+                 "cents": (amount.to_real * 100.0).round}
+    end
+  end
+end
+
+function load_expenses(file: Path): Array[Map[String, Any]]
+do
+  result := []
+  if file.exists then
+    across file.read_text.split("\n") as line do
+      if ? parse_line(line) as expense then
+        result.add(expense)
+      end
+    end
+  end
+end
+
+-- Reading a record --------------------------------------------------
+
+function text_of(record: Map[String, Any], key: String): String
+do
+  result := ""
+  if convert record.get(key) to text: String then
+    result := text
+  end
+end
+
+function cents_of(record: Map[String, Any]): Integer
+do
+  result := 0
+  if convert record.get("cents") to cents: Integer then
+    result := cents
+  end
+end
+
+function format_cents(cents: Integer): String
+do
+  let rest := cents % 100
+  result := (cents / 100).to_string + "." + when rest &lt; 10 then "0" else "" end + rest.to_string
+end
+
+-- Questions about the log -------------------------------------------
+
+function in_month(expenses: Array[Map[String, Any]], month: String): Array[Map[String, Any]]
+do
+  result := expenses.filter(fn (e) =&gt; text_of(e, "date").starts_with(month))
+end
+
+function total(expenses: Array[Map[String, Any]]): Integer
+do
+  result := expenses.fold(0, fn (sum, e) =&gt; sum + cents_of(e))
+end
+
+function top_level(category: String): String
+do
+  result := category.split("/").get(0)
+end
+
+function by_month(expenses: Array[Map[String, Any]]): Map[String, Array[Map[String, Any]]]
+do
+  result := {}
+  across expenses as e do
+    let month := text_of(e, "date").substring(0, 7)
+    let group := result.try_get(month, [])
+    group.add(e)
+    result.set(month, group)
+  end
+end
+
+function totals_by_category(expenses: Array[Map[String, Any]]): Map[String, Integer]
+do
+  result := {}
+  across expenses as e do
+    let name := top_level(text_of(e, "category"))
+    result.set(name, result.try_get(name, 0) + cents_of(e))
+  end
+end
+
+-- The category tree ---------------------------------------------------
+
+function new_node(name: String): Map[String, Any]
+do
+  result := {"name": name, "cents": 0, "children": []}
+end
+
+function children_of(node: Map[String, Any]): Array[Map[String, Any]]
+do
+  result := []
+  if convert node.get("children") to children: Array[Map[String, Any]] then
+    result := children
+  end
+end
+
+function child_named(node: Map[String, Any], name: String): ?Map[String, Any]
+do
+  result := nil
+  across children_of(node) as child do
+    if text_of(child, "name") = name then
+      result := child
+    end
+  end
+end
+
+function add_to_tree(node: Map[String, Any], path: Array[String], cents: Integer)
+do
+  if path.is_empty then
+    node.set("cents", cents_of(node) + cents)
+  else
+    let name := path.get(0)
+    let rest := path.slice(1, path.length)
+    if ? child_named(node, name) as child then
+      add_to_tree(child, rest, cents)
+    else
+      let child := new_node(name)
+      children_of(node).add(child)
+      add_to_tree(child, rest, cents)
+    end
+  end
+end
+
+function build_tree(expenses: Array[Map[String, Any]]): Map[String, Any]
+do
+  result := new_node("All")
+  across expenses as e do
+    add_to_tree(result, text_of(e, "category").split("/"), cents_of(e))
+  end
+end
+
+function tree_total(node: Map[String, Any]): Integer
+do
+  result := cents_of(node)
+  across children_of(node) as child do
+    result := result + tree_total(child)
+  end
+end
+
+function print_tree(node: Map[String, Any], indent: Integer)
+do
+  let padding := ""
+  repeat indent do
+    padding := padding + "  "
+  end
+  console.print_line(padding + text_of(node, "name") + "  " + format_cents(tree_total(node)))
+  across children_of(node) as child do
+    print_tree(child, indent + 1)
+  end
+end
+
+function find_node(node: Map[String, Any], name: String): ?Map[String, Any]
+do
+  result := nil
+  if text_of(node, "name") = name then
+    result := node
+  else
+    across children_of(node) as child do
+      if result = nil then
+        result := find_node(child, name)
+      end
+    end
+  end
+end
+
+-- Budgets -------------------------------------------------------------
+
+function budget_status(spent, limit: Integer): String
+do
+  let percent := spent * 100 / limit
+  result := when percent &gt; 100 then "OVER"
+            else when percent &gt;= 90 then "close" else "ok" end end
+end
+
+function print_budgets(expenses: Array[Map[String, Any]], budgets: Map[String, Integer])
+do
+  let spent := totals_by_category(expenses)
+  across budgets.keys.sort as name do
+    let used := spent.try_get(name, 0)
+    let limit := budgets.get(name)
+    console.print_line(name + ": " + format_cents(used) + " of " + format_cents(limit)
+                       + "  " + budget_status(used, limit))
+  end
+end
+
+-- The program ---------------------------------------------------------
+
+let file: Path := create Path.make("expenses.txt")
+let budgets: Map[String, Integer] := {"Food": 12000, "Housing": 100000, "Transport": 2000}
+let expenses := load_expenses(file)
+console.print_line(expenses.length.to_string + " expenses loaded")
+
+from
+  let done := false
+until
+  done
+do
+  let command := console.read_line("&gt; ").trim
+  case command of
+    "list" then
+      across expenses as e do
+        console.print_line(text_of(e, "date") + "  " + text_of(e, "category")
+                           + "  " + format_cents(cents_of(e)))
+      end
+    "report" then print_tree(build_tree(expenses), 0)
+    "months" then do
+      let months := by_month(expenses)
+      across months.keys as month do
+        console.print_line(month + "  " + format_cents(total(months.get(month))))
+      end
+    end
+    "category" then do
+      let name := console.read_line("category: ").trim
+      if ? find_node(build_tree(expenses), name) as node then
+        print_tree(node, 0)
+      else
+        console.print_line("no category called " + name)
+      end
+    end
+    "month" then do
+      let month := console.read_line("month (YYYY-MM): ").trim
+      print_tree(build_tree(in_month(expenses, month)), 0)
+    end
+    "budget" then do
+      let month := console.read_line("month (YYYY-MM): ").trim
+      print_budgets(in_month(expenses, month), budgets)
+    end
+    "add" then do
+      let date := console.read_line("date (YYYY-MM-DD): ").trim
+      let category := console.read_line("category: ").trim
+      let amount := console.read_line("amount: ").trim
+      let line := date + "," + category + "," + amount
+      if ? parse_line(line) as expense then
+        file.append_text(line + "\n")
+        expenses.add(expense)
+        console.print_line("saved")
+      else
+        console.print_line("not saved: expected a date, a category and an amount like 12.50")
+      end
+    end
+    "quit" then done := true
+    else console.print_line("commands: list, report, months, month, category, budget, add, quit")
+  end
+end</code></pre>
+<p>Most of the file is the functions from the previous sections, gathered under comments that say which part of the job each group does. No forward declarations are needed: in a program file, Nex reads all the function definitions before it runs anything (<a href="chapter_6.html#forward-declarations" title="Section 6.6: Forward Declarations">Section 6.6</a>).</p>
+<p>The new part is at the bottom. The program loads the log once, then runs a <code>from ... until ... do</code> loop (<a href="chapter_5.html" title="Chapter 5: Repetition">Chapter 5</a>) until <code>done</code> becomes true. <code>repeat</code> would not do here, because we cannot know in advance how many commands will be typed. Each pass reads one command with <code>console.read_line</code> and hands it to a <code>case</code> (<a href="chapter_4.html#case-for-multiple-values" title="Section 4.5: case for Multiple Values">Section 4.5</a>). A branch that needs more than one statement wraps them in <code>do ... end</code>, and the <code>else</code> branch answers anything it does not recognise with the list of commands.</p>
+<p>Look at how <code>add</code> checks its input. It builds the line exactly as it will be written to the file, then runs it through <code>parse_line</code>, the same function that reads the file. A line is saved only if the tracker will be able to read it back. Using one function for both directions means the reading and the writing can never disagree about what a valid line is.</p>
+<p>Here is a session. Run the program, record an expense, and quit:</p>
+<pre><code>$ nex tracker.nex
+8 expenses loaded
+&gt; category
+category: Food
+Food  173.60
+  Groceries  142.40
+  Dining out  31.20
+&gt; add
+date (YYYY-MM-DD): 2026-11-10
+category: Transport
+amount: 4.50
+saved
+&gt; quit</code></pre>
+<p>Then run it again:</p>
+<pre><code>$ nex tracker.nex
+9 expenses loaded
+&gt; months
+2026-10  961.15
+2026-11  346.25
+&gt; quit</code></pre>
+<p>The new expense survived the end of the program, because <code>add</code> wrote it to <code>expenses.txt</code>. This is the difference a file makes: the REPL forgets everything when you leave it, but the data in a file stays until something changes it. (The Food total here, 173.60, covers both months, because the <code>category</code> command searches the tree of all expenses, not just one month's.)</p>
+</section>
+<section class="level2" data-number="11.14" id="looking-back">
+<h2 class="anchored" data-anchor-id="looking-back" data-number="11.14"> Looking Back</h2>
+<p>About two hundred lines of Nex, and almost every chapter of the book so far contributed something:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Part of the tracker</th>
+<th>What it uses</th>
+<th>Where it came from</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Amounts in cents, <code>to_real</code>, <code>round</code></td>
+<td>Types and conversions</td>
+<td><a href="chapter_2.html" title="Chapter 2: Values, Types, and Variables">Chapter 2</a></td>
+</tr>
+<tr class="even">
+<td><code>parse_line</code>, <code>find_node</code></td>
+<td>Detachable types and <code>nil</code></td>
+<td><a href="chapter_2.html#nil-and-detachable-types" title="Section 2.10: Nil and Detachable Types">Chapter 2</a></td>
+</tr>
+<tr class="odd">
+<td>Building report lines, method chains</td>
+<td>Expressions</td>
+<td><a href="chapter_3.html" title="Chapter 3: Expressions">Chapter 3</a></td>
+</tr>
+<tr class="even">
+<td><code>budget_status</code>, the command loop</td>
+<td><code>when</code> and <code>case</code></td>
+<td><a href="chapter_4.html" title="Chapter 4: Making Decisions">Chapter 4</a></td>
+</tr>
+<tr class="odd">
+<td><code>print_tree</code>'s indentation, the command loop</td>
+<td><code>repeat</code>, <code>from ... until</code>, <code>across</code></td>
+<td><a href="chapter_5.html" title="Chapter 5: Repetition">Chapter 5</a></td>
+</tr>
+<tr class="even">
+<td>The accessors, the questions</td>
+<td>Small functions, anonymous functions</td>
+<td><a href="chapter_6.html" title="Chapter 6: Functions">Chapter 6</a></td>
+</tr>
+<tr class="odd">
+<td><code>total</code>, <code>in_month</code>, <code>budget_status</code></td>
+<td>Pure functions, preconditions</td>
+<td><a href="chapter_7.html" title="Chapter 7: Thinking with Functions">Chapter 7</a></td>
+</tr>
+<tr class="even">
+<td><code>add_to_tree</code>, <code>tree_total</code>, <code>print_tree</code>, <code>find_node</code></td>
+<td>Recursion</td>
+<td><a href="chapter_8.html" title="Chapter 8: Recursion">Chapter 8</a></td>
+</tr>
+<tr class="odd">
+<td>The log, <code>total</code>, <code>in_month</code></td>
+<td>Arrays, <code>fold</code>, <code>filter</code>, <code>sort</code></td>
+<td><a href="chapter_9.html" title="Chapter 9: Arrays">Chapter 9</a></td>
+</tr>
+<tr class="even">
+<td>Totals, groups, shares, budgets</td>
+<td>Maps, <code>try_get</code>, <code>Map.from_entries</code></td>
+<td><a href="chapter_10.html" title="Chapter 10: Maps">Chapter 10</a></td>
+</tr>
+<tr class="odd">
+<td>Records and tree nodes</td>
+<td><code>convert</code>, files</td>
+<td>This chapter</td>
+</tr>
+</tbody>
+</table>
+<p>One thing in this program is less pleasant than the rest: all the <code>Map[String, Any]</code>. Every record and every node is a bag of values whose types Nex cannot see, and we needed <code>convert</code> each time we took one out. Nothing stops you from misspelling <code>"cents"</code> as <code>"cent"</code>, either. <code>cents_of</code> would quietly return zero. <a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a> introduces classes, which let you describe an <code>Expense</code> with a date, a category and an amount of known types. With an <code>Expense</code> class, nearly all of these conversions disappear, and a misspelled field name is caught before the program runs.</p>
+<p>One last word about <code>across</code>. Every loop in this chapter has run over a built-in collection. But <code>across</code> is not restricted to built-in types. It works with any object that can hand it a <em>cursor</em>: a small helper that visits the elements one at a time. That is how a type you write yourself becomes iterable with exactly the loop form you already know. We build such a type in <a href="chapter_15.html#iterating-your-own-types">Section 15.8</a>, once classes and generics are in hand.</p>
+</section>
+<section class="level2" data-number="11.15" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="11.15"> Summary</h2>
 <ul>
-<li>Arrays of maps model sequences of records; each element is a map of named fields</li>
-<li>Maps of arrays model grouped data; each value is a list of items under a key</li>
-<li>Access chains — <code>collection.get(key_or_index).get(key_or_index)</code> — navigate into nested structures</li>
-<li>Build nested structures with the try-get-modify-put idiom: retrieve the existing inner value (or a default), modify it, put it back</li>
-<li>Use flat structures when items have one associated value and relationships are uniform; use nesting when items have a variable number of values or genuine hierarchical structure</li>
-<li>Trees are represented as maps with a children field containing an array of child nodes</li>
-<li>Tree traversal and search are naturally recursive: process the current node, recurse on each child; the base case is an empty children array</li>
-<li>Detachable return types (<code>?Type</code>) are the right way to signal “not found” from a search function</li>
-<li><code>across</code> is not limited to the built-in collections: any type that is <code>Iterable</code>, which means it can produce a <em>cursor</em>, works with the same loop form — we return to this in <a href="chapter_15.html#iterating-your-own-types" title="Section 15.8: Iterating Over Your Own Types">Section 15.8</a></li>
+<li>A program that has to remember things between runs keeps them in a file. Bring in <code>Path</code> with <code>intern io/Path</code>, and make one with <code>create Path.make(name)</code></li>
+<li><code>read_text</code> reads a whole file as a string; <code>write_text</code> replaces a file's contents; <code>append_text</code> adds to the end; <code>exists</code> says whether the file is there</li>
+<li>A log with one record per line is easy to append to and easy to read back: <code>split("\n")</code> into lines, then <code>split(",")</code> into fields</li>
+<li>Parsing turns text into data. Check text before converting it, and return <code>nil</code> for a line that does not parse rather than stopping the program</li>
+<li>Keep money in whole cents as an <code>Integer</code>. <code>Real</code> arithmetic cannot represent most decimal fractions exactly</li>
+<li>An array of maps holds a sequence of records; a map of arrays groups records under a name. Build groups with the get-modify-set idiom</li>
+<li>A map with values of different types must be a <code>Map[String, Any]</code>, and its values come out as <code>Any</code></li>
+<li><code>if convert expr to name: Type then ... else ... end</code> checks at run time that a value has the expected type, and gives it to you with that type if it does</li>
+<li>Hide <code>convert</code> inside small accessor functions so that the rest of the program reads cleanly</li>
+<li>A tree is a node holding a list of smaller trees. Functions over trees follow the same shape: handle one node, then recurse on each child</li>
+<li>Validate input with the same function that reads the data back, so the two can never disagree</li>
+<li><code>across</code> is not limited to the built-in collections: any type that is <code>Iterable</code>, which means it can produce a <em>cursor</em>, works with the same loop form. We return to this in <a href="chapter_15.html#iterating-your-own-types" title="Section 15.8: Iterating Over Your Own Types">Section 15.8</a></li>
 </ul>
 </section>
-<section class="level2" data-number="12.11" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="12.11"> Exercises</h2>
-<p><strong>1.</strong> Given the <code>books</code> array from <a href="chapter_11.html#arrays-of-maps" title="Section 11.1: Arrays of Maps">Section 11.1</a>, write a function <code>books_by_author(books: Array[Map[String, Any]], author: String): Array[Map[String, Any]]</code> that returns a new array containing only the books by the given author. Test it by finding all books by a specific author in a list that includes duplicates.</p>
-<p><strong>2.</strong> Write a function <code>invert_index(books: Array[Map[String, Any]]): Map[String, Array[String]]</code> that takes the books array and returns a map from each author to an array of their book titles. For example, if Herbert wrote two books, <code>result.get("Frank Herbert")</code> should return an array of both titles.</p>
-<p><strong>3.</strong> Using the filesystem tree from <a href="chapter_11.html#tree-shaped-data" title="Section 11.6: Tree-Shaped Data">Section 11.6</a>, write a function <code>count_files(node: Map[String, Any]): Integer</code> that recursively counts the total number of file nodes (nodes whose <code>"type"</code> is <code>"file"</code>). Verify that <code>count_files(filesystem)</code> returns 3.</p>
-<p><strong>4.</strong> Write a function <code>tree_depth(node: Map[String, Any]): Integer</code> that returns the maximum depth of the tree rooted at <code>node</code>. A leaf node (empty children) has depth 0. A node with children has depth equal to 1 plus the maximum depth of its children. Test it on the filesystem tree (expected depth: 2) and a single-node tree (expected depth: 0).</p>
-<p><strong>5.*</strong> Write a function <code>flatten(node: Map[String, Any]): Array[String]</code> that returns an array of the names of all nodes in the tree in depth-first order — that is, a node appears before its children, and children are listed in order. For the filesystem tree the result should be <code>["root", "documents", "report.txt", "notes.txt", "pictures", "photo.jpg"]</code>. Then write a second function <code>flatten_leaves(node: Map[String, Any]): Array[String]</code> that returns only the leaf nodes (files). Use <code>flatten</code> or the same recursive pattern as a starting point.</p>
+<section class="level2" data-number="11.16" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="11.16"> Exercises</h2>
+<p><strong>1.</strong> <code>load_expenses</code> silently skips lines it cannot parse, so a typo in the file makes an expense vanish without a word. Change it to print a warning for each skipped line, giving the line number and the text. Blank lines should still be skipped quietly. For the sample file it should report line 6: <code>2026-11-04,Food/Groceries,12,40</code>.</p>
+<p><strong>2.</strong> Add a <code>delete</code> command that asks for a number, as shown by a numbered version of <code>list</code>, removes that expense, and saves the change. Why can't <code>append_text</code> do this? Write the whole file again with <code>write_text</code>, and check that the next run of the program no longer sees the deleted expense.</p>
+<p><strong>3.</strong> Add an <code>export</code> command that writes the category report to a file called <code>report.txt</code> instead of the console. Start by writing <code>tree_lines(node: Map[String, Any], indent: Integer): Array[String]</code>, which returns the lines <code>print_tree</code> would print, and then rewrite <code>print_tree</code> to use it as well.</p>
+<p><strong>4.</strong> Write a function <code>compare_months(expenses: Array[Map[String, Any]], first, second: String)</code> that prints, for each top-level category, the total in each of the two months and the difference. A category spent in only one of the months should still appear, with zero for the other.</p>
+<p><strong>5.</strong> Add an optional fourth field to the log: a note such as <code>dinner with Sam</code>. Older lines without a note must still load. What goes wrong if a note contains a comma? Change <code>parse_line</code> so that everything after the third comma is treated as the note, commas included.</p>
+<p><strong>6.*</strong> Move the budgets out of the program and into a file called <code>budgets.txt</code>, with lines such as <code>Food,120.00</code>. Write <code>load_budgets(file: Path): Map[String, Integer]</code>, reusing <code>is_amount</code>. Then add a <code>set-budget</code> command that changes one category's limit and saves the file. Which of <code>write_text</code> and <code>append_text</code> does it need, and why?</p>
 </section>
 
   </div>

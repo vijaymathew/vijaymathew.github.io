@@ -29,7 +29,7 @@
     <h1 class="opener-title">Classes</h1>
   </div>
   <div class="prose">
-<p>Every value encountered so far — integers, strings, arrays, maps — has a type, and that type determines what operations are available on the value. <code>"hello".length</code> works because strings have a <code>length</code> method. <code>[1, 2, 3].sort</code> works because arrays have a <code>sort</code> method. The type is not just a label; it is a bundle of data and behaviour.</p>
+<p>Every value encountered so far — integers, strings, arrays, maps — has a type, and that type determines what operations or methods are available on the value. For example, <code>length</code> is a method available for strings and <code>sort</code> is a method on arrays. The type is not just a label; it is a bundle of data and behaviour.</p>
 <p>Classes let you define your own types with the same structure: a bundle of data (fields, sometimes called attributes) and behaviour (methods). Once a class is defined, you can create as many instances of it as you need, each carrying its own data, all sharing the same methods.</p>
 <section class="level2" data-number="13.1" id="defining-a-class">
 <h2 class="anchored" data-anchor-id="defining-a-class" data-number="13.1"> Defining a Class</h2>
@@ -64,7 +64,7 @@ nex&gt; p.y
 nex&gt; p.distance_from_origin
 5.0</code></pre>
 <p><code>create Point.make(3.0, 4.0)</code> runs the <code>make</code> constructor with the given arguments, initialising both fields. The resulting object is assigned to <code>p</code>.</p>
-<p>The <code>create</code> keyword appeared in <a href="chapter_2.html" title="Chapter 2: Values, Types, and Variables">Chapter 2</a> in <code>let console := create Console</code>, the declaration Nex makes for you before every program. Now the mechanism is fully visible: <code>create</code> allocates a new instance and runs the named constructor.</p>
+<p>The <code>create</code> keyword appeared in <a href="chapter_1.html" title="A Quick Tour of Nex">Chapter 1</a> as <code>create Path.make</code> and <code>create Regex.compile</code>. Now the mechanism is fully visible: <code>create</code> allocates a new instance and runs the named constructor.</p>
 </section>
 <section class="level2" data-number="13.3" id="constructors">
 <h2 class="anchored" data-anchor-id="constructors" data-number="13.3"> Constructors</h2>
@@ -184,7 +184,7 @@ nex&gt; Layout.MAX_WIDTH
 450
 nex&gt; layout.widened
 460</code></pre>
-<p><code>HELLO</code> and <code>MAX_WIDTH</code> are not per-object fields. They belong to the class itself. Their meaning is: these features are always equal to those values.</p>
+<p><code>MAX_WIDTH</code> is not a per-object field. It belong to the class itself. Its meaning is: this feature is always equal to the value <code>450</code> in all instances of the class.</p>
 <p>This is the Nex equivalent of a Java <code>static final</code> member.</p>
 <p>The form is:</p>
 <pre class="text"><code>NAME: Type = expression
@@ -200,7 +200,7 @@ end</code></pre>
 </section>
 <section class="level2" data-number="13.5" id="detachable-fields">
 <h2 class="anchored" data-anchor-id="detachable-fields" data-number="13.5"> Detachable Fields</h2>
-<p>Nex requires that every field holding a non-basic type — any class, array, map, or other composite — must be initialised in the constructor. The basic types (<code>Integer</code>, <code>Real</code>, <code>Boolean</code>, <code>String</code>, <code>Char</code>) have well-defined defaults and can be left uninitialised. Everything else must be explicitly set.</p>
+<p>Nex requires that every field holding a non-basic type — any class, array, map, or other composite — must be initialised in the constructor. The basic types (<code>Integer</code>, <code>Real</code>, <code>Boolean</code>, <code>String</code>, <code>Char</code>, <code>Array</code>, <code>Map</code>, <code>Set</code>) have well-defined defaults and can be left uninitialised. Everything else must be explicitly set.</p>
 <p>Sometimes a field genuinely might not have a value at construction time. For these cases, use a <em>detachable</em> type, written with a leading <code>?</code>:</p>
 <pre><code>nex&gt; class Person
      create
@@ -243,7 +243,7 @@ end</code></pre>
 <pre><code>name(params) do
      
 end</code></pre>
-<p>Methods access the object’s own fields directly by name. Here is a <code>Bank_Account</code> class:</p>
+<p>Methods access the object’s own fields directly by name. Here is a <code>Bank_Account</code> class that demonstrates how the two fields <code>balance</code> and <code>owner</code> are accessed and used by the class' methods:</p>
 <pre><code>nex&gt; class Bank_Account
      create
        make(name: String, initial: Real) do
@@ -259,7 +259,7 @@ end</code></pre>
        withdraw(amount: Real) do
          balance := balance - amount
        end
-       describe(): String do
+       to_string: String do
          result := owner + ": " + balance.to_string
        end
      end
@@ -267,7 +267,7 @@ end</code></pre>
 nex&gt; let account := create Bank_Account.make("Alice", 1000.0)
 nex&gt; account.deposit(500.0)
 nex&gt; account.withdraw(200.0)
-nex&gt; account.describe
+nex&gt; account -- REPL will automatically call the object's to_string method
 "Alice: 1300.0"</code></pre>
 </section>
 <section class="level2" data-number="13.7" id="optional-arguments-and-method-overloading">
@@ -322,13 +322,21 @@ nex&gt; g.greet("Bob", ".")
          let dy := this.y - other.y
          result := ((dx * dx) + (dy * dy)) ^ 0.5
        end
+       distance_from_origin(): Real do
+         let origin := create Point_2.make(0.0, 0.0)
+         result := origin.distance_to(this)
+       end
      end
 
-nex&gt; let p1 := create Point_2.make(0.0, 0.0)
-nex&gt; let p2 := create Point_2.make(3.0, 4.0)
-nex&gt; p1.distance_to(p2)
+nex&gt; let p := create Point_2.make(3.0, 4.0)
+nex&gt; let q := create Point_2.make(6.0, 8.0)
+nex&gt; p.distance_to(q)
+5.0
+
+nex&gt; p.distance_from_origin
 5.0</code></pre>
-<p>In <code>distance_to</code>, <code>this.x</code> and <code>this.y</code> refer to the fields of the object the method was called on (<code>p1</code>), while <code>other.x</code> and <code>other.y</code> refer to the argument (<code>p2</code>).</p>
+<p><code>distance_from_origin</code> does not repeat the distance formula. It creates the origin and asks it how far away this point is: <code>origin.distance_to(this)</code>. Inside that call, the origin is the object the method runs on and <code>other</code> is <code>p</code>. Passing <code>this</code> lets a method reuse code that was written for “some other point”.</p>
+<p>In <code>distance_to</code>, <code>this.x</code> and <code>this.y</code> refer to the fields of the object the method was called on, while <code>other.x</code> and <code>other.y</code> refer to the argument. Plain <code>x</code> and <code>y</code> would mean the same thing here; writing <code>this.x</code> makes the symmetry with <code>other.x</code> visible.</p>
 </section>
 <section class="level2" data-number="13.9" id="uniform-access">
 <h2 class="anchored" data-anchor-id="uniform-access" data-number="13.9"> Uniform Access</h2>
