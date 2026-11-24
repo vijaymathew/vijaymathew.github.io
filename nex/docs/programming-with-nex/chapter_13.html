@@ -29,11 +29,11 @@
     <h1 class="opener-title">Designing Classes Well</h1>
   </div>
   <div class="prose">
-<p>Now that we are comfortable with the basic mechanics of defining a class, let's think more about judgment — the harder question of what a class should contain and why. Learning to write a class takes an hour. Learning to design one well takes years. We cannot compress those years, but we can identify the principles that guide good decisions and figure out what those principles look like in practice.</p>
+<p>Now that we are comfortable with the basic mechanics of defining a class, let's think more about judgment — the harder question of what a class should contain and why. Don't assume we can compress everything that can be said about good Object Oriented design into a single chapter, but we can definitely identify the principles that guide good decisions and figure out what those principles look like in practice.</p>
 <section class="level2" data-number="14.1" id="one-class-one-responsibility">
 <h2 class="anchored" data-anchor-id="one-class-one-responsibility" data-number="14.1"> One Class, One Responsibility</h2>
 <p>The most reliable principle in class design is also the simplest to state: a class should have one responsibility. It should model one concept, and give callers one reason to use it.</p>
-<p>A class that has one responsibility is easy to name. If you find yourself reaching for a name like <code>User_Manager_And_Formatter</code> or <code>Order_Processor_With_Logging</code>, the class is doing too much. A class that is hard to name is usually a class that has not yet been designed — it is a collection of code that happens to share a file.</p>
+<p>A class that has one responsibility is easy to name. If you find yourself reaching for a name like <code>User_Manager_And_Accountant</code> or <code>Order_Processor_With_Tracking</code>, the class is doing too much. A class that is hard to name is usually a class that has not yet been designed — it is a collection of code that happens to share a file.</p>
 <p>Consider the difference between these two designs for a student record:</p>
 <pre><code>nex&gt; -- one class doing too much
 nex&gt; class Student
@@ -107,7 +107,59 @@ nex&gt; class Student
 <section class="level2" data-number="14.3" id="data-and-behaviour-together">
 <h2 class="anchored" data-anchor-id="data-and-behaviour-together" data-number="14.3"> Data and Behaviour Together</h2>
 <p>The insight that motivates object-oriented design is that data and the behaviour that naturally acts on it should live together. A <code>Bank_Account</code> does not just hold a balance — it holds the balance and the rules for modifying it. Those rules are encoded in the methods. The data and its constraints are inseparable.</p>
-<p>This distinguishes a well-designed class from a raw map. A map <code>{"owner": "Alice", "balance": 1000.0}</code> holds the same data as a <code>Bank_Account</code>, but nothing prevents external code from setting the balance to a negative number. The class enforces its rules by controlling what operations are possible:</p>
+<p>You have already seen the alternative. In the expense tracker of <a href="chapter_11.html" title="Chapter 11: Project: An Expense Tracker">Chapter 11</a>, each expense was a map (<a href="chapter_11.html#arrays-of-maps" title="Section 11.5: An Array of Records">Section 11.5</a>):</p>
+<pre><code>{"date": "2026-11-02", "category": "Food/Groceries", "cents": 4250}</code></pre>
+<p>Its values have different types, so it had to be a <code>Map[String, Any]</code>, and that cost us three things:</p>
+<ul>
+<li>Every value came out as <code>Any</code>, so every read needed a <code>convert</code>, hidden inside helpers like <code>cents_of</code> and <code>text_of</code> (<a href="chapter_11.html#the-convert-expression" title="Section 11.6: The convert Expression">Section 11.6</a>).</li>
+<li>Nothing checked the keys. Ask for <code>"cent"</code> instead of <code>"cents"</code> and <code>cents_of</code> quietly returns zero.</li>
+<li>Nothing checked the values either. Any code holding the map can call <code>set("cents", "lots")</code>, and the map accepts it.</li>
+</ul>
+<p>The map holds the data but knows none of the rules. A class can hold the same data and keep the rules:</p>
+<pre><code>nex&gt; class Expense
+     create
+       make(d, c: String, amount: Integer) do
+         date := d
+         category := c
+         cents := amount
+       end
+     feature
+       date: String
+       category: String
+       cents: Integer
+       month(): String do
+         result := date.substring(0, 7)
+       end
+       top_level(): String do
+         result := category.split("/").get(0)
+       end
+     end
+
+nex&gt; let e := create Expense.make("2026-11-02", "Food/Groceries", 4250)
+nex&gt; e.cents + 1
+4251
+
+nex&gt; e.cent
+Error: Method not found: cent
+
+nex&gt; e.cents := 0
+Error: Cannot assign to field cents outside of class Expense</code></pre>
+<p>Each field has a declared type, so <code>e.cents</code> is an <code>Integer</code> and can be used straight away, with no <code>convert</code>. A misspelled name is an error instead of a silent zero. In a program file, which Nex always type-checks, the mistake is reported before the program even runs, together with the suggestion <code>Did you mean `cents`?</code>. And because code outside the class cannot assign to its fields, an expense stays exactly as it was made.</p>
+<p>The class also gives the behaviour a home. In Chapter 11, finding an expense's month or its top-level category took free functions that dug into the map, such as <code>text_of(e, "date").substring(0, 7)</code>. These are questions an expense can answer about itself, so they become methods:</p>
+<pre><code>nex&gt; e.month
+"2026-11"
+
+nex&gt; e.top_level
+"Food"</code></pre>
+<p>The functions that worked on whole lists of expenses become one-liners, with no conversions in sight:</p>
+<pre><code>nex&gt; let expenses := [e, create Expense.make("2026-10-30", "Food/Groceries", 6115)]
+nex&gt; expenses.fold(0, fn (sum, x) =&gt; sum + x.cents)
+10365
+
+nex&gt; expenses.filter(fn (x) =&gt; x.month = "2026-11").length
+1</code></pre>
+<p>Not everything moves in. <code>format_cents</code>, which turns <code>4250</code> into <code>"42.50"</code>, is about how an amount is displayed, not about what an expense is, so by the reasoning of <a href="chapter_13.html#what-belongs-inside-a-class" title="Section 13.2: What Belongs Inside a Class">Section 13.2</a> it stays outside.</p>
+<p>An <code>Expense</code> never changes after it is made, so its one rule is that nothing outside can change it. Data that does change needs rules about <em>how</em> it may change. A map <code>{"owner": "Alice", "balance": 1000.0}</code> holds the same data as a <code>Bank_Account</code>, but nothing prevents external code from setting the balance to a negative number. The class enforces its rules by controlling what operations are possible:</p>
 <pre><code>nex&gt; class Bank_Account
      create
        make(name: String, initial: Real) do
@@ -130,7 +182,7 @@ nex&gt; class Student
            result := false
          end
        end
-       is_overdrawn(): Boolean do
+       is_overdrawn: Boolean do
          result := balance <= -overdraft_limit
        end
      end</code></pre>
@@ -142,14 +194,14 @@ nex&gt; class Student
 <p>Examples:</p>
 <ul>
 <li><code>deposit(amount)</code> is a command because it changes the balance</li>
-<li><code>is_overdrawn()</code> is a query because it reports information</li>
+<li><code>is_overdrawn</code> is a query because it reports information</li>
 </ul>
 <p>Trouble begins when one routine tries to mix the two roles:</p>
 <pre><code>nex&gt; class Counter
      private feature
        value: Integer
      feature
-       next_value(): Integer do
+       next_value: Integer do
          value := value + 1
          result := value
        end
@@ -160,10 +212,10 @@ nex&gt; class Student
      private feature
        value: Integer
      feature
-       increment() do
+       increment do
          value := value + 1
        end
-       current(): Integer do
+       current: Integer do
          result := value
        end
      end</code></pre>
@@ -195,7 +247,7 @@ nex&gt; class Student
      feature
        rank: Integer
        suit: String
-       name(): String do
+       name: String do
          let rank_names := ["2","3","4","5","6","7","8","9","10","J","Q","K","Ace"]
          result := rank_names.get(rank - 2) + " of " + suit
        end
@@ -218,7 +270,7 @@ true</code></pre>
 <p>Not all classes have the same character. Some are primarily containers of data — for them fields are supreme, and methods exist to access or compute from those fields. Others are primarily engines of behaviour — their fields are implementation details that support the operations they expose.</p>
 <p><code>Point</code>, <code>Card</code>, and <code>Student</code> are data-heavy. <code>Stack</code>, <code>Queue</code>, and a word frequency counter are behaviour-heavy. Both kinds are legitimate. The mistake is confusing them.</p>
 <p>A data class that accumulates behaviour becomes a <em>god class</em> — one class that knows and controls too much. A behaviour class that exposes its implementation details loses the encapsulation that made it worth defining.</p>
-<p>The diagnostic question: <em>what does a caller need to know to use this class correctly?</em> For a data class, the answer is its fields and their meaning. For a behaviour class, the answer is its methods and their contracts. If the answer requires knowing about internal implementation details, the class has not been encapsulated well enough.</p>
+<p>The diagnostic question is <em>what does a caller need to know to use this class correctly?</em> For a data class, the answer is its fields and their meaning. For a behaviour class, the answer is its methods and their contracts. If the answer requires knowing about internal implementation details, the class has not been encapsulated well enough.</p>
 </section>
 <section class="level2" data-number="14.7" id="naming-classes">
 <h2 class="anchored" data-anchor-id="naming-classes" data-number="14.7"> Naming Classes</h2>
@@ -314,6 +366,7 @@ end</code></pre>
 <p><strong>3.</strong> A <code>Deck</code> class represents a standard 52-card deck. Using <code>Card</code> from <a href="chapter_13.html#classes-as-models" title="Section 13.5: Classes as Models">Section 13.5</a>, define <code>Deck</code> with a <code>cards: Array[Card]</code> field and methods <code>make</code> (constructor building all 52 cards), <code>size(): Integer</code>, <code>draw(): Card</code>, and <code>is_empty(): Boolean</code>. State the precondition for <code>draw</code> as a comment.</p>
 <p><strong>4.</strong> Review the <code>Bank_Account</code> in <a href="chapter_13.html#data-and-behaviour-together" title="Section 13.3: Data and Behaviour Together">Section 13.3</a>. Is <code>overdraft_limit</code> something all bank accounts should have, or does it belong to a subtype? Sketch two classes — a basic <code>Account</code> with no overdraft, and an <code>Overdraft_Account</code> with a limit — without worrying about inheritance syntax. Which fields and methods does each have?</p>
 <p><strong>5.*</strong> The <code>Stack</code> from <a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a> works only with <code>Integer</code> values. Define a <code>String_Stack</code> and a <code>Real_Stack</code> alongside it. What do you notice? What is the only thing that differs between them? This observation motivates <em>generic types</em> — a mechanism for writing a class once and using it with any element type — which we introduce in <a href="chapter_15.html" title="Chapter 15: Generic Classes">Chapter 15</a>.</p>
+<p><strong>6.*</strong> Rewrite <code>tracker.nex</code> from <a href="chapter_11.html#the-complete-program" title="Section 11.13: The Complete Program">Section 11.13</a> using the <code>Expense</code> class of <a href="chapter_13.html#data-and-behaviour-together" title="Section 13.3: Data and Behaviour Together">Section 13.3</a>, so that <code>parse_line</code> returns <code>?Expense</code> and the log is an <code>Array[Expense]</code>. Which functions disappear, and which <code>convert</code>s remain? The tree nodes are still maps: sketch a <code>Category_Node</code> class to replace them.</p>
 </section>
 
   </div>
