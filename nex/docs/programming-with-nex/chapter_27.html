@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Common Patterns — Programming with Nex</title>
+  <title>A Spreadsheet: Formulas — Programming with Nex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
@@ -26,224 +26,668 @@
 <div class="page">
   <div class="opener">
     <span class="opener-label">Chapter 27</span>
-    <h1 class="opener-title">Common Patterns</h1>
+    <h1 class="opener-title">A Spreadsheet: Formulas</h1>
   </div>
   <div class="prose">
-<p>By now the individual language features should feel familiar. The next step is to notice that many programs are built from the same small set of shapes.</p>
-<p>A pattern is not a trick and not a rigid formula. It is a reusable structure of solution. Once you recognize a pattern, a new problem becomes less intimidating because part of its design is already known.</p>
-<section class="level2" data-number="28.1" id="the-accumulator-loop">
-<h2 class="anchored" data-anchor-id="the-accumulator-loop" data-number="28.1"> The Accumulator Loop</h2>
-<p>This is the most common loop pattern we will use, and probably the most useful. You keep a single variable that summarizes the part of the input seen so far:</p>
-<pre><code>nex&gt; function sum(items: Array[Integer]): Integer do
-       result := 0
-       across items as item do
-         result := result + item
-       end
-     end</code></pre>
-<p>Examples:</p>
+<p>This chapter and the two after it build one program from start to finish: a spreadsheet that runs on the command line. It is small enough to read in full and large enough to need everything the book has covered: classes and inheritance, sealed types and <code>match</code>, contracts, errors, modules and tests.</p>
+<p>A spreadsheet is also, quietly, a small programming language. Each cell holds a formula; the program has to read that formula, understand it, and compute its value from the values of other cells. This chapter builds that language. <a href="chapter_28.html" title="Chapter 28: A Spreadsheet: The Sheet">Chapter 28</a> builds the sheet that keeps every cell up to date, and <a href="chapter_29.html" title="Chapter 29: A Spreadsheet: The Command Line">Chapter 29</a> puts a command line around it.</p>
+<section class="level2" data-number="27.1" id="the-project">
+<h2 class="anchored" data-anchor-id="the-project" data-number="27.1"> The Project</h2>
+<p>Here is the finished program at work. Lines starting with <code>&gt;</code> are what the user types:</p>
+<pre class="text"><code>&gt; A1 = 120
+&gt; A2 = 80
+&gt; A3 = A1 + A2 * 2
+&gt; B1 = SUM(A1:A3)
+&gt; show
+             A         B
+   1    120.00    480.00
+   2     80.00
+   3    280.00
+&gt; A1 = 100
+&gt; show
+             A         B
+   1    100.00    440.00
+   2     80.00
+   3    260.00
+&gt; A1 = A3
+Error: A1 = A3 would make A1 depend on itself
+&gt; A4 = A1 / 0
+&gt; show A4
+#DIV/0!   (A4 = A1 / 0)</code></pre>
+<p>Three behaviours carry the whole design. Changing <code>A1</code> changes <code>A3</code> and <code>B1</code> too, because they are computed from it. A formula that would make a cell depend on itself is refused, because no value could ever satisfy it. And a formula that cannot be computed, like a division by zero, does not stop the program: the cell simply holds an error.</p>
+<p>The work divides along the lines of the problem, and so do the chapters:</p>
 <ul>
-<li>summing numbers</li>
-<li>counting matches</li>
-<li>computing a maximum</li>
-<li>building a frequency table</li>
+<li><strong>Formulas</strong> (this chapter): cell names, reading formula text, and computing a formula&rsquo;s value</li>
+<li><strong>The sheet</strong> (<a href="chapter_28.html" title="Chapter 28: A Spreadsheet: The Sheet">Chapter 28</a>): which cells depend on which, refusing cycles, and recalculating</li>
+<li><strong>The command line</strong> (<a href="chapter_29.html" title="Chapter 29: A Spreadsheet: The Command Line">Chapter 29</a>): commands, the grid display, saving and loading, and the tests</li>
 </ul>
-<p>The question to ask is: <em>what single variable can summarize the processed prefix?</em> Once you have that variable, the body of the loop is often nearly obvious.</p>
+<p>Each part is a module in the sense of <a href="chapter_23.html" title="Chapter 23: Modules and Files">Chapter 23</a>, a file under <code>lib/sheet/</code> in the project folder. This chapter writes two of them, <code>formula.nex</code> and <code>evaluate.nex</code>. The examples below are run in the REPL, started in the project folder so that <code>intern sheet/Formula</code> finds the file.</p>
 </section>
-<section class="level2" data-number="28.2" id="search-through-a-sequence">
-<h2 class="anchored" data-anchor-id="search-through-a-sequence" data-number="28.2"> Search Through a Sequence</h2>
-<p>Another recurring pattern is scanning until a target is found:</p>
-<pre><code>nex&gt; function contains(items: Array[String], target: String): Boolean do
-       result := false
-       from
-         let i := 0
-       until
-         i = items.length or result
-       do
-         if items.get(i) = target then
-           result := true
-         end
-         i := i + 1
-       end
-     end</code></pre>
-<p>This pattern appears in:</p>
-<ul>
-<li>membership tests</li>
-<li>locating the first matching element</li>
-<li>checking whether any item satisfies a property</li>
-</ul>
-<p>The key design choice is the stopping condition: stop when the answer is known, not one iteration later.</p>
-</section>
-<section class="level2" data-number="28.3" id="recursive-structure-matches-recursive-data">
-<h2 class="anchored" data-anchor-id="recursive-structure-matches-recursive-data" data-number="28.3"> Recursive Structure Matches Recursive Data</h2>
-<p>When data is nested like a tree, recursion often gives the cleanest code because the shape of the routine mirrors the shape of the data.</p>
-<p>In this example, assume the node uses the same tree representation as <a href="chapter_11.html" title="Chapter 11: Project: An Expense Tracker">Chapter 11</a>: a map with a <code>"children"</code> entry containing an array of child nodes.</p>
-<pre><code>nex&gt; function count_nodes(node: Map[String, Any]): Integer do
-       result := 1
-       if convert node.get("children") to children: Array[Any] then
-         across children as child do
-           if convert child to c: Map[String, Any] then
-             result := result + count_nodes(c)
-           end
-         end
-       end
-     end</code></pre>
-<p>Each child is an <code>Any</code>, so it is converted to a map before the recursive call.</p>
-<p>The pattern is:</p>
-<ol type="1">
-<li>solve the problem for the current node</li>
-<li>solve the same problem for each child</li>
-<li>combine the results</li>
-</ol>
-<p>Whenever the data is self-similar, ask whether the algorithm should be self-similar too.</p>
-</section>
-<section class="level2" data-number="28.4" id="build-a-class-around-an-invariant">
-<h2 class="anchored" data-anchor-id="build-a-class-around-an-invariant" data-number="28.4"> Build a Class Around Invariants</h2>
-<p>A good class often begins with one sentence:</p>
-<p>“For every valid object of this class, the following must always hold…”</p>
-<p>Examples:</p>
-<ul>
-<li>account balance is never negative</li>
-<li>counter is between zero and its limit</li>
-<li>task title is never empty</li>
-</ul>
-<p>Once that invariant is known, the rest of the class becomes easier:</p>
-<ul>
-<li>constructors establish it</li>
-<li>methods preserve it</li>
-<li>callers can trust it</li>
-</ul>
-<p>This is not only a contract technique. It is a design pattern for stable classes.</p>
-</section>
-<section class="level2" data-number="28.5" id="table-driven-lookup">
-<h2 class="anchored" data-anchor-id="table-driven-lookup" data-number="28.5"> Table-Driven Lookup</h2>
-<p>Sometimes a program chooses among a small set of known values based on a key. A map can express that relationship more clearly than a long chain of <code>if</code> statements.</p>
-<p>Conceptually:</p>
-<pre><code>nex&gt; let prices := {"apple": 3, "orange": 4, "pear": 5}
-nex&gt; prices.get("orange")
-4</code></pre>
-<p>Instead of:</p>
-<pre><code>if item = "apple" then
-  price := 3
-elseif item = "orange" then
-  price := 4
-elseif item = "pear" then
-  price := 5
+<section class="level2" data-number="27.2" id="cell-names">
+<h2 class="anchored" data-anchor-id="cell-names" data-number="27.2"> Cell Names</h2>
+<p>A cell is named by its column and its row: <code>B3</code> is the third row of column B. Our sheet has columns <code>A</code> to <code>Z</code> and rows 1 to 99, so a name is one capital letter followed by a number from 1 to 99.</p>
+<p>That rule will be needed everywhere: to check what the user typed, to state preconditions, to read formulas. So it is written once, as a query, and everything else refers to it:</p>
+<pre><code>function column_letters(): String do
+  result := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+end
+
+function is_digit(c: Char): Boolean do
+  result := "0123456789".contains(c.to_string)
+end
+
+function is_letter(c: Char): Boolean do
+  result := (c &gt;= #A and c &lt;= #Z) or (c &gt;= #a and c &lt;= #z)
+end
+
+-- A cell name is a column letter A-Z followed by a row number 1-99.
+function is_cell_name(text: String): Boolean do
+  result := false
+  if text.length &gt;= 2 and text.length &lt;= 3 then
+    let column := text.char_at(0)
+    let row := text.substring(1, text.length)
+    result := column &gt;= #A and column &lt;= #Z
+              and row.all(fn (c: Char): Boolean do result := is_digit(c) end)
+              and not row.starts_with("0")
+  end
 end</code></pre>
-<p>this pattern stores the association directly as data rather than spelling it out in branching code.</p>
-<p>The same idea appears in:</p>
-<ul>
-<li>menus</li>
-<li>small lookup tables</li>
-<li>configuration-driven behavior</li>
-</ul>
-<p>Data is often clearer than branching.</p>
+<p>The first guard keeps <code>char_at</code> and <code>substring</code> inside the text: a name has two or three characters. Then the row must be all digits, with no leading zero, which rules out both <code>A0</code> and <code>A05</code>.</p>
+<p>Nex writes a character as <code>#</code> followed by the character, so <code>#A</code> and <code>#Z</code> are the letters. Digits are the exception: <code>#0</code> is the character with code 0, not the digit zero, so <code>is_digit</code> asks a string of digits instead, the same trick <a href="chapter_11.html" title="Chapter 11: Project: An Expense Tracker">Chapter 11</a> used to recognise amounts.</p>
+<p>The other direction, from a name to its column and row and back, is where contracts start to earn their place:</p>
+<pre><code>function column_of(name: String): Integer
+require
+  valid: is_cell_name(name)
+do
+  result := column_letters().index_of(name.char_at(0).to_string)
+ensure
+  in_range: result &gt;= 0 and result &lt; 26
+end
+
+function row_of(name: String): Integer
+require
+  valid: is_cell_name(name)
+do
+  result := name.substring(1, name.length).to_integer
+ensure
+  in_range: result &gt;= 1 and result &lt;= 99
+end
+
+function cell_name(column, row: Integer): String
+require
+  column_in_range: column &gt;= 0 and column &lt; 26
+  row_in_range: row &gt;= 1 and row &lt;= 99
+do
+  result := column_letters().char_at(column).to_string + row.to_string
+ensure
+  valid: is_cell_name(result)
+  same_column: column_of(result) = column
+  same_row: row_of(result) = row
+end</code></pre>
+<p>Each precondition says what a valid argument is, in terms of <code>is_cell_name</code>, and each postcondition says what comes back. The postcondition of <code>cell_name</code> is the interesting one: it promises a round trip. Whatever column and row go in, the name that comes out is valid and leads back to the same column and row. Three functions that must agree with each other now check that they do, every time <code>cell_name</code> runs.</p>
+<pre><code>nex&gt; intern sheet/Formula
+nex&gt; is_cell_name("B3")
+true
+nex&gt; is_cell_name("B0")
+false
+nex&gt; column_of("C7")
+2
+nex&gt; row_of("C7")
+7
+nex&gt; cell_name(2, 7)
+"C7"
+nex&gt; cells_in_range("A1", "B2")
+["A1", "A2", "B1", "B2"]
+nex&gt; cell_name(26, 1)
+Error: Precondition violation: column_in_range</code></pre>
+<p>A range such as <code>A1:B2</code> names every cell in a rectangle. Its corners may come in either order, so the function takes the smaller and larger of each coordinate, and its postcondition says how many cells a rectangle has:</p>
+<pre><code>-- Every cell in the rectangle with corners `first` and `last`.
+function cells_in_range(first, last: String): Array[String]
+require
+  valid_first: is_cell_name(first)
+  valid_last: is_cell_name(last)
+do
+  result := []
+  let left := column_of(first).min(column_of(last))
+  let right := column_of(first).max(column_of(last))
+  let top := row_of(first).min(row_of(last))
+  let bottom := row_of(first).max(row_of(last))
+  from let col := left until col &gt; right do
+    from let row := top until row &gt; bottom do
+      result.add(cell_name(col, row))
+      row := row + 1
+    end
+    col := col + 1
+  end
+ensure
+  whole_rectangle: result.length = ((column_of(first) - column_of(last)).abs + 1)
+                                   * ((row_of(first) - row_of(last)).abs + 1)
+end</code></pre>
 </section>
-<section class="level2" data-number="28.6" id="result-objects-instead-of-exceptions">
-<h2 class="anchored" data-anchor-id="result-objects-instead-of-exceptions" data-number="28.6"> Result Objects Instead of Exceptions</h2>
-<p>When failure is expected and common, returning a <code>Result[V]</code> can be better than raising:</p>
-<pre><code>nex&gt; function safe_divide(a, b: Real): Result[Real] do
-       if b = 0.0 then
-         result := create Result[Real].failure("division by zero")
-       else
-         result := create Result[Real].success(a / b)
-       end
-     end</code></pre>
-<p>This pattern makes the two outcomes explicit:</p>
-<ul>
-<li>success with a value</li>
-<li>failure with an explanation</li>
-</ul>
-<p>It is especially useful when callers are expected to branch on the outcome routinely.</p>
+<section class="level2" data-number="27.3" id="from-text-to-tokens">
+<h2 class="anchored" data-anchor-id="from-text-to-tokens" data-number="27.3"> From Text to Tokens</h2>
+<p>A formula like <code>A1 + 2.5*SUM(B1:B3)</code> is, to the program, a string of characters. Reading it happens in two steps, the same two steps every programming language takes. The first cuts the text into <em>tokens</em>, the words of the formula: a cell name, a number, a symbol, a function name. The second, in the next section, works out how the tokens fit together.</p>
+<p>A token is exactly one of a handful of kinds, each carrying different data, which is what a <code>union</code> is for (<a href="chapter_14.html#unions-concise-sum-types" title="Section 14.9: Sealed Classes and Closed Hierarchies">Section 14.9</a>):</p>
+<pre><code>union Token
+  Number_Token(value: Real)
+  Cell_Token(name: String)
+  Name_Token(text: String)
+  Symbol(sign: Char)
+  End_Of_Input
+end
+
+function describe_token(t: Token): String do
+  match t of
+    Number_Token(value) then result := "number " + value.to_string
+    Cell_Token(name)    then result := "cell " + name
+    Name_Token(text)    then result := "name " + text
+    Symbol(sign)        then result := "'" + sign.to_string + "'"
+    End_Of_Input        then result := "end of formula"
+  end
+end</code></pre>
+<p><code>End_Of_Input</code> carries no data. It marks the end of the formula, so that the code reading tokens always has a token to look at, even after the last real one.</p>
+<p>The <code>Lexer</code> reads tokens one at a time. It keeps the text and a position in it, and its invariant says that the position never leaves the text:</p>
+<pre><code>class Lexer
+create
+  make(t: String) do
+    text := t
+    pos := 0
+  end
+feature
+  text: String
+  pos: Integer
+
+  at_end: Boolean do
+    result := pos &gt;= text.length
+  end
+
+  next_token: Token do
+    skip_spaces
+    if at_end then
+      result := create End_Of_Input
+    else
+      let c := text.char_at(pos)
+      if is_digit(c) or c = #. then
+        result := read_number
+      elseif is_letter(c) then
+        result := read_word
+      else
+        pos := pos + 1
+        result := create Symbol.make(c)
+      end
+    end
+  ensure
+    moved_on: pos &gt; old pos or at_end
+  end
+
+  skip_spaces do
+    from until at_end or text.char_at(pos) /= #space do
+      pos := pos + 1
+    end
+  end
+
+  read_number: Token
+  require
+    at_number: not at_end
+  do
+    let start := pos
+    skip_digits
+    if not at_end and text.char_at(pos) = #. then
+      pos := pos + 1
+      skip_digits
+    end
+    let digits := text.substring(start, pos)
+    if digits = "." then
+      result := create Symbol.make(#.)
+    else
+      result := create Number_Token.make(digits.to_real)
+    end
+  ensure
+    moved_on: pos &gt; old pos
+  end
+
+  skip_digits do
+    from until at_end or not is_digit(text.char_at(pos)) do
+      pos := pos + 1
+    end
+  end
+
+  read_word: Token
+  require
+    at_letter: not at_end and is_letter(text.char_at(pos))
+  do
+    let start := pos
+    from until at_end or not (is_letter(text.char_at(pos)) or is_digit(text.char_at(pos))) do
+      pos := pos + 1
+    end
+    let word := text.substring(start, pos).to_upper
+    if is_cell_name(word) then
+      result := create Cell_Token.make(word)
+    else
+      result := create Name_Token.make(word)
+    end
+  ensure
+    moved_on: pos &gt; old pos
+  end
+invariant
+  inside_text: 0 &lt;= pos and pos &lt;= text.length
+end</code></pre>
+<p>Each <code>read_</code> routine has a precondition saying where it may start, and <code>next_token</code> only calls one after looking at the character there. <code>#space</code> is how Nex writes the space character, since <code>#</code> followed by an actual space could not be seen. A word is read up to the first character that cannot continue it, then upper-cased, and is a cell token when it is a cell name and a name token otherwise: <code>b3</code> becomes the cell <code>B3</code>, and <code>sum</code> becomes the name <code>SUM</code>.</p>
+<p>The postcondition <code>moved_on</code> on <code>next_token</code> deserves a closer look. It says that every call either consumes some of the text or finds that there is none left. That is the promise that makes reading a whole formula terminate: a loop that calls <code>next_token</code> until it sees <code>End_Of_Input</code> cannot go round forever on the same character. Without the postcondition, that argument lives only in the programmer&rsquo;s head; with it, the lexer checks its own progress on every call.</p>
+<pre><code>nex&gt; let lexer := create Lexer.make("A1 + 2.5*sum(")
+nex&gt; describe_token(lexer.next_token)
+"cell A1"
+nex&gt; describe_token(lexer.next_token)
+"'+'"
+nex&gt; describe_token(lexer.next_token)
+"number 2.5"
+nex&gt; describe_token(lexer.next_token)
+"'*'"
+nex&gt; describe_token(lexer.next_token)
+"name SUM"
+nex&gt; describe_token(lexer.next_token)
+"'('"
+nex&gt; describe_token(lexer.next_token)
+"end of formula"
+nex&gt; lexer.pos
+13</code></pre>
+<p>After the last real token, <code>pos</code> stands at 13, the length of the text: the edge that the invariant allows, but never past it.</p>
 </section>
-<section class="level2" data-number="28.7" id="wrapper-at-the-boundary">
-<h2 class="anchored" data-anchor-id="wrapper-at-the-boundary" data-number="28.7"> Wrapper at the Boundary</h2>
-<p>When using files, network access, or imported platform code, wrap the external behavior in a small class or routine with a clear contract.</p>
-<p>The pattern is:</p>
-<ul>
-<li>boundary wrapper outside</li>
-<li>portable core logic inside</li>
-</ul>
-<p>For example:</p>
-<pre><code>nex&gt; function word_count(text: String): Integer do
-       result := 0
-       across text.split(" ") as word do
-         if word /= "" then
-           result := result + 1
-         end
+<section class="level2" data-number="27.4" id="a-grammar-and-a-parser">
+<h2 class="anchored" data-anchor-id="a-grammar-and-a-parser" data-number="27.4"> A Grammar and a Parser</h2>
+<p>Tokens say what the words are, not what they mean together. In <code>1 + 2 * 3</code>, the multiplication happens first, so the formula means <code>1 + (2 * 3)</code>, not <code>(1 + 2) * 3</code>. The rules for how tokens combine are the formula language&rsquo;s <em>grammar</em>, and they are short enough to write down in full:</p>
+<pre class="text"><code>expression ::= term { ("+" | "-") term }
+term       ::= factor { ("*" | "/") factor }
+factor     ::= number | cell | "-" factor | "(" expression ")"
+             | name "(" cell ":" cell ")"</code></pre>
+<p>Read <code>::=</code> as &ldquo;is&rdquo;, <code>|</code> as &ldquo;or&rdquo;, and braces as &ldquo;any number of times&rdquo;. An expression is terms joined by <code>+</code> and <code>-</code>; a term is factors joined by <code>*</code> and <code>/</code>; a factor is a single number, a cell, a negated factor, a whole expression in parentheses, or a function applied to a range. Precedence falls out of the layering: because a term is built from factors before any <code>+</code> is considered, multiplication binds more tightly than addition.</p>
+<p>What the parser produces is a tree, and the tree is another union. Each variant is one kind of formula, and the variants that contain smaller formulas hold them as <code>Expr</code> values in turn:</p>
+<pre><code>union Expr
+  Number(value: Real)
+  Ref(name: String)
+  Negate(operand: Expr)
+  Binary(op: Char, left: Expr, right: Expr)
+  Aggregate(fn_name: String, first: String, last: String)
+end
+
+function is_function_name(name: String): Boolean do
+  result := ["SUM", "MIN", "MAX", "AVERAGE"].contains(name)
+end</code></pre>
+<p><code>1 + 2 * 3</code> becomes a <code>Binary</code> whose operator is <code>+</code>, whose left side is <code>Number(1.0)</code>, and whose right side is another <code>Binary</code> for <code>2 * 3</code>. The tree records the grouping that the text only implies.</p>
+<p>The grammar translates into code almost word for word. This style is called <em>recursive descent</em>: one routine for each rule, each calling the routines for the rules it mentions, and <code>factor</code> calling back up to <code>expression</code> for parentheses. The parser keeps the list of tokens and the position of the current one:</p>
+<pre><code>class Parser
+create
+  make(text: String) do
+    let lexer := create Lexer.make(text)
+    tokens := []
+    from let done := false until done do
+      let t := lexer.next_token
+      tokens.add(t)
+      match t of
+        End_Of_Input then done := true
+        _            then done := false
+      end
+    end
+    index := 0
+  end
+feature
+  tokens: Array[Token]
+  index: Integer
+
+  current: Token do
+    result := tokens.get(index)
+  end
+
+  at_end: Boolean do
+    match current of
+      End_Of_Input then result := true
+      _            then result := false
+    end
+  end
+
+  at_symbol(c: Char): Boolean do
+    match current of
+      Symbol(sign) then result := sign = c
+      _            then result := false
+    end
+  end
+
+  advance
+  require
+    not_at_end: not at_end
+  do
+    index := index + 1
+  ensure
+    moved_on: index = old index + 1
+  end
+
+  expect(c: Char) do
+    if at_symbol(c) then
+      advance
+    else
+      raise "expected '" + c.to_string + "' but found " + describe_token(current)
+    end
+  end
+
+  formula: Expr do
+    result := expression
+    if not at_end then
+      raise "unexpected " + describe_token(current)
+    end
+  ensure
+    all_read: at_end
+  end
+
+  expression: Expr do
+    result := term
+    from until not (at_symbol(#+) or at_symbol(#-)) do
+      let op := when at_symbol(#+) then #+ else #- end
+      advance
+      result := create Binary.make(op, result, term)
+    end
+  end
+
+  term: Expr do
+    result := factor
+    from until not (at_symbol(#*) or at_symbol(#/)) do
+      let op := when at_symbol(#*) then #* else #/ end
+      advance
+      result := create Binary.make(op, result, factor)
+    end
+  end
+
+  factor: Expr do
+    match current of
+      Number_Token(value) then
+        do
+          advance
+          result := create Number.make(value)
+        end
+      Cell_Token(name) then
+        do
+          advance
+          result := create Ref.make(name)
+        end
+      Name_Token(text) then result := call(text)
+      Symbol(sign) if sign = #- then
+        do
+          advance
+          result := create Negate.make(factor)
+        end
+      Symbol(sign) if sign = #( then
+        do
+          advance
+          result := expression
+          expect(#))
+        end
+      _ then raise "unexpected " + describe_token(current)
+    end
+  end
+
+  call(name: String): Expr do
+    if not is_function_name(name) then
+      raise "unknown function " + name
+    end
+    advance
+    expect(#()
+    let first := cell
+    expect(#:)
+    let last := cell
+    expect(#))
+    result := create Aggregate.make(name, first, last)
+  end
+
+  cell: String do
+    match current of
+      Cell_Token(name) then
+        do
+          advance
+          result := name
+        end
+      _ then raise "expected a cell but found " + describe_token(current)
+    end
+  end
+invariant
+  never_empty: tokens.length &gt; 0
+  inside_tokens: 0 &lt;= index and index &lt; tokens.length
+end</code></pre>
+<p>Compare <code>expression</code> and <code>term</code> with their rules: each reads one operand, then, as long as the current token is one of its operators, reads another and combines the two into a <code>Binary</code>. Building the result from the left is what makes <code>8 - 2 - 1</code> mean <code>(8 - 2) - 1</code>, which is 5, rather than <code>8 - (2 - 1)</code>.</p>
+<p>The contracts mark the edges the parser must not cross. The invariant keeps <code>index</code> on a real token. The precondition of <code>advance</code>, <code>not_at_end</code>, forbids stepping past <code>End_Of_Input</code>; since every token the parser advances over has first been examined, and <code>End_Of_Input</code> is never accepted as an operand, no correct parser ever violates it. If one did, the bug would be reported at the step that went too far, not as a confusing failure somewhere later. The postcondition of <code>formula</code>, <code>all_read</code>, records that the whole formula was used: <code>1 2</code> is not the formula <code>1</code> with something left over.</p>
+</section>
+<section class="level2" data-number="27.5" id="errors-at-the-boundary">
+<h2 class="anchored" data-anchor-id="errors-at-the-boundary" data-number="27.5"> Errors at the Boundary</h2>
+<p>A user will type formulas that are not formulas. That is not a bug in the program, so it must not be a contract violation; it is an ordinary outcome that the program must handle. <a href="chapter_21.html" title="Chapter 21: Errors and Exceptions">Chapter 21</a> drew exactly this line, and <a href="chapter_22.html" title="Chapter 22: Writing Robust Code">Chapter 22</a> recommended a <code>Result</code> wherever a caller is expected to deal with failure routinely.</p>
+<p>Inside the parser, though, an exception is the convenient tool. A syntax error can be discovered five calls deep in <code>factor</code>, and <code>raise</code> carries it straight out without every routine in between having to check and pass it along. So the parser raises, and one function at the boundary turns the outcome into a <code>Result</code>:</p>
+<pre><code>-- What the user typed, and the tree it means.
+class Formula
+create
+  make(t: String, e: Expr) do
+    text := t
+    expr := e
+  end
+feature
+  text: String
+  expr: Expr
+end</code></pre>
+<pre><code>-- The tree for `text`, or why it is not a formula.
+function parse_formula(text: String): Result[Formula, String] do
+  let parser := create Parser.make(text)
+  result := create Ok[Formula, String].make(create Formula.make(text.trim, parser.formula))
+rescue
+  result := create Err[Formula, String].make(exception.to_string)
+end</code></pre>
+<p>A <code>Formula</code> keeps the text the user typed together with the tree it means: the tree is what the program computes with, and the text is what it shows back and saves. <code>parse_formula</code> uses the standard <code>Result</code> type from <code>data/Result</code> (<a href="chapter_22.html" title="Chapter 22: Writing Robust Code">Chapter 22</a>). Callers outside this module never see an exception from parsing; they see an <code>Ok</code> holding a formula or an <code>Err</code> holding a message:</p>
+<pre><code>nex&gt; intern sheet/Evaluate
+nex&gt; function try_formula(text: String): String do
+       match parse_formula(text) of
+         Ok as ok then result := "ok: " + ok.value.text
+         Err as e then result := "error: " + e.error
        end
      end
+nex&gt; try_formula(" a1 + A2*2 ")
+"ok: a1 + A2*2"
+nex&gt; try_formula("(1 + 2")
+"error: expected ')' but found end of formula"
+nex&gt; try_formula("1 2")
+"error: unexpected number 2.0"
+nex&gt; try_formula("SUM(A1)")
+"error: expected ':' but found ')'"
+nex&gt; try_formula("COUNT(A1:A3)")
+"error: unknown function COUNT"
+nex&gt; try_formula("A1 $ 2")
+"error: unexpected '$'"</code></pre>
+</section>
+<section class="level2" data-number="27.6" id="values-including-wrong-ones">
+<h2 class="anchored" data-anchor-id="values-including-wrong-ones" data-number="27.6"> Values, Including Wrong Ones</h2>
+<p>A formula can be perfectly well formed and still have no sensible value. <code>A1 / A2</code> is a fine formula until <code>A2</code> is zero. A spreadsheet does not refuse the formula and does not crash: it shows an error <em>in the cell</em>, and any cell computed from that one shows the error too.</p>
+<p>So a value is either a number or the reason there is no number, and once more a union says exactly that:</p>
+<pre><code>-- A cell's value: a number, or the reason it could not be computed.
+union Value
+  Num(amount: Real)
+  Failed(code: String)
+end
 
-nex&gt; class File_Word_Counter
+function show_value(v: Value): String do
+  match v of
+    Num(amount)  then result := amount.format(2)
+    Failed(code) then result := code
+  end
+end</code></pre>
+<p>Treating errors as values, rather than raising them, is a deliberate choice. An exception would stop the whole recalculation at the first bad cell, and the user would see nothing at all. A <code>Failed</code> value is just another value: it is stored in its cell, displayed in the grid, and passed on to whatever reads it.</p>
+<p>Real arithmetic does not give us this for free. Dividing a <code>Real</code> by zero does not raise in Nex; it produces infinity:</p>
+<pre><code>nex&gt; 120.0 / 0.0
+Infinity</code></pre>
+<p>A spreadsheet that showed <code>Infinity</code> would be hiding the user&rsquo;s mistake behind a number. So division checks for zero itself, and the combining routine passes a failed operand straight through:</p>
+<pre><code>function negate(v: Value): Value do
+  match v of
+    Num(amount)  then result := create Num.make(-amount)
+    Failed       then result := v
+  end
+end
+
+function combine(op: Char, a, b: Value): Value
+require
+  known_operator: "+-*/".contains(op.to_string)
+do
+  match a of
+    Failed then result := a
+    Num(amount as x) then
+      match b of
+        Failed then result := b
+        Num(amount as y) then result := arithmetic(op, x, y)
+      end
+  end
+end
+
+function arithmetic(op: Char, x, y: Real): Value
+require
+  known_operator: "+-*/".contains(op.to_string)
+do
+  if op = #+ then
+    result := create Num.make(x + y)
+  elseif op = #- then
+    result := create Num.make(x - y)
+  elseif op = #* then
+    result := create Num.make(x * y)
+  elseif y = 0.0 then
+    result := create Failed.make("#DIV/0!")
+  else
+    result := create Num.make(x / y)
+  end
+end</code></pre>
+<p>The precondition <code>known_operator</code> says which operators exist. The parser only ever builds those four, so the precondition documents a promise between the parser and the evaluator, and would catch the day someone added an operator to one and forgot the other.</p>
+</section>
+<section class="level2" data-number="27.7" id="evaluating-against-an-abstraction">
+<h2 class="anchored" data-anchor-id="evaluating-against-an-abstraction" data-number="27.7"> Evaluating Against an Abstraction</h2>
+<p>To compute <code>A1 + A2 * 2</code>, the evaluator needs the values of <code>A1</code> and <code>A2</code>. The obvious design passes it the sheet. But the sheet does not exist yet, and when it does, it will be a large object with its own concerns: storing cells, tracking dependencies, recalculating. The evaluator needs exactly one thing from it: the value of a cell, given its name.</p>
+<p>So the evaluator asks for exactly that, through a deferred class (<a href="chapter_14.html#deferred-classes" title="Section 14.8: Deferred Classes">Section 14.8</a>):</p>
+<pre><code>-- Anything formulas can read cell values from.
+deferred class Cell_Source
+feature
+  value_of(name: String): Value
+  require
+    valid_name: is_cell_name(name)
+  deferred
+end</code></pre>
+<p>This is the <em>dependency inversion</em> principle: the evaluator, the higher-level logic, depends on a small abstraction that it defines itself, and the sheet will be one implementation of it. The evaluator does not know the sheet exists. That makes it simpler to read, and, as the next section shows, easy to test on its own.</p>
+<p>The precondition belongs to the abstraction and is inherited by every implementation (<a href="chapter_20.html#inheritance-and-contracts" title="Section 20.9: Inheritance and Contracts">Section 20.9</a>): whatever supplies cell values may assume it is asked only about real cell names.</p>
+<p>Evaluation itself is one <code>match</code> over the tree, with a clause for each kind of formula:</p>
+<pre><code>function evaluate(e: Expr, cells: Cell_Source): Value do
+  match e of
+    Number(value)              then result := create Num.make(value)
+    Ref(name)                  then result := cells.value_of(name)
+    Negate(operand)            then result := negate(evaluate(operand, cells))
+    Binary(op, left, right)    then result := combine(op, evaluate(left, cells), evaluate(right, cells))
+    Aggregate(fn_name, first, last) then
+      result := aggregate(fn_name, cells_in_range(first, last).map(fn (n: String): Value do
+        result := cells.value_of(n)
+      end))
+  end
+end</code></pre>
+<p>A function applied to a range evaluates every cell in the range and hands the values to <code>aggregate</code>, which computes the sum, minimum, maximum or average, or returns the first failure among them:</p>
+<pre><code>function aggregate(fn_name: String, values: Array[Value]): Value
+require
+  known_function: is_function_name(fn_name)
+  some_values: values.length &gt; 0
+do
+  result := create Num.make(0.0)
+  let amounts: Array[Real] := []
+  across values as v do
+    match v of
+      Num(amount) then amounts.add(amount)
+      Failed      then result := v
+    end
+  end
+  if amounts.length = values.length then
+    let total := amounts.fold(0.0, fn (acc, x: Real): Real do result := acc + x end)
+    if fn_name = "SUM" then
+      result := create Num.make(total)
+    elseif fn_name = "AVERAGE" then
+      result := create Num.make(total / amounts.length.to_real)
+    elseif fn_name = "MIN" then
+      result := create Num.make(amounts.fold(amounts.get(0), fn (acc, x: Real): Real do result := acc.min(x) end))
+    else
+      result := create Num.make(amounts.fold(amounts.get(0), fn (acc, x: Real): Real do result := acc.max(x) end))
+    end
+  end
+end</code></pre>
+<p>The sheet will also need to know which cells a formula reads, to keep track of dependencies. That is another walk over the same tree:</p>
+<pre><code>-- The cells a formula reads.
+function references(e: Expr): Array[String] do
+  match e of
+    Number                     then result := []
+    Ref(name)                  then result := [name]
+    Negate(operand)            then result := references(operand)
+    Binary(op, left, right)    then result := references(left).concat(references(right))
+    Aggregate(fn_name, first, last) then result := cells_in_range(first, last)
+  end
+ensure
+  all_cells: result.all(fn (n: String): Boolean do result := is_cell_name(n) end)
+end</code></pre>
+<p><a href="chapter_23.html" title="Chapter 23: Modules and Files">Chapter 23</a> described the trade-off this code is making. A family of classes can grow in two directions: new variants, or new operations on all of them. Here the variants are fixed by the grammar, and the operations keep coming: <code>evaluate</code>, <code>references</code>, and in the exercises, printing a formula back as text. With a <code>match</code>, each new operation is one new function in one place, and the compiler checks that it handles every kind of formula. Had each variant carried its own <code>evaluate</code> method instead, each new operation would mean editing all five classes.</p>
+</section>
+<section class="level2" data-number="27.8" id="testing-without-a-sheet">
+<h2 class="anchored" data-anchor-id="testing-without-a-sheet" data-number="27.8"> Testing Without a Sheet</h2>
+<p>Because the evaluator asks only for a <code>Cell_Source</code>, it can be tested before the sheet is written, against a stand-in whose values are fixed in a map. A cell missing from the map reads as zero, as an empty cell will:</p>
+<pre><code>nex&gt; class Fixed_Cells inherit Cell_Source
+     create
+       make(m: Map[String, Real]) do
+         values := m
+       end
      feature
-       count_words_in(path: String): Integer
-       require
-         path_not_empty: path.length &gt; 0
-       do
-         result := word_count(path_read_text(path))
+       values: Map[String, Real]
+       value_of(name: String): Value do
+         result := create Num.make(values.try_get(name, 0.0))
        end
-     end</code></pre>
-<p>Here <code>count_words_in</code> touches the outside world, but <code>word_count</code> stays plain Nex logic over a string.</p>
-<p>This keeps the unreliable world at the edge and the reasoning-heavy code at the center.</p>
+     end
+nex&gt; function value_text(text: String, cells: Cell_Source): String do
+       match parse_formula(text) of
+         Ok as ok then result := show_value(evaluate(ok.value.expr, cells))
+         Err as e then result := "error: " + e.error
+       end
+     end
+nex&gt; let cells := create Fixed_Cells.make({"A1": 120.0, "A2": 80.0})
+nex&gt; value_text("A1 + A2 * 2", cells)
+"280.00"
+nex&gt; value_text("SUM(A1:A3)", cells)
+"200.00"
+nex&gt; value_text("AVERAGE(A1:A2)", cells)
+"100.00"
+nex&gt; value_text("-A1 + C9", cells)
+"-120.00"
+nex&gt; value_text("A1 / (A2 - 80)", cells)
+"#DIV/0!"
+nex&gt; value_text("1 + A1 / 0", cells)
+"#DIV/0!"</code></pre>
+<p><code>Fixed_Cells</code> is a <em>fake</em>: a real implementation of the abstraction, written for testing, with no behaviour beyond what the test needs. The last two results show errors behaving as values: a division by zero fails, and a formula that adds to the failure fails in turn, without anything raising.</p>
+<p>The formula language is now complete: it reads text, reports mistakes, and computes values, and it knows nothing about where those values are stored. The next chapter gives it somewhere to store them.</p>
 </section>
-<section class="level2" data-number="28.8" id="a-worked-example-combining-patterns">
-<h2 class="anchored" data-anchor-id="a-worked-example-combining-patterns" data-number="28.8"> A Worked Example: Combining Patterns</h2>
-<p>Here is a simple word-report routine:</p>
-<pre><code>nex&gt; function most_frequent_word(text: String): String
-     require
-       not_blank: text.trim().length &gt; 0
-     do
-       let freq: Map[String, Integer] := {}
-       let words := text.to_lower.split(" ")
-
-       across words as word do
-         if word /= "" then
-           let count := freq.try_get(word, 0)
-           freq.set(word, count + 1)
-         end
-       end
-
-       result := freq.keys.get(0)
-       across freq.keys as word do
-         if freq.get(word) &gt; freq.get(result) then
-           result := word
-         end
-       end
-     end</code></pre>
-<p>This small routine combines several patterns:</p>
+<section class="level2" data-number="27.9" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="27.9"> Summary</h2>
 <ul>
-<li>accumulation into a map</li>
-<li>table-driven lookup for counts</li>
-<li>maximum search</li>
-<li>a precondition to exclude the meaningless empty case</li>
-</ul>
-<p>Many real programs feel complicated only until you notice that they are simply a clean composition of two or three such patterns.</p>
-</section>
-<section class="level2" data-number="28.9" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="28.9"> Summary</h2>
-<ul>
-<li>Patterns are reusable shapes of solution, not rigid formulas</li>
-<li>Accumulator loops summarize processed input</li>
-<li>Search loops stop as soon as the answer is known</li>
-<li>Recursive data often calls for recursive routines</li>
-<li>Good classes are organized around strong invariants</li>
-<li>Table-driven lookup is often clearer than long condition chains</li>
-<li>Wrappers isolate system boundaries from core logic</li>
-<li>Recognizing patterns reduces design effort and improves clarity</li>
+<li>A rule needed in many places, like what a cell name is, belongs in one query that the rest of the program, and its contracts, refer to</li>
+<li>A postcondition can tie several routines together: <code>cell_name</code> promises a round trip through <code>column_of</code> and <code>row_of</code></li>
+<li>Reading a language takes two steps: a lexer cuts text into tokens, and a parser fits tokens into a tree</li>
+<li>A progress postcondition, like the lexer&rsquo;s <code>moved_on</code>, is the argument that a loop terminates, checked on every call</li>
+<li>Recursive descent turns each grammar rule into one routine; precedence comes from the layering of the rules</li>
+<li>Inside a module, an exception is a convenient way out; at the module&rsquo;s boundary, a <code>Result</code> tells callers that failure is an expected outcome</li>
+<li>Errors that the user should see belong in the data, as values, not in the control flow</li>
+<li>Depending on a small abstraction rather than a large concrete class keeps code simple and makes it testable with a fake</li>
 </ul>
 </section>
-<section class="level2" data-number="28.10" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="28.10"> Exercises</h2>
-<p><strong>1.</strong> Identify which pattern from this chapter best describes each of these routines: <code>max_of</code>, <code>contains</code>, <code>word_frequencies</code>, <code>count_nodes</code>.</p>
-<p><strong>2.</strong> Rewrite a long <code>if ... elseif ... else</code> chain from one of your earlier examples as a table-driven lookup where possible.</p>
-<p><strong>3.</strong> Take a class of your own and write its core invariant in one sentence. Then inspect whether its methods really preserve that invariant.</p>
-<p><strong>4.</strong> Write a routine that counts how many strings in an array begin with a given prefix. Which pattern does it use?</p>
-<p><strong>5.*</strong> Choose a larger problem, such as processing a grade book or inventory list, and describe which two or three patterns from this chapter you would combine to solve it.</p>
+<section class="level2" data-number="27.10" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="27.10"> Exercises</h2>
+<p><strong>1.</strong> The lexer upper-cases words, so <code>b3</code> in a formula means <code>B3</code>, but <code>is_cell_name("b3")</code> is <code>false</code>. Is that inconsistent? Decide where case should be normalised in the program, and why only one place should do it.</p>
+<p><strong>2.</strong> Write <code>formula_text(e: Expr): String</code>, which turns a tree back into text with every binary operation in parentheses: <code>1 + 2 * 3</code> becomes <code>(1.0 + (2.0 * 3.0))</code>. Use it to check that <code>8 - 2 - 1</code> is grouped from the left.</p>
+<p><strong>3.</strong> Write <code>constant_value(e: Expr): ?Real</code>, which returns the value of a formula that reads no cells, and <code>nil</code> for one that does. Which existing function makes the check a single line?</p>
+<p><strong>4.</strong> Explain the precondition <code>not_at_end</code> on <code>Parser.advance</code>. Which token would the parser reach if it advanced past <code>End_Of_Input</code>, and why is a precondition better here than an <code>if</code> inside <code>advance</code> that quietly does nothing?</p>
+<p><strong>5.</strong> Add a power operator <code>^</code> that binds more tightly than <code>*</code>, so that <code>2 * 3 ^ 2</code> is 18. Write the new grammar rule, say which parser routine changes, and find every contract in the two modules that must change with it.</p>
+<p><strong>6.</strong> <code>aggregate</code> returns the first failure in a range. A real spreadsheet&rsquo;s <code>SUM</code> also skips cells that hold text. Our cells hold only numbers and errors, but suppose a future version adds text. Would you change <code>Value</code>, <code>aggregate</code>, or both? What would the postcondition of <code>references</code> have to say then?</p>
+<p><strong>7.*</strong> Rewrite evaluation the other way: give each variant of <code>Expr</code> its own <code>evaluate</code> method, using a <code>sealed deferred class</code> instead of a <code>union</code>. Then add <code>formula_text</code> from Exercise 2 to both versions, and compare how many places each one makes you edit.</p>
 </section>
 
   </div>
   <nav class="chapter-nav" aria-label="Chapter navigation">
     <div class="prev"><a href="chapter_26.html">← Chapter 26</a></div>
-    <div class="next"><a href="chapter_28.html">Chapter 28 →<span class="next-title">Concurrency with Tasks and Channels</span></a></div>
+    <div class="next"><a href="chapter_28.html">Chapter 28 →<span class="next-title">A Spreadsheet: The Sheet</span></a></div>
   </nav>
 </div>
 

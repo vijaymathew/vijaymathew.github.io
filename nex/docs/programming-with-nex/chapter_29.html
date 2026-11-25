@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>What to Read Next — Programming with Nex</title>
+  <title>A Spreadsheet: The Command Line — Programming with Nex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
@@ -26,151 +26,371 @@
 <div class="page">
   <div class="opener">
     <span class="opener-label">Chapter 29</span>
-    <h1 class="opener-title">What to Read Next</h1>
+    <h1 class="opener-title">A Spreadsheet: The Command Line</h1>
   </div>
   <div class="prose">
-<p>What we have done here has been an introduction, not an ending.</p>
-<p>If you have worked through the chapters, typed the examples, and solved some exercises, you now have more than a list of language features. You have seen a style of programming:</p>
-<ul>
-<li>program by stating obligations and guarantees</li>
-<li>design classes around stable meanings</li>
-<li>separate system boundaries from core logic</li>
-<li>make correctness an everyday concern rather than an afterthought</li>
-</ul>
-<p>The next step is not to abandon that style, but to see where it appears elsewhere and how other writers develop it further.</p>
-<section class="level2" data-number="30.1" id="where-the-main-ideas-came-from">
-<h2 class="anchored" data-anchor-id="where-the-main-ideas-came-from" data-number="30.1"> Where the Main Ideas Came From</h2>
-<p>Nex brings together ideas that appear across several traditions. Reading outside the language helps separate what is essential from what is merely syntactic.</p>
-<p>From procedural programming:</p>
-<ul>
-<li>clear control flow</li>
-<li>small routines</li>
-<li>careful treatment of state</li>
-</ul>
-<p>From object-oriented design:</p>
-<ul>
-<li>classes as models of concepts</li>
-<li>invariants</li>
-<li>interface-based reasoning</li>
-</ul>
-<p>From formal methods:</p>
-<ul>
-<li>preconditions</li>
-<li>postconditions</li>
-<li>the habit of specifying before implementing</li>
-</ul>
-<p>From practical software engineering:</p>
-<ul>
-<li>modularity</li>
-<li>tests</li>
-<li>explicit boundaries</li>
-</ul>
-<p>Studying those traditions separately will deepen what you have learned here.</p>
+<p>The formula language of <a href="chapter_27.html" title="Chapter 27: A Spreadsheet: Formulas">Chapter 27</a> and the sheet of <a href="chapter_28.html" title="Chapter 28: A Spreadsheet: The Sheet">Chapter 28</a> are complete, but nobody can use them yet. This chapter adds the last layer: commands that a user types, a grid that shows the sheet, saving and loading, the main program, and the tests that hold it all together. It ends by looking back at what the project shows.</p>
+<section class="level2" data-number="29.1" id="commands-as-data">
+<h2 class="anchored" data-anchor-id="commands-as-data" data-number="29.1"> Commands as Data</h2>
+<p>A user types a line. Before the program can do anything with it, it has to know which command the line is, and what the command&rsquo;s parts are. That is the same problem as reading a formula, on a smaller scale, and it has the same solution: turn the text into data first, and act on the data second.</p>
+<pre><code>union Command
+  Assign(name: String, text: String)
+  Show_All
+  Show(name: String)
+  Clear(name: String)
+  Save(path: String)
+  Load(path: String)
+  Help
+  Quit
+  Unknown(text: String)
+end
+
+function parse_command(line: String): Command do
+  let text := line.trim
+  let words := text.split(" ").filter(fn (w: String): Boolean do result := w /= "" end)
+  if text.contains("=") then
+    let i := text.index_of("=")
+    result := create Assign.make(text.substring(0, i).trim.to_upper,
+                                 text.substring(i + 1, text.length).trim)
+  elseif words.length = 1 and words.get(0) = "show" then
+    result := create Show_All
+  elseif words.length = 2 and words.get(0) = "show" then
+    result := create Show.make(words.get(1).to_upper)
+  elseif words.length = 2 and words.get(0) = "clear" then
+    result := create Clear.make(words.get(1).to_upper)
+  elseif words.length = 2 and words.get(0) = "save" then
+    result := create Save.make(words.get(1))
+  elseif words.length = 2 and words.get(0) = "load" then
+    result := create Load.make(words.get(1))
+  elseif words.length = 1 and words.get(0) = "help" then
+    result := create Help
+  elseif words.length = 1 and words.get(0) = "quit" then
+    result := create Quit
+  else
+    result := create Unknown.make(text)
+  end
+end</code></pre>
+<p>Every line becomes a <code>Command</code>, including lines that are not commands at all: <code>Unknown</code> keeps the text so that the error message can repeat it. Assignment is recognised by its <code>=</code>, and the cell name is upper-cased here, at the edge of the program, so that everything inside sees names in one form.</p>
+<p>Keeping parsing separate from running pays off twice. Each half can be tested on its own, and the code that runs a command never has to look at text again.</p>
 </section>
-<section class="level2" data-number="30.2" id="design-by-contract-and-meyer">
-<h2 class="anchored" data-anchor-id="design-by-contract-and-meyer" data-number="30.2"> Design by Contract</h2>
-<p>If the contract chapters interested you most, the obvious next author is Bertrand Meyer. The central references are:</p>
-<ul>
-<li><em>Object-Oriented Software Construction</em></li>
-<li><em>Touch of Class</em></li>
-</ul>
-<p>These works develop Design by Contract far beyond the introductory level. They show how contracts affect inheritance, module boundaries, exception design, and the architecture of large systems.</p>
-<p>Read them slowly. They are not quick books, but they repay serious study.</p>
+<section class="level2" data-number="29.2" id="asking-before-acting">
+<h2 class="anchored" data-anchor-id="asking-before-acting" data-number="29.2"> Asking Before Acting</h2>
+<p>Running a command is a <code>match</code> with one clause per command, each returning what to print, so that the main loop and the tests can share it:</p>
+<pre><code>-- Carry out `cmd`, returning what to print ("" for nothing).
+function run(sheet: Sheet, cmd: Command): String do
+  match cmd of
+    Assign(name, text) then result := assign(sheet, name, text)
+    Show_All           then result := format_grid(sheet)
+    Show(name)         then result := show_cell(sheet, name)
+    Clear(name)        then result := clear_cell(sheet, name)
+    Save(path)         then result := save(sheet, path)
+    Load(path)         then result := load(sheet, path)
+    Help               then result := help_text()
+    Quit               then result := ""
+    Unknown(text)      then result := "Error: unknown command: " + text
+  end
+end
+
+function assign(sheet: Sheet, name, text: String): String do
+  result := ""
+  if not is_cell_name(name) then
+    result := "Error: " + name + " is not a cell name"
+  else
+    match parse_formula(text) of
+      Err as e then result := "Error: " + e.error
+      Ok as ok then
+        if sheet.would_cycle(name, ok.value) then
+          result := "Error: " + name + " = " + text + " would make " + name + " depend on itself"
+        else
+          sheet.set(name, ok.value)
+        end
+    end
+  end
+end
+
+function show_cell(sheet: Sheet, name: String): String do
+  if is_cell_name(name) then
+    result := show_value(sheet.value_of(name))
+    if sheet.has(name) then
+      result := result + "   (" + name + " = " + sheet.text_of(name) + ")"
+    end
+  else
+    result := "Error: " + name + " is not a cell name"
+  end
+end
+
+function clear_cell(sheet: Sheet, name: String): String do
+  result := ""
+  if is_cell_name(name) then
+    sheet.clear(name)
+  else
+    result := "Error: " + name + " is not a cell name"
+  end
+end</code></pre>
+<p><code>assign</code> is where the user&rsquo;s mistakes meet the sheet&rsquo;s contracts, and it is worth reading slowly. <code>Sheet.set</code> has two preconditions: the name must be a cell name, and the formula must not create a cycle. A user can easily type something that breaks either. But a precondition violation means a bug in the program (<a href="chapter_21.html" title="Chapter 21: Errors and Exceptions">Chapter 21</a>), and a user typing <code>Q100 = 1</code> has not found a bug. So <code>assign</code> checks every precondition itself, with the queries the sheet provides for exactly that purpose, and turns each failure into a message. It calls <code>set</code> only when <code>set</code>&rsquo;s contract is sure to be met.</p>
+<p>This is the division of labour that Design by Contract asks for. The sheet states its rules once and enforces them; the command layer, which knows that its input comes from a person, takes responsibility for meeting those rules or explaining why it cannot. If someone later adds a command and forgets a check, the precondition reports the mistake at the call that made it.</p>
 </section>
-<section class="level2" data-number="30.3" id="programming-as-a-teachable-discipline">
-<h2 class="anchored" data-anchor-id="programming-as-a-teachable-discipline" data-number="30.3"> Programming as a Teachable Discipline</h2>
-<p>If you appreciated the tutorial style of building ideas step by step, two books are especially valuable:</p>
-<ul>
-<li><em>How to Design Programs</em> by Felleisen, Findler, Flatt, and Krishnamurthi</li>
-<li><em>Think Python</em> by Allen Downey</li>
-</ul>
-<p>Both are excellent on the craft of constructing programs from small parts and using examples to shape design.</p>
-<p><em>The C Programming Language</em> by Kernighan and Ritchie remains worth reading for another reason: economy. It is a model of concise technical writing. Even when the language differs, the style of explanation is instructive.</p>
-<p>Wirth’s <em>Programming in Oberon</em> is also worth your time for its style: restrained, exact, and close to the machine without losing sight of design.</p>
+<section class="level2" data-number="29.3" id="showing-the-grid">
+<h2 class="anchored" data-anchor-id="showing-the-grid" data-number="29.3"> Showing the Grid</h2>
+<p>The grid shows every column and row up to the last one in use, with each value right-aligned in a column ten characters wide:</p>
+<pre><code>function pad_left(text: String, width: Integer): String do
+  result := text
+  from until result.length &gt;= width do
+    result := " " + result
+  end
+end
+
+function trim_right(text: String): String do
+  result := text
+  from until result.length = 0 or result.char_at(result.length - 1) /= #space do
+    result := result.substring(0, result.length - 1)
+  end
+end
+
+function format_grid(sheet: Sheet): String do
+  let width := 10
+  let last_column := 0
+  let last_row := 1
+  across sheet.cells.keys as name do
+    last_column := last_column.max(column_of(name))
+    last_row := last_row.max(row_of(name))
+  end
+  result := "    "
+  from let col := 0 until col &gt; last_column do
+    result := result + pad_left(column_letters().char_at(col).to_string, width)
+    col := col + 1
+  end
+  from let row := 1 until row &gt; last_row do
+    let line := pad_left(row.to_string, 4)
+    from let col := 0 until col &gt; last_column do
+      let name := cell_name(col, row)
+      let shown := when sheet.has(name) then show_value(sheet.value_of(name)) else "" end
+      line := line + pad_left(shown, width)
+      col := col + 1
+    end
+    result := result + "\n" + trim_right(line)
+    row := row + 1
+  end
+end</code></pre>
+<p>The display reads the sheet only through its public queries, <code>has</code> and <code>value_of</code>, and the layout lives entirely in this module. A different display, a web page or a window, would replace this function and leave the sheet alone.</p>
 </section>
-<section class="level2" data-number="30.4" id="functional-ideas-and-sicp">
-<h2 class="anchored" data-anchor-id="functional-ideas-and-sicp" data-number="30.4"> Functional Ideas</h2>
-<p>If you want a deeper treatment of abstraction, program structure, and the relation between procedures and data, read:</p>
-<ul>
-<li><em>Structure and Interpretation of Computer Programs</em></li>
-</ul>
-<p>SICP is not a Nex book, nor is it a contract-first book, but it trains the same underlying muscles:</p>
-<ul>
-<li>describing processes precisely</li>
-<li>separating mechanisms from interfaces</li>
-<li>seeing common patterns beneath specific code</li>
-</ul>
-<p>It rewards rereading.</p>
+<section class="level2" data-number="29.4" id="saving-and-loading">
+<h2 class="anchored" data-anchor-id="saving-and-loading" data-number="29.4"> Saving and Loading</h2>
+<p>A sheet is saved as the commands that would rebuild it, one cell per line, in name order. Loading reads the file back and runs each line as a command:</p>
+<pre><code>function save(sheet: Sheet, path: String): String do
+  let lines := sheet.cells.keys.sort.map(fn (name: String): String do
+    result := name + " = " + sheet.text_of(name)
+  end)
+  create Path.make(path).write_text(lines.fold("", fn (text, line: String): String do
+    result := text + line + "\n"
+  end))
+  result := "Saved " + sheet.count.to_string + " cells to " + path
+end
+
+function load(sheet: Sheet, path: String): String do
+  let file := create Path.make(path)
+  if not file.exists then
+    result := "Error: no file " + path
+  else
+    result := ""
+    across file.read_text.split("\n") as line do
+      if line.trim /= "" then
+        let output := run(sheet, parse_command(line))
+        if output /= "" then
+          result := result + output + "\n"
+        end
+      end
+    end
+    result := result + "Loaded " + path
+  end
+end</code></pre>
+<p>A saved sheet is ordinary text:</p>
+<pre class="text"><code>A1 = 120
+A2 = 80
+A3 = A1 + A2 * 2
+A5 = A1 / (A2 - 80)
+B1 = sum(a1:a3)</code></pre>
+<p>Saving formulas rather than values is what lets a loaded sheet recalculate. And replaying commands means that loading needs no parser of its own: every line goes through <code>parse_command</code> and <code>assign</code>, with all their checks, exactly as if the user had typed it. A line that someone has edited into nonsense is reported, and the rest of the file still loads.</p>
+<p>Two properties make replay safe. The order of the lines does not matter: a line may refer to a cell that only comes later in the file, and until that cell is loaded it reads as zero, which recalculation corrects when it arrives. And replay can never create a cycle that the saved sheet did not have: the saved formulas had none, and no subset of them can have one either. If a hand-edited file does contain a cycle, the formula that would close it is refused with the usual message, and loading carries on.</p>
 </section>
-<section class="level2" data-number="30.5" id="algorithms-and-data-structures">
-<h2 class="anchored" data-anchor-id="algorithms-and-data-structures" data-number="30.5"> Algorithms and Data Structures</h2>
-<p>We covered arrays, maps, recursion, and a few classical loop patterns, but this was never meant to be a full algorithms text.</p>
-<p>For that, read:</p>
+<section class="level2" data-number="29.5" id="the-main-program">
+<h2 class="anchored" data-anchor-id="the-main-program" data-number="29.5"> The Main Program</h2>
+<p>With everything else in place, the program itself is a short loop:</p>
+<pre><code>-- spreadsheet.nex: a spreadsheet on the command line.
+intern sheet/Commands
+
+function main() do
+  let sheet := create Sheet.make
+  console.print_line("Nex spreadsheet. Type help for the commands.")
+  from let done := false until done do
+    console.print("&gt; ")
+    let line := console.read_line
+    if line = nil then
+      done := true
+    else
+      let cmd := parse_command(line)
+      match cmd of
+        Quit then done := true
+        _    then
+          do
+            let output := run(sheet, cmd)
+            if output /= "" then
+              console.print_line(output)
+            end
+          end
+      end
+    end
+  end
+end
+
+main()</code></pre>
+<p><code>console.read_line</code> returns <code>nil</code> at the end of input, so the program stops cleanly both when the user types <code>quit</code> and when its input runs out, as it does when commands are piped in from a file. All the work happens in <code>run</code>; the loop only reads, runs, and prints.</p>
+<p>A first session builds a small sheet and saves it:</p>
+<pre class="text"><code>$ nex spreadsheet.nex
+Nex spreadsheet. Type help for the commands.
+&gt; help
+  A1 = 120          set a cell to a number or formula
+  B1 = SUM(A1:A3)   SUM, MIN, MAX and AVERAGE take a range
+  show              show the sheet
+  show A1           show one cell and its formula
+  clear A1          empty a cell
+  save FILE         save the sheet
+  load FILE         load cells from a file
+  quit              leave
+&gt; A1 = 120
+&gt; A2 = 80
+&gt; A3 = A1 + A2 * 2
+&gt; b1 = sum(a1:a3)
+&gt; show b1
+480.00   (B1 = sum(a1:a3))
+&gt; A5 = A1 / (A2 - 80)
+&gt; show
+             A         B
+   1    120.00    480.00
+   2     80.00
+   3    280.00
+   4
+   5   #DIV/0!
+&gt; save budget.sheet
+Saved 5 cells to budget.sheet
+&gt; quit</code></pre>
+<p>Formula text is kept exactly as typed, <code>sum(a1:a3)</code>, while cell names are upper-cased. A second session loads the file, changes a cell, and watches the change spread, including into <code>A5</code>, whose division by zero now has a divisor:</p>
+<pre class="text"><code>$ nex spreadsheet.nex
+Nex spreadsheet. Type help for the commands.
+&gt; load budget.sheet
+Loaded budget.sheet
+&gt; A2 = 100
+&gt; show
+             A         B
+   1    120.00    540.00
+   2    100.00
+   3    320.00
+   4
+   5      6.00
+&gt; clear A5
+&gt; average
+Error: unknown command: average
+&gt; C1 = A1 +
+Error: unexpected end of formula
+&gt; Q100 = 1
+Error: Q100 is not a cell name
+&gt; quit</code></pre>
+<p>Every mistake in that session, an unknown command, an unfinished formula, a name outside the grid, produced a message and left the sheet as it was. None of them reached a contract.</p>
+</section>
+<section class="level2" data-number="29.6" id="how-the-files-fit-together">
+<h2 class="anchored" data-anchor-id="how-the-files-fit-together" data-number="29.6"> How the Files Fit Together</h2>
+<p>The project is laid out as <a href="chapter_23.html" title="Chapter 23: Modules and Files">Chapter 23</a> described, with the modules under <code>lib/</code> so that <code>intern</code> finds them:</p>
+<pre class="text"><code>spreadsheet/
+  spreadsheet.nex        the main program
+  tests.nex              the tests
+  lib/sheet/
+    formula.nex          cell names, tokens, the lexer, the parser
+    evaluate.nex         values, Cell_Source, evaluation
+    sheet.nex            cells and the sheet
+    commands.nex         commands, the grid, saving and loading</code></pre>
+<p>Each module interns only the one below it:</p>
+<pre class="text"><code>spreadsheet.nex  →  sheet/Commands  →  sheet/Sheet  →  sheet/Evaluate  →  sheet/Formula</code></pre>
+<p>The arrows all point one way, from the parts that deal with people to the parts that deal with ideas. <code>formula.nex</code> knows nothing about sheets; <code>evaluate.nex</code> knows only the <code>Cell_Source</code> abstraction it defines; <code>sheet.nex</code> knows nothing about commands or the console. Each layer can be understood, tested and changed by reading it and the layers below it, and none of them would have to change to put a different face on the program.</p>
+</section>
+<section class="level2" data-number="29.7" id="the-tests">
+<h2 class="anchored" data-anchor-id="the-tests" data-number="29.7"> The Tests</h2>
+<p><code>tests.nex</code> follows the style of <a href="chapter_25.html" title="Chapter 25: Testing Your Programs">Chapter 25</a>: one function per part of the program, each a list of labelled <code>assert</code> statements, so that a failure names the case that broke. The formula tests use the <code>Fixed_Cells</code> fake from <a href="chapter_27.html#testing-without-a-sheet" title="Section 27.8: Testing Without a Sheet">Section 27.8</a>; the sheet tests go through <code>run</code>, the same path a user&rsquo;s commands take:</p>
+<pre><code>function test_sheet() do
+  let sheet := create Sheet.make
+  assert set_before_use: run(sheet, parse_command("A3 = A1 + A2 * 2")) = ""
+  run(sheet, parse_command("A1 = 120"))
+  run(sheet, parse_command("A2 = 80"))
+  assert recalculated: show_value(sheet.value_of("A3")) = "280.00"
+  assert cycle_refused: run(sheet, parse_command("A1 = A3")) = "Error: A1 = A3 would make A1 depend on itself"
+  assert cycle_left_no_trace: sheet.text_of("A1") = "120"
+  run(sheet, parse_command("clear A2"))
+  assert cleared: show_value(sheet.value_of("A3")) = "120.00"
+  print("sheet tests passed")
+end
+
+function test_cycle_is_a_precondition() do
+  let sheet := create Sheet.make
+  let reached := false
+  run(sheet, parse_command("A1 = B1"))
+  sheet.set("B1", create Formula.make("A1", create Ref.make("A1")))
+  reached := true
+  raise "test failed: a cycle was accepted"
+rescue
+  if reached then
+    raise "test failed: a cycle was accepted"
+  else
+    print("cycle precondition test passed")
+  end
+end</code></pre>
+<p>The second test checks the interface boundary rather than the behaviour: setting a cycle directly, without asking <code>would_cycle</code> first, must violate the precondition. If it ever stops doing so, the test fails. Running the whole file checks every part:</p>
+<pre class="text"><code>$ nex tests.nex
+"cell name tests passed"
+"parsing tests passed"
+"evaluation tests passed"
+"sheet tests passed"
+"cycle precondition test passed"
+"command tests passed"
+"save and load tests passed"</code></pre>
+<p>The tests and the contracts do different jobs here. The contracts check that every cell agrees with its formula, after every change, on any sheet at all. The tests check particular cases that contracts cannot: that <code>1 + 2 * 3</code> really is 7, that an unclosed parenthesis gives the right message, and that a saved sheet loads back the same.</p>
+</section>
+<section class="level2" data-number="29.8" id="what-the-project-shows">
+<h2 class="anchored" data-anchor-id="what-the-project-shows" data-number="29.8"> What the Project Shows</h2>
+<p>The spreadsheet is a few hundred lines long, and nearly every idea in this book has a place in it. Looking back over the three chapters, a handful of principles did most of the work.</p>
+<p><em>Write the contract before the code.</em> The sheet&rsquo;s two invariants came first, and the rest of its interface followed from them: <code>no_cycle</code> needed <code>would_cycle</code>, which needed <code>depends_on</code>, and <code>consistent</code> needed a recalculation in dependency order. As with the calendar of <a href="chapter_20.html" title="Chapter 20: Contracts as Design">Chapter 20</a>, the contract designed the queries.</p>
+<p><em>Let contracts carry the arguments that code depends on.</em> The lexer&rsquo;s <code>moved_on</code> is why reading a formula ends. The sheet&rsquo;s <code>acyclic</code> is why the dependency order exists and the walk that finds it ends. <code>cell_name</code>&rsquo;s round trip ties three functions to one another. Each would otherwise be a comment, or nothing at all.</p>
+<p><em>Keep the bugs in the contracts and the mistakes in the data.</em> A precondition violation always means the program is wrong. Everything a user can get wrong, a bad formula, a bad name, a cycle, a division by zero, is handled as an ordinary outcome: a <code>Result</code> from the parser, a message from the command layer, a <code>Failed</code> value in a cell.</p>
+<p><em>Listen when a contract fails.</em> When the invariant <code>consistent</code> failed in the middle of a recalculation, the fault was not in the invariant but in the design, which let the evaluator call back into a sheet that was halfway through changing. The fix, a narrow <code>Cell_Values</code> view, made the program better as well as correct.</p>
+<p><em>Depend on abstractions, and keep them small.</em> The evaluator depends on <code>Cell_Source</code>, one deferred routine, instead of on the sheet. That made it testable with a fake before the sheet existed, and it is what allowed the narrow view.</p>
+<p><em>Choose the representation for the changes you expect.</em> Formulas are a <code>union</code> with operations written as <code>match</code>, because the kinds of formula are fixed by the grammar while the operations keep growing. Commands are a union for the same reason.</p>
+<p><em>Make dependencies point one way.</em> The modules form a line, from the console down to formulas, and no module knows about the ones above it.</p>
+<p>None of these is specific to spreadsheets. They are the same principles at work in any program of this size, and they matter more, not less, as programs grow.</p>
+</section>
+<section class="level2" data-number="29.9" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="29.9"> Summary</h2>
 <ul>
-<li><em>Algorithms</em> by Robert Sedgewick and Kevin Wayne</li>
-<li><em>Introduction to Algorithms</em> by Cormen, Leiserson, Rivest, and Stein</li>
-</ul>
-<p>Sedgewick and Wayne are often the gentler next step. CLRS is broader and more formal.</p>
-<p>As you read algorithm books, keep bringing the Nex discipline with you. Ask not only whether an algorithm works, but also:</p>
-<ul>
-<li>what are its preconditions?</li>
-<li>what loop invariants explain it?</li>
-<li>what data model makes its correctness easiest to state?</li>
+<li>Turn input into data first and act on the data second; a union of commands keeps parsing and running separate and testable</li>
+<li>A layer that receives input from people should meet the preconditions of the layer below it, using the queries that layer provides, and report what it cannot meet</li>
+<li>Saving the commands that rebuild a state, and replaying them to load it, reuses every check the program already has</li>
+<li>Modules whose dependencies all point one way can each be understood with only the modules below them</li>
+<li>Contracts check general properties on every run; tests check particular cases, messages and round trips that contracts cannot express</li>
+<li>Write the contract first, let it carry the program&rsquo;s arguments, and treat a failed contract as information about the design</li>
 </ul>
 </section>
-<section class="level2" data-number="30.6" id="logic-proof-and-program-correctness">
-<h2 class="anchored" data-anchor-id="logic-proof-and-program-correctness" data-number="30.6"> Logic, Proof, and Program Correctness</h2>
-<p>Contracts are closely related to a broader body of thought about proving programs correct. If that direction interests you, start with Hoare’s classic paper on axiomatic programming; it is short and foundational, and even if you never go fully into formal verification, it clarifies the relation between assertions and program reasoning.</p>
-</section>
-<section class="level2" data-number="30.7" id="beyond-the-language">
-<h2 class="anchored" data-anchor-id="beyond-the-language" data-number="30.7"> Beyond the Language</h2>
-<p>A good language can encourage good habits, but it cannot replace them. Keep building the habits directly:</p>
-<ul>
-<li>write the contract before the body for any routine others will depend on</li>
-<li>give every class one clear responsibility</li>
-<li>separate pure logic from environmental code</li>
-<li>test boundaries and edge cases</li>
-<li>refactor when names or file boundaries become muddy</li>
-</ul>
-<p>These are language-independent skills. Nex is one place to practice them deliberately.</p>
-</section>
-<section class="level2" data-number="30.8" id="final-advice">
-<h2 class="anchored" data-anchor-id="final-advice" data-number="30.8"> Final Advice</h2>
-<p>Do not try to race through many advanced books at once. That usually produces a shelf of half-read ideas and very little working understanding.</p>
-<p>Pick one direction based on what most interested you here:</p>
-<ul>
-<li>contracts and software design</li>
-<li>program construction and pedagogy</li>
-<li>algorithms</li>
-<li>abstraction and language ideas</li>
-</ul>
-<p>Then write programs while you read. Passive reading creates the illusion of understanding. Working code reveals whether the understanding is real.</p>
-</section>
-<section class="level2" data-number="30.9" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="30.9"> Summary</h2>
-<ul>
-<li>Nex sits at the intersection of several traditions, from procedural clarity to formal reasoning</li>
-<li>Meyer’s books are the natural next step for Design by Contract</li>
-<li>HtDP, Think Python, and K&amp;R are models of instructional programming writing</li>
-<li>SICP deepens abstraction and program structure</li>
-<li>Sedgewick and CLRS deepen algorithms and data structures</li>
-<li>Hoare and Wirth connect program construction with correctness and precision</li>
-<li>The important next step is continued practice, not only more reading</li>
-</ul>
-</section>
-<section class="level2" data-number="30.10" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="30.10"> Exercises</h2>
-<p><strong>1.</strong> Choose one of the books named in this chapter and write a short paragraph on why it is the best next step for your current level and interests.</p>
-<p><strong>2.</strong> Revisit one program from earlier in the tutorial and identify which outside book would help you improve it most: a design book, an algorithms book, or a programming-methods book.</p>
-<p><strong>3.</strong> Pick one routine from Chapters <a href="chapter_16.html" title="Chapter 16: Preconditions">16</a> through <a href="chapter_27.html" title="Chapter 27: Common Patterns">27</a> and restate it in Hoare-style language: what must be true before it runs, and what will be true after it runs?</p>
-<p><strong>4.</strong> Write a reading plan of three stages: one book for design, one for algorithms, and one for broader programming ideas.</p>
-<p><strong>5.*</strong> Build one small original project in Nex after finishing the tutorial. Before writing code, list the contracts, classes, files, and tests you expect it to need. Then compare that plan with the final result.</p>
+<section class="level2" data-number="29.10" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="29.10"> Exercises</h2>
+<p><strong>1.</strong> Add a <code>cells</code> command that lists every cell with its formula, one per line, in name order. Which existing function already produces almost exactly this?</p>
+<p><strong>2.</strong> Add an <code>export FILE</code> command that writes the values of the sheet as comma-separated text, one line per row. How do you write a <code>Failed</code> value?</p>
+<p><strong>3.</strong> Make each column of the grid as wide as the widest value it holds, plus two spaces, instead of a fixed ten characters.</p>
+<p><strong>4.</strong> Add an <code>undo</code> command that reverses the last change to the sheet. What must the program remember about a change, including a change that created a cell or cleared one? Write a postcondition for undoing a change, in terms of <code>text_of</code>.</p>
+<p><strong>5.</strong> Typing <code>A1 =</code> with nothing after the <code>=</code> reports an error. A real spreadsheet would treat it as clearing the cell. Which function should make that decision? Implement it, and add a test.</p>
+<p><strong>6.</strong> A saved file is edited by hand so that it holds <code>A1 = B1</code> and <code>B1 = A1</code>. Trace what <code>load</code> does with it, line by line. Is the result what a user would want?</p>
+<p><strong>7.*</strong> Add <code>copy A3 B3</code>, which copies a formula from one cell to another and shifts its references by the same distance, so that <code>A1 + A2</code> copied from <code>A3</code> to <code>B3</code> becomes <code>B1 + B2</code>. Which module should know how to shift a formula? What must the precondition say about references that would be shifted off the grid?</p>
 </section>
 
   </div>
   <nav class="chapter-nav" aria-label="Chapter navigation">
     <div class="prev"><a href="chapter_28.html">← Chapter 28</a></div>
-    <div class="next"><a href="appendix_a.html">Appendix A →<span class="next-title">Nex Syntax Reference</span></a></div>
+    <div class="next"><a href="chapter_30.html">Chapter 30 →<span class="next-title">What to Read Next</span></a></div>
   </nav>
 </div>
 

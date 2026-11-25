@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A Complete Program — Programming with Nex</title>
+  <title>Concurrency with Tasks and Channels — Programming with Nex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
@@ -26,314 +26,434 @@
 <div class="page">
   <div class="opener">
     <span class="opener-label">Chapter 26</span>
-    <h1 class="opener-title">A Complete Program</h1>
+    <h1 class="opener-title">Concurrency with Tasks and Channels</h1>
   </div>
   <div class="prose">
-<p>The earlier chapters introduced individual ideas one at a time. This chapter puts them together in one small but complete program.</p>
-<p>The goal is not to build something large. It is to show the full arc of development:</p>
-<ol type="1">
-<li>state the problem clearly</li>
-<li>choose the data model</li>
-<li>write small routines with contracts</li>
-<li>test the result</li>
-</ol>
-<p>The example will be a small task manager that tracks tasks and reports progress. By the end of the chapter, every major idea we have covered will have appeared in one place: classes, queries, commands, contracts, and tests.</p>
-<section class="level2" data-number="27.1" id="the-problem">
-<h2 class="anchored" data-anchor-id="the-problem" data-number="27.1"> The Problem</h2>
-<p>We want a program that can:</p>
+<p>So far we have treated a Nex program as one thread of control: a function calls another, a method updates an object, and the next statement waits for the previous one to finish. Many real systems do not have that luxury. A server may need to wait for incoming requests while also writing logs or a user interface may need background work without freezing the screen.</p>
+<p>Nex approaches concurrency with a small set of explicit tools:</p>
 <ul>
-<li>create tasks with a title</li>
-<li>mark a task complete</li>
-<li>report how many tasks are done</li>
-<li>report whether all tasks are complete</li>
+<li><code>spawn</code> starts a task</li>
+<li><code>Task</code> represents work in progress</li>
+<li><code>Channel[T]</code> moves values between tasks</li>
+<li><code>select</code> waits for whichever communication or task completion becomes ready first</li>
 </ul>
-<p>Even a small program like this benefits from good design. We do not begin by typing methods at random. We begin by identifying the concepts in the problem itself.</p>
-<p>The obvious concepts are:</p>
+<p>The design goal is clarity. Concurrency is difficult enough already. The language should help you say what is running concurrently and where coordination happens.</p>
+<section class="level2" data-number="29.1" id="why-tasks-instead-of-shared-objects">
+<h2 class="anchored" data-anchor-id="why-tasks-instead-of-shared-objects" data-number="29.1"> Why Tasks Instead of Shared Objects</h2>
+<p>There are two broad ways to structure concurrent programs.</p>
+<p>One style shares mutable objects and synchronises access with locks, monitors, or similar mechanisms. That can work, but it pushes a great deal of reasoning burden onto the programmer. Every shared variable becomes a potential source of races or deadlocks.</p>
+<p>Nex takes a different starting point:</p>
 <ul>
-<li>a <code>Todo_Item</code></li>
-<li>a <code>Task_List</code></li>
+<li>start work in explicit tasks</li>
+<li>communicate through channels</li>
+<li>wait at explicit coordination points</li>
 </ul>
+<p>This does not remove all concurrency problems, but it keeps the structure visible. When you read the code, you can see where work is launched and where data crosses from one task to another.</p>
 </section>
-<section class="level2" data-number="27.2" id="the-first-class-todo_item">
-<h2 class="anchored" data-anchor-id="the-first-class-todo_item" data-number="27.2"> The First Class: <code>Todo_Item</code></h2>
-<p>A task needs two fields:</p>
+<section class="level2" data-number="29.2" id="starting-a-task-with-spawn">
+<h2 class="anchored" data-anchor-id="starting-a-task-with-spawn" data-number="29.2"> Starting a Task with <code>spawn</code></h2>
+<p><code>spawn do ... end</code> starts a new task and returns a <code>Task</code> value.</p>
+<pre><code>let t: Task[Integer] := spawn do
+  result := 40 + 2
+end
+
+print(t.await)</code></pre>
+<p>The body of the task runs concurrently with the caller. If the body assigns to <code>result</code>, the task has a result type such as <code>Task[Integer]</code>. If the body does not assign to <code>result</code>, the type is just <code>Task</code>.</p>
+<pre><code>let t: Task := spawn do
+  print("background work")
+end
+
+t.await</code></pre>
+<p>A task is a value. You can store it in a variable, return it from a routine, place it in an array, or pass it to another routine. This enables concurrency to compose.</p>
+</section>
+<section class="level2" data-number="29.3" id="what-await-means">
+<h2 class="anchored" data-anchor-id="what-await-means" data-number="29.3"> What <code>await</code> Means</h2>
+<p><code>await</code> is the site where the caller synchronises with a task.</p>
+<pre><code>let t: Task[String] := spawn do
+  result := "report ready"
+end
+
+print(t.await)</code></pre>
+<p>A few points are important here. First, <code>await</code> blocks until the task finishes, unless you use the timeout form that we will see later.</p>
+<p>Second, if the task failed by raising an exception, <code>await</code> re-raises that failure. The error is not lost just because the work happened concurrently.</p>
+<p>Third, <code>await</code> is an explicit boundary. Before it, the task may still be running. After it, the task has either completed successfully or failed.</p>
+<p>That explicit boundary is one of the central design ideas in Nex concurrency. Synchronisation should be visible in the source code.</p>
+</section>
+<section class="level2" data-number="29.4" id="checking-task-state">
+<h2 class="anchored" data-anchor-id="checking-task-state" data-number="29.4"> Checking Task State</h2>
+<p>Tasks also support status queries.</p>
+<pre><code>let t: Task[Integer] := spawn do
+  result := 10 * 10
+end
+
+print(t.is_done)
+print(t.await)
+print(t.is_done)</code></pre>
+<p>In real code, <code>is_done</code> is most useful when combined with <code>select</code> (which we will discuss in detail soon), or when you need a non-blocking readiness test before choosing the next step.</p>
+<p>Tasks can also be cancelled:</p>
+<pre><code>let t: Task := spawn do
+  sleep(10000)
+end
+
+print(t.cancel)
+print(t.is_cancelled)</code></pre>
+<p>Cancellation is a request that tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.</p>
+<p>If a cancelled task is later awaited, <code>await</code> raises a task-cancelled failure rather than returning a normal result.</p>
+</section>
+<section class="level2" data-number="29.5" id="waiting-with-a-timeout">
+<h2 class="anchored" data-anchor-id="waiting-with-a-timeout" data-number="29.5"> Waiting with a Timeout</h2>
+<p>Sometimes indefinite waiting is not acceptable. A program may want to give up after a bounded interval.</p>
+<p>Tasks support a timed form of <code>await</code>:</p>
+<pre><code>let t: Task[Integer] := spawn do
+  sleep(5000)
+  result := 7
+end
+
+print(t.await(100))
+print(t.await(5000))</code></pre>
+<p>If the task completes within the timeout, <code>await(ms)</code> returns the task result. If it does not, it returns <code>nil</code>.</p>
+<p>This design keeps the meaning simple:</p>
 <ul>
-<li>a title</li>
-<li>a completion flag</li>
+<li><code>await()</code> means wait as long as needed</li>
+<li><code>await(ms)</code> means wait up to <code>ms</code> milliseconds</li>
 </ul>
-<p>Here is the full class definition:</p>
-<pre><code>nex&gt; class Todo_Item
-     create
-       make(t: String) do
-         title := t
-         done := false
-       end
-     feature
-       title: String
-       done: Boolean
-       mark_done do
-         done := true
-       ensure
-         now_done: done
-       end
-       is_done: Boolean do
-         result := done
-       end
-     invariant
-       title_not_empty: title.length &gt; 0
-     end</code></pre>
-<p>The invariant says a task must have a non-empty title. The method <code>mark_done</code> has a simple postcondition. Already the class has a clear meaning.</p>
+<p>The timeout form is especially useful at system boundaries, where a stalled background action should not block the entire program indefinitely.</p>
 </section>
-<section class="level2" data-number="27.3" id="the-second-class-task_list">
-<h2 class="anchored" data-anchor-id="the-second-class-task_list" data-number="27.3"> The Second Class: <code>Task_List</code></h2>
-<p>Now we need a collection of tasks and a few operations over it.</p>
-<pre><code>nex&gt; class Task_List
-     create
-       make do
-         tasks := []
-       end
-     feature
-       tasks: Array[Todo_Item]
-       add_task(title: String)
-       require
-         title_not_empty: title.length &gt; 0
-       do
-         tasks.add(create Todo_Item.make(title))
-       ensure
-         added_title_visible: tasks.get(tasks.length - 1).title = title
-       end
-       task_at(index: Integer): Todo_Item
-       require
-         index_in_range: index &gt;= 0 and index &lt; tasks.length
-       do
-         result := tasks.get(index)
-       end
-       size: Integer do
-         result := tasks.length
-       end
-     invariant
-       storage_exists: tasks /= nil
-     end</code></pre>
-<p>This is enough to create and access tasks, but not yet enough to report progress.</p>
-</section>
-<section class="level2" data-number="27.4" id="queries-that-summarize-state">
-<h2 class="anchored" data-anchor-id="queries-that-summarize-state" data-number="27.4"> Queries That Summarize State</h2>
-<p>Add routines that count completed tasks and decide whether all tasks are complete:</p>
-<pre><code>nex&gt; class Task_List
-     create
-       make do
-         tasks := []
-       end
-     feature
-       tasks: Array[Todo_Item]
-       add_task(title: String)
-       require
-         title_not_empty: title.length &gt; 0
-       do
-         tasks.add(create Todo_Item.make(title))
-       ensure
-         added_title_visible: tasks.get(tasks.length - 1).title = title
-       end
-       task_at(index: Integer): Todo_Item
-       require
-         index_in_range: index &gt;= 0 and index &lt; tasks.length
-       do
-         result := tasks.get(index)
-       end
-       completed_count: Integer do
-         result := 0
-         across tasks as task do
-           if task.is_done() then
-             result := result + 1
-           end
-         end
-       ensure
-         count_in_range: result &gt;= 0 and result &lt;= tasks.length
-       end
-       all_done: Boolean do
-         result := completed_count = tasks.length
-       end
-       size: Integer do
-         result := tasks.length
-       end
-     invariant
-       storage_exists: tasks /= nil
-     end</code></pre>
-<p>Notice the style:</p>
+<section class="level2" data-number="29.6" id="channels-communication-between-tasks">
+<h2 class="anchored" data-anchor-id="channels-communication-between-tasks" data-number="29.6"> Channels: Communication Between Tasks</h2>
+<p>Launching tasks is only half of the problem; the other half is communication, and Nex uses typed channels for that purpose.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer]
+
+let producer: Task := spawn do
+  ch.send(42)
+end
+
+print(ch.receive)
+producer.await</code></pre>
+<p>A <code>Channel[T]</code> carries values of type <code>T</code>.</p>
+<p>In the example above:</p>
 <ul>
-<li>commands change state</li>
-<li>queries summarize state</li>
-<li>contracts explain routine boundaries</li>
+<li>the producer task sends an integer</li>
+<li>the main thread receives it</li>
+<li>both sides agree on the element type because the channel itself is typed</li>
 </ul>
+<p>That type information is valuable because concurrency already adds one level of indirection. The language should not also force the programmer to guess what kind of value may arrive.</p>
 </section>
-<section class="level2" data-number="27.5" id="a-first-manual-run">
-<h2 class="anchored" data-anchor-id="a-first-manual-run" data-number="27.5"> A First Manual Run</h2>
-<pre><code>nex&gt; let todo := create Task_List.make
-nex&gt; todo.add_task("write chapter draft")
-nex&gt; todo.add_task("check examples")
-nex&gt; todo.add_task("revise wording")
-
-nex&gt; todo.size
-3
-
-nex&gt; todo.completed_count
-0
-
-nex&gt; todo.task_at(0).mark_done()
-nex&gt; todo.task_at(1).mark_done()
-
-nex&gt; todo.completed_count
-2
-
-nex&gt; todo.all_done
-false</code></pre>
-<p>The program already works. But we can still improve the interface.</p>
-<p>One detail is worth noting: with the current definition, <code>all_done</code> returns <code>true</code> for an empty list, because <code>completed_count</code> and <code>tasks.length</code> are both <code>0</code>. That is a reasonable design choice, but it should be understood explicitly.</p>
+<section class="level2" data-number="29.7" id="unbuffered-and-buffered-channels">
+<h2 class="anchored" data-anchor-id="unbuffered-and-buffered-channels" data-number="29.7"> Unbuffered and Buffered Channels</h2>
+<p>The default constructor creates an unbuffered channel:</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer]</code></pre>
+<p>An unbuffered channel is a rendezvous point:</p>
+<ul>
+<li><code>send</code> waits until some receiver is ready</li>
+<li><code>receive</code> waits until some sender is ready</li>
+</ul>
+<p>This is a very strong coordination mechanism. The send and the receive meet at one point in time. But sometimes that is too strict. One side may need to run ahead a little. For that, Nex supports buffered channels:</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(10)
+ch.send(20)
+print(ch.size)
+print(ch.capacity)</code></pre>
+<p>For a buffered channel:</p>
+<ul>
+<li><code>send</code> succeeds immediately when the buffer has space</li>
+<li><code>send</code> waits only when the buffer is full</li>
+<li><code>receive</code> succeeds immediately when a buffered value exists</li>
+<li><code>receive</code> waits only when the buffer is empty</li>
+</ul>
+<p>This gives you a controlled queue between tasks.</p>
 </section>
-<section class="level2" data-number="27.6" id="raising-the-level-of-the-interface">
-<h2 class="anchored" data-anchor-id="raising-the-level-of-the-interface" data-number="27.6"> Raising the Level of the Interface</h2>
-<p>The call <code>task_at(i).mark_done()</code> now works correctly. Still, a list class can offer a better public routine. Marking a task done is an operation in the vocabulary of the problem, not just a low-level storage update. A dedicated command also gives one clear place for contracts and future changes:</p>
-<pre><code>mark_task_done(index: Integer)
-require
-  index_in_range: index &gt;= 0 and index &lt; tasks.length
-do
-  task_at(index).mark_done()
-ensure
-  selected_done: tasks.get(index).done
+<section class="level2" data-number="29.8" id="non-blocking-channel-operations">
+<h2 class="anchored" data-anchor-id="non-blocking-channel-operations" data-number="29.8"> Non-Blocking Channel Operations</h2>
+<p>Blocking is sometimes right and sometimes not. When you need to probe a channel without waiting, Nex provides <code>try_send</code> and <code>try_receive</code>.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(1)
+print(ch.try_send(5))
+print(ch.try_send(6))
+print(ch.try_receive)
+print(ch.try_receive)</code></pre>
+<p>The meaning is:</p>
+<ul>
+<li><code>try_send(v)</code> returns <code>true</code> if the value was sent immediately, otherwise <code>false</code></li>
+<li><code>try_receive</code> returns a value if one is immediately available, otherwise <code>nil</code></li>
+</ul>
+<p>These operations are the building blocks for more flexible coordination logic, including <code>select</code>.</p>
+</section>
+<section class="level2" data-number="29.9" id="closing-a-channel">
+<h2 class="anchored" data-anchor-id="closing-a-channel" data-number="29.9"> Closing a Channel</h2>
+<p>Channels can be closed.</p>
+<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
+ch.send(1)
+ch.close
+print(ch.is_closed)
+print(ch.receive)</code></pre>
+<p>After <code>close</code>:</p>
+<ul>
+<li>future sends are rejected</li>
+<li>buffered values, if any, can still be received</li>
+<li>once a closed channel is drained, later <code>receive</code> attempts fail</li>
+</ul>
+<p>Streams of values are rarely infinite in practice. A reader often needs a definite signal that no more messages are coming. <code>ch.close</code> sends that signal.</p>
+</section>
+<section class="level2" data-number="29.10" id="coordinating-several-tasks-with-await_any-and-await_all">
+<h2 class="anchored" data-anchor-id="coordinating-several-tasks-with-await_any-and-await_all" data-number="29.10"> Coordinating Several Tasks with <code>await_any</code> and <code>await_all</code></h2>
+<p>A single task is useful, but real programs often launch groups of related tasks.</p>
+<p><code>await_any</code> waits for the first task in a group to complete:</p>
+<pre><code>let slow: Task[Integer] := spawn do
+  sleep(20000)
+  result := 10
+end
+
+let fast: Task[Integer] := spawn do
+  result := 20
+end
+
+print(await_any([slow, fast]))</code></pre>
+<p><code>await_all</code> waits for every task and returns their results in input order:</p>
+<pre><code>let a: Task[Integer] := spawn do
+  result := 1
+end
+
+let b: Task[Integer] := spawn do
+  result := 2
+end
+
+let results: Array[Integer] := await_all([a, b])
+print(results.get(0))
+print(results.get(1))</code></pre>
+<p>These operations keep the coordination logic explicit without forcing the programmer to hand-write loops over task arrays every time.</p>
+</section>
+<section class="level2" data-number="29.11" id="select-waiting-for-whatever-becomes-ready">
+<h2 class="anchored" data-anchor-id="select-waiting-for-whatever-becomes-ready" data-number="29.11"> <code>select</code>: Waiting for Whatever Becomes Ready</h2>
+<p>When several channels or tasks may become ready, the right tool is <code>select</code>.</p>
+<pre><code>let ch: Channel[String] := create Channel[String].with_capacity(1)
+ch.send("done")
+
+select
+  when ch.receive as msg then
+    print(msg)
+  else
+    print("nothing ready")
 end</code></pre>
-<p>Add it to <code>Task_List</code>:</p>
-<pre><code>nex&gt; class Task_List
-     create
-       make do
-         tasks := []
-       end
-     feature
-       tasks: Array[Todo_Item]
-       add_task(title: String)
-       require
-         title_not_empty: title.length &gt; 0
-       do
-         tasks.add(create Todo_Item.make(title))
-       ensure
-         added_title_visible: tasks.get(tasks.length - 1).title = title
-       end
-       task_at(index: Integer): Todo_Item
-       require
-         index_in_range: index &gt;= 0 and index &lt; tasks.length
-       do
-         result := tasks.get(index)
-       end
-       mark_task_done(index: Integer)
-       require
-         index_in_range: index &gt;= 0 and index &lt; tasks.length
-       do
-         task_at(index).mark_done()
-       ensure
-         selected_done: tasks.get(index).done
-       end
-       completed_count: Integer do
-         result := 0
-         across tasks as task do
-           if task.is_done() then
-             result := result + 1
-           end
-         end
-       ensure
-         count_in_range: result &gt;= 0 and result &lt;= tasks.length
-       end
-       all_done: Boolean do
-         result := completed_count = tasks.length
-       end
-       size: Integer do
-         result := tasks.length
-       end
-     invariant
-       storage_exists: tasks /= nil
-     end</code></pre>
-<p>The class now offers a cleaner interface.</p>
-</section>
-<section class="level2" data-number="27.7" id="tests-for-the-program">
-<h2 class="anchored" data-anchor-id="tests-for-the-program" data-number="27.7"> Tests for the Program</h2>
-<p>Before considering the program finished, write tests.</p>
-<pre><code>nex&gt; function test_task_list() do
-       let todo := create Task_List.make
-       todo.add_task("one")
-       todo.add_task("two")
-       todo.add_task("three")
-
-       if todo.size /= 3 then
-         raise "test failed: size after add"
-       end
-
-       if todo.completed_count /= 0 then
-         raise "test failed: initial completed count"
-       end
-
-       todo.mark_task_done(1)
-
-       if todo.completed_count /= 1 then
-         raise "test failed: completed count after mark"
-       end
-
-       if todo.all_done then
-         raise "test failed: all_done too early"
-       end
-
-       todo.mark_task_done(0)
-       todo.mark_task_done(2)
-
-       if not todo.all_done then
-         raise "test failed: all_done should be true"
-       end
-
-       print("task list tests passed")
-     end</code></pre>
-<p>The tests exercise:</p>
+<p>A <code>select</code> statement probes its clauses in order and chooses one that is ready. If several clauses are ready at the same time, the earlier clause wins, so clause order expresses priority, not merely layout.</p>
+<p>For channels:</p>
 <ul>
-<li>creation</li>
-<li>adding tasks</li>
-<li>marking completion</li>
-<li>summary queries</li>
+<li><code>when ch.receive as x then ...</code> fires when a value can be received immediately</li>
+<li><code>when ch.send(v) then ...</code> fires when the send can proceed immediately</li>
 </ul>
-<p>That is enough to give confidence in a small program.</p>
-</section>
-<section class="level2" data-number="27.8" id="what-the-example-shows">
-<h2 class="anchored" data-anchor-id="what-the-example-shows" data-number="27.8"> What the Example Shows</h2>
-<p>The finished program is not complicated, but it demonstrates the whole method of development:</p>
-<p><em>Start from concepts.</em> <code>Todo_Item</code> and <code>Task_List</code> emerged directly from the problem statement, before any method was written.</p>
-<p><em>Use contracts to shape the interface.</em> Invalid indices and empty titles became preconditions, and the important effects became postconditions.</p>
-<p><em>Use invariants to capture class meaning.</em> A task always has a non-empty title, and the invariant says so once and for all.</p>
-<p><em>Prefer higher-level routines.</em> <code>mark_task_done</code> is a better public routine than exposing raw storage details to callers.</p>
-<p><em>Test the finished behavior.</em> The tests operate through the public interface, which is exactly how clients will use the program.</p>
-</section>
-<section class="level2" data-number="27.9" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="27.9"> Summary</h2>
+<p>For tasks:</p>
 <ul>
-<li>A complete program should be developed from concepts, not from isolated code fragments</li>
-<li>Small classes with clear responsibilities make the rest of the design easier</li>
-<li>Contracts help turn vague intentions into precise interfaces</li>
-<li>Good public routines hide representation details</li>
-<li>A few focused tests can validate the full flow of a small program</li>
-<li>The same process scales upward: problem, model, contract, implementation, test</li>
+<li><code>when task.await as x then ...</code> fires only when the task is already done</li>
+</ul>
+<p>This last point is important. A task clause in <code>select</code> is a readiness check, not a blocking wait hidden inside the clause. The clause is eligible only when the task has completed.</p>
+<p>That keeps the logic of <code>select</code> consistent: it chooses among ready operations.</p>
+</section>
+<section class="level2" data-number="29.12" id="select-with-timeout">
+<h2 class="anchored" data-anchor-id="select-with-timeout" data-number="29.12"> <code>select</code> with <code>timeout</code></h2>
+<p>A <code>select</code> can also wait up to a bounded interval.</p>
+<pre><code>let ch: Channel[String] := create Channel[String]
+
+select
+  when ch.receive as msg then
+    print(msg)
+  timeout 5 then
+    print("timed out")
+end</code></pre>
+<p>This means:</p>
+<ul>
+<li>if some clause becomes ready before the timeout, run it</li>
+<li>otherwise run the timeout branch</li>
+</ul>
+<p>A timeout branch is different from <code>else</code>.</p>
+<ul>
+<li><code>else</code> means do not wait at all</li>
+<li><code>timeout n</code> means wait up to <code>n</code> milliseconds</li>
+</ul>
+<p>In other words, <code>else</code> is a non-blocking probe and <code>timeout</code> is a bounded wait.</p>
+</section>
+<section class="level2" data-number="29.13" id="a-small-pipeline-example">
+<h2 class="anchored" data-anchor-id="a-small-pipeline-example" data-number="29.13"> A Small Pipeline Example</h2>
+<p>The following example shows tasks and channels working together.</p>
+<pre><code>let input: Channel[Integer] := create Channel[Integer].with_capacity(4)
+let output: Channel[Integer] := create Channel[Integer].with_capacity(4)
+
+let worker: Task := spawn do
+  let v: Integer := input.receive
+  output.send(v * v)
+end
+
+input.send(9)
+print(output.receive)
+worker.await</code></pre>
+<p>Even in this tiny example, the roles are clear:</p>
+<ul>
+<li>the channel defines how values move</li>
+<li>the task defines what work happens concurrently</li>
+<li>the main thread decides when to send, receive, and await completion</li>
+</ul>
+<p>That is the kind of clarity we want in larger programs too.</p>
+<p>For a longer-running pipeline, <code>close</code> is usually part of the design as well. One stage eventually needs to signal that no more values will be sent, so downstream stages know when to stop receiving.</p>
+</section>
+<section class="level2" data-number="29.14" id="sharing-state-directly-the-atomic-types">
+<h2 class="anchored" data-anchor-id="sharing-state-directly-the-atomic-types" data-number="29.14"> Sharing State Directly: The Atomic_* Types</h2>
+<p>We have so far followed the advice: hand a value to another task through a channel rather than share an object between them. But sometimes the thing you want to share genuinely <em>is</em> one small piece of state — a counter, say, or a cached last-computed value. Building a channel-based protocol around a single state could be more machinery than the problem needs.</p>
+<p>Nex provides four small classes for exactly that: <code>Atomic_Integer</code>, <code>Atomic_Integer64</code> (the same 64-bit representation under a second name), <code>Atomic_Boolean</code>, and <code>Atomic_Reference[T]</code>. Each guarantees that every task sees a consistent value, with no channel or task boundary required to read or write it.</p>
+<pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
+hits.increment
+hits.increment
+print(hits.load)                        -- 2</code></pre>
+<p><code>load</code> and <code>store</code> read and replace the value outright. <code>increment</code>, <code>decrement</code>, <code>get_and_add</code>, and <code>add_and_get</code> update it in one step, without the read-modify-write race a plain field would have under concurrent access. <code>compare_and_set(expected, update)</code> replaces the value only if it still matches <code>expected</code>, the building block for lock-free updates that depend on the current value:</p>
+<pre><code>let ready: Atomic_Boolean := create Atomic_Boolean.make(false)
+print(ready.compare_and_set(false, true))   -- true: it was false, now true
+print(ready.compare_and_set(false, true))   -- false: it is already true</code></pre>
+<p>The guarantee holds under real contention, not just in a single-threaded code. Let's look at an example where four tasks, each incrementing the same counter twenty thousand times:</p>
+<pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
+
+function bump_many(c: Atomic_Integer, n: Integer): Task do
+  result := spawn do
+    let i := 0
+    from
+    until
+      i &gt;= n
+    do
+      c.increment
+      i := i + 1
+    end
+  end
+end
+
+let t1: Task := bump_many(hits, 20000)
+let t2: Task := bump_many(hits, 20000)
+let t3: Task := bump_many(hits, 20000)
+let t4: Task := bump_many(hits, 20000)
+
+t1.await
+t2.await
+t3.await
+t4.await
+
+print(hits.load)                        -- 80000, never less</code></pre>
+<p>An ordinary <code>Integer</code> field updated the same way from four tasks would lose updates — two tasks can read the same old value before either writes back — and print something short of <code>80000</code>. <code>Atomic_Integer</code> rules that out.</p>
+<p>Notice what these four classes have in common: each protects exactly <em>one</em> value. When the state you need to protect is compound — a map you read and then write back or a running total that must stay paired with a count — a single <code>Atomic_*</code> is not enough on its own. That is the next section's tool.</p>
+</section>
+<section class="level2" data-number="29.15" id="protecting-a-compound-critical-section-with-mutex">
+<h2 class="anchored" data-anchor-id="protecting-a-compound-critical-section-with-mutex" data-number="29.15"> Protecting a Compound Critical Section with Mutex</h2>
+<p><code>data/Mutex</code> gives one task at a time exclusive access to a wrapped value, for exactly the case the <code>Atomic_*</code> types don't cover: several statements that must run against shared, mutable state as one unit, not just one value read or written in a single step.</p>
+<p>Import it with <code>intern</code>, wrap a value with <code>create Mutex.make(initial)</code>, and reach it only through <code>use</code>:</p>
+<pre><code>intern data/Mutex
+
+let account: Mutex[Array[Integer]] := create Mutex.make([100])
+
+account.use(fn (balance: Array[Integer]) do
+  balance.set(0, balance.get(0) - 30)
+end)
+
+account.use(fn (balance: Array[Integer]) do
+  print(balance.get(0))                 -- 70
+end)</code></pre>
+<p>There is no <code>lock</code> or <code>unlock</code> to call, and no separate <code>get</code> that would let the wrapped value slip out unprotected — the value is reachable only inside the callback passed to <code>use</code>. <code>use</code> acquires the lock, runs the callback, and releases it when the callback returns; if the callback raises instead, the lock is still released and the exception propagates normally. A critical section can never be left locked because an exception skipped past the cleanup step.</p>
+<p>As with <code>Atomic_Integer</code>, the guarantee holds under real contention. Four tasks updating the same shared map, each incrementing a counter inside it twenty thousand times:</p>
+<pre><code>let hits: Mutex[Map[String, Integer]] := create Mutex.make({})
+
+function bump_many(m: Mutex[Map[String, Integer]], key: String, n: Integer): Task do
+  result := spawn do
+    let i := 0
+    from
+    until
+      i &gt;= n
+    do
+      m.use(fn (counts: Map[String, Integer]) do
+        counts.put(key, counts.try_get(key, 0) + 1)
+      end)
+      i := i + 1
+    end
+  end
+end
+
+let t1: Task := bump_many(hits, "clicks", 20000)
+let t2: Task := bump_many(hits, "clicks", 20000)
+let t3: Task := bump_many(hits, "clicks", 20000)
+let t4: Task := bump_many(hits, "clicks", 20000)
+
+t1.await
+t2.await
+t3.await
+t4.await
+
+hits.use(fn (counts: Map[String, Integer]) do
+  print(counts.get("clicks"))            -- 80000, never less
+end)</code></pre>
+<p>One more rule keeps <code>use</code> from becoming a new source of deadlocks: it is not reentrant. Calling <code>use</code> again on the <em>same</em> <code>Mutex</code> from inside its own callback — the same task, still holding the lock — raises rather than silently succeeding or silently hanging:</p>
+<pre><code>let m: Mutex[Integer] := create Mutex.make(0)
+
+do
+  m.use(fn (x: Integer) do
+    m.use(fn (y: Integer) do
+      print("never reached")
+    end)
+  end)
+rescue
+  print(exception)                      -- "Mutex.use: already held by this task"
+end</code></pre>
+<p>What <code>use</code> does <em>not</em> catch is blocking or waiting <em>inside</em> the callback — calling <code>spawn</code>, <code>await</code>, a channel <code>send</code>/<code>receive</code>, <code>select</code>, or <code>use</code> on a <em>different</em> <code>Mutex</code> while this one is held. Avoid that; a program that deadlocks this way looks like an ordinary blocked acquire, not a raised error. Keep a <code>use</code> callback to the plain reads and writes it exists for.</p>
+<p>Let's Put the three tools side by side. Reach for, </p>
+<ul><li> a channel when tasks are handing work to each other;</li>
+<li> an <code>Atomic_*</code> when the shared state is one value;</li>
+<li> a <code>Mutex</code> when it is a compound update against shared, mutable structure.</li></ul>
+<p>All three are built on the same basic principle — the coordination is visible in the source, not hidden inside a shared object's ordinary-looking method calls.</p>
+</section>
+<section class="level2" data-number="29.16" id="designing-with-concurrency-in-mind">
+<h2 class="anchored" data-anchor-id="designing-with-concurrency-in-mind" data-number="29.16"> Designing with Concurrency in Mind</h2>
+<p>A few design habits help immediately.</p>
+<p><em>Prefer message passing to shared mutable state.</em> If two tasks need to coordinate, a channel is usually clearer than a shared object updated from both sides. Reach for <code>Atomic_*</code> or <code>Mutex</code> only when the state really is shared, not as a substitute for a channel you didn't feel like writing.</p>
+<p><em>Keep task boundaries meaningful.</em> Do not spawn tasks for tiny operations that would be simpler inline; concurrency has overhead, so use it where there is real independent work or waiting.</p>
+<p><em>Make waiting points explicit.</em> A call to <code>await</code>, <code>receive</code>, or <code>select</code> is a design decision that says where control may pause.</p>
+<p><em>Use timeouts at boundaries.</em> Background work, I/O-like coordination, and external services are common places where bounded waiting is healthier than waiting forever.</p>
+<p><em>Keep a Mutex's critical section small and plain.</em> A <code>use</code> callback should read and write the wrapped value and nothing else — no <code>spawn</code>, no <code>await</code>, no other blocking call, and no <code>use</code> on another <code>Mutex</code>. That is what keeps it a critical section rather than a new place for a deadlock to hide.</p>
+<p><em>Test concurrency in small pieces.</em> A small producer-consumer example is easier to trust than a large concurrent design written in one pass.</p>
+</section>
+<section class="level2" data-number="29.17" id="target-semantics">
+<h2 class="anchored" data-anchor-id="target-semantics" data-number="29.17"> Runtime Semantics</h2>
+<p>The Nex source syntax describes concurrency at the language level; the runtime implements it on the JVM:</p>
+<ul>
+<li><code>spawn</code> uses an executor-backed task runtime</li>
+<li><code>await</code> can block normally</li>
+<li>channels use blocking coordination underneath</li>
+<li><code>Atomic_*</code> uses the JVM's own lock-free atomic classes; <code>Mutex</code> is a Nex library built on <code>java.util.concurrent.locks.ReentrantLock</code></li>
+</ul>
+<p>What stays stable is the source-level meaning of the operations. Timing, scheduling, fairness, and timeout precision remain runtime concerns rather than guarantees of the language surface.</p>
+</section>
+<section class="level2" data-number="29.18" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="29.18"> Summary</h2>
+<ul>
+<li><code>spawn</code> starts explicit concurrent work and returns a <code>Task</code></li>
+<li><code>await</code> is the explicit point where a caller synchronises with a task</li>
+<li><code>Channel[T]</code> moves typed values between concurrent activities</li>
+<li>unbuffered channels rendezvous; buffered channels decouple producers and consumers</li>
+<li><code>try_send</code> and <code>try_receive</code> support non-blocking coordination</li>
+<li><code>await_any</code> and <code>await_all</code> coordinate groups of tasks</li>
+<li><code>select</code> chooses among ready task and channel operations</li>
+<li><code>else</code> means no waiting; <code>timeout</code> means bounded waiting</li>
+<li><code>Atomic_Integer</code>, <code>Atomic_Integer64</code>, <code>Atomic_Boolean</code>, and <code>Atomic_Reference[T]</code> share one value safely across tasks without a channel</li>
+<li><code>Mutex[T]</code> (<code>data/Mutex</code>) protects a compound critical section against shared, mutable state; the wrapped value is reachable only inside a <code>use</code> callback, and the lock is always released, even on an exception</li>
 </ul>
 </section>
-<section class="level2" data-number="27.10" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="27.10"> Exercises</h2>
-<p><strong>1.</strong> Extend <code>Todo_Item</code> with a <code>description: ?String</code> field and a routine for setting it. Decide whether an invariant is needed.</p>
-<p><strong>2.</strong> Should <code>Todo_Item.make(t: String)</code> also have a precondition <code>t.length &gt; 0</code>, or is the invariant alone enough? Explain the difference between a constructor precondition and a class invariant.</p>
-<p><strong>3.</strong> Add a routine <code>remaining_count: Integer</code> to <code>Task_List</code> and write a postcondition for it.</p>
-<p><strong>4.</strong> What should <code>all_done</code> return on an empty <code>Task_List</code>? Keep the current definition or change it, and justify the choice.</p>
-<p><strong>5.</strong> Add tests for contract failures: one for <code>add_task("")</code> and one for <code>mark_task_done</code> with an invalid index.</p>
-<p><strong>6.</strong> Prevent a task from being marked done twice by strengthening the interface. Decide whether this should be a precondition or simply an idempotent operation.</p>
-<p><strong>7.</strong> Refactor <code>Task_List</code> so that clients do not depend directly on the <code>tasks</code> representation, if that is practical with the language features introduced so far.</p>
-<p><strong>8.</strong> Split the chapter’s program into two or three files using <code>intern</code>.</p>
-<p><strong>9.*</strong> Write complete miniature program of your own, such as a library checkout tracker or a grade book, and follow the same process from problem statement through tests.</p>
+<section class="level2" data-number="29.19" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="29.19"> Exercises</h2>
+<p><strong>1.</strong> Write a task that computes the sum of the integers from <code>1</code> to <code>100</code>, returns the answer through <code>result</code>, and print it using <code>await</code>.</p>
+<p><strong>2.</strong> Create a buffered <code>Channel[String]</code> with capacity <code>3</code>. Send three words into it, print <code>size</code>, then receive and print the words in order.</p>
+<p><strong>3.</strong> Write two tasks that each send a message on a channel. Use <code>select</code> to receive whichever message becomes ready first.</p>
+<p><strong>4.</strong> Write a small example that uses <code>await_all</code> to collect three independent computations.</p>
+<p><strong>5.</strong> Extend the pipeline example so that it processes several values rather than one. Decide where <code>close</code> should happen and how the receiving side knows when to stop.</p>
+<p><strong>6.*</strong> Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.</p>
+<p><strong>7.</strong> Spawn four tasks that each call <code>increment</code> on the same <code>Atomic_Integer</code> ten thousand times. Confirm the final value is always exactly forty thousand, however many times you run it.</p>
+<p><strong>8.</strong> Wrap a <code>Map[String, Integer]</code> in a <code>Mutex</code> and spawn several tasks that each add to the count under a few different keys. Print the final map once every task has been awaited.</p>
+<p><strong>9.*</strong> Write a <code>use</code> callback that calls <code>use</code> again on the same <code>Mutex</code>, and confirm it raises rather than hanging. Then explain, in your own words, why the language raises here instead of quietly allowing the nested call to succeed.</p>
 </section>
 
   </div>
   <nav class="chapter-nav" aria-label="Chapter navigation">
     <div class="prev"><a href="chapter_25.html">← Chapter 25</a></div>
-    <div class="next"><a href="chapter_27.html">Chapter 27 →<span class="next-title">Common Patterns</span></a></div>
+    <div class="next"><a href="chapter_27.html">Chapter 27 →<span class="next-title">A Spreadsheet: Formulas</span></a></div>
   </nav>
 </div>
 

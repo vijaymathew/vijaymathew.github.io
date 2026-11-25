@@ -149,42 +149,102 @@ end</code></pre>
 <p>This is the real meaning of abstraction: not merely “hide the fields,” but “publish reliable behavior.”</p>
 <p>Without contracts, encapsulation is weaker. The implementation is hidden, but the behavior is still vague. With contracts, the interface becomes a real boundary.</p>
 </section>
-<section class="level2" data-number="21.8" id="a-worked-example-designing-a-small-set-class">
-<h2 class="anchored" data-anchor-id="a-worked-example-designing-a-small-set-class" data-number="21.8"> A Worked Example: Designing a Small Set Class</h2>
-<p>Suppose we want a set of strings with no duplicates. Begin with its central contract idea:</p>
-<ul>
-<li><code>add(word)</code> should ensure the word is present afterward</li>
-<li>adding the same word twice should not create duplicates</li>
-</ul>
-<p>One possible design:</p>
-<pre><code>class Word_Set
+<section class="level2" data-number="21.8" id="a-worked-example-designing-a-room-calendar">
+<h2 class="anchored" data-anchor-id="a-worked-example-designing-a-room-calendar" data-number="21.8"> A Worked Example: Designing a Room Calendar</h2>
+<p>A meeting room is booked by the hour: a booking from 9 to 11 holds the room for two hours, and hours run from 0 to 24. The calendar has one rule that matters more than any other: the room is never booked twice at the same time.</p>
+<p><strong>Step 1: write the contract of <code>book</code>.</strong> Booking needs a slot that is free, and afterwards that slot must be taken. Try to write those two sentences as assertions and you get stuck: nothing yet can say whether a slot is free. The contract asks for a query before any body exists, so we add one, and give it a contract of its own:</p>
+<pre><code>is_free(start, finish: Integer): Boolean
+require
+  ordered: start &lt; finish
+...
+
+book(start, finish: Integer)
+require
+  ordered: start &lt; finish
+  free: is_free(start, finish)
+...
+ensure
+  taken: not is_free(start, finish)
+  one_more: count = old count + 1
+end</code></pre>
+<p>This is how contracts shape a class&rsquo;s interface. <code>is_free</code> was not in the original idea of a calendar; the contract of <code>book</code> made it necessary, and every client will want it too, to check a slot before booking it. The precondition <code>free</code> also settles who deals with a clash. Booking a taken slot is the caller&rsquo;s mistake, so a caller asks <code>is_free</code> first. A <code>try_book</code> that returned <code>false</code> on a clash would be the other design, the one to choose when a clash is an ordinary outcome rather than a bug.</p>
+<p><strong>Step 2: decide what &ldquo;free&rdquo; means.</strong> Writing <code>is_free</code> raises a question the first sketch never did. Does a meeting from 9 to 10 clash with one from 10 to 11? If it did, the room would sit empty for no reason, so a booking holds the room from its start up to, but not including, its finish. Two bookings overlap when each starts before the other finishes. That rule belongs in one place, the class that represents a booking:</p>
+<pre><code>class Booking
 create
-  make do
-    items := []
+  make(s, f: Integer)
+  require
+    ordered: s &lt; f
+  do
+    start := s
+    finish := f
   end
 feature
-  items: Array[String]
-  has(word: String): Boolean do
-    result := items.contains(word)
-  end
-  add(word: String)
-  require
-    not_empty: word.length &gt; 0
-  do
-    if not has(word) then
-      items.add(word)
-    end
-  ensure
-    word_present: has(word)
-  end
-  size: Integer do
-    result := items.length
+  start: Integer
+  finish: Integer
+  overlaps(s, f: Integer): Boolean do
+    result := start &lt; f and s &lt; finish
   end
 invariant
-  storage_exists: items /= nil
+  ordered: start &lt; finish
 end</code></pre>
-<p>The postcondition on <code>add</code> is the important part. It says what the routine must achieve, not how. The body then chooses one reasonable implementation.</p>
-<p>If later we replace <code>Array[String]</code> with a map or a tree, the contract can remain the same. That is contract-first design doing its proper job.</p>
+<p><strong>Step 3: state the invariant.</strong> &ldquo;No two bookings overlap&rdquo; is a property of the whole calendar, so it is a class invariant. To write it, count the bookings that overlap a slot with a query <code>clashes</code>. Every booking overlaps its own slot, so in a valid calendar each booking clashes exactly once: with itself. The same query defines <code>is_free</code>: a slot is free when nothing clashes with it. One definition of overlap now serves the precondition, the postcondition and the invariant.</p>
+<p><strong>Step 4: write the bodies.</strong> With the contracts in place, they are short:</p>
+<pre><code>class Room_Calendar
+create
+  make do
+    bookings := []
+  end
+feature
+  bookings: Array[Booking]
+  count: Integer do
+    result := bookings.length
+  end
+  clashes(start, finish: Integer): Integer
+  require
+    ordered: start &lt; finish
+  do
+    result := bookings.count(fn (b: Booking): Boolean do
+      result := b.overlaps(start, finish)
+    end)
+  end
+  is_free(start, finish: Integer): Boolean
+  require
+    ordered: start &lt; finish
+  do
+    result := clashes(start, finish) = 0
+  end
+  book(start, finish: Integer)
+  require
+    ordered: start &lt; finish
+    free: is_free(start, finish)
+  do
+    bookings.add(create Booking.make(start, finish))
+  ensure
+    taken: not is_free(start, finish)
+    one_more: count = old count + 1
+  end
+invariant
+  no_overlaps: bookings.all(fn (b: Booking): Boolean do
+    result := clashes(b.start, b.finish) = 1
+  end)
+end</code></pre>
+<p>A booking that ends at 11 leaves the room free from 11, and a slot that overlaps an existing booking is refused before anything changes:</p>
+<pre><code>nex&gt; let cal := create Room_Calendar.make
+nex&gt; cal.book(9, 11)
+nex&gt; cal.is_free(10, 12)
+false
+nex&gt; cal.is_free(11, 12)
+true
+nex&gt; cal.book(11, 12)
+nex&gt; cal.count
+2
+nex&gt; cal.book(10, 12)
+Error: Precondition violation: free</code></pre>
+<p>The invariant is not decoration either. <code>bookings</code> is a field that any client can read, and the array it returns can be changed directly, past <code>book</code> and its precondition. The next call on the calendar finds the overlap:</p>
+<pre><code>nex&gt; cal.bookings.add(create Booking.make(10, 12))
+nex&gt; cal.count
+Error: Class invariant violation: no_overlaps</code></pre>
+<p>Nothing in the contracts says how the bookings are stored. If the calendar later keeps them sorted by start time, so that <code>clashes</code> need not look at every booking, the contracts stay exactly as they are, and they check that the faster version still never double-books. That is contract-first design doing its proper job.</p>
 </section>
 <section class="level2" data-number="21.9" id="inheritance-and-contracts">
 <h2 class="anchored" data-anchor-id="inheritance-and-contracts" data-number="21.9"> Inheritance and Contracts</h2>
@@ -325,8 +385,9 @@ end</code></pre>
 <p><strong>1.</strong> Design the contract for a routine <code>append_line(path: String, text: String)</code> before writing its body. What belongs in the precondition, and what belongs in error handling instead?</p>
 <p><strong>2.</strong> Write a contract-first design for <code>front(queue: Queue[String]): String</code>. Include any necessary preconditions and at least one postcondition.</p>
 <p><strong>3.</strong> Consider a class <code>Timer</code> with methods <code>start</code>, <code>stop</code>, and <code>elapsed</code>. Write the contracts you would want before implementing any of the methods.</p>
-<p><strong>4.</strong> For the <code>Word_Set</code> class in <a href="chapter_20.html#a-worked-example-designing-a-small-set-class" title="Section 20.8: A Worked Example: Designing a Small Set Class">Section 20.8</a>, strengthen the specification of <code>add</code> by adding a postcondition about <code>size</code>. Explain why the postcondition must account for both the “already present” and “new word” cases.</p>
+<p><strong>4.</strong> Add <code>cancel(start, finish)</code> to the <code>Room_Calendar</code> of <a href="chapter_20.html#a-worked-example-designing-a-room-calendar" title="Section 20.8: A Worked Example: Designing a Room Calendar">Section 20.8</a>, writing its contract first. Its precondition needs a booking with exactly that start and finish: what query does that ask for? Its postconditions should include <code>is_free(start, finish)</code> and <code>count = old count - 1</code>. Explain why <code>is_free</code> alone would not be enough, by writing a wrong body that satisfies it.</p>
 <p><strong>5.*</strong> Choose a routine from Chapters <a href="chapter_1.html" title="Chapter 1: A Quick Tour of Nex">1</a> through <a href="chapter_15.html" title="Chapter 15: Generic Classes">15</a> that you wrote or imagined earlier without contracts. Redesign it contract-first. Show the old idea, the new contract, and one thing the contract revealed that the earlier design had left vague.</p>
+<p><strong>6.</strong> The expense tracker of <a href="chapter_11.html#budgets" title="Section 11.12: Budgets">Section 11.12</a> keeps its budgets in a map and checks them with <code>budget_status</code>, which divides by the limit. Design a class <code>Category_Budget</code>, contract-first, with <code>make(name: String, limit: Integer)</code>, <code>record(cents: Integer)</code>, <code>remaining: Integer</code> and <code>is_over: Boolean</code>, all amounts in cents as in the <code>Expense</code> class of <a href="chapter_13.html#data-and-behaviour-together" title="Section 13.3: Data and Behaviour Together">Section 13.3</a>. Write the condition on <code>limit</code> that Chapter 11 left in prose, as a precondition of <code>make</code> and as an invariant. Then decide: should <code>record</code> require <code>cents &lt;= remaining</code>? The money has already been spent when it is recorded. If being over budget is not a precondition, where does it belong?</p>
 </section>
 
   </div>

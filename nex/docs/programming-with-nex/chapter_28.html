@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Concurrency with Tasks and Channels — Programming with Nex</title>
+  <title>A Spreadsheet: The Sheet — Programming with Nex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
@@ -26,434 +26,341 @@
 <div class="page">
   <div class="opener">
     <span class="opener-label">Chapter 28</span>
-    <h1 class="opener-title">Concurrency with Tasks and Channels</h1>
+    <h1 class="opener-title">A Spreadsheet: The Sheet</h1>
   </div>
   <div class="prose">
-<p>So far we have treated a Nex program as one thread of control: a function calls another, a method updates an object, and the next statement waits for the previous one to finish. Many real systems do not have that luxury. A server may need to wait for incoming requests while also writing logs or a user interface may need background work without freezing the screen.</p>
-<p>Nex approaches concurrency with a small set of explicit tools:</p>
-<ul>
-<li><code>spawn</code> starts a task</li>
-<li><code>Task</code> represents work in progress</li>
-<li><code>Channel[T]</code> moves values between tasks</li>
-<li><code>select</code> waits for whichever communication or task completion becomes ready first</li>
-</ul>
-<p>The design goal is clarity. Concurrency is difficult enough already. The language should help you say what is running concurrently and where coordination happens.</p>
-<section class="level2" data-number="29.1" id="why-tasks-instead-of-shared-objects">
-<h2 class="anchored" data-anchor-id="why-tasks-instead-of-shared-objects" data-number="29.1"> Why Tasks Instead of Shared Objects</h2>
-<p>There are two broad ways to structure concurrent programs.</p>
-<p>One style shares mutable objects and synchronises access with locks, monitors, or similar mechanisms. That can work, but it pushes a great deal of reasoning burden onto the programmer. Every shared variable becomes a potential source of races or deadlocks.</p>
-<p>Nex takes a different starting point:</p>
-<ul>
-<li>start work in explicit tasks</li>
-<li>communicate through channels</li>
-<li>wait at explicit coordination points</li>
-</ul>
-<p>This does not remove all concurrency problems, but it keeps the structure visible. When you read the code, you can see where work is launched and where data crosses from one task to another.</p>
-</section>
-<section class="level2" data-number="29.2" id="starting-a-task-with-spawn">
-<h2 class="anchored" data-anchor-id="starting-a-task-with-spawn" data-number="29.2"> Starting a Task with <code>spawn</code></h2>
-<p><code>spawn do ... end</code> starts a new task and returns a <code>Task</code> value.</p>
-<pre><code>let t: Task[Integer] := spawn do
-  result := 40 + 2
-end
+<p><a href="chapter_27.html" title="Chapter 27: A Spreadsheet: Formulas">Chapter 27</a> built a formula language that can compute a value from any <code>Cell_Source</code>. This chapter builds the sheet: the object that holds every cell&rsquo;s formula and value, keeps the values current when a formula changes, and refuses any formula that would make a cell depend on itself.</p>
+<p>The sheet is where the program&rsquo;s most important promises live, so it is also where contracts do their most important work. Two of them turn out to shape the class&rsquo;s whole design.</p>
+<section class="level2" data-number="28.1" id="cells">
+<h2 class="anchored" data-anchor-id="cells" data-number="28.1"> Cells</h2>
+<p>A cell has a name, a formula, and a value. The value could always be recomputed from the formula, but recomputing every cell every time one is displayed would be wasteful, so each cell keeps its last computed value. That stored value is a cache, and like every cache, it is only useful while it agrees with what it caches:</p>
+<pre><code>class Cell
+create
+  make(n: String, f: Formula) do
+    name := n
+    formula := f
+    value := create Num.make(0.0)
+  end
+feature
+  name: String
+  formula: Formula
+  value: Value
 
-print(t.await)</code></pre>
-<p>The body of the task runs concurrently with the caller. If the body assigns to <code>result</code>, the task has a result type such as <code>Task[Integer]</code>. If the body does not assign to <code>result</code>, the type is just <code>Task</code>.</p>
-<pre><code>let t: Task := spawn do
-  print("background work")
-end
+  reads: Array[String] do
+    result := references(formula.expr)
+  end
 
-t.await</code></pre>
-<p>A task is a value. You can store it in a variable, return it from a routine, place it in an array, or pass it to another routine. This enables concurrency to compose.</p>
-</section>
-<section class="level2" data-number="29.3" id="what-await-means">
-<h2 class="anchored" data-anchor-id="what-await-means" data-number="29.3"> What <code>await</code> Means</h2>
-<p><code>await</code> is the site where the caller synchronises with a task.</p>
-<pre><code>let t: Task[String] := spawn do
-  result := "report ready"
-end
-
-print(t.await)</code></pre>
-<p>A few points are important here. First, <code>await</code> blocks until the task finishes, unless you use the timeout form that we will see later.</p>
-<p>Second, if the task failed by raising an exception, <code>await</code> re-raises that failure. The error is not lost just because the work happened concurrently.</p>
-<p>Third, <code>await</code> is an explicit boundary. Before it, the task may still be running. After it, the task has either completed successfully or failed.</p>
-<p>That explicit boundary is one of the central design ideas in Nex concurrency. Synchronisation should be visible in the source code.</p>
-</section>
-<section class="level2" data-number="29.4" id="checking-task-state">
-<h2 class="anchored" data-anchor-id="checking-task-state" data-number="29.4"> Checking Task State</h2>
-<p>Tasks also support status queries.</p>
-<pre><code>let t: Task[Integer] := spawn do
-  result := 10 * 10
-end
-
-print(t.is_done)
-print(t.await)
-print(t.is_done)</code></pre>
-<p>In real code, <code>is_done</code> is most useful when combined with <code>select</code> (which we will discuss in detail soon), or when you need a non-blocking readiness test before choosing the next step.</p>
-<p>Tasks can also be cancelled:</p>
-<pre><code>let t: Task := spawn do
-  sleep(10000)
-end
-
-print(t.cancel)
-print(t.is_cancelled)</code></pre>
-<p>Cancellation is a request that tells the runtime that the task’s result is no longer wanted. The exact behavior depends on the target runtime, which we will discuss later in this chapter.</p>
-<p>If a cancelled task is later awaited, <code>await</code> raises a task-cancelled failure rather than returning a normal result.</p>
-</section>
-<section class="level2" data-number="29.5" id="waiting-with-a-timeout">
-<h2 class="anchored" data-anchor-id="waiting-with-a-timeout" data-number="29.5"> Waiting with a Timeout</h2>
-<p>Sometimes indefinite waiting is not acceptable. A program may want to give up after a bounded interval.</p>
-<p>Tasks support a timed form of <code>await</code>:</p>
-<pre><code>let t: Task[Integer] := spawn do
-  sleep(5000)
-  result := 7
-end
-
-print(t.await(100))
-print(t.await(5000))</code></pre>
-<p>If the task completes within the timeout, <code>await(ms)</code> returns the task result. If it does not, it returns <code>nil</code>.</p>
-<p>This design keeps the meaning simple:</p>
-<ul>
-<li><code>await()</code> means wait as long as needed</li>
-<li><code>await(ms)</code> means wait up to <code>ms</code> milliseconds</li>
-</ul>
-<p>The timeout form is especially useful at system boundaries, where a stalled background action should not block the entire program indefinitely.</p>
-</section>
-<section class="level2" data-number="29.6" id="channels-communication-between-tasks">
-<h2 class="anchored" data-anchor-id="channels-communication-between-tasks" data-number="29.6"> Channels: Communication Between Tasks</h2>
-<p>Launching tasks is only half of the problem; the other half is communication, and Nex uses typed channels for that purpose.</p>
-<pre><code>let ch: Channel[Integer] := create Channel[Integer]
-
-let producer: Task := spawn do
-  ch.send(42)
-end
-
-print(ch.receive)
-producer.await</code></pre>
-<p>A <code>Channel[T]</code> carries values of type <code>T</code>.</p>
-<p>In the example above:</p>
-<ul>
-<li>the producer task sends an integer</li>
-<li>the main thread receives it</li>
-<li>both sides agree on the element type because the channel itself is typed</li>
-</ul>
-<p>That type information is valuable because concurrency already adds one level of indirection. The language should not also force the programmer to guess what kind of value may arrive.</p>
-</section>
-<section class="level2" data-number="29.7" id="unbuffered-and-buffered-channels">
-<h2 class="anchored" data-anchor-id="unbuffered-and-buffered-channels" data-number="29.7"> Unbuffered and Buffered Channels</h2>
-<p>The default constructor creates an unbuffered channel:</p>
-<pre><code>let ch: Channel[Integer] := create Channel[Integer]</code></pre>
-<p>An unbuffered channel is a rendezvous point:</p>
-<ul>
-<li><code>send</code> waits until some receiver is ready</li>
-<li><code>receive</code> waits until some sender is ready</li>
-</ul>
-<p>This is a very strong coordination mechanism. The send and the receive meet at one point in time. But sometimes that is too strict. One side may need to run ahead a little. For that, Nex supports buffered channels:</p>
-<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
-ch.send(10)
-ch.send(20)
-print(ch.size)
-print(ch.capacity)</code></pre>
-<p>For a buffered channel:</p>
-<ul>
-<li><code>send</code> succeeds immediately when the buffer has space</li>
-<li><code>send</code> waits only when the buffer is full</li>
-<li><code>receive</code> succeeds immediately when a buffered value exists</li>
-<li><code>receive</code> waits only when the buffer is empty</li>
-</ul>
-<p>This gives you a controlled queue between tasks.</p>
-</section>
-<section class="level2" data-number="29.8" id="non-blocking-channel-operations">
-<h2 class="anchored" data-anchor-id="non-blocking-channel-operations" data-number="29.8"> Non-Blocking Channel Operations</h2>
-<p>Blocking is sometimes right and sometimes not. When you need to probe a channel without waiting, Nex provides <code>try_send</code> and <code>try_receive</code>.</p>
-<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(1)
-print(ch.try_send(5))
-print(ch.try_send(6))
-print(ch.try_receive)
-print(ch.try_receive)</code></pre>
-<p>The meaning is:</p>
-<ul>
-<li><code>try_send(v)</code> returns <code>true</code> if the value was sent immediately, otherwise <code>false</code></li>
-<li><code>try_receive</code> returns a value if one is immediately available, otherwise <code>nil</code></li>
-</ul>
-<p>These operations are the building blocks for more flexible coordination logic, including <code>select</code>.</p>
-</section>
-<section class="level2" data-number="29.9" id="closing-a-channel">
-<h2 class="anchored" data-anchor-id="closing-a-channel" data-number="29.9"> Closing a Channel</h2>
-<p>Channels can be closed.</p>
-<pre><code>let ch: Channel[Integer] := create Channel[Integer].with_capacity(2)
-ch.send(1)
-ch.close
-print(ch.is_closed)
-print(ch.receive)</code></pre>
-<p>After <code>close</code>:</p>
-<ul>
-<li>future sends are rejected</li>
-<li>buffered values, if any, can still be received</li>
-<li>once a closed channel is drained, later <code>receive</code> attempts fail</li>
-</ul>
-<p>Streams of values are rarely infinite in practice. A reader often needs a definite signal that no more messages are coming. <code>ch.close</code> sends that signal.</p>
-</section>
-<section class="level2" data-number="29.10" id="coordinating-several-tasks-with-await_any-and-await_all">
-<h2 class="anchored" data-anchor-id="coordinating-several-tasks-with-await_any-and-await_all" data-number="29.10"> Coordinating Several Tasks with <code>await_any</code> and <code>await_all</code></h2>
-<p>A single task is useful, but real programs often launch groups of related tasks.</p>
-<p><code>await_any</code> waits for the first task in a group to complete:</p>
-<pre><code>let slow: Task[Integer] := spawn do
-  sleep(20000)
-  result := 10
-end
-
-let fast: Task[Integer] := spawn do
-  result := 20
-end
-
-print(await_any([slow, fast]))</code></pre>
-<p><code>await_all</code> waits for every task and returns their results in input order:</p>
-<pre><code>let a: Task[Integer] := spawn do
-  result := 1
-end
-
-let b: Task[Integer] := spawn do
-  result := 2
-end
-
-let results: Array[Integer] := await_all([a, b])
-print(results.get(0))
-print(results.get(1))</code></pre>
-<p>These operations keep the coordination logic explicit without forcing the programmer to hand-write loops over task arrays every time.</p>
-</section>
-<section class="level2" data-number="29.11" id="select-waiting-for-whatever-becomes-ready">
-<h2 class="anchored" data-anchor-id="select-waiting-for-whatever-becomes-ready" data-number="29.11"> <code>select</code>: Waiting for Whatever Becomes Ready</h2>
-<p>When several channels or tasks may become ready, the right tool is <code>select</code>.</p>
-<pre><code>let ch: Channel[String] := create Channel[String].with_capacity(1)
-ch.send("done")
-
-select
-  when ch.receive as msg then
-    print(msg)
-  else
-    print("nothing ready")
+  set_value(v: Value) do
+    value := v
+  end
+invariant
+  valid_name: is_cell_name(name)
 end</code></pre>
-<p>A <code>select</code> statement probes its clauses in order and chooses one that is ready. If several clauses are ready at the same time, the earlier clause wins, so clause order expresses priority, not merely layout.</p>
-<p>For channels:</p>
-<ul>
-<li><code>when ch.receive as x then ...</code> fires when a value can be received immediately</li>
-<li><code>when ch.send(v) then ...</code> fires when the send can proceed immediately</li>
-</ul>
-<p>For tasks:</p>
-<ul>
-<li><code>when task.await as x then ...</code> fires only when the task is already done</li>
-</ul>
-<p>This last point is important. A task clause in <code>select</code> is a readiness check, not a blocking wait hidden inside the clause. The clause is eligible only when the task has completed.</p>
-<p>That keeps the logic of <code>select</code> consistent: it chooses among ready operations.</p>
+<p>A new cell starts at zero; the sheet will compute its real value as soon as the cell is stored. <code>reads</code> lists the cells its formula refers to, using <code>references</code> from <a href="chapter_27.html#evaluating-against-an-abstraction" title="Section 27.7: Evaluating Against an Abstraction">Section 27.7</a>.</p>
 </section>
-<section class="level2" data-number="29.12" id="select-with-timeout">
-<h2 class="anchored" data-anchor-id="select-with-timeout" data-number="29.12"> <code>select</code> with <code>timeout</code></h2>
-<p>A <code>select</code> can also wait up to a bounded interval.</p>
-<pre><code>let ch: Channel[String] := create Channel[String]
-
-select
-  when ch.receive as msg then
-    print(msg)
-  timeout 5 then
-    print("timed out")
+<section class="level2" data-number="28.2" id="the-sheets-contract">
+<h2 class="anchored" data-anchor-id="the-sheets-contract" data-number="28.2"> The Sheet&rsquo;s Contract</h2>
+<p>Before writing any of the sheet, it pays to do what <a href="chapter_20.html" title="Chapter 20: Contracts as Design">Chapter 20</a> recommended: state what must be true, and let that shape the code. Two sentences describe a sheet that works:</p>
+<ul>
+<li>no cell depends on itself, directly or through other cells</li>
+<li>every cell holds the value of its formula</li>
+</ul>
+<p>Neither is a property of one routine. Both must hold whenever anyone looks at the sheet, which makes them class invariants (<a href="chapter_18.html" title="Chapter 18: Invariants">Chapter 18</a>):</p>
+<pre><code>invariant
+  acyclic: is_acyclic
+  consistent: is_up_to_date
 end</code></pre>
-<p>This means:</p>
-<ul>
-<li>if some clause becomes ready before the timeout, run it</li>
-<li>otherwise run the timeout branch</li>
-</ul>
-<p>A timeout branch is different from <code>else</code>.</p>
-<ul>
-<li><code>else</code> means do not wait at all</li>
-<li><code>timeout n</code> means wait up to <code>n</code> milliseconds</li>
-</ul>
-<p>In other words, <code>else</code> is a non-blocking probe and <code>timeout</code> is a bounded wait.</p>
+<p>Changing a cell is the operation that could break them, so its contract follows from them. Storing a formula that reads its own cell, or one that depends on it, would break <code>acyclic</code> in a way no recalculation could repair. So that is a precondition, and the caller must check it first, just as callers of the room calendar in <a href="chapter_20.html#a-worked-example-designing-a-room-calendar" title="Section 20.8: A Worked Example: Designing a Room Calendar">Section 20.8</a> asked <code>is_free</code> before booking. <code>consistent</code>, on the other hand, is the sheet&rsquo;s own job: after a change, it must recalculate whatever the change affects.</p>
+<pre><code>  set(name: String, f: Formula)
+  require
+    valid_name: is_cell_name(name)
+    no_cycle: not would_cycle(name, f)
+  do
+    cells.put(name, create Cell.make(name, f))
+    recalculate
+  ensure
+    stored: text_of(name) = f.text
+  end</code></pre>
+<p>Like the calendar&rsquo;s contract, this one names queries that do not exist yet: <code>would_cycle</code>, <code>is_acyclic</code>, <code>is_up_to_date</code> and <code>text_of</code>. Writing them is most of the rest of the chapter.</p>
 </section>
-<section class="level2" data-number="29.13" id="a-small-pipeline-example">
-<h2 class="anchored" data-anchor-id="a-small-pipeline-example" data-number="29.13"> A Small Pipeline Example</h2>
-<p>The following example shows tasks and channels working together.</p>
-<pre><code>let input: Channel[Integer] := create Channel[Integer].with_capacity(4)
-let output: Channel[Integer] := create Channel[Integer].with_capacity(4)
+<section class="level2" data-number="28.3" id="the-sheets-state">
+<h2 class="anchored" data-anchor-id="the-sheets-state" data-number="28.3"> The Sheet&rsquo;s State</h2>
+<p>The sheet keeps its cells in a map from name to cell. An empty cell is simply absent from the map, and reads as zero:</p>
+<pre><code>class Sheet
+create
+  make do
+    cells := {}
+    values := create Cell_Values.make(cells)
+  end
+feature
+  cells: Map[String, Cell]
+  values: Cell_Values
 
-let worker: Task := spawn do
-  let v: Integer := input.receive
-  output.send(v * v)
-end
+  count: Integer do
+    result := cells.size
+  end
 
-input.send(9)
-print(output.receive)
-worker.await</code></pre>
-<p>Even in this tiny example, the roles are clear:</p>
-<ul>
-<li>the channel defines how values move</li>
-<li>the task defines what work happens concurrently</li>
-<li>the main thread decides when to send, receive, and await completion</li>
-</ul>
-<p>That is the kind of clarity we want in larger programs too.</p>
-<p>For a longer-running pipeline, <code>close</code> is usually part of the design as well. One stage eventually needs to signal that no more values will be sent, so downstream stages know when to stop receiving.</p>
-</section>
-<section class="level2" data-number="29.14" id="sharing-state-directly-the-atomic-types">
-<h2 class="anchored" data-anchor-id="sharing-state-directly-the-atomic-types" data-number="29.14"> Sharing State Directly: The Atomic_* Types</h2>
-<p>We have so far followed the advice: hand a value to another task through a channel rather than share an object between them. But sometimes the thing you want to share genuinely <em>is</em> one small piece of state — a counter, say, or a cached last-computed value. Building a channel-based protocol around a single state could be more machinery than the problem needs.</p>
-<p>Nex provides four small classes for exactly that: <code>Atomic_Integer</code>, <code>Atomic_Integer64</code> (the same 64-bit representation under a second name), <code>Atomic_Boolean</code>, and <code>Atomic_Reference[T]</code>. Each guarantees that every task sees a consistent value, with no channel or task boundary required to read or write it.</p>
-<pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
-hits.increment
-hits.increment
-print(hits.load)                        -- 2</code></pre>
-<p><code>load</code> and <code>store</code> read and replace the value outright. <code>increment</code>, <code>decrement</code>, <code>get_and_add</code>, and <code>add_and_get</code> update it in one step, without the read-modify-write race a plain field would have under concurrent access. <code>compare_and_set(expected, update)</code> replaces the value only if it still matches <code>expected</code>, the building block for lock-free updates that depend on the current value:</p>
-<pre><code>let ready: Atomic_Boolean := create Atomic_Boolean.make(false)
-print(ready.compare_and_set(false, true))   -- true: it was false, now true
-print(ready.compare_and_set(false, true))   -- false: it is already true</code></pre>
-<p>The guarantee holds under real contention, not just in a single-threaded code. Let's look at an example where four tasks, each incrementing the same counter twenty thousand times:</p>
-<pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
+  has(name: String): Boolean do
+    result := cells.contains_key(name)
+  end
 
-function bump_many(c: Atomic_Integer, n: Integer): Task do
-  result := spawn do
-    let i := 0
-    from
-    until
-      i &gt;= n
-    do
-      c.increment
-      i := i + 1
+  value_of(name: String): Value
+  require
+    valid_name: is_cell_name(name)
+  do
+    result := values.value_of(name)
+  end
+
+  text_of(name: String): String
+  require
+    valid_name: is_cell_name(name)
+  do
+    result := ""
+    if has(name) then
+      result := cells.get(name).formula.text
+    end
+  end</code></pre>
+<p>There is one surprise here. Formulas do not read their values from the sheet itself, but from <code>values</code>, a separate object that shares the sheet&rsquo;s map and offers nothing but <code>value_of</code>:</p>
+<pre><code>-- What formulas see of a sheet: the values of its cells, and nothing else.
+class Cell_Values inherit Cell_Source
+create
+  make(c: Map[String, Cell]) do
+    cells := c
+  end
+feature
+  cells: Map[String, Cell]
+
+  value_of(name: String): Value do
+    if cells.contains_key(name) then
+      result := cells.get(name).value
+    else
+      result := create Num.make(0.0)
     end
   end
-end
-
-let t1: Task := bump_many(hits, 20000)
-let t2: Task := bump_many(hits, 20000)
-let t3: Task := bump_many(hits, 20000)
-let t4: Task := bump_many(hits, 20000)
-
-t1.await
-t2.await
-t3.await
-t4.await
-
-print(hits.load)                        -- 80000, never less</code></pre>
-<p>An ordinary <code>Integer</code> field updated the same way from four tasks would lose updates — two tasks can read the same old value before either writes back — and print something short of <code>80000</code>. <code>Atomic_Integer</code> rules that out.</p>
-<p>Notice what these four classes have in common: each protects exactly <em>one</em> value. When the state you need to protect is compound — a map you read and then write back or a running total that must stay paired with a count — a single <code>Atomic_*</code> is not enough on its own. That is the next section's tool.</p>
+end</code></pre>
+<p>The sheet&rsquo;s own <code>value_of</code> just asks this view. Why the sheet does not simply implement <code>Cell_Source</code> itself is the subject of <a href="#why-the-sheet-is-not-a-cell-source">Section 28.7</a>; for now, it is enough that formulas see the values and nothing else.</p>
 </section>
-<section class="level2" data-number="29.15" id="protecting-a-compound-critical-section-with-mutex">
-<h2 class="anchored" data-anchor-id="protecting-a-compound-critical-section-with-mutex" data-number="29.15"> Protecting a Compound Critical Section with Mutex</h2>
-<p><code>data/Mutex</code> gives one task at a time exclusive access to a wrapped value, for exactly the case the <code>Atomic_*</code> types don't cover: several statements that must run against shared, mutable state as one unit, not just one value read or written in a single step.</p>
-<p>Import it with <code>intern</code>, wrap a value with <code>create Mutex.make(initial)</code>, and reach it only through <code>use</code>:</p>
-<pre><code>intern data/Mutex
-
-let account: Mutex[Array[Integer]] := create Mutex.make([100])
-
-account.use(fn (balance: Array[Integer]) do
-  balance.set(0, balance.get(0) - 30)
-end)
-
-account.use(fn (balance: Array[Integer]) do
-  print(balance.get(0))                 -- 70
-end)</code></pre>
-<p>There is no <code>lock</code> or <code>unlock</code> to call, and no separate <code>get</code> that would let the wrapped value slip out unprotected — the value is reachable only inside the callback passed to <code>use</code>. <code>use</code> acquires the lock, runs the callback, and releases it when the callback returns; if the callback raises instead, the lock is still released and the exception propagates normally. A critical section can never be left locked because an exception skipped past the cleanup step.</p>
-<p>As with <code>Atomic_Integer</code>, the guarantee holds under real contention. Four tasks updating the same shared map, each incrementing a counter inside it twenty thousand times:</p>
-<pre><code>let hits: Mutex[Map[String, Integer]] := create Mutex.make({})
-
-function bump_many(m: Mutex[Map[String, Integer]], key: String, n: Integer): Task do
-  result := spawn do
-    let i := 0
-    from
-    until
-      i &gt;= n
-    do
-      m.use(fn (counts: Map[String, Integer]) do
-        counts.put(key, counts.try_get(key, 0) + 1)
-      end)
-      i := i + 1
+<section class="level2" data-number="28.4" id="following-dependencies">
+<h2 class="anchored" data-anchor-id="following-dependencies" data-number="28.4"> Following Dependencies</h2>
+<p>A cell depends on another when its formula reads that cell, or reads a cell that depends on it. Following those links is a search, of the kind <a href="chapter_19.html" title="Chapter 19: Loop Contracts">Chapter 19</a> wrote with loops: keep a list of cells still to look at, take one, and add the cells it reads.</p>
+<pre><code>  -- Does `name` read `other`, directly or through other cells?
+  depends_on(name, other: String): Boolean
+  require
+    valid_names: is_cell_name(name) and is_cell_name(other)
+  do
+    result := false
+    let seen: Set[String] := #{}
+    let pending := reads_of(name)
+    from until result or pending.is_empty do
+      let next := pending.get(pending.length - 1)
+      pending.remove(pending.length - 1)
+      if next = other then
+        result := true
+      elseif not seen.contains(next) then
+        seen.add(next)
+        pending := pending.concat(reads_of(next))
+      end
     end
   end
-end
 
-let t1: Task := bump_many(hits, "clicks", 20000)
-let t2: Task := bump_many(hits, "clicks", 20000)
-let t3: Task := bump_many(hits, "clicks", 20000)
-let t4: Task := bump_many(hits, "clicks", 20000)
-
-t1.await
-t2.await
-t3.await
-t4.await
-
-hits.use(fn (counts: Map[String, Integer]) do
-  print(counts.get("clicks"))            -- 80000, never less
-end)</code></pre>
-<p>One more rule keeps <code>use</code> from becoming a new source of deadlocks: it is not reentrant. Calling <code>use</code> again on the <em>same</em> <code>Mutex</code> from inside its own callback — the same task, still holding the lock — raises rather than silently succeeding or silently hanging:</p>
-<pre><code>let m: Mutex[Integer] := create Mutex.make(0)
-
-do
-  m.use(fn (x: Integer) do
-    m.use(fn (y: Integer) do
-      print("never reached")
-    end)
-  end)
-rescue
-  print(exception)                      -- "Mutex.use: already held by this task"
-end</code></pre>
-<p>What <code>use</code> does <em>not</em> catch is blocking or waiting <em>inside</em> the callback — calling <code>spawn</code>, <code>await</code>, a channel <code>send</code>/<code>receive</code>, <code>select</code>, or <code>use</code> on a <em>different</em> <code>Mutex</code> while this one is held. Avoid that; a program that deadlocks this way looks like an ordinary blocked acquire, not a raised error. Keep a <code>use</code> callback to the plain reads and writes it exists for.</p>
-<p>Let's Put the three tools side by side. Reach for, </p>
-<ul><li> a channel when tasks are handing work to each other;</li>
-<li> an <code>Atomic_*</code> when the shared state is one value;</li>
-<li> a <code>Mutex</code> when it is a compound update against shared, mutable structure.</li></ul>
-<p>All three are built on the same basic principle — the coordination is visible in the source, not hidden inside a shared object's ordinary-looking method calls.</p>
+  reads_of(name: String): Array[String] do
+    result := []
+    if has(name) then
+      result := cells.get(name).reads
+    end
+  end</code></pre>
+<p>The set <code>seen</code> stops the search from looking at any cell twice. That matters for speed when many cells read the same few, but it matters more for safety. <code>is_acyclic</code> will ask <code>depends_on</code> about every cell, and it is exactly the query that must give a sensible answer on a sheet that <em>does</em> contain a cycle, if there ever were one. A search that followed a cycle without remembering where it had been would never return.</p>
+<p>With <code>depends_on</code>, the precondition of <code>set</code> can be written. A new formula for <code>name</code> creates a cycle if it reads <code>name</code> itself, or reads a cell that already depends on <code>name</code>:</p>
+<pre><code>  -- Would giving `name` this formula make it depend on itself?
+  would_cycle(name: String, f: Formula): Boolean
+  require
+    valid_name: is_cell_name(name)
+  do
+    result := false
+    across references(f.expr) as r do
+      if r = name or depends_on(r, name) then
+        result := true
+      end
+    end
+  end</code></pre>
 </section>
-<section class="level2" data-number="29.16" id="designing-with-concurrency-in-mind">
-<h2 class="anchored" data-anchor-id="designing-with-concurrency-in-mind" data-number="29.16"> Designing with Concurrency in Mind</h2>
-<p>A few design habits help immediately.</p>
-<p><em>Prefer message passing to shared mutable state.</em> If two tasks need to coordinate, a channel is usually clearer than a shared object updated from both sides. Reach for <code>Atomic_*</code> or <code>Mutex</code> only when the state really is shared, not as a substitute for a channel you didn't feel like writing.</p>
-<p><em>Keep task boundaries meaningful.</em> Do not spawn tasks for tiny operations that would be simpler inline; concurrency has overhead, so use it where there is real independent work or waiting.</p>
-<p><em>Make waiting points explicit.</em> A call to <code>await</code>, <code>receive</code>, or <code>select</code> is a design decision that says where control may pause.</p>
-<p><em>Use timeouts at boundaries.</em> Background work, I/O-like coordination, and external services are common places where bounded waiting is healthier than waiting forever.</p>
-<p><em>Keep a Mutex's critical section small and plain.</em> A <code>use</code> callback should read and write the wrapped value and nothing else — no <code>spawn</code>, no <code>await</code>, no other blocking call, and no <code>use</code> on another <code>Mutex</code>. That is what keeps it a critical section rather than a new place for a deadlock to hide.</p>
-<p><em>Test concurrency in small pieces.</em> A small producer-consumer example is easier to trust than a large concurrent design written in one pass.</p>
+<section class="level2" data-number="28.5" id="recalculating-in-order">
+<h2 class="anchored" data-anchor-id="recalculating-in-order" data-number="28.5"> Recalculating in Order</h2>
+<p>When a cell changes, the cells that read it must be recalculated, and so must the cells that read <em>those</em>. The order matters: in the opening example, <code>A3</code> reads <code>A1</code> and <code>B1</code> reads <code>A3</code>, so after a change to <code>A1</code>, recalculating <code>B1</code> before <code>A3</code> would add up a stale value.</p>
+<p>The simplest correct rule is to recalculate every cell, each after the cells it reads. Producing that order is a depth-first walk: before adding a cell to the order, add everything it reads. Its postconditions say what an order must be, so that the walk checks itself:</p>
+<pre><code>  -- Every cell, each after the cells it reads.
+  evaluation_order: Array[String] do
+    result := []
+    across cells.keys.sort as name do
+      visit(name, result)
+    end
+  ensure
+    every_cell_once: result.length = count
+    reads_come_first: reads_come_first(result)
+  end
+
+  -- Does every cell in `order` come after the stored cells it reads?
+  reads_come_first(order: Array[String]): Boolean do
+    result := true
+    across order as name do
+      across reads_of(name) as r do
+        if has(r) and order.index_of(r) &gt; order.index_of(name) then
+          result := false
+        end
+      end
+    end
+  end
+
+  visit(name: String, order: Array[String]) do
+    if has(name) and not order.contains(name) then
+      across reads_of(name) as r do
+        visit(r, order)
+      end
+      order.add(name)
+    end
+  end
+
+  recalculate do
+    across evaluation_order as name do
+      let c := cells.get(name)
+      c.set_value(evaluate(c.formula.expr, values))
+    end
+  ensure
+    up_to_date: is_up_to_date
+  end</code></pre>
+<p><code>visit</code> has no explicit stopping test for cycles, and needs none: it follows the cells a formula reads, and the invariant <code>acyclic</code> promises that following them never leads back to where it started. This is an invariant doing more than catching mistakes. It is the reason an algorithm is correct. The order of cells has to exist, and the walk has to end, and both are true <em>because</em> of <code>acyclic</code>, which <code>set</code>&rsquo;s precondition protects.</p>
+<p>The postcondition of <code>recalculate</code> is the class&rsquo;s second invariant, checked one more time at the point where it is established. The two queries behind the invariants are plain loops over the cells:</p>
+<pre><code>  -- Does every cell hold the value of its formula?
+  is_up_to_date: Boolean do
+    result := true
+    across cells.values as c do
+      if c.value /= evaluate(c.formula.expr, values) then
+        result := false
+      end
+    end
+  end
+
+  -- Does no cell depend on itself?
+  is_acyclic: Boolean do
+    result := true
+    across cells.keys as name do
+      if depends_on(name, name) then
+        result := false
+      end
+    end
+  end</code></pre>
+<p><code>is_up_to_date</code> is a strong check. It ignores how the values were computed and recomputes every one from scratch, so it would catch an evaluation order that was wrong, a cell left out, or a cell evaluated twice with a stale input. Recalculating everything is not the fastest strategy; Exercise 2 asks for one that recalculates only the cells a change affects. Whatever strategy replaces this one, the same postcondition will tell you whether it is right.</p>
+<p><code>clear</code> removes a cell and recalculates the rest; a cell that read it now reads zero:</p>
+<pre><code>  clear(name: String)
+  require
+    valid_name: is_cell_name(name)
+  do
+    cells.remove(name)
+    recalculate
+  ensure
+    gone: not has(name)
+  end</code></pre>
 </section>
-<section class="level2" data-number="29.17" id="target-semantics">
-<h2 class="anchored" data-anchor-id="target-semantics" data-number="29.17"> Runtime Semantics</h2>
-<p>The Nex source syntax describes concurrency at the language level; the runtime implements it on the JVM:</p>
+<section class="level2" data-number="28.6" id="using-the-sheet">
+<h2 class="anchored" data-anchor-id="using-the-sheet" data-number="28.6"> Using the Sheet</h2>
+<p>A small helper turns text into a <code>Formula</code>, raising if it is not one, which is enough for trying the sheet in the REPL:</p>
+<pre><code>nex&gt; intern sheet/Sheet
+nex&gt; function formula(text: String): Formula do
+       match parse_formula(text) of
+         Ok as ok then result := ok.value
+         Err as e then raise e.error
+       end
+     end
+nex&gt; let sheet := create Sheet.make
+nex&gt; sheet.set("A3", formula("A1 + A2 * 2"))
+nex&gt; show_value(sheet.value_of("A3"))
+"0.00"
+nex&gt; sheet.set("A1", formula("120"))
+nex&gt; sheet.set("A2", formula("80"))
+nex&gt; show_value(sheet.value_of("A3"))
+"280.00"
+nex&gt; sheet.set("B1", formula("SUM(A1:A3)"))
+nex&gt; show_value(sheet.value_of("B1"))
+"480.00"
+nex&gt; sheet.depends_on("B1", "A1")
+true
+nex&gt; sheet.depends_on("A1", "B1")
+false
+nex&gt; sheet.evaluation_order
+["A1", "A2", "A3", "B1"]
+nex&gt; sheet.would_cycle("A1", formula("B1 + 1"))
+true
+nex&gt; sheet.set("A1", formula("B1 + 1"))
+Error: Precondition violation: no_cycle
+nex&gt; sheet.text_of("A1")
+"120"</code></pre>
+<p>A cell may be set before the cells it reads exist, as <code>A3</code> was, and it is recalculated when they arrive. The cycle is refused by the precondition before anything changes, so <code>A1</code> keeps its old formula. In the finished program, the command line will ask <code>would_cycle</code> first and print a message instead, so a user never sees a contract violation; the precondition is there for the programmer who forgets to ask.</p>
+</section>
+<section class="level2" data-number="28.7" id="why-the-sheet-is-not-a-cell-source">
+<h2 class="anchored" data-anchor-id="why-the-sheet-is-not-a-cell-source" data-number="28.7"> Why the Sheet Is Not a Cell_Source</h2>
+<p>The natural first design lets the sheet be the source of its own values. It already has a <code>value_of</code>, so it can inherit <code>Cell_Source</code> and pass itself to the evaluator:</p>
+<pre><code>class Sheet inherit Cell_Source
+...
+  recalculate do
+    across evaluation_order as name do
+      let c := cells.get(name)
+      c.set_value(evaluate(c.formula.expr, this))
+    end
+  ...</code></pre>
+<p>That version fails the first time one cell reads another. Setting <code>A1</code> to <code>120</code> and then <code>A2</code> to <code>A1 * 2</code> stops with:</p>
+<pre class="text"><code>Error: Class invariant violation: consistent
+  Sheet.value_of, called at line 29 of evaluate.nex, in evaluate, finds the invariant `consistent` of Sheet already broken on entry: the object was changed since its last check, by a call back into it mid-update or through a shared reference.
+  called from line 31 of evaluate.nex, in evaluate
+  called from line 159 of sheet.nex, in Sheet.recalculate
+  called from line 109 of sheet.nex, in Sheet.set
+  called from line 12</code></pre>
+<p>The message describes exactly what went wrong. <code>set</code> stored the new cell for <code>A2</code>, whose value starts at zero, and began recalculating. To compute <code>A2</code>, the evaluator asked the sheet for the value of <code>A1</code>. That call came from outside the class, from the function <code>evaluate</code>, so Nex checked the sheet&rsquo;s invariant on entry, as it does for every call from outside (<a href="chapter_18.html" title="Chapter 18: Invariants">Chapter 18</a>). And at that moment the invariant was false: <code>A2</code> held zero, while its formula said 240.</p>
+<p>Nothing was wrong with the invariant. Halfway through a recalculation, the sheet really is inconsistent; that is what recalculating means. What was wrong was the design, which let outside code call into the sheet while it was in that state. The rule an invariant imposes is stricter than it first appears: it must hold at every moment that a call can come in from outside, and a <em>callback</em>, a call into an object from code that the object itself called, comes in from outside.</p>
+<p>There were two ways out. One weakens the contract: drop <code>consistent</code> from the invariant and make it a postcondition of <code>set</code> and <code>clear</code> instead. The other fixes the design, so that nothing calls back into the sheet while it is updating. The evaluator never needed the whole sheet; it needs values, and that is all <code>Cell_Values</code> gives it. Calls to the view check no invariant of the sheet, because they are not calls to the sheet. The sheet&rsquo;s invariant now holds at every moment anyone outside can observe it, which is what an invariant should mean.</p>
+<p>This is the <em>interface segregation</em> principle at work: a client should depend on an interface as narrow as what it uses. Here a contract found the reason for it.</p>
+<p>The same rule explains one more detail of the code. The queries above, <code>would_cycle</code>, <code>is_up_to_date</code> and <code>is_acyclic</code>, are written with <code>across</code> loops, although <code>any</code> and <code>all</code> with a <code>fn</code> would be shorter. A <code>fn</code> reaches the sheet&rsquo;s routines through the object it captured, so a routine called from inside one is called from outside the class, and the invariant is checked on entry. In <code>reads_come_first</code>, which runs in the middle of a recalculation, that check fails just as the evaluator&rsquo;s did. A query that runs while the object is changing must call its own class&rsquo;s routines directly, and a loop does.</p>
+</section>
+<section class="level2" data-number="28.8" id="what-contracts-cost">
+<h2 class="anchored" data-anchor-id="what-contracts-cost" data-number="28.8"> What Contracts Cost</h2>
+<p>These contracts are expensive to check. <code>is_up_to_date</code> recomputes every cell, and it runs on entry to and exit from every call into the sheet from outside. <code>is_acyclic</code> searches the dependencies of every cell. On a sheet of a few dozen cells, nobody would notice. To see the cost, set 99 cells in a chain, each reading the one before, <code>A2 = A1 + 1</code> to <code>A99 = A98 + 1</code>, and time the run twice: once as usual, and once with the <code>--skip-contracts</code> option, which runs the program with every <code>require</code>, <code>ensure</code> and invariant check removed (<code>nex chain.nex --skip-contracts</code>):</p>
+<table>
+<thead><tr><th>Setting 99 cells in a chain</th><th>Time</th></tr></thead>
+<tbody>
+<tr><td>Contracts checked</td><td>13.8 s</td></tr>
+<tr><td><code>--skip-contracts</code></td><td>7.6 s</td></tr>
+</tbody>
+</table>
+<p>About 8 seconds of each run is Nex starting and compiling the program, so the contracts cost roughly six seconds for 99 changes, each followed by checks that recompute the whole sheet several times. An earlier version of this sheet, whose queries were written with <code>all</code> and <code>any</code>, needed more than five minutes for the same chain: every call from inside a <code>fn</code> re-checked the invariant, and each of those checks searched the dependencies of every cell.</p>
+<p>The lesson is not that contracts are too expensive to use. Checked contracts found a real design error in the previous section, and they keep checking the evaluation order and every value while the program is being written and tested. For a sheet much larger than this one, run with <code>--skip-contracts</code> once it is tested; Exercise 4 of <a href="chapter_24.html" title="Chapter 24: Interoperability">Chapter 24</a> asked when that is reasonable. But it is worth knowing where the cost comes from: an invariant is checked at every call from outside, so an object that receives many calls should have an invariant that is cheap to check, or few callers.</p>
+</section>
+<section class="level2" data-number="28.9" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="28.9"> Summary</h2>
 <ul>
-<li><code>spawn</code> uses an executor-backed task runtime</li>
-<li><code>await</code> can block normally</li>
-<li>channels use blocking coordination underneath</li>
-<li><code>Atomic_*</code> uses the JVM's own lock-free atomic classes; <code>Mutex</code> is a Nex library built on <code>java.util.concurrent.locks.ReentrantLock</code></li>
-</ul>
-<p>What stays stable is the source-level meaning of the operations. Timing, scheduling, fairness, and timeout precision remain runtime concerns rather than guarantees of the language surface.</p>
-</section>
-<section class="level2" data-number="29.18" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="29.18"> Summary</h2>
-<ul>
-<li><code>spawn</code> starts explicit concurrent work and returns a <code>Task</code></li>
-<li><code>await</code> is the explicit point where a caller synchronises with a task</li>
-<li><code>Channel[T]</code> moves typed values between concurrent activities</li>
-<li>unbuffered channels rendezvous; buffered channels decouple producers and consumers</li>
-<li><code>try_send</code> and <code>try_receive</code> support non-blocking coordination</li>
-<li><code>await_any</code> and <code>await_all</code> coordinate groups of tasks</li>
-<li><code>select</code> chooses among ready task and channel operations</li>
-<li><code>else</code> means no waiting; <code>timeout</code> means bounded waiting</li>
-<li><code>Atomic_Integer</code>, <code>Atomic_Integer64</code>, <code>Atomic_Boolean</code>, and <code>Atomic_Reference[T]</code> share one value safely across tasks without a channel</li>
-<li><code>Mutex[T]</code> (<code>data/Mutex</code>) protects a compound critical section against shared, mutable state; the wrapped value is reachable only inside a <code>use</code> callback, and the lock is always released, even on an exception</li>
+<li>A cached value is only correct while it agrees with what it caches, which makes &ldquo;agrees&rdquo; a natural invariant</li>
+<li>Properties that must hold whenever anyone looks are invariants; the contracts of the routines that change the object follow from them</li>
+<li>A precondition the caller can check, like <code>no_cycle</code>, needs a query the caller can call, like <code>would_cycle</code></li>
+<li>An invariant can justify an algorithm: the dependency order exists, and the walk that finds it ends, because the sheet is acyclic</li>
+<li>A postcondition that recomputes the answer, like <code>is_up_to_date</code>, checks any strategy that replaces the simple one</li>
+<li>An invariant must hold whenever a call can arrive from outside, and a callback, or a call from inside a <code>fn</code>, arrives from outside</li>
+<li>When an invariant fails mid-update, fix the design before weakening the contract; giving a client a narrower interface often does both</li>
+<li>Checking contracts has a cost; measure it, and switch checking off with <code>--skip-contracts</code> once the program is tested, not before</li>
 </ul>
 </section>
-<section class="level2" data-number="29.19" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="29.19"> Exercises</h2>
-<p><strong>1.</strong> Write a task that computes the sum of the integers from <code>1</code> to <code>100</code>, returns the answer through <code>result</code>, and print it using <code>await</code>.</p>
-<p><strong>2.</strong> Create a buffered <code>Channel[String]</code> with capacity <code>3</code>. Send three words into it, print <code>size</code>, then receive and print the words in order.</p>
-<p><strong>3.</strong> Write two tasks that each send a message on a channel. Use <code>select</code> to receive whichever message becomes ready first.</p>
-<p><strong>4.</strong> Write a small example that uses <code>await_all</code> to collect three independent computations.</p>
-<p><strong>5.</strong> Extend the pipeline example so that it processes several values rather than one. Decide where <code>close</code> should happen and how the receiving side knows when to stop.</p>
-<p><strong>6.*</strong> Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.</p>
-<p><strong>7.</strong> Spawn four tasks that each call <code>increment</code> on the same <code>Atomic_Integer</code> ten thousand times. Confirm the final value is always exactly forty thousand, however many times you run it.</p>
-<p><strong>8.</strong> Wrap a <code>Map[String, Integer]</code> in a <code>Mutex</code> and spawn several tasks that each add to the count under a few different keys. Print the final map once every task has been awaited.</p>
-<p><strong>9.*</strong> Write a <code>use</code> callback that calls <code>use</code> again on the same <code>Mutex</code>, and confirm it raises rather than hanging. Then explain, in your own words, why the language raises here instead of quietly allowing the nested call to succeed.</p>
+<section class="level2" data-number="28.10" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="28.10"> Exercises</h2>
+<p><strong>1.</strong> Write a query <code>dependents(name: String): Array[String]</code> that returns every cell that depends on <code>name</code>, directly or indirectly, in name order. Give it a postcondition stated with <code>depends_on</code>.</p>
+<p><strong>2.</strong> Recalculating every cell after every change is wasteful when a sheet is large. Write a version of <code>set</code> that recalculates only the changed cell and its dependents, still in dependency order. Keep the postcondition <code>up_to_date</code>, and use it to check your version against the original.</p>
+<p><strong>3.</strong> <code>clear</code> lets a user empty a cell that other cells read, which silently turns its value into zero in their formulas. Should <code>clear</code> have a precondition that nothing depends on the cell? Argue for one design, and say what the command line would have to do in each case.</p>
+<p><strong>4.</strong> Write a test that builds the chain <code>A1 = B1</code>, <code>B1 = C1</code>, and then checks that <code>C1 = A1</code> is refused by <code>would_cycle</code>, and that setting it anyway violates the precondition <code>no_cycle</code>.</p>
+<p><strong>5.</strong> Draw a sheet in which <code>depends_on</code>, without its <code>seen</code> set, would look at the same cell many times. How many times, for a sheet of <em>n</em> cells arranged as you drew it?</p>
+<p><strong>6.</strong> <code>Cell.set_value</code> is a public routine. What could a client of the sheet do with it, which invariant would detect the damage, and at what moment? Redesign <code>Cell</code> so that its value cannot be changed from outside at all. What does the sheet do instead when a value changes?</p>
+<p><strong>7.*</strong> Measure the cost of contracts on your own machine, as in <a href="#what-contracts-cost">Section 28.8</a>, for chains of 25, 50 and 99 cells. How does the extra time grow with the number of cells, and which contract accounts for most of it?</p>
 </section>
 
   </div>
   <nav class="chapter-nav" aria-label="Chapter navigation">
     <div class="prev"><a href="chapter_27.html">← Chapter 27</a></div>
-    <div class="next"><a href="chapter_29.html">Chapter 29 →<span class="next-title">What to Read Next</span></a></div>
+    <div class="next"><a href="chapter_29.html">Chapter 29 →<span class="next-title">A Spreadsheet: The Command Line</span></a></div>
   </nav>
 </div>
 
