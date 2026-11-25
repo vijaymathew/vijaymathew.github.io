@@ -37,7 +37,7 @@
 <p>The type parameter is declared in square brackets after the class name:</p>
 <pre><code>nex&gt; class Stack [G]
      create
-       make() do
+       make do
          items := []
        end
      feature
@@ -45,17 +45,17 @@
        push(value: G) do
          items.add(value)
        end
-       pop(): G do
+       pop: G do
          result := items.get(items.length - 1)
          items.remove(items.length - 1)
        end
-       peek(): G do
+       peek: G do
          result := items.get(items.length - 1)
        end
-       is_empty(): Boolean do
+       is_empty: Boolean do
          result := items.is_empty
        end
-       size(): Integer do
+       size: Integer do
          result := items.length
        end
      end</code></pre>
@@ -114,7 +114,7 @@ nex&gt; p2 -- REPL will call p2.to_string
 <p>Type constraints restrict which types can be used as a type argument. The constraint is written with <code>-&gt;</code>:</p>
 <pre><code>nex&gt; class Sorted_List [G -&gt; Comparable]
      create
-       make() do
+       make do
          items := []
        end
      feature
@@ -123,13 +123,13 @@ nex&gt; p2 -- REPL will call p2.to_string
          items.add(value)
          items := items.sort
        end
-       max(): G do
+       max: G do
          result := items.get(items.length - 1)
        end
-       min(): G do
+       min: G do
          result := items.get(0)
        end
-       size(): Integer do
+       size: Integer do
          result := items.length
        end
      end</code></pre>
@@ -152,7 +152,7 @@ nex&gt; nums.max
 <p>When a class has several type parameters, each one gets its own constraint, or none. In <code>[K -&gt; Comparable, V]</code>, <code>K</code> must be <code>Comparable</code> and <code>V</code> can be any type. Here is a map that keeps its keys in order, so it can answer questions such as &ldquo;which key is smallest?&rdquo; and &ldquo;which values have keys in this range?&rdquo;:</p>
 <pre><code>nex&gt; class Sorted_Map [K -&gt; Comparable, V]
      create
-       make() do
+       make do
          keys := []
        end
      feature
@@ -174,14 +174,14 @@ nex&gt; nums.max
          result := values.get(k)
        end
 
-       first_key(): K
+       first_key: K
        require
          not_empty: keys.length &gt; 0
        do
          result := keys.get(0)
        end
 
-       last_key(): K
+       last_key: K
        require
          not_empty: keys.length &gt; 0
        do
@@ -220,14 +220,12 @@ nex&gt; rain.between("2026-10-02", "2026-10-04")
        callback: Function(K): V
 
      create
-       make(f: Function(K): V)
-       do
+       make(f: Function(K): V) do
          callback := f
        end
 
      feature
-       lookup(k: K): V
-       do
+       lookup(k: K): V do
          if cached_results.contains_key(k) then
            result := cached_results.get(k)
          else
@@ -238,7 +236,7 @@ nex&gt; rain.between("2026-10-02", "2026-10-04")
      end</code></pre>
 <p>Neither parameter has a constraint. Map keys require hashing, but every value has <code>hash</code>, a feature of <code>Any</code>, so any type can be a key, and values can be any type. This mirrors the built-in <code>Map</code> type, which is itself a generic class over unconstrained <code>K</code> and <code>V</code>. <code>Sorted_Map</code> needs its constraint because it orders its keys, not because it stores them in a map.</p>
 <pre><code>nex&gt; let cache := create Cache[String, Integer].make(
-                    fn(s: String): Integer do
+                    fn (s: String): Integer do
                       result := s.to_integer * 10
                     end)
 nex&gt; cache.lookup("1089")
@@ -261,7 +259,7 @@ nex&gt; cache.lookup("1089")   -- answered from the cache
        end
      feature
        max_size: Integer
-       is_full(): Boolean do
+       is_full: Boolean do
          result := size = max_size
        end
        push(value: G) do
@@ -323,29 +321,26 @@ true</code></pre>
 </ul>
 <p>When you write <code>across some_object as x do … end</code>, Nex calls <code>some_object.cursor</code> to obtain a cursor, then drives that cursor: it calls <code>start</code> once, and repeats <code>item</code> / <code>next</code> until <code>at_end</code> becomes true. The built-in collections work exactly this way: an <code>Array[Integer]</code> is an <code>Iterable[Integer]</code>, and hands back a <code>Cursor[Integer]</code>; a <code>String</code> is an <code>Iterable[Char]</code>. That is why one loop form works uniformly across all of them.</p>
 <p>Consider an <code>Interval</code> — an inclusive range of integers — that does not store its values in an array at all, but generates them on demand. First the cursor that walks the range:</p>
-<pre><code>nex&gt; class Interval_Cursor
-     inherit Cursor[Integer]
+<pre><code>nex&gt; class Interval_Cursor inherit Cursor[Integer]
      create
        make(lo, hi: Integer) do current := lo  last := hi end
      feature
        current: Integer
        last: Integer
-       start()           do end
-       item(): Integer   do result := current end
-       next()            do current := current + 1 end
-       at_end(): Boolean do result := current &gt; last end
+       start do end
+       item: Integer do result := current end
+       next do current := current + 1 end
+       at_end: Boolean do result := current &gt; last end
      end</code></pre>
 <p>Inheriting <code>Cursor[Integer]</code> is a promise that the class provides all four features, with <code>item</code> returning an <code>Integer</code>, and Nex holds the class to it: leave out <code>at_end</code>, or have <code>item</code> return a <code>String</code>, and it is a type error. The cursor holds its own position in <code>current</code>. It starts already on the first element, so <code>start</code> has nothing to do; <code>item</code> reads the current value; <code>next</code> moves forward; and <code>at_end</code> is true once it has stepped past <code>last</code>. Now the <code>Interval</code> itself, whose only job is to hand out a fresh cursor:</p>
-<pre><code>nex&gt; class Interval
-     inherit Iterable[Integer]
+<pre><code>nex&gt; class Interval inherit Iterable[Integer]
      create
        make(lo, hi: Integer) do low := lo  high := hi end
      feature
        low: Integer
        high: Integer
-       cursor(): Cursor[Integer]
-       do
-        result := create Interval_Cursor.make(low, high)
+       cursor: Cursor[Integer] do
+         result := create Interval_Cursor.make(low, high)
        end
      end</code></pre>
 <p>That is all it takes. An <code>Interval</code> is now a first-class iterable:</p>
@@ -396,10 +391,10 @@ end</code></pre>
        value: ?V
        error: ?String
        ok: Boolean
-       is_ok(): Boolean do
+       is_ok: Boolean do
          result := ok
        end
-       to_string(): String do
+       to_string: String do
          if ok then
            if ?value as v then
              result := "Success: " + v.to_string
@@ -413,8 +408,7 @@ end</code></pre>
          end
        end
      end</code></pre>
-<pre><code>nex&gt; function safe_divide(a, b: Real): Result[Real] 
-     do
+<pre><code>nex&gt; function safe_divide(a, b: Real): Result[Real] do
        if b = 0.0 then
          result := create Result[Real].failure("division by zero")
        else
@@ -445,10 +439,10 @@ Error: division by zero</code></pre>
 <section class="level2" data-number="16.11" id="exercises">
 <h2 class="anchored" data-anchor-id="exercises" data-number="16.11"> Exercises</h2>
 <p><strong>1.</strong> The <code>Stack[G]</code> class has implicit preconditions: <code>pop</code> and <code>peek</code> require the stack to be non-empty. Add a <code>require</code> comment to each method stating the precondition. Then test what happens when you call <code>pop</code> on an empty stack.</p>
-<p><strong>2.</strong> Define a generic class <code>Box [T]</code> with a single field <code>value: T</code>, a constructor <code>make(v: T)</code>, and methods <code>get(): T</code> and <code>set(v: T)</code>. Then define a <code>Logged_Box [T] inherit Box[T]</code> that also keeps a <code>change_count: Integer</code> field, incrementing it each time <code>set</code> is called. Add a <code>changes(): Integer</code> method.</p>
+<p><strong>2.</strong> Define a generic class <code>Box [T]</code> with a single field <code>value: T</code>, a constructor <code>make(v: T)</code>, and methods <code>get: T</code> and <code>set(v: T)</code>. Then define a <code>Logged_Box [T] inherit Box[T]</code> that also keeps a <code>change_count: Integer</code> field, incrementing it each time <code>set</code> is called. Add a <code>changes: Integer</code> method.</p>
 <p><strong>3.</strong> Define a generic class <code>Range [G -&gt; Comparable]</code> with fields <code>low: G</code> and <code>high: G</code>, a constructor <code>make(l, h: G)</code>, and methods <code>contains(value: G): Boolean</code> (returns <code>true</code> if <code>low &lt;= value &lt;= high</code>) and <code>overlaps(other: Range[G]): Boolean</code>. Test with integer and real ranges.</p>
 <p><strong>4.</strong> The <code>Result[V]</code> class in <a href="chapter_15.html#a-worked-example-a-generic-result-type" title="Section 15.9: A Worked Example: A Generic Result Type">Section 15.9</a> has <code>value: ?V</code> as a detachable field. Why is <code>?V</code> needed rather than <code>V</code>? What would happen in the <code>failure</code> constructor if <code>value</code> were not detachable?</p>
-<p><strong>5.*</strong> Define a generic <code>Queue [G]</code> class backed by an <code>Array[G]</code>, with methods <code>enqueue(value: G)</code>, <code>dequeue(): G</code>, <code>front(): G</code>, <code>is_empty(): Boolean</code>, and <code>size(): Integer</code>. Then define a <code>Priority_Queue [G -&gt; Comparable]</code> that inherits <code>Queue[G]</code> and overrides <code>enqueue</code> so that elements are always inserted in sorted order (smallest at the front). Verify that dequeuing from a <code>Priority_Queue[Integer]</code> after inserting <code>[5, 2, 8, 1, 9]</code> produces the elements in ascending order.</p>
+<p><strong>5.*</strong> Define a generic <code>Queue [G]</code> class backed by an <code>Array[G]</code>, with methods <code>enqueue(value: G)</code>, <code>dequeue: G</code>, <code>front: G</code>, <code>is_empty: Boolean</code>, and <code>size: Integer</code>. Then define a <code>Priority_Queue [G -&gt; Comparable]</code> that inherits <code>Queue[G]</code> and overrides <code>enqueue</code> so that elements are always inserted in sorted order (smallest at the front). Verify that dequeuing from a <code>Priority_Queue[Integer]</code> after inserting <code>[5, 2, 8, 1, 9]</code> produces the elements in ascending order.</p>
 <p><strong>6.</strong> Following the <code>Interval</code> example from <a href="chapter_15.html#iterating-your-own-types" title="Section 15.8: Iterating Over Your Own Types">Section 15.8</a>, write a class <code>Countdown</code> whose constructor takes a positive integer <code>n</code> and that, when iterated with <code>across</code>, yields <code>n, n-1, …, 1</code>. Make it inherit <code>Iterable[Integer]</code>, and give it a cursor class that inherits <code>Cursor[Integer]</code>, and a <code>cursor</code> method that returns a fresh one. Verify that <code>across (create Countdown.make(5)) as k do print(k) end</code> prints 5 down to 1, and that iterating the same object twice produces the full sequence both times.</p>
 <p><strong>7.*</strong> Make the <code>Stack[G]</code> class from <a href="chapter_15.html#a-generic-class" title="Section 15.1: A Generic Class">Section 15.1</a> iterable from top to bottom by having it inherit <code>Iterable[G]</code> and adding a <code>cursor</code> method, without exposing its underlying <code>items</code> array. (The cursor class is generic too: <code>Stack_Cursor [G] inherit Cursor[G]</code>.) Then use the <code>sum_all</code> function from <a href="chapter_15.html#iterating-your-own-types" title="Section 15.8: Iterating Over Your Own Types">Section 15.8</a> to total a <code>Stack[Integer]</code>, and explain why the same function accepts an <code>Array[Integer]</code>.</p>
 </section>

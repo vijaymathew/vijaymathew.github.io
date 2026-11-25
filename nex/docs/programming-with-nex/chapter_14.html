@@ -42,9 +42,9 @@
        end
      feature
        side: String
-       name(): String do result := "piece" end
+       name: String do result := "piece" end
        can_move(dx, dy: Integer): Boolean do result := false end
-       describe(): String do
+       describe: String do
          result := side + " " + name
        end
      end
@@ -55,7 +55,7 @@ nex&gt; class Rook inherit Piece
          Piece.make(s)
        end
      feature
-       name(): String do result := "rook" end
+       name: String do result := "rook" end
        can_move(dx, dy: Integer): Boolean do
          result := (dx = 0) /= (dy = 0)
        end
@@ -69,7 +69,7 @@ nex&gt; class Pawn inherit Piece
        end
      feature
        direction: Integer
-       name(): String do result := "pawn" end
+       name: String do result := "pawn" end
        can_move(dx, dy: Integer): Boolean do
          result := dx = 0 and dy = direction
        end
@@ -98,7 +98,7 @@ end</code></pre>
 end</code></pre>
 <p><code>super</code> resolves to whichever class <code>Pawn</code> inherits from, so the call still reads correctly if <code>Piece</code> is later renamed. This only works because <code>Pawn</code> has a single parent — a class declared with <code>inherit A, B</code> has two, and <code>super</code> would have no way to choose between them, so it is rejected at compile time there; the one you mean must be named explicitly, as above.</p>
 <p><code>super</code> can call an overridden superclass method from within an override the same way. Suppose a pawn should also say which way it is heading:</p>
-<pre><code>describe(): String do
+<pre><code>describe: String do
   result := super.describe + " moving " + when direction = 1 then "up" else "down" end
 end</code></pre>
 <p>A black pawn with this <code>describe</code> calls itself <code>"black pawn moving down"</code>. The method builds on <code>Piece</code>’s <code>describe</code> rather than duplicating it — and, as with the constructor, <code>Piece.describe</code> would do exactly the same thing here, since <code>Pawn</code> has only the one parent. Reach for the explicit form when you need to be precise about which ancestor you mean, or when <code>super</code> alone would be ambiguous; otherwise <code>super</code> is the more direct way to say “my superclass’s version of this.”</p>
@@ -128,7 +128,7 @@ false</code></pre>
          Piece.make(s)
        end
      feature
-       name(): String do result := "knight" end
+       name: String do result := "knight" end
        can_move(dx, dy: Integer): Boolean do
          result := dx.abs * dy.abs = 2
        end
@@ -178,12 +178,12 @@ nex&gt; pieces.filter(fn (p) =&gt; p.can_move(0, -1)).map(fn (p) =&gt; p.describ
      feature
        BOARD_SIZE = 8
        side: String
-       name(): String do result := "piece" end
+       name: String do result := "piece" end
        can_move(dx, dy: Integer): Boolean do result := false end
        can_reach(dx, dy: Integer): Boolean do
          result := dx.abs &lt; BOARD_SIZE and dy.abs &lt; BOARD_SIZE and can_move(dx, dy)
        end
-       describe(): String do
+       describe: String do
          result := side + " " + name
        end
      end</code></pre>
@@ -194,7 +194,7 @@ nex&gt; pieces.filter(fn (p) =&gt; p.can_move(0, -1)).map(fn (p) =&gt; p.describ
          Piece.make(s)
        end
      feature
-       name(): String do result := "rook" end
+       name: String do result := "rook" end
        can_move(dx, dy: Integer): Boolean do
          result := (dx = 0) /= (dy = 0)
        end
@@ -223,7 +223,7 @@ false</code></pre>
        side: String
        col: Integer
        row: Integer
-       name(): String do result := "piece" end
+       name: String do result := "piece" end
        can_move(dx, dy: Integer): Boolean do result := false end
        on_board(c, r: Integer): Boolean do
          result := c &gt;= 0 and c &lt; BOARD_SIZE and r &gt;= 0 and r &lt; BOARD_SIZE
@@ -237,10 +237,10 @@ false</code></pre>
            result := false
          end
        end
-       square(): String do
+       square: String do
          result := "abcdefgh".char_at(col).to_string + (row + 1).to_string
        end
-       describe(): String do
+       describe: String do
          result := side + " " + name + " on " + square
        end
      end
@@ -251,7 +251,7 @@ nex&gt; class Knight inherit Piece
          Piece.make(s, c, r)
        end
      feature
-       name(): String do result := "knight" end
+       name: String do result := "knight" end
        can_move(dx, dy: Integer): Boolean do
          result := dx.abs * dy.abs = 2
        end
@@ -267,7 +267,7 @@ nex&gt; class Pawn inherit Piece
      feature
        direction: Integer
        moved: Boolean
-       name(): String do result := "pawn" end
+       name: String do result := "pawn" end
        can_move(dx, dy: Integer): Boolean do
          result := dx = 0 and (dy = direction or (not moved and dy = 2 * direction))
        end
@@ -277,7 +277,7 @@ nex&gt; class Pawn inherit Piece
            moved := true
          end
        end
-       describe(): String do
+       describe: String do
          result := Piece.describe + when moved then "" else " (not yet moved)" end
        end
      end</code></pre>
@@ -325,26 +325,25 @@ false</code></pre>
 feature
   side: String
   set_side(s: String) do side := s end
-  name(): String deferred
+  name: String deferred
   can_move(dx, dy: Integer): Boolean deferred
-  describe(): String do
+  describe: String do
     result := side + " " + name
   end
 end</code></pre>
 <p><code>name</code> and <code>can_move</code> are declared with the <code>deferred</code> keyword in place of a body. These are <em>deferred features</em>: the class announces what every piece can do, but leaves the how to each subclass. <code>describe</code> has a body and is inherited as-is; it calls <code>name</code>, which will dispatch to the subclass implementation at runtime.</p>
 <p><code>set_side</code> is here because <code>Piece</code> has no constructor of its own: <code>side</code> can only ever be assigned by code belonging to <code>Piece</code>, the class that declares it — a subclass may read <code>side</code> directly, exactly as <code>describe</code> above does, but not assign it, even from its own constructor. This is the same rule the pawn in <a href="chapter_14.html#a-worked-example-pieces-on-a-board" title="Section 14.7: A Worked Example: Pieces on a Board">Section 14.7</a> already followed when it moved through <code>Piece.move_to</code>: it exists to protect whatever <code>Piece</code> itself guarantees about <code>side</code> from being bypassed by a subclass writing straight to the field.</p>
 <p>Any concrete subclass must implement all deferred features:</p>
-<pre><code>class Knight
-  inherit Piece
-  create
-    make(s: String) do
-      set_side(s)
-    end
-  feature
-    name(): String do result := "knight" end
-    can_move(dx, dy: Integer): Boolean do
-      result := dx.abs * dy.abs = 2
-    end
+<pre><code>class Knight inherit Piece
+create
+  make(s: String) do
+    set_side(s)
+  end
+feature
+  name: String do result := "knight" end
+  can_move(dx, dy: Integer): Boolean do
+    result := dx.abs * dy.abs = 2
+  end
 end
 
 nex&gt; let k := create Knight.make("black")
@@ -367,16 +366,18 @@ nex&gt; k.describe
 <pre><code>sealed deferred class Result
 end
 
-class Ok
-  inherit Result
-  feature value: Integer
-  create make(v: Integer) do value := v end
+class Ok inherit Result
+feature
+  value: Integer
+create
+  make(v: Integer) do value := v end
 end
 
-class Err
-  inherit Result
-  feature msg: String
-  create make(m: String) do msg := m end
+class Err inherit Result
+feature
+  msg: String
+create
+  make(m: String) do msg := m end
 end</code></pre>
 <p><code>Result</code> is now a closed family: <code>Ok</code> and <code>Err</code> are the only variants that can ever exist.</p>
 <p>The sealed hierarchy is what allows us to define the <code>match</code> statement. Because the typechecker knows every subclass of a sealed type, it can verify that a <code>match</code> covers all of them. A missing branch is a compile-time error, not a runtime surprise:</p>
@@ -505,10 +506,10 @@ end</code></pre>
 </section>
 <section class="level2" data-number="15.12" id="exercises">
 <h2 class="anchored" data-anchor-id="exercises" data-number="15.12"> Exercises</h2>
-<p><strong>1.</strong> Define a class <code>Animal</code> with a field <code>name: String</code>, a constructor <code>make</code>, and a method <code>sound(): String</code> that returns <code>"..."</code> by default. Define subclasses <code>Dog</code>, <code>Cat</code>, and <code>Cow</code> each overriding <code>sound</code>. Create an <code>Array[Animal]</code>, add one of each, and print each animal’s name and sound.</p>
+<p><strong>1.</strong> Define a class <code>Animal</code> with a field <code>name: String</code>, a constructor <code>make</code>, and a method <code>sound: String</code> that returns <code>"..."</code> by default. Define subclasses <code>Dog</code>, <code>Cat</code>, and <code>Cow</code> each overriding <code>sound</code>. Create an <code>Array[Animal]</code>, add one of each, and print each animal’s name and sound.</p>
 <p><strong>2.</strong> Add three more pieces to the hierarchy of <a href="chapter_14.html#a-worked-example-pieces-on-a-board" title="Section 14.7: A Worked Example: Pieces on a Board">Section 14.7</a>. A <code>Bishop</code> moves any distance diagonally (<code>dx.abs = dy.abs</code>, and it must actually move). A <code>King</code> moves one square in any direction. A <code>Queen</code> moves like a rook or like a bishop. Write <code>Queen</code> without inheriting from <code>Rook</code> or <code>Bishop</code>, and explain why. Test each one with <code>move_to</code>, including a move that would leave the board.</p>
 <p><strong>3.</strong> A pawn's answer to <code>can_move(0, 2)</code> depends on its side and on whether it has moved: the same pawn says <code>true</code> before its first move and <code>false</code> after it. Does <code>Pawn</code> honour the Liskov Substitution Principle — can a pawn be used anywhere a <code>Piece</code> is expected without surprising the caller? To answer, first write down what <code>Piece.can_move</code> actually promises. Does it promise the same answer every time, or only a truthful answer about this piece right now? What would a caller that cached the answers for every piece get wrong?</p>
-<p><strong>4.</strong> Define a class <code>Vehicle</code> with fields <code>make: String</code> and <code>speed: Real</code>, and methods <code>fuel_type(): String</code> and <code>max_speed(): Real</code> with sensible defaults. Define <code>Electric_Car</code> and <code>Petrol_Car</code> overriding those methods. Add <code>can_reach(distance, fuel: Real): Boolean</code> to each — <code>Petrol_Car</code> uses 10 litres per 100 km; <code>Electric_Car</code> uses 20 kWh per 100 km.</p>
+<p><strong>4.</strong> Define a class <code>Vehicle</code> with fields <code>make: String</code> and <code>speed: Real</code>, and methods <code>fuel_type: String</code> and <code>max_speed: Real</code> with sensible defaults. Define <code>Electric_Car</code> and <code>Petrol_Car</code> overriding those methods. Add <code>can_reach(distance, fuel: Real): Boolean</code> to each — <code>Petrol_Car</code> uses 10 litres per 100 km; <code>Electric_Car</code> uses 20 kWh per 100 km.</p>
 <p><strong>5.*</strong> Define a <code>Logger</code> base class with a method <code>log(message: String)</code> that prints with a prefix. Define <code>File_Logger</code> that also appends to a <code>log_history: String</code> field, and <code>Silent_Logger</code> that discards all messages. Create an <code>Array[Logger]</code> with one of each and call <code>log("test")</code> on each. What does this demonstrate about polymorphism and swappable implementations?</p>
 </section>
 

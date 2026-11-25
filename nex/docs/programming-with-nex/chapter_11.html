@@ -123,8 +123,7 @@ nex&gt; fields.get(2).to_real
 <pre><code>nex&gt; (42.50 * 100.0).round
 4250</code></pre>
 <p>There is a catch. <code>to_real</code> raises an error if the text is not a number, and one bad line should not stop the program. So check the text first. A valid amount is non-empty, made only of digits and dots, and has at most one dot:</p>
-<pre><code>nex&gt; function is_amount(text: String): Boolean
-     do
+<pre><code>nex&gt; function is_amount(text: String): Boolean do
        result := text.length &gt; 0
          and text.all(fn (c) =&gt; "0123456789.".contains(c.to_string))
          and text.count(fn (c) =&gt; c = #.) &lt;= 1
@@ -137,8 +136,7 @@ nex&gt; is_amount("1.2.3")
 false</code></pre>
 <p>A string is a sequence of characters, and like an array it has <code>all</code> and <code>count</code> (<a href="chapter_9.html#arrays-and-functions" title="Section 9.9: Arrays and Functional Programming">Section 9.9</a>). Here they visit each character <code>c</code> in turn. <code>#.</code> is the character literal for a dot.</p>
 <p>Now the whole line. <code>parse_line</code> checks each part and returns the expense if everything is in order, or <code>nil</code> if anything is wrong. Its return type is detachable, <code>?Map[String, Any]</code>, because "no expense on this line" is a normal outcome, not an error (<a href="chapter_2.html#nil-and-detachable-types" title="Section 2.10: Nil and Detachable Types">Section 2.10</a>).</p>
-<pre><code>nex&gt; function parse_line(line: String): ?Map[String, Any]
-     do
+<pre><code>nex&gt; function parse_line(line: String): ?Map[String, Any] do
        result := nil
        let fields := line.split(",")
        if fields.length = 3 then
@@ -161,8 +159,7 @@ true</code></pre>
 <section class="level2" data-number="11.5" id="arrays-of-maps">
 <h2 class="anchored" data-anchor-id="arrays-of-maps" data-number="11.5"> An Array of Records</h2>
 <p>Each expense is a small <em>record</em>: a few named fields that belong together. A whole log is a sequence of them, so it is an <em>array of maps</em>, <code>Array[Map[String, Any]]</code>. Loading the log means reading the file, parsing every line, and keeping the expenses that parse:</p>
-<pre><code>nex&gt; function load_expenses(file: Path): Array[Map[String, Any]]
-     do
+<pre><code>nex&gt; function load_expenses(file: Path): Array[Map[String, Any]] do
        result := []
        if file.exists then
          across file.read_text.split("\n") as line do
@@ -197,7 +194,7 @@ Error: Type checking failed</code></pre>
 <p>We know the value is <code>90000</code>, but Nex does not. The record is a <code>Map[String, Any]</code>, so as far as the type checker can tell, <code>get</code> could return anything at all: a string, a number, an array. With type checking on, the REPL shows this by printing each result's type in front of it. For <code>expenses.get(3).get("category")</code> it prints <code>Any "Food/Groceries"</code>. You cannot add one to <em>anything</em>, so Nex refuses.</p>
 <p>The error message names the way out. The <code>convert</code> expression checks, while the program runs, whether a value really has the type you expect:</p>
 <pre class="text"><code>if convert expr to name: Type then
-   -- use name here
+  -- use name here
 end</code></pre>
 <p>If the value of <code>expr</code> is a <code>Type</code>, the conversion succeeds, and inside the <code>then</code> branch <code>name</code> holds the value with that type. If it is not, the conversion fails and the <code>else</code> branch, if there is one, runs instead:</p>
 <pre><code>nex&gt; if convert first.get("cents") to cents: Integer then
@@ -211,15 +208,13 @@ nex&gt; if convert first.get("date") to n: Integer then
      end
 "not an Integer"</code></pre>
 <p>Writing a <code>convert</code> every time we read a field would bury the interesting code. So we do what <a href="chapter_7.html#functions-as-building-blocks" title="Section 7.5: Functions as Building Blocks">Chapter 7</a> recommends and hide the detail inside small functions, one for each kind of field:</p>
-<pre><code>nex&gt; function text_of(record: Map[String, Any], key: String): String
-     do
+<pre><code>nex&gt; function text_of(record: Map[String, Any], key: String): String do
        result := ""
        if convert record.get(key) to text: String then
          result := text
        end
      end
-nex&gt; function cents_of(record: Map[String, Any]): Integer
-     do
+nex&gt; function cents_of(record: Map[String, Any]): Integer do
        result := 0
        if convert record.get("cents") to cents: Integer then
          result := cents
@@ -231,8 +226,7 @@ nex&gt; cents_of(first)
 90000</code></pre>
 <p>If a field is missing or holds the wrong type, these functions return a harmless default: an empty string or zero. That suits the tracker, because every record comes from <code>parse_line</code>, which always fills in all three fields with the right types. The conversions will always succeed. They are there because the type checker cannot know that, and <code>convert</code> is how we tell it what we know.</p>
 <p>One more helper turns cents back into the familiar form for printing:</p>
-<pre><code>nex&gt; function format_cents(cents: Integer): String
-     do
+<pre><code>nex&gt; function format_cents(cents: Integer): String do
        let rest := cents % 100
        result := (cents / 100).to_string + "." + when rest &lt; 10 then "0" else "" end + rest.to_string
      end
@@ -245,15 +239,13 @@ nex&gt; format_cents(5)
 <section class="level2" data-number="11.7" id="questions-about-the-log">
 <h2 class="anchored" data-anchor-id="questions-about-the-log" data-number="11.7"> Asking Questions</h2>
 <p>With the expenses loaded and the accessors written, questions about our spending become short functions. The total of a list of expenses is a fold (<a href="chapter_9.html#arrays-and-functions" title="Section 9.9: Arrays and Functional Programming">Section 9.9</a>):</p>
-<pre><code>nex&gt; function total(expenses: Array[Map[String, Any]]): Integer
-     do
+<pre><code>nex&gt; function total(expenses: Array[Map[String, Any]]): Integer do
        result := expenses.fold(0, fn (sum, e) =&gt; sum + cents_of(e))
      end
 nex&gt; format_cents(total(expenses))
 "1302.90"</code></pre>
 <p>The expenses for one month are a filter: an expense belongs to November 2026 exactly when its date starts with <code>2026-11</code>.</p>
-<pre><code>nex&gt; function in_month(expenses: Array[Map[String, Any]], month: String): Array[Map[String, Any]]
-     do
+<pre><code>nex&gt; function in_month(expenses: Array[Map[String, Any]], month: String): Array[Map[String, Any]] do
        result := expenses.filter(fn (e) =&gt; text_of(e, "date").starts_with(month))
      end
 nex&gt; let november := in_month(expenses, "2026-11")
@@ -263,15 +255,13 @@ nex&gt; format_cents(total(november))
 "341.75"</code></pre>
 <p>Both functions are pure (<a href="chapter_7.html#pure-functions" title="Section 7.2: Pure Functions">Section 7.2</a>): they compute an answer from their arguments and change nothing. That is why they combine so easily: <code>total(in_month(expenses, "2026-11"))</code> is the November total.</p>
 <p>How much went on each top-level category? First, a function to pick the top level out of a category path:</p>
-<pre><code>nex&gt; function top_level(category: String): String
-     do
+<pre><code>nex&gt; function top_level(category: String): String do
        result := category.split("/").get(0)
      end
 nex&gt; top_level("Housing/Repairs/Plumbing")
 "Housing"</code></pre>
 <p>Then the counting pattern from the word-frequency counter of <a href="chapter_10.html" title="Chapter 10: Maps">Chapter 10</a>, adding up cents instead of counting words:</p>
-<pre><code>nex&gt; function totals_by_category(expenses: Array[Map[String, Any]]): Map[String, Integer]
-     do
+<pre><code>nex&gt; function totals_by_category(expenses: Array[Map[String, Any]]): Map[String, Integer] do
        result := {}
        across expenses as e do
          let name := top_level(text_of(e, "category"))
@@ -297,8 +287,7 @@ nex&gt; create Map.from_entries(totals.map(fn (e) =&gt; create Map_Entry.make(e.
 <section class="level2" data-number="11.8" id="maps-of-arrays">
 <h2 class="anchored" data-anchor-id="maps-of-arrays" data-number="11.8"> Grouping by Month</h2>
 <p>An array of maps keeps records in sequence. The opposite shape, a <em>map of arrays</em>, is the natural way to group records under a name. Grouping the expenses by month gives a map from each month to the array of that month's expenses, <code>Map[String, Array[Map[String, Any]]]</code>:</p>
-<pre><code>nex&gt; function by_month(expenses: Array[Map[String, Any]]): Map[String, Array[Map[String, Any]]]
-     do
+<pre><code>nex&gt; function by_month(expenses: Array[Map[String, Any]]): Map[String, Array[Map[String, Any]]] do
        result := {}
        across expenses as e do
          let month := text_of(e, "date").substring(0, 7)
@@ -335,19 +324,16 @@ nex&gt; months.get("2026-10").length
 │   └── Dining out
 └── Transport</code></pre>
 <p>Each box in the tree is a <em>node</em>. Each node has a name, the amount recorded directly against it, and any number of child nodes, each of the same kind. Nex has no built-in tree type, so we build one from what we have: a node is a map with a <code>"name"</code>, its own <code>"cents"</code>, and a <code>"children"</code> array holding the child nodes. The three values have three different types, so this is another <code>Map[String, Any]</code>, and reading it needs <code>convert</code> again:</p>
-<pre><code>nex&gt; function new_node(name: String): Map[String, Any]
-     do
+<pre><code>nex&gt; function new_node(name: String): Map[String, Any] do
        result := {"name": name, "cents": 0, "children": []}
      end
-nex&gt; function children_of(node: Map[String, Any]): Array[Map[String, Any]]
-     do
+nex&gt; function children_of(node: Map[String, Any]): Array[Map[String, Any]] do
        result := []
        if convert node.get("children") to children: Array[Map[String, Any]] then
          result := children
        end
      end
-nex&gt; function child_named(node: Map[String, Any], name: String): ?Map[String, Any]
-     do
+nex&gt; function child_named(node: Map[String, Any], name: String): ?Map[String, Any] do
        result := nil
        across children_of(node) as child do
          if text_of(child, "name") = name then
@@ -361,8 +347,7 @@ nex&gt; function child_named(node: Map[String, Any], name: String): ?Map[String,
 <li><strong>Base case:</strong> the path is empty. We have arrived at the right node, so add the amount to it.</li>
 <li><strong>Recursive case:</strong> find the child named by the first step of the path, creating it if necessary, and add the expense to that child using the rest of the path.</li>
 </ul>
-<pre><code>nex&gt; function add_to_tree(node: Map[String, Any], path: Array[String], cents: Integer)
-     do
+<pre><code>nex&gt; function add_to_tree(node: Map[String, Any], path: Array[String], cents: Integer) do
        if path.is_empty then
          node.set("cents", cents_of(node) + cents)
        else
@@ -388,8 +373,7 @@ nex&gt; small
 {"name": "All", "cents": 0, "children": [{"name": "Food", "cents": 0, "children": [{"name": "Groceries", "cents": 4250, "children": []}, {"name": "Dining out", "cents": 3120, "children": []}]}]}</code></pre>
 <p>The second call found the existing Food node and added Dining out beside Groceries. This only works because maps and arrays are shared, not copied. The node that <code>children_of(node).add(child)</code> puts into the tree is the very map that the next line passes to the recursive call, so the amount set in that call is set in the tree.</p>
 <p>Building the tree for a list of expenses adds them one by one, each with its category path split at the slashes:</p>
-<pre><code>nex&gt; function build_tree(expenses: Array[Map[String, Any]]): Map[String, Any]
-     do
+<pre><code>nex&gt; function build_tree(expenses: Array[Map[String, Any]]): Map[String, Any] do
        result := new_node("All")
        across expenses as e do
          add_to_tree(result, text_of(e, "category").split("/"), cents_of(e))
@@ -400,8 +384,7 @@ nex&gt; let tree := build_tree(november)</code></pre>
 <section class="level2" data-number="11.10" id="traversing-a-tree">
 <h2 class="anchored" data-anchor-id="traversing-a-tree" data-number="11.10"> Walking the Tree</h2>
 <p>The total for a node is its own amount plus the totals of all its children, and each child's total is worked out the same way. The definition is recursive, so the function is too:</p>
-<pre><code>nex&gt; function tree_total(node: Map[String, Any]): Integer
-     do
+<pre><code>nex&gt; function tree_total(node: Map[String, Any]): Integer do
        result := cents_of(node)
        across children_of(node) as child do
          result := result + tree_total(child)
@@ -411,8 +394,7 @@ nex&gt; format_cents(tree_total(tree))
 "341.75"</code></pre>
 <p>There is no separate base case to write. A node with no children is a leaf, and for a leaf the <code>across</code> loop runs zero times, so <code>tree_total</code> just returns the node's own amount.</p>
 <p>Printing the whole report is a <em>traversal</em>: visit every node, print it, then print its children one level further in:</p>
-<pre><code>nex&gt; function print_tree(node: Map[String, Any], indent: Integer)
-     do
+<pre><code>nex&gt; function print_tree(node: Map[String, Any], indent: Integer) do
        let padding := ""
        repeat indent do
          padding := padding + "  "
@@ -438,8 +420,7 @@ All  341.75
 <section class="level2" data-number="11.11" id="searching-a-tree">
 <h2 class="anchored" data-anchor-id="searching-a-tree" data-number="11.11"> Searching the Tree</h2>
 <p>To answer "how much went on Food, and on what?", find the Food node and print just that part of the tree. Searching uses the same recursive shape. Check this node; if it is not the one, search each child in turn until one of them finds it:</p>
-<pre><code>nex&gt; function find_node(node: Map[String, Any], name: String): ?Map[String, Any]
-     do
+<pre><code>nex&gt; function find_node(node: Map[String, Any], name: String): ?Map[String, Any] do
        result := nil
        if text_of(node, "name") = name then
          result := node
@@ -467,8 +448,7 @@ true</code></pre>
 <pre><code>nex&gt; let budgets: Map[String, Integer] := {"Food": 12000, "Housing": 100000, "Transport": 2000}
 {"Food": 12000, "Housing": 100000, "Transport": 2000}</code></pre>
 <p>Comparing what was spent against a limit gives one of three answers. Choosing a value from a condition is what <code>when</code> is for (<a href="chapter_4.html#the-when-expression" title="Section 4.4: The when Expression">Section 4.4</a>), and two of them nest to make three choices:</p>
-<pre><code>nex&gt; function budget_status(spent, limit: Integer): String
-     do
+<pre><code>nex&gt; function budget_status(spent, limit: Integer): String do
        let percent := spent * 100 / limit
        result := when percent &gt; 100 then "OVER"
                  else when percent &gt;= 90 then "close" else "ok" end end
@@ -477,8 +457,7 @@ nex&gt; budget_status(11245, 12000)
 "close"</code></pre>
 <p><code>budget_status</code> divides by <code>limit</code>, so it only works when <code>limit</code> is not zero. That is its precondition, in the language of <a href="chapter_7.html#a-function-as-a-contract" title="Section 7.1: A Function as a Contract">Section 7.1</a>. A budget of zero would make no sense anyway, and Part V shows how to write such a condition into the function so that Nex checks it.</p>
 <p>The budget report puts together pieces we already have:</p>
-<pre><code>nex&gt; function print_budgets(expenses: Array[Map[String, Any]], budgets: Map[String, Integer])
-     do
+<pre><code>nex&gt; function print_budgets(expenses: Array[Map[String, Any]], budgets: Map[String, Integer]) do
        let spent := totals_by_category(expenses)
        across budgets.keys.sort as name do
          let used := spent.try_get(name, 0)
@@ -501,15 +480,13 @@ intern io/Path
 
 -- Reading the log ---------------------------------------------------
 
-function is_amount(text: String): Boolean
-do
+function is_amount(text: String): Boolean do
   result := text.length &gt; 0
     and text.all(fn (c) =&gt; "0123456789.".contains(c.to_string))
     and text.count(fn (c) =&gt; c = #.) &lt;= 1
 end
 
-function parse_line(line: String): ?Map[String, Any]
-do
+function parse_line(line: String): ?Map[String, Any] do
   result := nil
   let fields := line.split(",")
   if fields.length = 3 then
@@ -523,8 +500,7 @@ do
   end
 end
 
-function load_expenses(file: Path): Array[Map[String, Any]]
-do
+function load_expenses(file: Path): Array[Map[String, Any]] do
   result := []
   if file.exists then
     across file.read_text.split("\n") as line do
@@ -537,47 +513,40 @@ end
 
 -- Reading a record --------------------------------------------------
 
-function text_of(record: Map[String, Any], key: String): String
-do
+function text_of(record: Map[String, Any], key: String): String do
   result := ""
   if convert record.get(key) to text: String then
     result := text
   end
 end
 
-function cents_of(record: Map[String, Any]): Integer
-do
+function cents_of(record: Map[String, Any]): Integer do
   result := 0
   if convert record.get("cents") to cents: Integer then
     result := cents
   end
 end
 
-function format_cents(cents: Integer): String
-do
+function format_cents(cents: Integer): String do
   let rest := cents % 100
   result := (cents / 100).to_string + "." + when rest &lt; 10 then "0" else "" end + rest.to_string
 end
 
 -- Questions about the log -------------------------------------------
 
-function in_month(expenses: Array[Map[String, Any]], month: String): Array[Map[String, Any]]
-do
+function in_month(expenses: Array[Map[String, Any]], month: String): Array[Map[String, Any]] do
   result := expenses.filter(fn (e) =&gt; text_of(e, "date").starts_with(month))
 end
 
-function total(expenses: Array[Map[String, Any]]): Integer
-do
+function total(expenses: Array[Map[String, Any]]): Integer do
   result := expenses.fold(0, fn (sum, e) =&gt; sum + cents_of(e))
 end
 
-function top_level(category: String): String
-do
+function top_level(category: String): String do
   result := category.split("/").get(0)
 end
 
-function by_month(expenses: Array[Map[String, Any]]): Map[String, Array[Map[String, Any]]]
-do
+function by_month(expenses: Array[Map[String, Any]]): Map[String, Array[Map[String, Any]]] do
   result := {}
   across expenses as e do
     let month := text_of(e, "date").substring(0, 7)
@@ -587,8 +556,7 @@ do
   end
 end
 
-function totals_by_category(expenses: Array[Map[String, Any]]): Map[String, Integer]
-do
+function totals_by_category(expenses: Array[Map[String, Any]]): Map[String, Integer] do
   result := {}
   across expenses as e do
     let name := top_level(text_of(e, "category"))
@@ -598,21 +566,18 @@ end
 
 -- The category tree ---------------------------------------------------
 
-function new_node(name: String): Map[String, Any]
-do
+function new_node(name: String): Map[String, Any] do
   result := {"name": name, "cents": 0, "children": []}
 end
 
-function children_of(node: Map[String, Any]): Array[Map[String, Any]]
-do
+function children_of(node: Map[String, Any]): Array[Map[String, Any]] do
   result := []
   if convert node.get("children") to children: Array[Map[String, Any]] then
     result := children
   end
 end
 
-function child_named(node: Map[String, Any], name: String): ?Map[String, Any]
-do
+function child_named(node: Map[String, Any], name: String): ?Map[String, Any] do
   result := nil
   across children_of(node) as child do
     if text_of(child, "name") = name then
@@ -621,8 +586,7 @@ do
   end
 end
 
-function add_to_tree(node: Map[String, Any], path: Array[String], cents: Integer)
-do
+function add_to_tree(node: Map[String, Any], path: Array[String], cents: Integer) do
   if path.is_empty then
     node.set("cents", cents_of(node) + cents)
   else
@@ -638,24 +602,21 @@ do
   end
 end
 
-function build_tree(expenses: Array[Map[String, Any]]): Map[String, Any]
-do
+function build_tree(expenses: Array[Map[String, Any]]): Map[String, Any] do
   result := new_node("All")
   across expenses as e do
     add_to_tree(result, text_of(e, "category").split("/"), cents_of(e))
   end
 end
 
-function tree_total(node: Map[String, Any]): Integer
-do
+function tree_total(node: Map[String, Any]): Integer do
   result := cents_of(node)
   across children_of(node) as child do
     result := result + tree_total(child)
   end
 end
 
-function print_tree(node: Map[String, Any], indent: Integer)
-do
+function print_tree(node: Map[String, Any], indent: Integer) do
   let padding := ""
   repeat indent do
     padding := padding + "  "
@@ -666,8 +627,7 @@ do
   end
 end
 
-function find_node(node: Map[String, Any], name: String): ?Map[String, Any]
-do
+function find_node(node: Map[String, Any], name: String): ?Map[String, Any] do
   result := nil
   if text_of(node, "name") = name then
     result := node
@@ -682,15 +642,13 @@ end
 
 -- Budgets -------------------------------------------------------------
 
-function budget_status(spent, limit: Integer): String
-do
+function budget_status(spent, limit: Integer): String do
   let percent := spent * 100 / limit
   result := when percent &gt; 100 then "OVER"
             else when percent &gt;= 90 then "close" else "ok" end end
 end
 
-function print_budgets(expenses: Array[Map[String, Any]], budgets: Map[String, Integer])
-do
+function print_budgets(expenses: Array[Map[String, Any]], budgets: Map[String, Integer]) do
   let spent := totals_by_category(expenses)
   across budgets.keys.sort as name do
     let used := spent.try_get(name, 0)

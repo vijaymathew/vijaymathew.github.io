@@ -343,11 +343,11 @@ print(hits.load)                        -- 80000, never less</code></pre>
 
 let account: Mutex[Array[Integer]] := create Mutex.make([100])
 
-account.use(fn(balance: Array[Integer]) do
+account.use(fn (balance: Array[Integer]) do
   balance.set(0, balance.get(0) - 30)
 end)
 
-account.use(fn(balance: Array[Integer]) do
+account.use(fn (balance: Array[Integer]) do
   print(balance.get(0))                 -- 70
 end)</code></pre>
 <p>There is no <code>lock</code> or <code>unlock</code> to call, and no separate <code>get</code> that would let the wrapped value slip out unprotected — the value is reachable only inside the callback passed to <code>use</code>. <code>use</code> acquires the lock, runs the callback, and releases it when the callback returns; if the callback raises instead, the lock is still released and the exception propagates normally. A critical section can never be left locked because an exception skipped past the cleanup step.</p>
@@ -361,7 +361,7 @@ function bump_many(m: Mutex[Map[String, Integer]], key: String, n: Integer): Tas
     until
       i &gt;= n
     do
-      m.use(fn(counts: Map[String, Integer]) do
+      m.use(fn (counts: Map[String, Integer]) do
         counts.put(key, counts.try_get(key, 0) + 1)
       end)
       i := i + 1
@@ -379,15 +379,15 @@ t2.await
 t3.await
 t4.await
 
-hits.use(fn(counts: Map[String, Integer]) do
+hits.use(fn (counts: Map[String, Integer]) do
   print(counts.get("clicks"))            -- 80000, never less
 end)</code></pre>
 <p>One more rule keeps <code>use</code> from becoming a new source of deadlocks: it is not reentrant. Calling <code>use</code> again on the <em>same</em> <code>Mutex</code> from inside its own callback — the same task, still holding the lock — raises rather than silently succeeding or silently hanging:</p>
 <pre><code>let m: Mutex[Integer] := create Mutex.make(0)
 
 do
-  m.use(fn(x: Integer) do
-    m.use(fn(y: Integer) do
+  m.use(fn (x: Integer) do
+    m.use(fn (y: Integer) do
       print("never reached")
     end)
   end)

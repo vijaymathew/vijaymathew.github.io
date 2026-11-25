@@ -71,13 +71,12 @@
      feature
        title: String
        done: Boolean
-       mark_done()
-       do
+       mark_done do
          done := true
        ensure
          now_done: done
        end
-       is_done(): Boolean do
+       is_done: Boolean do
          result := done
        end
      invariant
@@ -90,7 +89,7 @@
 <p>Now we need a collection of tasks and a few operations over it.</p>
 <pre><code>nex&gt; class Task_List
      create
-       make() do
+       make do
          tasks := []
        end
      feature
@@ -109,7 +108,7 @@
        do
          result := tasks.get(index)
        end
-       size(): Integer do
+       size: Integer do
          result := tasks.length
        end
      invariant
@@ -122,7 +121,7 @@
 <p>Add routines that count completed tasks and decide whether all tasks are complete:</p>
 <pre><code>nex&gt; class Task_List
      create
-       make() do
+       make do
          tasks := []
        end
      feature
@@ -141,8 +140,7 @@
        do
          result := tasks.get(index)
        end
-       completed_count(): Integer
-       do
+       completed_count: Integer do
          result := 0
          across tasks as task do
            if task.is_done() then
@@ -152,10 +150,10 @@
        ensure
          count_in_range: result &gt;= 0 and result &lt;= tasks.length
        end
-       all_done(): Boolean do
+       all_done: Boolean do
          result := completed_count = tasks.length
        end
-       size(): Integer do
+       size: Integer do
          result := tasks.length
        end
      invariant
@@ -190,7 +188,7 @@ nex&gt; todo.completed_count
 nex&gt; todo.all_done
 false</code></pre>
 <p>The program already works. But we can still improve the interface.</p>
-<p>One detail is worth noting: with the current definition, <code>all_done()</code> returns <code>true</code> for an empty list, because <code>completed_count()</code> and <code>tasks.length</code> are both <code>0</code>. That is a reasonable design choice, but it should be understood explicitly.</p>
+<p>One detail is worth noting: with the current definition, <code>all_done</code> returns <code>true</code> for an empty list, because <code>completed_count</code> and <code>tasks.length</code> are both <code>0</code>. That is a reasonable design choice, but it should be understood explicitly.</p>
 </section>
 <section class="level2" data-number="27.6" id="raising-the-level-of-the-interface">
 <h2 class="anchored" data-anchor-id="raising-the-level-of-the-interface" data-number="27.6"> Raising the Level of the Interface</h2>
@@ -206,7 +204,7 @@ end</code></pre>
 <p>Add it to <code>Task_List</code>:</p>
 <pre><code>nex&gt; class Task_List
      create
-       make() do
+       make do
          tasks := []
        end
      feature
@@ -233,8 +231,7 @@ end</code></pre>
        ensure
          selected_done: tasks.get(index).done
        end
-       completed_count(): Integer
-       do
+       completed_count: Integer do
          result := 0
          across tasks as task do
            if task.is_done() then
@@ -244,10 +241,10 @@ end</code></pre>
        ensure
          count_in_range: result &gt;= 0 and result &lt;= tasks.length
        end
-       all_done(): Boolean do
+       all_done: Boolean do
          result := completed_count = tasks.length
        end
-       size(): Integer do
+       size: Integer do
          result := tasks.length
        end
      invariant
@@ -258,8 +255,7 @@ end</code></pre>
 <section class="level2" data-number="27.7" id="tests-for-the-program">
 <h2 class="anchored" data-anchor-id="tests-for-the-program" data-number="27.7"> Tests for the Program</h2>
 <p>Before considering the program finished, write tests.</p>
-<pre><code>nex&gt; function test_task_list()
-     do
+<pre><code>nex&gt; function test_task_list() do
        let todo := create Task_List.make
        todo.add_task("one")
        todo.add_task("two")
@@ -325,8 +321,8 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="exercises" data-number="27.10"> Exercises</h2>
 <p><strong>1.</strong> Extend <code>Todo_Item</code> with a <code>description: ?String</code> field and a routine for setting it. Decide whether an invariant is needed.</p>
 <p><strong>2.</strong> Should <code>Todo_Item.make(t: String)</code> also have a precondition <code>t.length &gt; 0</code>, or is the invariant alone enough? Explain the difference between a constructor precondition and a class invariant.</p>
-<p><strong>3.</strong> Add a routine <code>remaining_count(): Integer</code> to <code>Task_List</code> and write a postcondition for it.</p>
-<p><strong>4.</strong> What should <code>all_done()</code> return on an empty <code>Task_List</code>? Keep the current definition or change it, and justify the choice.</p>
+<p><strong>3.</strong> Add a routine <code>remaining_count: Integer</code> to <code>Task_List</code> and write a postcondition for it.</p>
+<p><strong>4.</strong> What should <code>all_done</code> return on an empty <code>Task_List</code>? Keep the current definition or change it, and justify the choice.</p>
 <p><strong>5.</strong> Add tests for contract failures: one for <code>add_task("")</code> and one for <code>mark_task_done</code> with an invalid index.</p>
 <p><strong>6.</strong> Prevent a task from being marked done twice by strengthening the interface. Decide whether this should be a precondition or simply an idempotent operation.</p>
 <p><strong>7.</strong> Refactor <code>Task_List</code> so that clients do not depend directly on the <code>tasks</code> representation, if that is practical with the language features introduced so far.</p>
