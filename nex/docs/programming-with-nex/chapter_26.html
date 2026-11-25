@@ -270,29 +270,51 @@ end</code></pre>
 </ul>
 <p>In other words, <code>else</code> is a non-blocking probe and <code>timeout</code> is a bounded wait.</p>
 </section>
-<section class="level2" data-number="29.13" id="a-small-pipeline-example">
-<h2 class="anchored" data-anchor-id="a-small-pipeline-example" data-number="29.13"> A Small Pipeline Example</h2>
-<p>The following example shows tasks and channels working together.</p>
-<pre><code>let input: Channel[Integer] := create Channel[Integer].with_capacity(4)
-let output: Channel[Integer] := create Channel[Integer].with_capacity(4)
-
-let worker: Task := spawn do
-  let v: Integer := input.receive
-  output.send(v * v)
+<section class="level2" data-number="26.13" id="racing-tasks-and-cancelling-the-rest">
+<h2 class="anchored" data-anchor-id="racing-tasks-and-cancelling-the-rest" data-number="26.13"> Racing Tasks and Cancelling the Rest</h2>
+<p>Sometimes there are several ways to get an answer, and any of them will do. A search can start from either end; a lookup can try two sources; a slow exact method can be raced against a quick one that might fail. The pattern is: start one task for each way, take the first answer with <code>await_any</code>, and cancel the others.</p>
+<p>Here is a search for a number whose square ends in 609. The search is written once and started twice, once counting up from 1 and once counting down from a million:</p>
+<pre><code>-- Any number whose square ends in 609 will do.
+function is_answer(n: Integer): Boolean do
+  result := n * n % 1000 = 609
 end
 
-input.send(9)
-print(output.receive)
-worker.await</code></pre>
-<p>Even in this tiny example, the roles are clear:</p>
-<ul>
-<li>the channel defines how values move</li>
-<li>the task defines what work happens concurrently</li>
-<li>the main thread decides when to send, receive, and await completion</li>
-</ul>
-<p>That is the kind of clarity we want in larger programs too.</p>
-<p>For a longer-running pipeline, <code>close</code> is usually part of the design as well. One stage eventually needs to signal that no more values will be sent, so downstream stages know when to stop receiving.</p>
+-- Search `count` numbers from `start` in steps of `step`, stopping early
+-- when `stop` is set. The task's result is -1 if nothing was found.
+function search(start, step, count: Integer, stop: Atomic_Boolean): Task[Integer] do
+  result := spawn do
+    result := -1
+    from let i := 0 until i = count or result /= -1 or stop.load do
+      let n := start + i * step
+      if is_answer(n) then
+        result := n
+      end
+      i := i + 1
+    end
+  end
+end</code></pre>
+<pre><code>let stop := create Atomic_Boolean.make(false)
+let up := search(1, 1, 1000000, stop)
+let down := search(1000000, -1, 1000000, stop)
+let answer: Integer := await_any([up, down])
+stop.store(true)
+up.cancel
+down.cancel
+print(answer)                  -- 103 or 999897
+print(is_answer(answer))       -- true</code></pre>
+<p>Which search finishes first depends on how the two tasks are scheduled, so the program may print 103, the smallest such number, or 999897, the largest. Both are right. That is the condition that makes racing correct, and it is a contract condition: <em>every competitor must promise the same postcondition</em>. Here each search returns a number satisfying <code>is_answer</code>, so whichever wins, the caller gets what it was promised. Racing two routines with different postconditions would make the program&rsquo;s behaviour depend on timing.</p>
+<p>The stop flag is the other half of the pattern. <code>cancel</code> marks a task as cancelled, so that awaiting it fails, but it does not stop a task that is busy computing: the losing search would keep counting to a million after the winner was found. A task that may be cancelled in the middle of a computation has to check for it, and an <code>Atomic_Boolean</code> (<a href="#sharing-state-directly-the-atomic-types">Section 26.14</a>) shared by all the competitors is the simplest way to tell them all at once.</p>
+<p>The same pieces give a search with a deadline. <code>await(ms)</code> returns <code>nil</code> if the task has not finished in time, and the caller then gives up on it:</p>
+<pre><code>let give_up := create Atomic_Boolean.make(false)
+let evens := search(2, 2, 400000000, give_up)    -- no even number qualifies
+if evens.await(100) = nil then
+  give_up.store(true)
+  evens.cancel
+  print("no answer within 100 ms")
+end</code></pre>
+<p>Without the flag, the abandoned search would go on using a processor until it had tried all four hundred million numbers.</p>
 </section>
+
 <section class="level2" data-number="29.14" id="sharing-state-directly-the-atomic-types">
 <h2 class="anchored" data-anchor-id="sharing-state-directly-the-atomic-types" data-number="29.14"> Sharing State Directly: The Atomic_* Types</h2>
 <p>We have so far followed the advice: hand a value to another task through a channel rather than share an object between them. But sometimes the thing you want to share genuinely <em>is</em> one small piece of state — a counter, say, or a cached last-computed value. Building a channel-based protocol around a single state could be more machinery than the problem needs.</p>
@@ -401,6 +423,142 @@ end</code></pre>
 <li> a <code>Mutex</code> when it is a compound update against shared, mutable structure.</li></ul>
 <p>All three are built on the same basic principle — the coordination is visible in the source, not hidden inside a shared object's ordinary-looking method calls.</p>
 </section>
+<section class="level2" data-number="26.16" id="dataflow-variables">
+<h2 class="anchored" data-anchor-id="dataflow-variables" data-number="26.16"> Dataflow Variables</h2>
+<p>A <code>Task[T]</code> is already a particular kind of variable. It gets a value once, when its body finishes, and <code>await</code> reads that value, waiting first if it is not there yet. The programming language Oz, of the Mozart system, made this the meaning of <em>every</em> variable: a variable is bound at most once, and reading one that is not yet bound waits until another thread binds it. Such variables are called <em>dataflow variables</em>, because values flow through a program as soon as they exist, and each computation runs when its inputs arrive.</p>
+<p>In Nex, a dataflow variable is a small class built from the tools of this chapter: a one-place channel holds the value, and an <code>Atomic_Boolean</code> records whether it has been bound:</p>
+<pre><code>class Dataflow[T]
+create
+  make do
+    cell := create Channel[T].with_capacity(1)
+    bound := create Atomic_Boolean.make(false)
+  end
+feature
+  cell: Channel[T]
+  bound: Atomic_Boolean
+
+  is_bound: Boolean do
+    result := bound.load
+  end
+
+  bind(v: T) do
+    if not bound.compare_and_set(false, true) then
+      raise "Dataflow.bind: already bound"
+    end
+    cell.send(v)
+  ensure
+    now_bound: is_bound
+  end
+
+  value: T do
+    result := cell.receive
+    cell.send(result)
+  end
+end</code></pre>
+<p>A reader takes the value out of the channel and puts it straight back, so the value is there for the next reader. A reader that arrives before <code>bind</code> finds the channel empty and waits, and every waiting reader is let through, one after another, once the value arrives.</p>
+<p>Tasks that communicate only through dataflow variables can be started in any order, and the program still computes the same result. In this small network, <code>y</code> is computed from <code>x</code> and <code>z</code> from both, each in its own task, and four more tasks read <code>z</code>. The tasks start before there is anything to compute, and the main program binds <code>x</code> last:</p>
+<pre><code>let x := create Dataflow[Integer].make
+let y := create Dataflow[Integer].make
+let z := create Dataflow[Integer].make
+
+let adder: Task := spawn do
+  z.bind(x.value + y.value)
+end
+let doubler: Task := spawn do
+  y.bind(x.value * 2)
+end
+let readers := [1, 2, 3, 4].map(fn (k: Integer): Task[Integer] do
+  result := spawn do
+    result := z.value * k
+  end
+end)
+
+x.bind(5)
+print(z.value)                 -- 15
+print(await_all(readers))      -- [15, 30, 45, 60]
+await_all([adder, doubler])</code></pre>
+<p>The adder and the doubler start in an arbitrary order, and the adder may well run first and wait for <code>y</code>. It does not matter. Every run prints the same values, because each task waits for exactly the values it needs. Oz calls this <em>declarative concurrency</em>: the result is fixed by what the program says, not by how its tasks happen to be scheduled. The shape is the same as a spreadsheet&rsquo;s, in which each cell is computed from others as soon as they have values; <a href="chapter_27.html" title="Chapter 27: A Spreadsheet: Formulas">Chapters 27 to 29</a> build one, without tasks.</p>
+<p>A dataflow variable is bound once, and a second binding is a mistake:</p>
+<pre><code>do
+  x.bind(6)
+rescue
+  print(exception.to_string)   -- "Dataflow.bind: already bound"
+end
+print(x.value)                 -- 5</code></pre>
+<p>It is tempting to say this with a precondition, as the earlier chapters would have: <code>bind(v) require not_bound: not is_bound</code>. With tasks, that is not enough. Two tasks can both check <code>is_bound</code>, both find it <code>false</code>, and both go on to bind. A precondition about an object that several tasks share can stop being true between the moment it is checked and the moment the routine acts on it. The advice to callers in <a href="chapter_20.html" title="Chapter 20: Contracts as Design">Chapter 20</a>, ask <code>is_free</code> before booking, assumed that nothing else could book in between, and with shared objects that assumption fails. (Eiffel&rsquo;s SCOOP model of concurrency answers this by turning such a precondition into a <em>wait</em>: the call waits until the condition holds.) <code>bind</code> instead makes the check and the change a single step, with <code>compare_and_set</code>, so exactly one binding wins, and any other is refused.</p>
+</section>
+<section class="level2" data-number="26.17" id="a-worked-example-a-worker-pool">
+<h2 class="anchored" data-anchor-id="a-worked-example-a-worker-pool" data-number="26.17"> A Worked Example: A Worker Pool</h2>
+<p>A common shape for a concurrent program is a <em>worker pool</em>: a queue of jobs, a few tasks that take jobs from the queue and do them, and a second queue on which the results come back. Here the jobs are documents, each worker counts the words in a document with the <code>word_frequencies</code> function of <a href="chapter_10.html" title="Chapter 10: Maps">Chapter 10</a>, and the main program adds the counts together.</p>
+<p>Two helpers come first: one that adds one set of counts to another, and one that starts a worker:</p>
+<pre><code>-- Add the counts in `part` to `total`.
+function merge(total, part: Map[String, Integer]) do
+  across part.keys as w do
+    total.set(w, total.try_get(w, 0) + part.get(w))
+  end
+end
+
+-- A worker: count each document from `jobs` until `jobs` is closed and empty.
+function worker(jobs: Channel[String], results: Channel[Map[String, Integer]]): Task do
+  result := spawn do
+    let done := false
+    from until done do
+      select
+        when jobs.receive as doc then
+          results.send(word_frequencies(doc))
+        timeout 50 then
+          done := jobs.is_closed and jobs.size = 0
+      end
+    end
+  end
+end</code></pre>
+<p>A worker has to know when there is no more work, and <code>close</code> is how it finds out. A worker waits up to 50 milliseconds for a job; if none arrives, it checks whether the queue has been closed and emptied, and stops if it has. That check cannot be fooled. Once a channel is closed, nothing more can be sent on it, so a closed, empty channel stays empty. A worker that found no job but sees the channel still open just waits again.</p>
+<p>The main program starts three workers, sends every document, and closes the queue:</p>
+<pre><code>let documents := ["The cat sat on the mat", "The dog sat on the log",
+                  "A cat and a dog", "The end of the story"]
+let jobs: Channel[String] := create Channel[String].with_capacity(2)
+let results: Channel[Map[String, Integer]] := create Channel[Map[String, Integer]].with_capacity(documents.length)
+let workers := [worker(jobs, results), worker(jobs, results), worker(jobs, results)]
+
+across documents as doc do
+  jobs.send(doc)
+end
+jobs.close
+
+let totals: Map[String, Integer] := {}
+from let received := 0 until received = documents.length do
+  select
+    when results.receive as counts then
+      do
+        merge(totals, counts)
+        received := received + 1
+      end
+    timeout 2000 then
+      raise "no result for two seconds: is a worker stuck?"
+  end
+end
+await_all(workers)
+
+across totals.keys.sort as w do
+  print(w + " " + totals.get(w).to_string)
+end</code></pre>
+<p>The jobs channel holds only two documents at a time, so <code>jobs.send</code> waits whenever the workers have fallen behind. That is called <em>backpressure</em>: a buffered channel lets the sender run ahead of the workers, but only by as much as the buffer holds. The results channel, by contrast, has room for every result, so a worker never waits to hand one back.</p>
+<p>The main program knows how many results to expect, one per document, and collects exactly that many. Its <code>select</code> has a <code>timeout</code>, so that if a worker ever stopped without sending its result, the program would report the stall instead of waiting forever. Finally, <code>await_all</code> waits for the workers themselves to finish, which they do once they find the queue closed and empty. Every run prints the same counts:</p>
+<pre class="text"><code>"a 2"
+"and 1"
+"cat 2"
+"dog 2"
+"end 1"
+"log 1"
+"mat 1"
+"of 1"
+"on 2"
+"sat 2"
+"story 1"
+"the 6"</code></pre>
+<p>The output is the same however the documents were shared out among the workers, and that is by design rather than luck. Addition does not care about order, and the counts are printed in sorted order rather than in the order they arrived. Compare this with the dataflow variables of the previous section: there, a fixed result came from the variables themselves; here, it comes from merging the results with an operation for which order does not matter. When the results of concurrent work are combined, it is worth checking which of the two is keeping the program&rsquo;s output fixed.</p>
+</section>
+
 <section class="level2" data-number="29.16" id="designing-with-concurrency-in-mind">
 <h2 class="anchored" data-anchor-id="designing-with-concurrency-in-mind" data-number="29.16"> Designing with Concurrency in Mind</h2>
 <p>A few design habits help immediately.</p>
@@ -435,6 +593,10 @@ end</code></pre>
 <li><code>else</code> means no waiting; <code>timeout</code> means bounded waiting</li>
 <li><code>Atomic_Integer</code>, <code>Atomic_Integer64</code>, <code>Atomic_Boolean</code>, and <code>Atomic_Reference[T]</code> share one value safely across tasks without a channel</li>
 <li><code>Mutex[T]</code> (<code>data/Mutex</code>) protects a compound critical section against shared, mutable state; the wrapped value is reachable only inside a <code>use</code> callback, and the lock is always released, even on an exception</li>
+<li>racing tasks with <code>await_any</code> is correct only when every competitor promises the same postcondition; <code>cancel</code> does not stop a busy task, so give competitors a stop flag to check</li>
+<li>a dataflow variable is bound once, and reading it waits until it is bound; tasks that communicate only through such variables give the same result however they are scheduled</li>
+<li>a precondition about an object that tasks share can stop being true before the routine acts on it; make the check and the change one step instead</li>
+<li>a worker pool takes jobs from one channel and returns results on another; <code>close</code> tells the workers the work has run out</li>
 </ul>
 </section>
 <section class="level2" data-number="29.19" id="exercises">
@@ -443,11 +605,13 @@ end</code></pre>
 <p><strong>2.</strong> Create a buffered <code>Channel[String]</code> with capacity <code>3</code>. Send three words into it, print <code>size</code>, then receive and print the words in order.</p>
 <p><strong>3.</strong> Write two tasks that each send a message on a channel. Use <code>select</code> to receive whichever message becomes ready first.</p>
 <p><strong>4.</strong> Write a small example that uses <code>await_all</code> to collect three independent computations.</p>
-<p><strong>5.</strong> Extend the pipeline example so that it processes several values rather than one. Decide where <code>close</code> should happen and how the receiving side knows when to stop.</p>
-<p><strong>6.*</strong> Design a tiny two-stage pipeline, such as “read values, transform them, collect results,” using two channels and at least one worker task. Explain where blocking may happen and why.</p>
+<p><strong>5.</strong> Make each worker in the worker pool of <a href="#a-worked-example-a-worker-pool">Section 26.17</a> also report how many documents it counted. Do the reports always add up to the number of documents? Run the program several times: do the workers always share the work the same way?</p>
+<p><strong>6.*</strong> Instead of closing the jobs channel, end the workers by sending one special value per worker, a document that means &ldquo;stop&rdquo;. Compare the two designs: what does each one have to know about the number of workers, and what happens if a worker stops early?</p>
 <p><strong>7.</strong> Spawn four tasks that each call <code>increment</code> on the same <code>Atomic_Integer</code> ten thousand times. Confirm the final value is always exactly forty thousand, however many times you run it.</p>
 <p><strong>8.</strong> Wrap a <code>Map[String, Integer]</code> in a <code>Mutex</code> and spawn several tasks that each add to the count under a few different keys. Print the final map once every task has been awaited.</p>
 <p><strong>9.*</strong> Write a <code>use</code> callback that calls <code>use</code> again on the same <code>Mutex</code>, and confirm it raises rather than hanging. Then explain, in your own words, why the language raises here instead of quietly allowing the nested call to succeed.</p>
+<p><strong>10.</strong> Race two searches under a deadline: start both, give them 200 milliseconds between them with <code>await(ms)</code>, and stop and cancel whichever has not finished. What must the two searches have in common for the result to be correct whichever one wins?</p>
+<p><strong>11.*</strong> Show that binding a <code>Dataflow</code> variable twice raises. Then write the version of <code>bind</code> with a precondition <code>not_bound: not is_bound</code> and no <code>compare_and_set</code>, and explain, with a sequence of steps by two tasks, how both could bind it.</p>
 </section>
 
   </div>
