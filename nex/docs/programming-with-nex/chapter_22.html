@@ -29,161 +29,289 @@
     <h1 class="opener-title">Writing Robust Code</h1>
   </div>
   <div class="prose">
-<p>The last chapter introduced exceptions. This chapter is about using them well. The question is not whether programs fail; they do. The question is where a failure should be detected, and what meaning the program should preserve when it handles it.</p>
-<p>Robust code is not code that never fails. It is code that fails in the right place, without blurring the difference between a broken contract and a difficult world.</p>
+<p>The last chapter covered the tools for handling failure: <code>raise</code>, <code>rescue</code>, <code>retry</code>, exception classes, and result types. This chapter is about where to use them in a program. Every failure raises two design questions: where should it be noticed, and what state should the program be left in afterwards?</p>
+<p>Robust code is not code that never fails. It is code that fails in the right place and that tells the truth about what happened. The chapter works through one small program, a booking system for a theatre, and builds it in layers. Untrusted input is checked at the edge, contracts protect the inside, and an operation that fails leaves nothing behind.</p>
 <section class="level2" data-number="23.1" id="distinguishing-kinds-of-failure">
-<h2 class="anchored" data-anchor-id="distinguishing-kinds-of-failure" data-number="23.1"> Distinguishing Kinds of Failure</h2>
-<p>Most failures in a program fall into one of three categories. Naming the category is often the first step toward the correct design.</p>
-<p><em>Caller mistakes</em> are contract violations: the caller passed an invalid argument, or called a routine in the wrong state. The right response is <code>require</code>.</p>
-<p><em>Routine bugs</em> show up as violated postconditions or invariants; they are defects in the implementation or in the design itself.</p>
-<p><em>Environmental failures</em> come from the outside world — missing files, unavailable services, corrupt input, exhausted resources — and call for exceptions, recovery logic, or propagation.</p>
-<p>A robust design keeps these three categories separate, because each calls for a different response and confusing them is how error handling usually goes wrong.</p>
+<h2 class="anchored" data-anchor-id="distinguishing-kinds-of-failure" data-number="23.1"> Three Kinds of Failure</h2>
+<p>The earlier chapters have already sorted failures into three kinds. Each kind calls for its own response:</p>
+<ul>
+<li><strong>Caller mistakes</strong>, such as booking more seats than are left, are contract violations. A precondition catches them at the call that made the mistake (<a href="chapter_16.html" title="Chapter 16: Preconditions">Chapter 16</a>).</li>
+<li><strong>Routine bugs</strong>, where a routine does not do what it promised, show up as failed postconditions or invariants (<a href="chapter_17.html" title="Chapter 17: Postconditions">Chapters 17</a> and <a href="chapter_18.html" title="Chapter 18: Invariants">18</a>).</li>
+<li><strong>Failures of the outside world</strong>, such as a file that can't be written or input that makes no sense, happen even when every part of the program is correct. They call for exceptions or result types (<a href="chapter_21.html" title="Chapter 21: Errors and Exceptions">Chapter 21</a>).</li>
+</ul>
+<p>For the first two kinds, the right response is to <em>fail fast</em>: stop at once, at the place where the mistake was made. Carrying on with a made-up value hides the original bug and adds new damage of its own. Only the third kind is something a program should expect, plan for, and recover from. Most bad error handling comes from mixing these up, for example by treating a caller&rsquo;s bug as bad luck, or by treating an ordinary event like a customer typo as a crisis.</p>
 </section>
-<section class="level2" data-number="23.2" id="fail-fast-on-programmer-errors">
-<h2 class="anchored" data-anchor-id="fail-fast-on-programmer-errors" data-number="23.2"> Fail Fast on Programmer Errors</h2>
-<p>When a routine is called incorrectly, the worst response is often to continue as if nothing were wrong. Suppose a stack <code>pop</code> is called on an empty stack. Returning a special fake value may let the program continue for a while, but it has also hidden the original mistake — the program now carries both the original bug and whatever secondary damage the fake value causes later.</p>
-<p>A precondition is the correct response:</p>
-<pre><code>pop: G
-require
-  not_empty: items.length &gt; 0
-do
-  result := items.get(items.length - 1)
-  items.remove(items.length - 1)
-end</code></pre>
-<p>Failing fast on programmer error is not harshness. It is clarity.</p>
-</section>
-<section class="level2" data-number="23.3" id="be-tolerant-at-the-system-boundary">
-<h2 class="anchored" data-anchor-id="be-tolerant-at-the-system-boundary" data-number="23.3"> Be Tolerant at the System Boundary</h2>
-<p>At the edge of the program, the world is uncertain. A user may type bad data, or a request may time out; the program should usually handle these situations gracefully, because they are part of normal operation rather than evidence that the programmer misunderstood the interface.</p>
-<p>The pattern is:</p>
-<ol type="1">
-<li>inspect uncertain input at the boundary</li>
-<li>convert it into a clean internal form</li>
-<li>use contracts inside the system</li>
-</ol>
-<p>For example, if user input is supposed to become a positive integer:</p>
-<pre><code>nex&gt; function prompt_for_count(): Integer do
-       let raw := console.read_line("Enter a positive number: ")
-       let value := raw.to_integer
-       if value &lt;= 0 then
-         raise "count must be positive"
+<section class="level2" data-number="23.2" id="check-once-at-the-boundary">
+<h2 class="anchored" data-anchor-id="check-once-at-the-boundary" data-number="23.2"> Check Once, at the Boundary</h2>
+<p>A customer asks for seats by typing a line such as <code>ana 4</code>: a name followed by a number of seats. That line comes from outside the program, so anything can be in it. As <a href="chapter_16.html#preconditions-are-not-input-validation" title="Section 16.5: Preconditions Are Not Input Validation">Chapter 16</a> explained, bad input from outside is not a contract violation. It is an ordinary event, and the program must handle it.</p>
+<p>The pattern is to check the input <em>once</em>, where it enters the program, and turn it into a value that cannot be wrong. Everything further in then works with that clean value and can rely on contracts.</p>
+<p>The clean value is a small class whose invariant states what a valid request is:</p>
+<pre><code>nex&gt; class Request
+     create
+       make(n: String, c: Integer)
+       require
+         has_name: n.length &gt; 0
+         positive_count: c &gt; 0
+       do
+         name := n
+         count := c
        end
-       result := value
+     feature
+       name: String
+       count: Integer
+     invariant
+       has_name: name.length &gt; 0
+       positive_count: count &gt; 0
      end</code></pre>
-<p>Once <code>prompt_for_count</code> returns successfully, internal routines can reasonably require <code>count &gt; 0</code> rather than repeatedly validating it.</p>
-</section>
-<section class="level2" data-number="23.4" id="recovery-should-preserve-truth">
-<h2 class="anchored" data-anchor-id="recovery-should-preserve-truth" data-number="23.4"> Recovery Should Preserve Truth</h2>
-<p>One of the easiest ways to make code fragile is to recover in a way that lies about what happened.</p>
-<p>Suppose a file load fails and a rescue block returns an empty string:</p>
-<pre><code>rescue
-  result := ""
-end</code></pre>
-<p>This may be acceptable if the routine’s meaning is genuinely “give me the file contents, or an empty document if none exists.” But if callers interpret the result as “the file was loaded successfully and happened to be empty,” the recovery has destroyed information. The program may now continue on a false premise.</p>
-<p>Robust recovery preserves truth. If callers need the distinction, represent it candidly:</p>
-<ul>
-<li>return a result object with success or failure</li>
-<li>raise the exception upward</li>
-<li>or log and return a documented fallback with a contractually clear meaning</li>
-</ul>
-</section>
-<section class="level2" data-number="23.5" id="guarding-against-partial-updates">
-<h2 class="anchored" data-anchor-id="guarding-against-partial-updates" data-number="23.5"> Guarding Against Partial Updates</h2>
-<p>A routine that changes several pieces of state should be careful not to leave the system half-updated if something goes wrong in the middle.</p>
-<p>Consider:</p>
-<pre><code>transfer_to(other: Account, amount: Real) do
-  withdraw(amount)
-  other.deposit(amount)
-end</code></pre>
-<p>If <code>withdraw</code> succeeds but <code>other.deposit</code> fails because <code>other</code> is in an invalid state, the system has been changed only halfway.</p>
-<p>The best defense is good design:</p>
-<ul>
-<li>strong preconditions</li>
-<li>sound invariants on both objects</li>
-<li>small routines with simple effects</li>
-</ul>
-<p>Sometimes a routine should perform all checks first, then execute the state changes only once it knows the operation is safe.</p>
-</section>
-<section class="level2" data-number="23.6" id="simple-defensive-patterns">
-<h2 class="anchored" data-anchor-id="simple-defensive-patterns" data-number="23.6"> Simple Defensive Patterns</h2>
-<p>A handful of habits make Nex programs markedly more robust.</p>
-<p><em>Normalize inputs early</em>: convert text into structured values near the boundary, so that everything further in works with clean data.</p>
-<p><em>Keep contracts sharp</em>: do not blur the line between caller errors and runtime failures.</p>
-<p><em>Use detachable types only when absence is meaningful</em>, never reaching for <code>?Type</code> merely to avoid deciding what should really be required.</p>
-<p><em>Make invalid states unrepresentable where possible</em>: a class with a strong invariant shrinks the space of bugs that can occur at all.</p>
-<p><em>Prefer small routines</em>: a short routine with one purpose is far easier to specify, and to recover around, than a long one with mixed responsibilities.</p>
-</section>
-<section class="level2" data-number="23.7" id="using-result-objects-instead-of-exceptions">
-<h2 class="anchored" data-anchor-id="using-result-objects-instead-of-exceptions" data-number="23.7"> Using Result Objects Instead of Exceptions</h2>
-<p><a href="chapter_21.html#standard-result-and-option">Section 21.9</a> introduced the standard library&rsquo;s generic <code>Result[T, E]</code>. That pattern is often useful in robust code: instead of raising an exception, a routine can return either a value or an explanation of failure.</p>
+<p>Because of the invariant, a <code>Request</code> with no name or with zero seats cannot exist. Any routine that receives a <code>Request</code> knows it is valid without checking again. This is what &ldquo;make invalid states unrepresentable&rdquo; means: the type carries the guarantee.</p>
+<p>The code at the boundary turns text into a <code>Request</code>. Text that doesn&rsquo;t make sense is a normal outcome here, so these routines return a <code>Result</code> (<a href="chapter_21.html#standard-result-and-option" title="Section 21.9: The standard Result and Option">Section 21.9</a>) rather than raising an exception:</p>
 <pre><code>nex&gt; intern data/Result
 
-nex&gt; function safe_divide(a, b: Real): Result[Real, String] do
-       if b = 0.0 then
-         result := create Err[Real, String].make("division by zero")
+nex&gt; function parse_count(text: String): Result[Integer, String] do
+       let n := text.to_integer
+       if n &gt; 0 then
+         result := create Ok[Integer, String].make(n)
        else
-         result := create Ok[Real, String].make(a / b)
+         result := create Err[Integer, String].make("the number of seats must be positive")
        end
-     end</code></pre>
-<p>A caller matches on the outcome instead of guarding against an exception:</p>
-<pre><code>nex&gt; match safe_divide(10.0, 0.0) of
-       Ok(value)  then print(value)
-       Err(error) then print(error)
-     end
-"division by zero"</code></pre>
-<p>This style is often preferable when failure is expected and common rather than exceptional — and, unlike a hand-rolled result class, <code>Ok</code>/<code>Err</code> are checked for exhaustiveness by <code>match</code>, and the same type composes with <code>result_map</code>, <code>result_and_then</code>, and the rest of the standard combinators.</p>
-</section>
-<section class="level2" data-number="23.8" id="a-worked-example-reading-configuration-safely">
-<h2 class="anchored" data-anchor-id="a-worked-example-reading-configuration-safely" data-number="23.8"> A Worked Example: Reading Configuration Safely</h2>
-<p>Suppose a program wants configuration text, but can continue with defaults if no file is available. The <code>available</code> parameter below stands in for whatever real check — a file existing, a network call succeeding — would decide this in an actual program:</p>
-<pre><code>nex&gt; function load_configuration(path: String, available: Boolean): String
-     require
-       path_not_empty: path.length &gt; 0
-     do
-       if not available then
-         raise "file missing"
-       end
-       result := "theme=dark\ntimeout=60"
      rescue
-       print("using built-in defaults: " + exception.to_string)
-       result := "theme=light\ntimeout=30"
+       result := create Err[Integer, String].make(text + " is not a number")
+     end
+
+nex&gt; function parse_request(line: String): Result[Request, String] do
+       let words := line.split(" ")
+       if words.length /= 2 or words.get(0).length = 0 then
+         result := create Err[Request, String].make("expected a name and a number of seats")
+       else
+         match parse_count(words.get(1)) of
+           Ok(value) then
+             result := create Ok[Request, String].make(create Request.make(words.get(0), value))
+           Err(error) then
+             result := create Err[Request, String].make(error)
+         end
+       end
      end</code></pre>
-<p>Called with a configuration source that is present, the routine returns it untouched:</p>
-<pre><code>nex&gt; print(load_configuration("config.txt", true))
-"theme=dark
-timeout=60"</code></pre>
-<p>Called without one, it falls back — but only after reporting what actually happened:</p>
-<pre><code>nex&gt; print(load_configuration("config.txt", false))
-using built-in defaults: "file missing"
-"theme=light
-timeout=30"</code></pre>
-<p>This routine is robust for three reasons:</p>
-<ul>
-<li>the path itself is still a contract obligation</li>
-<li>the missing file is treated as an environmental failure</li>
-<li>the fallback value has a documented meaning</li>
-</ul>
-<p>The routine is not pretending the file load succeeded. It is deliberately choosing a default configuration instead.</p>
+<p>Look at the <code>rescue</code> in <code>parse_count</code>. When <code>to_integer</code> is given text like <code>three</code>, it raises a <code>Conversion_Error</code>. At the boundary, that exception is turned into an ordinary <code>Err</code>, because a customer typing a word instead of a number is not exceptional. Every way the input can be wrong is handled here, and each one gets a message the customer can understand:</p>
+<pre><code>nex&gt; across ["ana 4", "ben three", "cy 0", "dee"] as line do
+       match parse_request(line) of
+         Ok(value) then print(value.name + " wants " + value.count.to_string)
+         Err(error) then print("rejected: " + error)
+       end
+     end
+"ana wants 4"
+"rejected: three is not a number"
+"rejected: the number of seats must be positive"
+"rejected: expected a name and a number of seats"</code></pre>
+<p>The boundary code is careful, and it is the <em>only</em> code that needs to be. If <code>parse_request</code> ever called <code>Request.make</code> with an empty name, the precondition would stop it. That would be a bug in <code>parse_request</code>, not bad input.</p>
 </section>
-<section class="level2" data-number="23.9" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="23.9"> Summary</h2>
+<section class="level2" data-number="23.3" id="a-class-that-protects-itself">
+<h2 class="anchored" data-anchor-id="a-class-that-protects-itself" data-number="23.3"> A Class That Protects Itself</h2>
+<p>Inside the boundary, a <code>Show</code> keeps track of its seats. It records each customer&rsquo;s booking and saves the bookings to a file, so they survive a restart:</p>
+<pre><code>nex&gt; intern io/Path
+
+nex&gt; class Show
+     create
+       make(seats: Integer, file: Path)
+       require
+         some_seats: seats &gt; 0
+       do
+         capacity := seats
+         free := seats
+         bookings := {}
+         store := file
+       end
+     feature
+       capacity: Integer
+       free: Integer
+       bookings: Map[String, Integer]
+       store: Path
+
+       booked(): Integer do
+         across bookings.values as n do
+           result := result + n
+         end
+       end
+
+       to_text(): String do
+         across bookings.keys as name do
+           result := result + name + " " + bookings.get(name).to_string + "\n"
+         end
+       end
+
+       book(name: String, count: Integer)
+       require
+         positive_count: count &gt; 0
+         enough_seats: count &lt;= free
+         new_customer: not bookings.contains_key(name)
+       do
+         free := free - count
+         bookings.set(name, count)
+         store.write_text(to_text())
+       end
+     invariant
+       free_in_range: 0 &lt;= free and free &lt;= capacity
+       all_seats_accounted: free + booked() = capacity
+     end</code></pre>
+<p>The invariant <code>all_seats_accounted</code> says that every seat is either free or booked by someone, never both and never neither.</p>
+<p><code>enough_seats</code> and <code>new_customer</code> deserve a closer look. A customer asking for more seats than are left is perfectly normal, so why are these preconditions and not exceptions? The reason is that the caller can check them. Both conditions depend only on <code>free</code> and <code>bookings</code>, which any caller can read. A caller that wants to book seats can look before it asks. If it doesn&rsquo;t look, that is the caller&rsquo;s bug:</p>
+<pre><code>nex&gt; let show := create Show.make(10, create Path.make("bookings.txt"))
+
+nex&gt; show.book("ana", 4)
+
+nex&gt; show.free
+6
+
+nex&gt; show.book("ben", 7)
+Error: Precondition violation: enough_seats</code></pre>
+<p>The one thing in <code>book</code> that no caller can check in advance is whether the file can be written. That is a failure of the outside world, and it is where this version of <code>book</code> has a flaw.</p>
+</section>
+<section class="level2" data-number="23.4" id="guarding-against-partial-updates">
+<h2 class="anchored" data-anchor-id="guarding-against-partial-updates" data-number="23.4"> Guarding Against Partial Updates</h2>
+<p>Suppose the file is in a folder that doesn&rsquo;t exist:</p>
+<pre><code>nex&gt; let show := create Show.make(10, create Path.make("/no-such-folder/bookings.txt"))
+
+nex&gt; show.book("ana", 4)
+Error: /no-such-folder/bookings.txt (No such file or directory)
+
+nex&gt; show.free
+6
+
+nex&gt; show.bookings
+{"ana": 4}</code></pre>
+<p>The call failed, and the caller was told it failed. But the seats are gone anyway. <code>book</code> changed <code>free</code> and <code>bookings</code> before it tried to save, and nothing changed them back. Now see what happens when Ana tries again, as anyone would after a failure:</p>
+<pre><code>nex&gt; show.book("ana", 4)
+Error: Precondition violation: new_customer</code></pre>
+<p>The show insists that Ana already has a booking, which nobody ever confirmed to her. Notice that no invariant caught the problem. The show is consistent with itself, because its free seats and its bookings still add up. What it disagrees with is the file and the caller. This is a <em>partial update</em>: an operation that failed partway through and left some of its changes behind.</p>
+<p>The rule is simple to state: <strong>an operation that reports failure must leave everything as it was.</strong> There are two ways to keep it.</p>
+<h3 class="anchored" data-anchor-id="do-the-risky-step-first">Do the risky step first</h3>
+<p>Put the step that might fail before any change to the object. Work out what the file should contain once the booking is made, and write that first. Change the fields only after the write has succeeded:</p>
+<pre><code>book(name: String, count: Integer)
+require
+  positive_count: count &gt; 0
+  enough_seats: count &lt;= free
+  new_customer: not bookings.contains_key(name)
+do
+  store.write_text(to_text() + name + " " + count.to_string + "\n")
+  free := free - count
+  bookings.set(name, count)
+end</code></pre>
+<p>If the write fails, nothing has been changed yet, so there is nothing to undo. The two changes after it cannot fail, because the preconditions have already ruled out every way they could go wrong. This order, where everything that might fail comes first and then all the changes, is the better fix whenever it is possible.</p>
+<h3 class="anchored" data-anchor-id="undo-in-the-rescue-clause">Undo in the rescue clause</h3>
+<p>Sometimes the risky step has to come last. The original <code>book</code> is an example, since <code>to_text</code> can only describe the new state once that state exists. In that case, the <code>rescue</code> clause can undo the changes and then re-raise, so the caller still learns about the failure:</p>
+<pre><code>book(name: String, count: Integer)
+require
+  positive_count: count &gt; 0
+  enough_seats: count &lt;= free
+  new_customer: not bookings.contains_key(name)
+do
+  free := free - count
+  bookings.set(name, count)
+  store.write_text(to_text())
+rescue
+  free := free + count
+  bookings.remove(name)
+  raise exception
+end</code></pre>
+<p>This works because the only step that can fail is the last one. By the time anything can go wrong, both changes have been made, and the rescue clause knows exactly what to undo. In a routine with failure points scattered through it, the rescue clause would have to work out how far the body got before it failed. That is hard to get right, and it is the main reason to prefer the first fix.</p>
+<p>With either version of <code>book</code> in the class, a failed save leaves the show exactly as it was:</p>
+<pre><code>nex&gt; let show := create Show.make(10, create Path.make("/no-such-folder/bookings.txt"))
+
+nex&gt; show.book("ana", 4)
+Error: /no-such-folder/bookings.txt (No such file or directory)
+
+nex&gt; show.free
+10
+
+nex&gt; show.bookings
+{}</code></pre>
+</section>
+<section class="level2" data-number="23.5" id="a-worked-example-a-booking-desk">
+<h2 class="anchored" data-anchor-id="a-worked-example-a-booking-desk" data-number="23.5"> A Worked Example: A Booking Desk</h2>
+<p>The desk is the routine that connects a customer&rsquo;s line of text to the show. It is where all three kinds of failure meet, so it is where the separation of this chapter pays off:</p>
+<pre><code>nex&gt; function handle(show: Show, line: String): String do
+       match parse_request(line) of
+         Ok(value) then
+           if value.count &gt; show.free then
+             result := "rejected: only " + show.free.to_string + " seats left"
+           elseif show.bookings.contains_key(value.name) then
+             result := "rejected: " + value.name + " already has a booking"
+           else
+             show.book(value.name, value.count)
+             result := "booked " + value.count.to_string + " for " + value.name
+           end
+         Err(error) then
+           result := "rejected: " + error
+       end
+     rescue
+       if convert exception to h: Host_Exception then
+         result := "not booked, could not save: " + h.message
+       else
+         raise exception
+       end
+     end</code></pre>
+<p>Each kind of failure is handled in its own place:</p>
 <ul>
-<li>Robust code keeps the three kinds of failure separate</li>
-<li>Programmer mistakes should fail fast through contracts</li>
-<li>Uncertain external conditions should be handled at system boundaries</li>
-<li>Recovery should preserve the truth about what happened</li>
-<li>Partial updates are dangerous; good contracts and small routines reduce that risk</li>
-<li>Result objects are often useful when failure is expected</li>
-<li>Robustness comes from clear boundaries, not from hiding every error</li>
+<li><strong>Bad input</strong> never gets past <code>parse_request</code>. The desk receives an <code>Err</code> and passes its message on to the customer.</li>
+<li><strong>Requests that are valid but can&rsquo;t be met</strong>, such as too many seats or a second booking, are checked by the desk before it calls <code>book</code>. These are the preconditions of <code>book</code>, and the desk tests them in advance as a careful caller should.</li>
+<li><strong>A failed save</strong> reaches the <code>rescue</code> clause as a <code>Host_Exception</code>. The desk can tell the customer the truth, &ldquo;not booked&rdquo;, because <code>book</code> guarantees that a failed booking leaves no trace.</li>
+<li><strong>Anything else</strong> is re-raised. A contract violation here would mean the desk itself has a bug, for example a missing check before <code>book</code>. Reporting that as &ldquo;try again later&rdquo; would hide it.</li>
+</ul>
+<p>A run of requests shows every path:</p>
+<pre><code>nex&gt; let show := create Show.make(10, create Path.make("bookings.txt"))
+
+nex&gt; across ["ana 4", "ben three", "cy 0", "dee", "ana 2", "eve 7", "eve 6"] as line do
+       print(line + " -&gt; " + handle(show, line))
+     end
+"ana 4 -&gt; booked 4 for ana"
+"ben three -&gt; rejected: three is not a number"
+"cy 0 -&gt; rejected: the number of seats must be positive"
+"dee -&gt; rejected: expected a name and a number of seats"
+"ana 2 -&gt; rejected: ana already has a booking"
+"eve 7 -&gt; rejected: only 6 seats left"
+"eve 6 -&gt; booked 6 for eve"
+
+nex&gt; show.store.read_text
+"ana 4
+eve 6
+"</code></pre>
+<p>And when the file can&rsquo;t be written:</p>
+<pre><code>nex&gt; let broken := create Show.make(10, create Path.make("/no-such-folder/bookings.txt"))
+
+nex&gt; handle(broken, "ana 4")
+"not booked, could not save: /no-such-folder/bookings.txt (No such file or directory)"
+
+nex&gt; broken.free
+10</code></pre>
+<p>None of the routines is complicated. The program is robust because each one has a clear job: <code>parse_request</code> handles input it can&rsquo;t trust, <code>Request</code> and <code>Show</code> use contracts to refuse anything invalid, <code>book</code> either does everything or nothing, and the desk turns each outcome into a truthful answer.</p>
+</section>
+<section class="level2" data-number="23.6" id="simple-defensive-patterns">
+<h2 class="anchored" data-anchor-id="simple-defensive-patterns" data-number="23.6"> Habits of Robust Code</h2>
+<p>The booking system follows a few habits that are worth keeping in any program:</p>
+<p><em>Check untrusted data once, at the edge</em>, and turn it into a type whose invariant guarantees it is valid. Code further in should not have to check it again.</p>
+<p><em>Make the preconditions things a caller can check.</em> A precondition that depends only on what the caller can see, such as <code>count &lt;= free</code>, tells the caller exactly what to test first.</p>
+<p><em>Do everything that might fail before changing anything.</em> When that isn&rsquo;t possible, undo the changes in <code>rescue</code> and re-raise.</p>
+<p><em>Recover truthfully.</em> A fallback is acceptable only if it is announced and its meaning is documented. Returning an empty string when a file fails to load, for example, is a lie if callers will read it as &ldquo;the file was empty&rdquo;.</p>
+<p><em>Catch only what you can handle.</em> Name the exception class you expect, and re-raise everything else, so that bugs still surface as bugs.</p>
+<p><em>Use detachable types only when absence is meaningful.</em> Don&rsquo;t reach for <code>?Type</code> just to avoid deciding what should really be required.</p>
+</section>
+<section class="level2" data-number="23.7" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="23.7"> Summary</h2>
+<ul>
+<li>Caller mistakes and routine bugs should fail fast through contracts. Only failures of the outside world are things to plan for and recover from</li>
+<li>Check untrusted input once, at the boundary, and turn it into a value whose invariant guarantees it is valid</li>
+<li>At the boundary, bad input is a normal outcome: return a result instead of raising</li>
+<li>Preconditions work best when the caller can check them before calling</li>
+<li>An operation that reports failure must leave everything as it was. Do the risky step first, or undo the changes in <code>rescue</code> and re-raise</li>
+<li>Handle each kind of failure where it can be handled meaningfully, and let the rest propagate</li>
 </ul>
 </section>
-<section class="level2" data-number="23.10" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="23.10"> Exercises</h2>
-<p><strong>1.</strong> Take one routine from an earlier chapter and classify its possible failures into caller mistakes, routine bugs, and environmental failures.</p>
-<p><strong>2.</strong> Rewrite <code>safe_divide</code> so that it uses a precondition instead of a result object. Which design is better, and in what context?</p>
-<p><strong>3.</strong> Design a routine <code>load_score(text: String): Integer</code> that accepts user input, validates it, and returns a positive integer score. Decide where validation ends and where contracts begin.</p>
-<p><strong>4.</strong> Write a short paragraph explaining why a silent fallback can sometimes be more dangerous than a visible failure.</p>
-<p><strong>5.*</strong> A program updates two files so they should always match. Sketch a robust design for this operation. Where would you put contracts, where would you use exceptions, and how would you reduce the chance of leaving the files inconsistent?</p>
+<section class="level2" data-number="23.8" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="23.8"> Exercises</h2>
+<p><strong>1.</strong> Take one routine from an earlier chapter and sort its possible failures into caller mistakes, routine bugs, and failures of the outside world.</p>
+<p><strong>2.</strong> <code>parse_request</code> rejects <code>ana&nbsp;&nbsp;4</code>, which has two spaces in the middle. Change it to accept extra spaces between and around the two words. Then make it reject names that contain digits. Which of these checks belongs in <code>parse_request</code>, and which, if any, belongs in the invariant of <code>Request</code>?</p>
+<p><strong>3.</strong> Remove the free-seats check from <code>handle</code> and send it the line <code>eve 20</code>. What does Nex report? Explain why that is the right kind of failure for this mistake, and why <code>handle</code> should not catch it.</p>
+<p><strong>4.</strong> Add a routine <code>cancel(name: String)</code> to <code>Show</code> that removes a booking, frees its seats, and saves the file. Write its precondition, and make sure a failed save leaves the show exactly as it was. Which of the two fixes from <a href="chapter_22.html#guarding-against-partial-updates" title="Section 22.4: Guarding Against Partial Updates">Section 22.4</a> did you use, and why?</p>
+<p><strong>5.*</strong> A program updates two files that must always match, such as a list of bookings and a list of payments. Sketch a design for this operation. Where would you put contracts, where would you use exceptions, and how would you keep a failure while writing the second file from leaving the two files inconsistent?</p>
 </section>
 
   </div>
