@@ -67,23 +67,45 @@ end</code></pre>
 </section>
 <section class="level2" data-number="22.3" id="retrying">
 <h2 class="anchored" data-anchor-id="retrying" data-number="22.3"> Retrying</h2>
-<p>Some failures are temporary. In such cases, a rescue block may try again with <code>retry</code>.</p>
-<pre><code>nex&gt; let attempts := 0
-
-nex&gt; do
-       attempts := attempts + 1
-       if attempts &lt; 3 then
-         raise "not ready yet"
+<p>Some failures have a way around them. A server may be down while its mirror is up. In such cases a rescue block can try again with <code>retry</code>, which jumps back to the start of the <code>do</code> block and runs it again.</p>
+<p>To keep the example self-contained, <code>fetch</code> stands in for a real network call. It succeeds only for <code>mirror-c</code>:</p>
+<pre><code>nex&gt; function fetch(host: String): String do
+       if host /= "mirror-c" then
+         raise "cannot reach " + host
        end
-       print("done on attempt " + attempts.to_string)
-     rescue
-       print("failed: " + exception.to_string)
-       retry
+       result := "data from " + host
      end
-"failed: not ready yet"
-"failed: not ready yet"
-"done on attempt 3"</code></pre>
-<p><code>retry</code> jumps back to the start of the <code>do</code> block and runs it again. This is powerful, but it must be used carefully: a retry that makes no progress toward success becomes an infinite loop in disguise.</p>
+
+nex&gt; function fetch_from_any(hosts: Array[String]): String
+     require
+       some_host: hosts.length &gt; 0
+     do
+       let i := 0
+       do
+         result := fetch(hosts.get(i))
+       rescue
+         print("failed: " + exception.to_string)
+         i := i + 1
+         if i &lt; hosts.length then
+           retry
+         else
+           raise "no host could be reached"
+         end
+       end
+     end
+
+nex&gt; fetch_from_any(["mirror-a", "mirror-b", "mirror-c"])
+"failed: cannot reach mirror-a"
+"failed: cannot reach mirror-b"
+"data from mirror-c"
+
+nex&gt; fetch_from_any(["mirror-a", "mirror-b"])
+"failed: cannot reach mirror-a"
+"failed: cannot reach mirror-b"
+Error: no host could be reached</code></pre>
+<p>A retry needs two things to be safe.</p>
+<p>First, something must change between attempts. Running the same failing code again in the same conditions just fails again. Here the rescue clause moves <code>i</code> to the next host. The counter is declared <em>outside</em> the protected block, so <code>retry</code> does not reset it. If <code>let i := 0</code> were inside the <code>do</code> block, every retry would start again at <code>mirror-a</code>.</p>
+<p>Second, there must be a stopping rule. When the hosts run out, the rescue clause stops retrying and raises an exception, so the caller learns that the whole operation failed. Without that rule, a retry is an infinite loop in disguise. The argument for stopping is the same as for a loop variant in <a href="chapter_19.html#loop-variants" title="Section 19.4: Loop Variants">Chapter 19</a>: <code>hosts.length - i</code> gets smaller on every retry and the retries end before it reaches zero.</p>
 </section>
 <section class="level2" data-number="22.4" id="rescue-inside-routines">
 <h2 class="anchored" data-anchor-id="rescue-inside-routines" data-number="22.4"> Rescue Inside Routines</h2>
@@ -213,51 +235,79 @@ end</code></pre>
 </ul>
 <p>Anything else tends to hide bugs.</p>
 </section>
-<section class="level2" data-number="22.8" id="a-retry-loop-with-limits">
-<h2 class="anchored" data-anchor-id="a-retry-loop-with-limits" data-number="22.8"> A Retry Loop with Limits</h2>
-<p>Unbounded retry is dangerous. Give it a stopping rule.</p>
-<pre><code>nex&gt; function connect_with_retry(): String do
-       let attempts := 0
-       do
-         attempts := attempts + 1
-         if attempts &lt; 3 then
-           raise "temporary connection error"
-         end
-         result := "connected"
-       rescue
-         if attempts &lt; 3 then
-           retry
-         else
-           raise exception
-         end
+<section class="level2" data-number="22.8" id="a-worked-example-loading-saved-scores">
+<h2 class="anchored" data-anchor-id="a-worked-example-loading-saved-scores" data-number="22.8"> A Worked Example: Loading Saved Scores</h2>
+<p>A game keeps its high scores in a text file, one number per line, using the <code>Path</code> type from <a href="chapter_11.html" title="Chapter 11: Project: An Expense Tracker">Chapter 11</a>. Loading that file runs into each kind of trouble this chapter has separated: a mistake by the caller, a failure of the environment, and data that is not what it should be. Each is handled in a different place.</p>
+<pre><code>nex&gt; intern io/Path
+
+nex&gt; class Score_File_Error inherit Exception
+     create
+       make(m: String) do
+         Exception.make(m)
        end
-     end</code></pre>
-<p>This routine retries twice, then gives up. The rescue logic is controlled and explicit.</p>
-</section>
-<section class="level2" data-number="22.9" id="a-worked-example-parsing-a-positive-integer">
-<h2 class="anchored" data-anchor-id="a-worked-example-parsing-a-positive-integer" data-number="22.9"> A Worked Example: Parsing a Positive Integer</h2>
-<p>Here is a small example that separates routine obligations from environmental uncertainty:</p>
-<pre><code>nex&gt; function parse_positive(text: String): Integer
+     end
+
+nex&gt; function load_scores(file: Path): Array[Integer]
      require
-       not_empty: text.length &gt; 0
+       not_a_folder: not file.is_directory
      do
-       let value := text.to_integer
-       if value &lt;= 0 then
-         raise "number must be positive"
+       if file.exists then
+         across file.read_text.split("\n") as line do
+           if line.length &gt; 0 then
+             result.add(line.to_integer)
+           end
+         end
        end
-       result := value
      rescue
-       raise "invalid positive integer: " + text
+       if convert exception to c: Conversion_Error then
+         raise create Score_File_Error.make(file.to_string + " is damaged: " + c.message)
+       else
+         raise exception
+       end
      end</code></pre>
-<p>The routine uses a precondition for one issue and an exception for another:</p>
 <ul>
-<li>empty input is a caller error here, so it is a precondition</li>
-<li>malformed or unacceptable content after conversion is handled as an exception</li>
+<li><strong>A folder is the caller&rsquo;s mistake.</strong> No correct program asks to read scores from a folder, so this is a precondition, not something to recover from.</li>
+<li><strong>A missing file is not a failure at all.</strong> The first time the game runs there are no scores yet. <code>exists</code> checks for that case and the routine returns an empty table. Nothing about a first run is exceptional, so no exception is involved.</li>
+<li><strong>A damaged file is a real failure, but not the caller&rsquo;s fault.</strong> For a line such as <code>ninety</code>, <code>to_integer</code> raises a <code>Conversion_Error</code>. The rescue clause turns it into a <code>Score_File_Error</code> that names the file, because &ldquo;Not a valid number&rdquo; on its own doesn&rsquo;t say where the bad number came from.</li>
+<li><strong>Everything else passes through unchanged.</strong> A file the program is not allowed to read arrives as a <code>Host_Exception</code>. <code>load_scores</code> has nothing useful to add to that, so it re-raises it.</li>
 </ul>
-<p>That balance is not arbitrary. It reflects the routine’s role in the design. If the caller is expected to pass non-empty strings, make it a contract. If the content may legitimately fail to parse, raise or handle an exception.</p>
+<p>Here are all four cases:</p>
+<pre><code>nex&gt; let scores_file := create Path.make("scores.txt")
+
+nex&gt; load_scores(scores_file)
+[]
+
+nex&gt; scores_file.write_text("120\n95\n80\n")
+
+nex&gt; load_scores(scores_file)
+[120, 95, 80]
+
+nex&gt; scores_file.write_text("120\nninety\n80\n")
+
+nex&gt; load_scores(scores_file)
+Error: scores.txt is damaged: Not a valid number: "ninety"
+
+nex&gt; load_scores(create Path.make("."))
+Error: Precondition violation: not_a_folder</code></pre>
+<p><code>load_scores</code> does not decide what the game should do about a damaged file. It only reports the problem precisely. The decision belongs to the caller, which knows more about the situation. At startup, the game might choose to begin a fresh table and say so:</p>
+<pre><code>nex&gt; function startup_scores(file: Path): Array[Integer] do
+       result := load_scores(file)
+     rescue
+       if convert exception to e: Score_File_Error then
+         print(e.message + ", starting a new table")
+         result := []
+       else
+         raise exception
+       end
+     end
+
+nex&gt; startup_scores(scores_file)
+"scores.txt is damaged: Not a valid number: "ninety", starting a new table"
+[]</code></pre>
+<p>Each routine handles what it is in a position to handle. The routine that finds the problem describes it. The routine that knows the context chooses the fallback and announces it. Neither one hides a failure it doesn&rsquo;t understand.</p>
 </section>
-<section class="level2" data-number="22.10" id="typed-error-results">
-<h2 class="anchored" data-anchor-id="typed-error-results" data-number="22.10"> Typed Error Results</h2>
+<section class="level2" data-number="22.9" id="typed-error-results">
+<h2 class="anchored" data-anchor-id="typed-error-results" data-number="22.9"> Typed Error Results</h2>
 <p><code>raise</code> and <code>rescue</code> are the right tool for truly exceptional conditions, such as a missing file. But sometimes a routine naturally has two outcomes, both expected: a parse may succeed or it may fail; a lookup may find the key or it may not. Expressing these as exceptions forces the caller to use a rescue block for what is really an ordinary control flow decision.</p>
 <p>Sealed classes and the <code>match</code> statement provide an alternative that keeps the failure path explicit in the type signature. Define a sealed result type with one variant for each outcome:</p>
 <pre><code>sealed deferred class Parse_Result
@@ -326,25 +376,25 @@ match found of
 end</code></pre>
 <p>Use the hand-written sealed type from the previous section when the variants need their own methods or contracts. Use the standard <code>Result</code> and <code>Option</code> when plain success/failure or presence/absence is all you need. Both are documented in Appendix&nbsp;C.</p>
 </section>
-<section class="level2" data-number="22.11" id="summary">
-<h2 class="anchored" data-anchor-id="summary" data-number="22.11"> Summary</h2>
+<section class="level2" data-number="22.10" id="summary">
+<h2 class="anchored" data-anchor-id="summary" data-number="22.10"> Summary</h2>
 <ul>
 <li>Exceptions are for failures that can occur during otherwise valid execution</li>
 <li><code>raise</code> signals an exception; <code>rescue</code> handles it; <code>retry</code> tries the protected block again</li>
 <li>Contract violations and exceptions are different kinds of failure and should not be confused</li>
 <li>A failure the language raises itself reaches <code>rescue</code> as an object of a built-in exception class; test for one with <code>convert</code> or <code>match</code>, and inherit <code>Exception</code> for failures of your own</li>
 <li>A rescue block should handle the failure meaningfully, not merely hide the error</li>
-<li>Retry should usually have a clear stopping condition</li>
+<li>Each retry should change something about the next attempt, and retries need a clear stopping condition</li>
 <li>Good error handling preserves meaning rather than blurring it</li>
 <li>Use sealed result types with <code>match</code> when both success and failure are ordinary outcomes — the typechecker enforces that every variant is handled</li>
 </ul>
 </section>
-<section class="level2" data-number="22.12" id="exercises">
-<h2 class="anchored" data-anchor-id="exercises" data-number="22.12"> Exercises</h2>
+<section class="level2" data-number="22.11" id="exercises">
+<h2 class="anchored" data-anchor-id="exercises" data-number="22.11"> Exercises</h2>
 <p><strong>1.</strong> Write a <code>do ... rescue ... end</code> block that raises <code>"too small"</code> until a counter reaches 5, then prints <code>"ok"</code>. Use <code>retry</code>.</p>
 <p><strong>2.</strong> Define a function <code>safe_reciprocal(x: Real): Real</code> that raises an exception when <code>x = 0.0</code>. Then wrap a call in a rescue block that prints a fallback message.</p>
 <p><strong>3.</strong> Rewrite a routine of your own choosing so that it distinguishes clearly between a contract violation and an exception-producing environmental failure.</p>
-<p><strong>4.</strong> Improve the <code>connect_with_retry</code> routine so that it prints the attempt number each time it retries.</p>
+<p><strong>4.</strong> Change <code>fetch_from_any</code> so that, when every host fails, the exception it raises lists why each host failed, not only that none succeeded.</p>
 <p><strong>5.*</strong> Design a small class <code>File_Cache</code> whose <code>load(path: String): String</code> routine first tries to read from memory, then from disk, and uses rescue logic to recover from a missing file by returning a built-in default. State what should be a precondition, what should be an exception, and why.</p>
 </section>
 
