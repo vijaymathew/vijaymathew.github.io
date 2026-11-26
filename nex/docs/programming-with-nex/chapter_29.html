@@ -45,7 +45,8 @@
   Unknown(text: String)
 end
 
-function parse_command(line: String): Command do
+function parse_command(line: String): Command
+do
   let text := line.trim
   let words := text.split(" ").filter(fn (w: String): Boolean do result := w /= "" end)
   if text.contains("=") then
@@ -77,7 +78,8 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="asking-before-acting" data-number="29.2"> Asking Before Acting</h2>
 <p>Running a command is a <code>match</code> with one clause per command, each returning what to print, so that the main loop and the tests can share it:</p>
 <pre><code>-- Carry out `cmd`, returning what to print ("" for nothing).
-function run(sheet: Sheet, cmd: Command): String do
+function run(sheet: Sheet, cmd: Command): String
+do
   match cmd of
     Assign(name, text) then result := assign(sheet, name, text)
     Show_All           then result := format_grid(sheet)
@@ -91,7 +93,8 @@ function run(sheet: Sheet, cmd: Command): String do
   end
 end
 
-function assign(sheet: Sheet, name, text: String): String do
+function assign(sheet: Sheet, name, text: String): String
+do
   result := ""
   if not is_cell_name(name) then
     result := "Error: " + name + " is not a cell name"
@@ -108,7 +111,8 @@ function assign(sheet: Sheet, name, text: String): String do
   end
 end
 
-function show_cell(sheet: Sheet, name: String): String do
+function show_cell(sheet: Sheet, name: String): String
+do
   if is_cell_name(name) then
     result := show_value(sheet.value_of(name))
     if sheet.has(name) then
@@ -119,7 +123,8 @@ function show_cell(sheet: Sheet, name: String): String do
   end
 end
 
-function clear_cell(sheet: Sheet, name: String): String do
+function clear_cell(sheet: Sheet, name: String): String
+do
   result := ""
   if is_cell_name(name) then
     sheet.clear(name)
@@ -133,21 +138,24 @@ end</code></pre>
 <section class="level2" data-number="29.3" id="showing-the-grid">
 <h2 class="anchored" data-anchor-id="showing-the-grid" data-number="29.3"> Showing the Grid</h2>
 <p>The grid shows every column and row up to the last one in use, with each value right-aligned in a column ten characters wide:</p>
-<pre><code>function pad_left(text: String, width: Integer): String do
+<pre><code>function pad_left(text: String, width: Integer): String
+do
   result := text
   from until result.length &gt;= width do
     result := " " + result
   end
 end
 
-function trim_right(text: String): String do
+function trim_right(text: String): String
+do
   result := text
   from until result.length = 0 or result.char_at(result.length - 1) /= #space do
     result := result.substring(0, result.length - 1)
   end
 end
 
-function format_grid(sheet: Sheet): String do
+function format_grid(sheet: Sheet): String
+do
   let width := 10
   let last_column := 0
   let last_row := 1
@@ -177,7 +185,8 @@ end</code></pre>
 <section class="level2" data-number="29.4" id="saving-and-loading">
 <h2 class="anchored" data-anchor-id="saving-and-loading" data-number="29.4"> Saving and Loading</h2>
 <p>A sheet is saved as the commands that would rebuild it, one cell per line, in name order. Loading reads the file back and runs each line as a command:</p>
-<pre><code>function save(sheet: Sheet, path: String): String do
+<pre><code>function save(sheet: Sheet, path: String): String
+do
   let lines := sheet.cells.keys.sort.map(fn (name: String): String do
     result := name + " = " + sheet.text_of(name)
   end)
@@ -187,7 +196,8 @@ end</code></pre>
   result := "Saved " + sheet.count.to_string + " cells to " + path
 end
 
-function load(sheet: Sheet, path: String): String do
+function load(sheet: Sheet, path: String): String
+do
   let file := create Path.make(path)
   if not file.exists then
     result := "Error: no file " + path
@@ -219,7 +229,8 @@ B1 = sum(a1:a3)</code></pre>
 <pre><code>-- spreadsheet.nex: a spreadsheet on the command line.
 intern sheet/Commands
 
-function main() do
+function main()
+do
   let sheet := create Sheet.make
   console.print_line("Nex spreadsheet. Type help for the commands.")
   from let done := false until done do
@@ -315,7 +326,8 @@ Error: Q100 is not a cell name
 <section class="level2" data-number="29.7" id="the-tests">
 <h2 class="anchored" data-anchor-id="the-tests" data-number="29.7"> The Tests</h2>
 <p><code>tests.nex</code> follows the style of <a href="chapter_25.html" title="Chapter 25: Testing Your Programs">Chapter 25</a>: one function per part of the program, each a list of labelled <code>assert</code> statements, so that a failure names the case that broke. The formula tests use the <code>Fixed_Cells</code> fake from <a href="chapter_27.html#testing-without-a-sheet" title="Section 27.8: Testing Without a Sheet">Section 27.8</a>; the sheet tests go through <code>run</code>, the same path a user&rsquo;s commands take:</p>
-<pre><code>function test_sheet() do
+<pre><code>function test_sheet()
+do
   let sheet := create Sheet.make
   assert set_before_use: run(sheet, parse_command("A3 = A1 + A2 * 2")) = ""
   run(sheet, parse_command("A1 = 120"))
@@ -328,7 +340,8 @@ Error: Q100 is not a cell name
   print("sheet tests passed")
 end
 
-function test_cycle_is_a_precondition() do
+function test_cycle_is_a_precondition()
+do
   let sheet := create Sheet.make
   let reached := false
   run(sheet, parse_command("A1 = B1"))

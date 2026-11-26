@@ -37,40 +37,58 @@
 <p>In Nex, inheritance is declared with <code>inherit</code>. A move is described by how far a piece travels: <code>dx</code> squares sideways and <code>dy</code> squares up the board.</p>
 <pre><code>nex&gt; class Piece
      create
-       make(s: String) do
+       make(s: String)
+       do
          side := s
        end
      feature
        side: String
-       name: String do result := "piece" end
-       can_move(dx, dy: Integer): Boolean do result := false end
-       describe: String do
+       name: String
+       do
+         result := "piece"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
+         result := false
+       end
+       describe: String
+       do
          result := side + " " + name
        end
      end
 
 nex&gt; class Rook inherit Piece
      create
-       make(s: String) do
+       make(s: String)
+       do
          Piece.make(s)
        end
      feature
-       name: String do result := "rook" end
-       can_move(dx, dy: Integer): Boolean do
+       name: String
+       do
+         result := "rook"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
          result := (dx = 0) /= (dy = 0)
        end
      end
 
 nex&gt; class Pawn inherit Piece
      create
-       make(s: String) do
+       make(s: String)
+       do
          Piece.make(s)
          direction := when s = "white" then 1 else -1 end
        end
      feature
        direction: Integer
-       name: String do result := "pawn" end
-       can_move(dx, dy: Integer): Boolean do
+       name: String
+       do
+         result := "pawn"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
          result := dx = 0 and dy = direction
        end
      end</code></pre>
@@ -86,19 +104,22 @@ end</code></pre>
 <section class="level2" data-number="15.2" id="the-super-class-calls">
 <h2 class="anchored" data-anchor-id="the-super-class-calls" data-number="15.2"> Superclass Calls</h2>
 <p>When a subclass constructor runs, it must also initialise the fields inherited from the superclass. Naming the superclass explicitly delegates to its constructor:</p>
-<pre><code>make(s: String) do
+<pre><code>make(s: String)
+do
   Piece.make(s)                                      -- initialises side in Piece
   direction := when s = "white" then 1 else -1 end   -- initialises direction in Pawn
 end</code></pre>
 <p><code>Piece.make(s)</code> runs <code>Piece</code>’s <code>make</code> constructor, setting <code>side := s</code>. Then the <code>Pawn</code> constructor sets <code>direction</code>. Both fields are properly initialised.</p>
 <p>When a class inherits from exactly one parent — the usual case — the keyword <code>super</code> says the same thing without naming it:</p>
-<pre><code>make(s: String) do
+<pre><code>make(s: String)
+do
   super.make(s)   -- same as Piece.make(s)
   direction := when s = "white" then 1 else -1 end
 end</code></pre>
 <p><code>super</code> resolves to whichever class <code>Pawn</code> inherits from, so the call still reads correctly if <code>Piece</code> is later renamed. This only works because <code>Pawn</code> has a single parent — a class declared with <code>inherit A, B</code> has two, and <code>super</code> would have no way to choose between them, so it is rejected at compile time there; the one you mean must be named explicitly, as above.</p>
 <p><code>super</code> can call an overridden superclass method from within an override the same way. Suppose a pawn should also say which way it is heading:</p>
-<pre><code>describe: String do
+<pre><code>describe: String
+do
   result := super.describe + " moving " + when direction = 1 then "up" else "down" end
 end</code></pre>
 <p>A black pawn with this <code>describe</code> calls itself <code>"black pawn moving down"</code>. The method builds on <code>Piece</code>’s <code>describe</code> rather than duplicating it — and, as with the constructor, <code>Piece.describe</code> would do exactly the same thing here, since <code>Pawn</code> has only the one parent. Reach for the explicit form when you need to be precise about which ancestor you mean, or when <code>super</code> alone would be ambiguous; otherwise <code>super</code> is the more direct way to say “my superclass’s version of this.”</p>
@@ -124,12 +145,17 @@ false</code></pre>
 <p>Add one more kind of piece. A knight jumps in an L: two squares one way and one square the other, so the product of the two distances is always 2:</p>
 <pre><code>nex&gt; class Knight inherit Piece
      create
-       make(s: String) do
+       make(s: String)
+       do
          Piece.make(s)
        end
      feature
-       name: String do result := "knight" end
-       can_move(dx, dy: Integer): Boolean do
+       name: String
+       do
+         result := "knight"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
          result := dx.abs * dy.abs = 2
        end
      end</code></pre>
@@ -172,30 +198,44 @@ nex&gt; pieces.filter(fn (p) =&gt; p.can_move(0, -1)).map(fn (p) =&gt; p.describ
 <p>Every move must stay on the board, whatever the piece. That part of the rule is the same for every piece, so it belongs in <code>Piece</code>. Which moves a piece can make at all is different for each kind, so <code>Piece</code> only provides a safe default for it:</p>
 <pre><code>nex&gt; class Piece
      create
-       make(s: String) do
+       make(s: String)
+       do
          side := s
        end
      feature
        BOARD_SIZE = 8
        side: String
-       name: String do result := "piece" end
-       can_move(dx, dy: Integer): Boolean do result := false end
-       can_reach(dx, dy: Integer): Boolean do
+       name: String
+       do
+         result := "piece"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
+         result := false
+       end
+       can_reach(dx, dy: Integer): Boolean
+       do
          result := dx.abs &lt; BOARD_SIZE and dy.abs &lt; BOARD_SIZE and can_move(dx, dy)
        end
-       describe: String do
+       describe: String
+       do
          result := side + " " + name
        end
      end</code></pre>
 <p><code>can_move</code> returns <code>false</code> by default. The <code>can_reach</code> method in <code>Piece</code> checks the board size and then calls <code>can_move</code>, and subclasses override <code>can_move</code> with their own rule:</p>
 <pre><code>nex&gt; class Rook inherit Piece
      create
-       make(s: String) do
+       make(s: String)
+       do
          Piece.make(s)
        end
      feature
-       name: String do result := "rook" end
-       can_move(dx, dy: Integer): Boolean do
+       name: String
+       do
+         result := "rook"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
          result := (dx = 0) /= (dy = 0)
        end
      end
@@ -213,7 +253,8 @@ false</code></pre>
 <p>So far a piece has known only how it moves, not where it is. In this example each piece also remembers its square, as a column <code>col</code> and a row <code>row</code>, both counted from 0. Moving a piece checks the move and, if it is allowed, updates the square:</p>
 <pre><code>nex&gt; class Piece
      create
-       make(s: String, c, r: Integer) do
+       make(s: String, c, r: Integer)
+       do
          side := s
          col := c
          row := r
@@ -223,12 +264,20 @@ false</code></pre>
        side: String
        col: Integer
        row: Integer
-       name: String do result := "piece" end
-       can_move(dx, dy: Integer): Boolean do result := false end
-       on_board(c, r: Integer): Boolean do
+       name: String
+       do
+         result := "piece"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
+         result := false
+       end
+       on_board(c, r: Integer): Boolean
+       do
          result := c &gt;= 0 and c &lt; BOARD_SIZE and r &gt;= 0 and r &lt; BOARD_SIZE
        end
-       move_to(c, r: Integer): Boolean do
+       move_to(c, r: Integer): Boolean
+       do
          if on_board(c, r) and can_move(c - col, r - row) then
            col := c
            row := r
@@ -237,29 +286,37 @@ false</code></pre>
            result := false
          end
        end
-       square: String do
+       square: String
+       do
          result := "abcdefgh".char_at(col).to_string + (row + 1).to_string
        end
-       describe: String do
+       describe: String
+       do
          result := side + " " + name + " on " + square
        end
      end
 
 nex&gt; class Knight inherit Piece
      create
-       make(s: String, c, r: Integer) do
+       make(s: String, c, r: Integer)
+       do
          Piece.make(s, c, r)
        end
      feature
-       name: String do result := "knight" end
-       can_move(dx, dy: Integer): Boolean do
+       name: String
+       do
+         result := "knight"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
          result := dx.abs * dy.abs = 2
        end
      end
 
 nex&gt; class Pawn inherit Piece
      create
-       make(s: String, c, r: Integer) do
+       make(s: String, c, r: Integer)
+       do
          Piece.make(s, c, r)
          direction := when s = "white" then 1 else -1 end
          moved := false
@@ -267,17 +324,23 @@ nex&gt; class Pawn inherit Piece
      feature
        direction: Integer
        moved: Boolean
-       name: String do result := "pawn" end
-       can_move(dx, dy: Integer): Boolean do
+       name: String
+       do
+         result := "pawn"
+       end
+       can_move(dx, dy: Integer): Boolean
+       do
          result := dx = 0 and (dy = direction or (not moved and dy = 2 * direction))
        end
-       move_to(c, r: Integer): Boolean do
+       move_to(c, r: Integer): Boolean
+       do
          result := Piece.move_to(c, r)
          if result then
            moved := true
          end
        end
-       describe: String do
+       describe: String
+       do
          result := Piece.describe + when moved then "" else " (not yet moved)" end
        end
      end</code></pre>
@@ -324,10 +387,14 @@ false</code></pre>
 <pre><code>deferred class Piece
 feature
   side: String
-  set_side(s: String) do side := s end
+  set_side(s: String)
+  do
+    side := s
+  end
   name: String deferred
   can_move(dx, dy: Integer): Boolean deferred
-  describe: String do
+  describe: String
+  do
     result := side + " " + name
   end
 end</code></pre>
@@ -336,12 +403,17 @@ end</code></pre>
 <p>Any concrete subclass must implement all deferred features:</p>
 <pre><code>class Knight inherit Piece
 create
-  make(s: String) do
+  make(s: String)
+  do
     set_side(s)
   end
 feature
-  name: String do result := "knight" end
-  can_move(dx, dy: Integer): Boolean do
+  name: String
+  do
+    result := "knight"
+  end
+  can_move(dx, dy: Integer): Boolean
+  do
     result := dx.abs * dy.abs = 2
   end
 end
@@ -370,14 +442,20 @@ class Ok inherit Result
 feature
   value: Integer
 create
-  make(v: Integer) do value := v end
+  make(v: Integer)
+  do
+    value := v
+  end
 end
 
 class Err inherit Result
 feature
   msg: String
 create
-  make(m: String) do msg := m end
+  make(m: String)
+  do
+    msg := m
+  end
 end</code></pre>
 <p><code>Result</code> is now a closed family: <code>Ok</code> and <code>Err</code> are the only variants that can ever exist.</p>
 <p>The sealed hierarchy is what allows us to define the <code>match</code> statement. Because the typechecker knows every subclass of a sealed type, it can verify that a <code>match</code> covers all of them. A missing branch is a compile-time error, not a runtime surprise:</p>
@@ -451,12 +529,14 @@ feature
   once x: Integer
   once y: Integer
 create
-  make(px: Integer, py: Integer) do
+  make(px: Integer, py: Integer)
+  do
     x := px
     y := py
   end
 feature
-  show do
+  show
+  do
     print(x)
     print(y)
   end
@@ -469,9 +549,13 @@ p.show   -- 3, then 7</code></pre>
 feature
   once value: Integer
 create
-  make(v: Integer) do value := v end
+  make(v: Integer)
+  do
+    value := v
+  end
 feature
-  overwrite(v: Integer) do
+  overwrite(v: Integer)
+  do
     value := v     -- error: 'value' is a once field
   end
 end</code></pre>
@@ -480,8 +564,14 @@ end</code></pre>
 feature
   once value: Integer
 create
-  make(v: Integer) do value := v end
-  empty do value := 0 end
+  make(v: Integer)
+  do
+    value := v
+  end
+  empty
+  do
+    value := 0
+  end
 end</code></pre>
 <p><code>once</code> is weaker than a constant: a constant requires its value at the point of declaration; a <code>once</code> field is computed by the constructor and fixed from that moment. This makes <code>once</code> the right choice whenever the value is not known until the object is created.</p>
 <p>The modifier interacts naturally with invariants. An invariant expressing that a field never changes is a runtime assertion at every method boundary; a <code>once</code> modifier is a structural, compile-time guarantee. Prefer the modifier when immutability is the design intent, and use the invariant to express additional value constraints on top of it.</p>

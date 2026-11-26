@@ -36,7 +36,8 @@
 <p>A cell has a name, a formula, and a value. The value could always be recomputed from the formula, but recomputing every cell every time one is displayed would be wasteful, so each cell keeps its last computed value. That stored value is a cache, and like every cache, it is only useful while it agrees with what it caches:</p>
 <pre><code>class Cell
 create
-  make(n: String, f: Formula) do
+  make(n: String, f: Formula)
+  do
     name := n
     formula := f
     value := create Num.make(0.0)
@@ -46,11 +47,13 @@ feature
   formula: Formula
   value: Value
 
-  reads: Array[String] do
+  reads: Array[String]
+  do
     result := references(formula.expr)
   end
 
-  set_value(v: Value) do
+  set_value(v: Value)
+  do
     value := v
   end
 invariant
@@ -88,7 +91,8 @@ end</code></pre>
 <p>The sheet keeps its cells in a map from name to cell. An empty cell is simply absent from the map, and reads as zero:</p>
 <pre><code>class Sheet
 create
-  make do
+  make
+  do
     cells := {}
     values := create Cell_Values.make(cells)
   end
@@ -96,11 +100,13 @@ feature
   cells: Map[String, Cell]
   values: Cell_Values
 
-  count: Integer do
+  count: Integer
+  do
     result := cells.size
   end
 
-  has(name: String): Boolean do
+  has(name: String): Boolean
+  do
     result := cells.contains_key(name)
   end
 
@@ -124,13 +130,15 @@ feature
 <pre><code>-- What formulas see of a sheet: the values of its cells, and nothing else.
 class Cell_Values inherit Cell_Source
 create
-  make(c: Map[String, Cell]) do
+  make(c: Map[String, Cell])
+  do
     cells := c
   end
 feature
   cells: Map[String, Cell]
 
-  value_of(name: String): Value do
+  value_of(name: String): Value
+  do
     if cells.contains_key(name) then
       result := cells.get(name).value
     else
@@ -163,7 +171,8 @@ end</code></pre>
     end
   end
 
-  reads_of(name: String): Array[String] do
+  reads_of(name: String): Array[String]
+  do
     result := []
     if has(name) then
       result := cells.get(name).reads
@@ -189,7 +198,8 @@ end</code></pre>
 <p>When a cell changes, the cells that read it must be recalculated, and so must the cells that read <em>those</em>. The order matters: in the opening example, <code>A3</code> reads <code>A1</code> and <code>B1</code> reads <code>A3</code>, so after a change to <code>A1</code>, recalculating <code>B1</code> before <code>A3</code> would add up a stale value.</p>
 <p>The simplest correct rule is to recalculate every cell, each after the cells it reads. Producing that order is a depth-first walk: before adding a cell to the order, add everything it reads. Its postconditions say what an order must be, so that the walk checks itself:</p>
 <pre><code>  -- Every cell, each after the cells it reads.
-  evaluation_order: Array[String] do
+  evaluation_order: Array[String]
+  do
     result := []
     across cells.keys.sort as name do
       visit(name, result)
@@ -200,7 +210,8 @@ end</code></pre>
   end
 
   -- Does every cell in `order` come after the stored cells it reads?
-  reads_come_first(order: Array[String]): Boolean do
+  reads_come_first(order: Array[String]): Boolean
+  do
     result := true
     across order as name do
       across reads_of(name) as r do
@@ -211,7 +222,8 @@ end</code></pre>
     end
   end
 
-  visit(name: String, order: Array[String]) do
+  visit(name: String, order: Array[String])
+  do
     if has(name) and not order.contains(name) then
       across reads_of(name) as r do
         visit(r, order)
@@ -220,7 +232,8 @@ end</code></pre>
     end
   end
 
-  recalculate do
+  recalculate
+  do
     across evaluation_order as name do
       let c := cells.get(name)
       c.set_value(evaluate(c.formula.expr, values))
@@ -231,7 +244,8 @@ end</code></pre>
 <p><code>visit</code> has no explicit stopping test for cycles, and needs none: it follows the cells a formula reads, and the invariant <code>acyclic</code> promises that following them never leads back to where it started. This is an invariant doing more than catching mistakes. It is the reason an algorithm is correct. The order of cells has to exist, and the walk has to end, and both are true <em>because</em> of <code>acyclic</code>, which <code>set</code>&rsquo;s precondition protects.</p>
 <p>The postcondition of <code>recalculate</code> is the class&rsquo;s second invariant, checked one more time at the point where it is established. The two queries behind the invariants are plain loops over the cells:</p>
 <pre><code>  -- Does every cell hold the value of its formula?
-  is_up_to_date: Boolean do
+  is_up_to_date: Boolean
+  do
     result := true
     across cells.values as c do
       if c.value /= evaluate(c.formula.expr, values) then
@@ -241,7 +255,8 @@ end</code></pre>
   end
 
   -- Does no cell depend on itself?
-  is_acyclic: Boolean do
+  is_acyclic: Boolean
+  do
     result := true
     across cells.keys as name do
       if depends_on(name, name) then
@@ -265,7 +280,8 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="using-the-sheet" data-number="28.6"> Using the Sheet</h2>
 <p>A small helper turns text into a <code>Formula</code>, raising if it is not one, which is enough for trying the sheet in the REPL:</p>
 <pre><code>nex&gt; intern sheet/Sheet
-nex&gt; function formula(text: String): Formula do
+nex&gt; function formula(text: String): Formula
+     do
        match parse_formula(text) of
          Ok as ok then result := ok.value
          Err as e then raise e.error
@@ -301,7 +317,8 @@ nex&gt; sheet.text_of("A1")
 <p>The natural first design lets the sheet be the source of its own values. It already has a <code>value_of</code>, so it can inherit <code>Cell_Source</code> and pass itself to the evaluator:</p>
 <pre><code>class Sheet inherit Cell_Source
 ...
-  recalculate do
+  recalculate
+  do
     across evaluation_order as name do
       let c := cells.get(name)
       c.set_value(evaluate(c.formula.expr, this))

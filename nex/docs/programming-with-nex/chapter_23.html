@@ -81,15 +81,18 @@ lib/net/src/tcp_socket.nex</code></pre>
 <p>Suppose <code>lib/math/Counter.nex</code> contains:</p>
 <pre><code>class Counter
 create
-  make do
+  make
+  do
     count := 0
   end
 feature
   count: Integer
-  increment do
+  increment
+  do
     count := count + 1
   end
-  value: Integer do
+  value: Integer
+  do
     result := count
   end
 end</code></pre>
@@ -98,7 +101,8 @@ end</code></pre>
 
 class Main
 create
-  make do
+  make
+  do
     let c := create Counter.make
     c.increment
     c.increment
@@ -165,10 +169,16 @@ let b := create Billing_Account.make(2)</code></pre>
 <p>A function's qualified name is the directory path of the <code>intern</code> followed by the function's own name — not the file's name. Interning <code>trade/shipping</code>, whose file defines <code>ship</code>, makes the function callable as <code>trade.ship</code>.</p>
 <p>But a function has none of the escape hatches above: <code>as</code> only ever renames a class. Given two warehouses that each define a <code>ship</code> function, rounding a shipment quantity a different way:</p>
 <pre><code>-- trade/ship.nex
-function ship(qty: Integer): Integer do result := qty + 1 end
+function ship(qty: Integer): Integer
+do
+  result := qty + 1
+end
 
 -- other/ship.nex
-function ship(qty: Integer): Integer do result := qty - 1 end</code></pre>
+function ship(qty: Integer): Integer
+do
+  result := qty - 1
+end</code></pre>
 <pre><code>intern trade/ship
 intern other/ship
 
@@ -186,7 +196,8 @@ print(other.ship(10))  -- 9</code></pre>
 <p><code>trade.ship(&hellip;)</code> parses exactly like a method call on a variable named <code>trade</code>. Nex reads it as a qualified call unless <code>trade</code> is bound where the call appears — a local, parameter, or field of that name in the enclosing routine or class, or a global or class of that name. A local only shadows the module inside the routine that declares it:</p>
 <pre><code>intern trade/ship
 
-function use(trade: Integer): Integer do
+function use(trade: Integer): Integer
+do
   result := trade + 2
 end
 
@@ -244,7 +255,8 @@ print(trade.core.ship(10))</code></pre>
 <p><code>finance/Transaction.nex</code></p>
 <pre><code>class Transaction
 create
-  make(d: String, a: Real) do
+  make(d: String, a: Real)
+  do
     description := d
     amount := a
   end
@@ -257,17 +269,20 @@ end</code></pre>
 
 class Account
 create
-  make(name: String) do
+  make(name: String)
+  do
     owner := name
     entries := []
   end
 feature
   owner: String
   entries: Array[Transaction]
-  add_entry(t: Transaction) do
+  add_entry(t: Transaction)
+  do
     entries.add(t)
   end
-  balance: Real do
+  balance: Real
+  do
     result := 0.0
     across entries as entry do
       result := result + entry.amount
@@ -279,7 +294,8 @@ end</code></pre>
 
 class Ledger_Report
 feature
-  print_balance(a: Account) do
+  print_balance(a: Account)
+  do
     print(a.owner + ": " + a.balance.to_string)
   end
 end</code></pre>
@@ -331,12 +347,18 @@ end
 
 extend Circle
 feature
-  area: Real do result := 3.14159 * radius * radius end
+  area: Real
+  do
+    result := 3.14159 * radius * radius
+  end
 end
 
 extend Rect
 feature
-  area: Real do result := width * height end
+  area: Real
+  do
+    result := width * height
+  end
 end</code></pre>
 <p><code>area</code> is deferred in <code>Shape</code>, so every concrete heir must have one, and each implementation inherits the postcondition. A call <code>s.area</code> on a <code>Shape</code> dispatches on the object&rsquo;s class, as for any routine.</p>
 <p>Now a third module, <code>geometry/Triangles</code>, adds a new heir, <code>Triangle</code>, knowing nothing about areas. A program that interns both modules is rejected:</p>
@@ -350,7 +372,10 @@ intern geometry/Triangles
 
 extend Triangle
 feature
-  area: Real do result := base * height / 2.0 end
+  area: Real
+  do
+    result := base * height / 2.0
+  end
 end
 
 let shapes: Array[Shape] := [create Circle.make(1.0), create Triangle.make(4.0, 3.0)]
@@ -362,7 +387,8 @@ end</code></pre>
 <p>Built-in types can be extended too. In the body, <code>this</code> is the value, and the type&rsquo;s own features can be used without it, as in a class:</p>
 <pre><code>extend String
 feature
-  is_palindrome: Boolean do
+  is_palindrome: Boolean
+  do
     let s := to_lower
     result := true
     from

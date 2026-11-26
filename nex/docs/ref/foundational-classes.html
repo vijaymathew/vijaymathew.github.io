@@ -250,26 +250,48 @@ let double: Transformer := fn (n: Integer): Integer do result := n * 2 end</code
 <pre class="nex"><code>class Countdown_Cursor
 inherit Cursor[Integer]
 create
-  make(top: Integer) do this.top := top end
+  make(top: Integer)
+  do
+    this.top := top
+  end
 feature
   top: Integer
   current: Integer
-  start() do current := top end
-  item(): Integer do result := current end
-  next() do current := current - 1 end
-  at_end(): Boolean do result := current &lt; 0 end
+  start()
+  do
+    current := top
+  end
+  item(): Integer
+  do
+    result := current
+  end
+  next()
+  do
+    current := current - 1
+  end
+  at_end(): Boolean
+  do
+    result := current &lt; 0
+  end
 end
 
 class Countdown
 inherit Iterable[Integer]
 create
-  make(top: Integer) do this.top := top end
+  make(top: Integer)
+  do
+    this.top := top
+  end
 feature
   top: Integer
-  cursor(): Cursor[Integer] do result := create Countdown_Cursor.make(top) end
+  cursor(): Cursor[Integer]
+  do
+    result := create Countdown_Cursor.make(top)
+  end
 end
 
-function total(xs: Iterable[Integer]): Integer do
+function total(xs: Iterable[Integer]): Integer
+do
   across xs as x do result := result + x end
 end
 
@@ -310,7 +332,8 @@ gets the <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and
 <code>[T -&gt; Comparable]</code> constrains a type parameter, and the body may
 then use the bound’s routines — here, the ordering operators — on a value of type
 <code>T</code>:</p>
-<pre class="nex"><code>function largest[T -&gt; Comparable](xs: Array[T], seed: T): T do
+<pre class="nex"><code>function largest[T -&gt; Comparable](xs: Array[T], seed: T): T
+do
   result := seed
   across xs as x do
     if x &gt; result then
@@ -391,7 +414,8 @@ feature
     result := create Money.make(amount - other.amount, currency)
   end
 
-  compare(other: Any): Integer do
+  compare(other: Any): Integer
+  do
     if convert other to m: Money then
       result := amount - m.amount
     else
@@ -399,7 +423,11 @@ feature
     end
   end
 create
-  make(a: Integer, c: String) do amount := a  currency := c end
+  make(a: Integer, c: String)
+  do
+    amount := a
+    currency := c
+  end
 end
 
 let owed := create Money.make(100, "USD")
@@ -430,7 +458,8 @@ feature
   once x: Integer
   once y: Integer
 create
-  make(px: Integer, py: Integer) do
+  make(px: Integer, py: Integer)
+  do
     x := px
     y := py
   end
@@ -440,20 +469,46 @@ end</code></pre>
 feature
   once value: Integer
 create
-  make(v: Integer) do value := v end
+  make(v: Integer)
+  do
+    value := v
+  end
 feature
-  overwrite(v: Integer) do
+  overwrite(v: Integer)
+  do
     value := v     -- error: 'value' is a once field
   end
 end</code></pre>
 </section>
 <section id="deferred" class="level3">
 <h3 class="anchored" data-anchor-id="deferred"><code>deferred</code></h3>
-<p>A <code>deferred</code> class cannot be instantiated directly. It defines an interface — methods that subclasses are expected to override.</p>
+<p>A <code>deferred</code> class cannot be instantiated directly. It defines an interface. A method marked <code>deferred</code> has no body, and every concrete subclass must provide one. A deferred class can also have ordinary methods, and these may call the deferred ones.</p>
 <pre class="nex"><code>deferred class Shape
 feature
-  area(): Real do end        -- overridden by each subclass
-end</code></pre>
+  area(): Real deferred
+
+  describe(): String
+  do
+    result := "area " + area().to_string
+  end
+end
+
+class Square inherit Shape
+create
+  make(s: Real)
+  do
+    side := s
+  end
+feature
+  side: Real
+  area(): Real
+  do
+    result := side * side
+  end
+end
+
+print(create Square.make(3.0).describe())   -- "area 9.0"</code></pre>
+<p>Both mistakes are caught before the program runs. <code>create Shape</code> is a type error (<code>Cannot instantiate deferred class Shape</code>). So is a class that inherits <code>Shape</code> without implementing <code>area</code>, unless that class is itself declared <code>deferred</code>.</p>
 </section>
 <section id="sealed-deferred" class="level3">
 <h3 class="anchored" data-anchor-id="sealed-deferred"><code>sealed deferred</code></h3>
@@ -464,13 +519,21 @@ end
 class Ok
   inherit Result
   feature value: Integer
-  create make(v: Integer) do value := v end
+  create
+    make(v: Integer)
+    do
+      value := v
+    end
 end
 
 class Err
   inherit Result
   feature msg: String
-  create make(m: String) do msg := m end
+  create
+    make(m: String)
+    do
+      msg := m
+    end
 end</code></pre>
 <p>A <code>match</code> on a sealed type must cover every variant or supply an <code>else</code> branch — a missing variant is a compile-time error:</p>
 <pre class="nex"><code>match r of

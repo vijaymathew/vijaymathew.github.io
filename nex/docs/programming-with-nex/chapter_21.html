@@ -69,7 +69,8 @@ end</code></pre>
 <h2 class="anchored" data-anchor-id="retrying" data-number="22.3"> Retrying</h2>
 <p>Some failures have a way around them. A server may be down while its mirror is up. In such cases a rescue block can try again with <code>retry</code>, which jumps back to the start of the <code>do</code> block and runs it again.</p>
 <p>To keep the example self-contained, <code>fetch</code> stands in for a real network call. It succeeds only for <code>mirror-c</code>:</p>
-<pre><code>nex&gt; function fetch(host: String): String do
+<pre><code>nex&gt; function fetch(host: String): String
+     do
        if host /= "mirror-c" then
          raise "cannot reach " + host
        end
@@ -110,7 +111,8 @@ Error: no host could be reached</code></pre>
 <section class="level2" data-number="22.4" id="rescue-inside-routines">
 <h2 class="anchored" data-anchor-id="rescue-inside-routines" data-number="22.4"> Rescue Inside Routines</h2>
 <p>Constructors, methods, and functions may also have <code>rescue</code> clauses:</p>
-<pre><code>nex&gt; function read_config(path: String): String do
+<pre><code>nex&gt; function read_config(path: String): String
+     do
        raise "file not found"
      rescue
        result := "default-config"
@@ -190,7 +192,8 @@ nex&gt; do
 <p>Your own failures can be classes too. Inherit <code>Exception</code>, and the caller can tell them apart in exactly the same way:</p>
 <pre><code>nex&gt; class Config_Error inherit Exception
      create
-       make(m: String) do
+       make(m: String)
+       do
          Exception.make(m)
        end
      end
@@ -242,7 +245,8 @@ end</code></pre>
 
 nex&gt; class Score_File_Error inherit Exception
      create
-       make(m: String) do
+       make(m: String)
+       do
          Exception.make(m)
        end
      end
@@ -290,7 +294,8 @@ Error: scores.txt is damaged: Not a valid number: "ninety"
 nex&gt; load_scores(create Path.make("."))
 Error: Precondition violation: not_a_folder</code></pre>
 <p><code>load_scores</code> does not decide what the game should do about a damaged file. It only reports the problem precisely. The decision belongs to the caller, which knows more about the situation. At startup, the game might choose to begin a fresh table and say so:</p>
-<pre><code>nex&gt; function startup_scores(file: Path): Array[Integer] do
+<pre><code>nex&gt; function startup_scores(file: Path): Array[Integer]
+     do
        result := load_scores(file)
      rescue
        if convert exception to e: Score_File_Error then
@@ -317,17 +322,24 @@ class Parse_Ok inherit Parse_Result
 feature
   value: Integer
 create
-  make(v: Integer) do value := v end
+  make(v: Integer)
+  do
+    value := v
+  end
 end
 
 class Parse_Error inherit Parse_Result
 feature
   reason: String
 create
-  make(r: String) do reason := r end
+  make(r: String)
+  do
+    reason := r
+  end
 end</code></pre>
 <p>A routine returns the sealed type instead of raising:</p>
-<pre><code>function parse_positive(text: String): Parse_Result do
+<pre><code>function parse_positive(text: String): Parse_Result
+do
   let n := text.to_integer
   if n > 0 then
     result := create Parse_Ok.make(n)
@@ -350,7 +362,8 @@ end</code></pre>
 <p>A success-or-failure type is common enough that you rarely need to write your own. The standard library ships a generic <code>Result</code> — load it with <code>intern</code>:</p>
 <pre><code>intern data/Result
 
-function parse_positive(text: String): Result[Integer, String] do
+function parse_positive(text: String): Result[Integer, String]
+do
   let n := text.to_integer
   if n &gt; 0 then
     result := create Ok[Integer, String].make(n)

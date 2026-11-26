@@ -67,20 +67,24 @@ Error: A1 = A3 would make A1 depend on itself
 <h2 class="anchored" data-anchor-id="cell-names" data-number="27.2"> Cell Names</h2>
 <p>A cell is named by its column and its row: <code>B3</code> is the third row of column B. Our sheet has columns <code>A</code> to <code>Z</code> and rows 1 to 99, so a name is one capital letter followed by a number from 1 to 99.</p>
 <p>That rule will be needed everywhere: to check what the user typed, to state preconditions, to read formulas. So it is written once, as a query, and everything else refers to it:</p>
-<pre><code>function column_letters(): String do
+<pre><code>function column_letters(): String
+do
   result := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 end
 
-function is_digit(c: Char): Boolean do
+function is_digit(c: Char): Boolean
+do
   result := "0123456789".contains(c.to_string)
 end
 
-function is_letter(c: Char): Boolean do
+function is_letter(c: Char): Boolean
+do
   result := (c &gt;= #A and c &lt;= #Z) or (c &gt;= #a and c &lt;= #z)
 end
 
 -- A cell name is a column letter A-Z followed by a row number 1-99.
-function is_cell_name(text: String): Boolean do
+function is_cell_name(text: String): Boolean
+do
   result := false
   if text.length &gt;= 2 and text.length &lt;= 3 then
     let column := text.char_at(0)
@@ -174,7 +178,8 @@ end</code></pre>
   End_Of_Input
 end
 
-function describe_token(t: Token): String do
+function describe_token(t: Token): String
+do
   match t of
     Number_Token(value) then result := "number " + value.to_string
     Cell_Token(name)    then result := "cell " + name
@@ -187,7 +192,8 @@ end</code></pre>
 <p>The <code>Lexer</code> reads tokens one at a time. It keeps the text and a position in it, and its invariant says that the position never leaves the text:</p>
 <pre><code>class Lexer
 create
-  make(t: String) do
+  make(t: String)
+  do
     text := t
     pos := 0
   end
@@ -195,11 +201,13 @@ feature
   text: String
   pos: Integer
 
-  at_end: Boolean do
+  at_end: Boolean
+  do
     result := pos &gt;= text.length
   end
 
-  next_token: Token do
+  next_token: Token
+  do
     skip_spaces
     if at_end then
       result := create End_Of_Input
@@ -218,7 +226,8 @@ feature
     moved_on: pos &gt; old pos or at_end
   end
 
-  skip_spaces do
+  skip_spaces
+  do
     from until at_end or text.char_at(pos) /= #space do
       pos := pos + 1
     end
@@ -244,7 +253,8 @@ feature
     moved_on: pos &gt; old pos
   end
 
-  skip_digits do
+  skip_digits
+  do
     from until at_end or not is_digit(text.char_at(pos)) do
       pos := pos + 1
     end
@@ -308,14 +318,16 @@ factor     ::= number | cell | "-" factor | "(" expression ")"
   Aggregate(fn_name: String, first: String, last: String)
 end
 
-function is_function_name(name: String): Boolean do
+function is_function_name(name: String): Boolean
+do
   result := ["SUM", "MIN", "MAX", "AVERAGE"].contains(name)
 end</code></pre>
 <p><code>1 + 2 * 3</code> becomes a <code>Binary</code> whose operator is <code>+</code>, whose left side is <code>Number(1.0)</code>, and whose right side is another <code>Binary</code> for <code>2 * 3</code>. The tree records the grouping that the text only implies.</p>
 <p>The grammar translates into code almost word for word. This style is called <em>recursive descent</em>: one routine for each rule, each calling the routines for the rules it mentions, and <code>factor</code> calling back up to <code>expression</code> for parentheses. The parser keeps the list of tokens and the position of the current one:</p>
 <pre><code>class Parser
 create
-  make(text: String) do
+  make(text: String)
+  do
     let lexer := create Lexer.make(text)
     tokens := []
     from let done := false until done do
@@ -332,18 +344,21 @@ feature
   tokens: Array[Token]
   index: Integer
 
-  current: Token do
+  current: Token
+  do
     result := tokens.get(index)
   end
 
-  at_end: Boolean do
+  at_end: Boolean
+  do
     match current of
       End_Of_Input then result := true
       _            then result := false
     end
   end
 
-  at_symbol(c: Char): Boolean do
+  at_symbol(c: Char): Boolean
+  do
     match current of
       Symbol(sign) then result := sign = c
       _            then result := false
@@ -359,7 +374,8 @@ feature
     moved_on: index = old index + 1
   end
 
-  expect(c: Char) do
+  expect(c: Char)
+  do
     if at_symbol(c) then
       advance
     else
@@ -367,7 +383,8 @@ feature
     end
   end
 
-  formula: Expr do
+  formula: Expr
+  do
     result := expression
     if not at_end then
       raise "unexpected " + describe_token(current)
@@ -376,7 +393,8 @@ feature
     all_read: at_end
   end
 
-  expression: Expr do
+  expression: Expr
+  do
     result := term
     from until not (at_symbol(#+) or at_symbol(#-)) do
       let op := when at_symbol(#+) then #+ else #- end
@@ -385,7 +403,8 @@ feature
     end
   end
 
-  term: Expr do
+  term: Expr
+  do
     result := factor
     from until not (at_symbol(#*) or at_symbol(#/)) do
       let op := when at_symbol(#*) then #* else #/ end
@@ -394,7 +413,8 @@ feature
     end
   end
 
-  factor: Expr do
+  factor: Expr
+  do
     match current of
       Number_Token(value) then
         do
@@ -422,7 +442,8 @@ feature
     end
   end
 
-  call(name: String): Expr do
+  call(name: String): Expr
+  do
     if not is_function_name(name) then
       raise "unknown function " + name
     end
@@ -435,7 +456,8 @@ feature
     result := create Aggregate.make(name, first, last)
   end
 
-  cell: String do
+  cell: String
+  do
     match current of
       Cell_Token(name) then
         do
@@ -459,7 +481,8 @@ end</code></pre>
 <pre><code>-- What the user typed, and the tree it means.
 class Formula
 create
-  make(t: String, e: Expr) do
+  make(t: String, e: Expr)
+  do
     text := t
     expr := e
   end
@@ -468,7 +491,8 @@ feature
   expr: Expr
 end</code></pre>
 <pre><code>-- The tree for `text`, or why it is not a formula.
-function parse_formula(text: String): Result[Formula, String] do
+function parse_formula(text: String): Result[Formula, String]
+do
   let parser := create Parser.make(text)
   result := create Ok[Formula, String].make(create Formula.make(text.trim, parser.formula))
 rescue
@@ -476,7 +500,8 @@ rescue
 end</code></pre>
 <p>A <code>Formula</code> keeps the text the user typed together with the tree it means: the tree is what the program computes with, and the text is what it shows back and saves. <code>parse_formula</code> uses the standard <code>Result</code> type from <code>data/Result</code> (<a href="chapter_22.html" title="Chapter 22: Writing Robust Code">Chapter 22</a>). Callers outside this module never see an exception from parsing; they see an <code>Ok</code> holding a formula or an <code>Err</code> holding a message:</p>
 <pre><code>nex&gt; intern sheet/Evaluate
-nex&gt; function try_formula(text: String): String do
+nex&gt; function try_formula(text: String): String
+     do
        match parse_formula(text) of
          Ok as ok then result := "ok: " + ok.value.text
          Err as e then result := "error: " + e.error
@@ -505,7 +530,8 @@ union Value
   Failed(code: String)
 end
 
-function show_value(v: Value): String do
+function show_value(v: Value): String
+do
   match v of
     Num(amount)  then result := amount.format(2)
     Failed(code) then result := code
@@ -516,7 +542,8 @@ end</code></pre>
 <pre><code>nex&gt; 120.0 / 0.0
 Infinity</code></pre>
 <p>A spreadsheet that showed <code>Infinity</code> would be hiding the user&rsquo;s mistake behind a number. So division checks for zero itself, and the combining routine passes a failed operand straight through:</p>
-<pre><code>function negate(v: Value): Value do
+<pre><code>function negate(v: Value): Value
+do
   match v of
     Num(amount)  then result := create Num.make(-amount)
     Failed       then result := v
@@ -570,7 +597,8 @@ end</code></pre>
 <p>This is the <em>dependency inversion</em> principle: the evaluator, the higher-level logic, depends on a small abstraction that it defines itself, and the sheet will be one implementation of it. The evaluator does not know the sheet exists. That makes it simpler to read, and, as the next section shows, easy to test on its own.</p>
 <p>The precondition belongs to the abstraction and is inherited by every implementation (<a href="chapter_20.html#inheritance-and-contracts" title="Section 20.9: Inheritance and Contracts">Section 20.9</a>): whatever supplies cell values may assume it is asked only about real cell names.</p>
 <p>Evaluation itself is one <code>match</code> over the tree, with a clause for each kind of formula:</p>
-<pre><code>function evaluate(e: Expr, cells: Cell_Source): Value do
+<pre><code>function evaluate(e: Expr, cells: Cell_Source): Value
+do
   match e of
     Number(value)              then result := create Num.make(value)
     Ref(name)                  then result := cells.value_of(name)
@@ -611,7 +639,8 @@ do
 end</code></pre>
 <p>The sheet will also need to know which cells a formula reads, to keep track of dependencies. That is another walk over the same tree:</p>
 <pre><code>-- The cells a formula reads.
-function references(e: Expr): Array[String] do
+function references(e: Expr): Array[String]
+do
   match e of
     Number                     then result := []
     Ref(name)                  then result := [name]
@@ -629,16 +658,19 @@ end</code></pre>
 <p>Because the evaluator asks only for a <code>Cell_Source</code>, it can be tested before the sheet is written, against a stand-in whose values are fixed in a map. A cell missing from the map reads as zero, as an empty cell will:</p>
 <pre><code>nex&gt; class Fixed_Cells inherit Cell_Source
      create
-       make(m: Map[String, Real]) do
+       make(m: Map[String, Real])
+       do
          values := m
        end
      feature
        values: Map[String, Real]
-       value_of(name: String): Value do
+       value_of(name: String): Value
+       do
          result := create Num.make(values.try_get(name, 0.0))
        end
      end
-nex&gt; function value_text(text: String, cells: Cell_Source): String do
+nex&gt; function value_text(text: String, cells: Cell_Source): String
+     do
        match parse_formula(text) of
          Ok as ok then result := show_value(evaluate(ok.value.expr, cells))
          Err as e then result := "error: " + e.error

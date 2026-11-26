@@ -275,13 +275,15 @@ end</code></pre>
 <p>Sometimes there are several ways to get an answer, and any of them will do. A search can start from either end; a lookup can try two sources; a slow exact method can be raced against a quick one that might fail. The pattern is: start one task for each way, take the first answer with <code>await_any</code>, and cancel the others.</p>
 <p>Here is a search for a number whose square ends in 609. The search is written once and started twice, once counting up from 1 and once counting down from a million:</p>
 <pre><code>-- Any number whose square ends in 609 will do.
-function is_answer(n: Integer): Boolean do
+function is_answer(n: Integer): Boolean
+do
   result := n * n % 1000 = 609
 end
 
 -- Search `count` numbers from `start` in steps of `step`, stopping early
 -- when `stop` is set. The task's result is -1 if nothing was found.
-function search(start, step, count: Integer, stop: Atomic_Boolean): Task[Integer] do
+function search(start, step, count: Integer, stop: Atomic_Boolean): Task[Integer]
+do
   result := spawn do
     result := -1
     from let i := 0 until i = count or result /= -1 or stop.load do
@@ -330,7 +332,8 @@ print(ready.compare_and_set(false, true))   -- false: it is already true</code><
 <p>The guarantee holds under real contention, not just in a single-threaded code. Let's look at an example where four tasks, each incrementing the same counter twenty thousand times:</p>
 <pre><code>let hits: Atomic_Integer := create Atomic_Integer.make(0)
 
-function bump_many(c: Atomic_Integer, n: Integer): Task do
+function bump_many(c: Atomic_Integer, n: Integer): Task
+do
   result := spawn do
     let i := 0
     from
@@ -376,7 +379,8 @@ end)</code></pre>
 <p>As with <code>Atomic_Integer</code>, the guarantee holds under real contention. Four tasks updating the same shared map, each incrementing a counter inside it twenty thousand times:</p>
 <pre><code>let hits: Mutex[Map[String, Integer]] := create Mutex.make({})
 
-function bump_many(m: Mutex[Map[String, Integer]], key: String, n: Integer): Task do
+function bump_many(m: Mutex[Map[String, Integer]], key: String, n: Integer): Task
+do
   result := spawn do
     let i := 0
     from
@@ -429,7 +433,8 @@ end</code></pre>
 <p>In Nex, a dataflow variable is a small class built from the tools of this chapter: a one-place channel holds the value, and an <code>Atomic_Boolean</code> records whether it has been bound:</p>
 <pre><code>class Dataflow[T]
 create
-  make do
+  make
+  do
     cell := create Channel[T].with_capacity(1)
     bound := create Atomic_Boolean.make(false)
   end
@@ -437,11 +442,13 @@ feature
   cell: Channel[T]
   bound: Atomic_Boolean
 
-  is_bound: Boolean do
+  is_bound: Boolean
+  do
     result := bound.load
   end
 
-  bind(v: T) do
+  bind(v: T)
+  do
     if not bound.compare_and_set(false, true) then
       raise "Dataflow.bind: already bound"
     end
@@ -450,7 +457,8 @@ feature
     now_bound: is_bound
   end
 
-  value: T do
+  value: T
+  do
     result := cell.receive
     cell.send(result)
   end
@@ -492,14 +500,16 @@ print(x.value)                 -- 5</code></pre>
 <p>A common shape for a concurrent program is a <em>worker pool</em>: a queue of jobs, a few tasks that take jobs from the queue and do them, and a second queue on which the results come back. Here the jobs are documents, each worker counts the words in a document with the <code>word_frequencies</code> function of <a href="chapter_10.html" title="Chapter 10: Maps">Chapter 10</a>, and the main program adds the counts together.</p>
 <p>Two helpers come first: one that adds one set of counts to another, and one that starts a worker:</p>
 <pre><code>-- Add the counts in `part` to `total`.
-function merge(total, part: Map[String, Integer]) do
+function merge(total, part: Map[String, Integer])
+do
   across part.keys as w do
     total.set(w, total.try_get(w, 0) + part.get(w))
   end
 end
 
 -- A worker: count each document from `jobs` until `jobs` is closed and empty.
-function worker(jobs: Channel[String], results: Channel[Map[String, Integer]]): Task do
+function worker(jobs: Channel[String], results: Channel[Map[String, Integer]]): Task
+do
   result := spawn do
     let done := false
     from until done do
