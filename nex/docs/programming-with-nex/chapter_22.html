@@ -30,7 +30,7 @@
   </div>
   <div class="prose">
 <p>The last chapter covered the tools for handling failure: <code>raise</code>, <code>rescue</code>, <code>retry</code>, exception classes, and result types. This chapter is about where to use them in a program. Every failure raises two design questions: where should it be noticed, and what state should the program be left in afterwards?</p>
-<p>Robust code is not code that never fails. It is code that fails in the right place and that tells the truth about what happened. The chapter works through one small program, a booking system for a theatre, and builds it in layers. Untrusted input is checked at the edge, contracts protect the inside, and an operation that fails leaves nothing behind.</p>
+<p>Robust code is not code that never fails. It is code that fails in the right place and diligently reports what happened. The chapter works through one small program, a booking system for a theatre, and builds it in layers. Untrusted input is checked at the edge, contracts protect the inside, and an operation that fails leaves nothing behind.</p>
 <section class="level2" data-number="23.1" id="distinguishing-kinds-of-failure">
 <h2 class="anchored" data-anchor-id="distinguishing-kinds-of-failure" data-number="23.1"> Three Kinds of Failure</h2>
 <p>The earlier chapters have already sorted failures into three kinds. Each kind calls for its own response:</p>
@@ -104,7 +104,7 @@ nex&gt; function parse_request(line: String): Result[Request, String]
 "rejected: three is not a number"
 "rejected: the number of seats must be positive"
 "rejected: expected a name and a number of seats"</code></pre>
-<p>The boundary code is careful, and it is the <em>only</em> code that needs to be. If <code>parse_request</code> ever called <code>Request.make</code> with an empty name, the precondition would stop it. That would be a bug in <code>parse_request</code>, not bad input.</p>
+<p>As you can see, the boundary code is extra careful. If <code>parse_request</code> ever called <code>Request.make</code> with an empty name, the precondition would stop it. That would be a bug in <code>parse_request</code>, not bad input.</p>
 </section>
 <section class="level2" data-number="23.3" id="a-class-that-protects-itself">
 <h2 class="anchored" data-anchor-id="a-class-that-protects-itself" data-number="23.3"> A Class That Protects Itself</h2>
@@ -229,10 +229,10 @@ nex&gt; show.free
 nex&gt; show.bookings
 {}</code></pre>
 </section>
-<section class="level2" data-number="23.5" id="a-worked-example-a-booking-desk">
-<h2 class="anchored" data-anchor-id="a-worked-example-a-booking-desk" data-number="23.5"> A Worked Example: A Booking Desk</h2>
-<p>The desk is the routine that connects a customer&rsquo;s line of text to the show. It is where all three kinds of failure meet, so it is where the separation of this chapter pays off:</p>
-<pre><code>nex&gt; function handle(show: Show, line: String): String
+<section class="level2" data-number="23.5" id="where-the-failures-meet">
+<h2 class="anchored" data-anchor-id="where-the-failures-meet" data-number="23.5"> Where the Failures Meet</h2>
+<p>The last piece is a booking desk: the routine that connects a customer&rsquo;s line of text to the show. Every kind of failure in this chapter can reach it, but as they are already segregated in the lower layers, this final routine can have a clean and simple design:</p>
+<pre><code>nex&gt; function handle_request(show: Show, line: String): String
      do
        match parse_request(line) of
          Ok(value) then
@@ -258,14 +258,14 @@ nex&gt; show.bookings
 <ul>
 <li><strong>Bad input</strong> never gets past <code>parse_request</code>. The desk receives an <code>Err</code> and passes its message on to the customer.</li>
 <li><strong>Requests that are valid but can&rsquo;t be met</strong>, such as too many seats or a second booking, are checked by the desk before it calls <code>book</code>. These are the preconditions of <code>book</code>, and the desk tests them in advance as a careful caller should.</li>
-<li><strong>A failed save</strong> reaches the <code>rescue</code> clause as a <code>Host_Exception</code>. The desk can tell the customer the truth, &ldquo;not booked&rdquo;, because <code>book</code> guarantees that a failed booking leaves no trace.</li>
+<li><strong>A failed save</strong> reaches the <code>rescue</code> clause as a <code>Host_Exception</code>. The desk can sincerely tell the customer &ldquo;not booked&rdquo;, because <code>book</code> guarantees that a failed booking leaves no trace.</li>
 <li><strong>Anything else</strong> is re-raised. A contract violation here would mean the desk itself has a bug, for example a missing check before <code>book</code>. Reporting that as &ldquo;try again later&rdquo; would hide it.</li>
 </ul>
 <p>A run of requests shows every path:</p>
 <pre><code>nex&gt; let show := create Show.make(10, create Path.make("bookings.txt"))
 
 nex&gt; across ["ana 4", "ben three", "cy 0", "dee", "ana 2", "eve 7", "eve 6"] as line do
-       print(line + " -&gt; " + handle(show, line))
+       print(line + " -&gt; " + handle_request(show, line))
      end
 "ana 4 -&gt; booked 4 for ana"
 "ben three -&gt; rejected: three is not a number"
@@ -282,12 +282,12 @@ eve 6
 <p>And when the file can&rsquo;t be written:</p>
 <pre><code>nex&gt; let broken := create Show.make(10, create Path.make("/no-such-folder/bookings.txt"))
 
-nex&gt; handle(broken, "ana 4")
+nex&gt; handle_request(broken, "ana 4")
 "not booked, could not save: /no-such-folder/bookings.txt (No such file or directory)"
 
 nex&gt; broken.free
 10</code></pre>
-<p>None of the routines is complicated. The program is robust because each one has a clear job: <code>parse_request</code> handles input it can&rsquo;t trust, <code>Request</code> and <code>Show</code> use contracts to refuse anything invalid, <code>book</code> either does everything or nothing, and the desk turns each outcome into a truthful answer.</p>
+<p>None of the routines is complicated. The program is robust because each one has a clear job: <code>parse_request</code> handles input it can&rsquo;t trust, <code>Request</code> and <code>Show</code> use contracts to refuse anything invalid, <code>book</code> either does everything or nothing, and the desk turns each outcome into a reliable answer.</p>
 </section>
 <section class="level2" data-number="23.6" id="simple-defensive-patterns">
 <h2 class="anchored" data-anchor-id="simple-defensive-patterns" data-number="23.6"> Habits of Robust Code</h2>
@@ -295,7 +295,7 @@ nex&gt; broken.free
 <p><em>Check untrusted data once, at the edge</em>, and turn it into a type whose invariant guarantees it is valid. Code further in should not have to check it again.</p>
 <p><em>Make the preconditions things a caller can check.</em> A precondition that depends only on what the caller can see, such as <code>count &lt;= free</code>, tells the caller exactly what to test first.</p>
 <p><em>Do everything that might fail before changing anything.</em> When that isn&rsquo;t possible, undo the changes in <code>rescue</code> and re-raise.</p>
-<p><em>Recover truthfully.</em> A fallback is acceptable only if it is announced and its meaning is documented. Returning an empty string when a file fails to load, for example, is a lie if callers will read it as &ldquo;the file was empty&rdquo;.</p>
+<p><em>Recover reliably.</em> A fallback is acceptable only if it is announced and its meaning is documented. Returning an empty string when a file fails to load, for example, is a lie if callers will read it as &ldquo;the file was empty&rdquo;.</p>
 <p><em>Catch only what you can handle.</em> Name the exception class you expect, and re-raise everything else, so that bugs still surface as bugs.</p>
 <p><em>Use detachable types only when absence is meaningful.</em> Don&rsquo;t reach for <code>?Type</code> just to avoid deciding what should really be required.</p>
 </section>
@@ -314,7 +314,7 @@ nex&gt; broken.free
 <h2 class="anchored" data-anchor-id="exercises" data-number="23.8"> Exercises</h2>
 <p><strong>1.</strong> Take one routine from an earlier chapter and sort its possible failures into caller mistakes, routine bugs, and failures of the outside world.</p>
 <p><strong>2.</strong> <code>parse_request</code> rejects <code>ana&nbsp;&nbsp;4</code>, which has two spaces in the middle. Change it to accept extra spaces between and around the two words. Then make it reject names that contain digits. Which of these checks belongs in <code>parse_request</code>, and which, if any, belongs in the invariant of <code>Request</code>?</p>
-<p><strong>3.</strong> Remove the free-seats check from <code>handle</code> and send it the line <code>eve 20</code>. What does Nex report? Explain why that is the right kind of failure for this mistake, and why <code>handle</code> should not catch it.</p>
+<p><strong>3.</strong> Remove the free-seats check from <code>handle_request</code> and send it the line <code>eve 20</code>. What does Nex report? Explain why that is the right kind of failure for this mistake, and why <code>handle_request</code> should not catch it.</p>
 <p><strong>4.</strong> Add a routine <code>cancel(name: String)</code> to <code>Show</code> that removes a booking, frees its seats, and saves the file. Write its precondition, and make sure a failed save leaves the show exactly as it was. Which of the two fixes from <a href="chapter_22.html#guarding-against-partial-updates" title="Section 22.4: Guarding Against Partial Updates">Section 22.4</a> did you use, and why?</p>
 <p><strong>5.*</strong> A program updates two files that must always match, such as a list of bookings and a list of payments. Sketch a design for this operation. Where would you put contracts, where would you use exceptions, and how would you keep a failure while writing the second file from leaving the two files inconsistent?</p>
 </section>
