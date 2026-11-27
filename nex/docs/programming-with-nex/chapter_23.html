@@ -145,11 +145,12 @@ print(b.id)</code></pre>
 <li>two imported classes would otherwise collide</li>
 <li>a local short name improves readability</li>
 </ul>
-<p>Example:</p>
-<pre><code>intern geometry/Long_Polygon_Name as Polygon
+<p>Library names are often long for a good reason. Suppose a shipping library has both <code>Domestic_Rate_Table</code> and <code>International_Rate_Table</code>. Inside the library, the full names are needed to tell the two apart. A program that only ever ships abroad has no such confusion, so it can use a short name:</p>
+<pre><code>intern shipping/International_Rate_Table as Rate_Table
 
-let p := create Polygon.with_sides(5)</code></pre>
-<p>Use aliases sparingly. The goal is clarity, not abbreviation for its own sake.</p>
+let rates := create Rate_Table.make("EUR")
+print(rates.rate_for(2.0))</code></pre>
+<p>Use aliases sparingly. The goal is clarity, not abbreviation for its own sake. A reader who meets <code>Rate_Table</code> can find what it stands for in the <code>intern</code> line at the top of the file.</p>
 <h3>Aliasing to resolve a collision</h3>
 <p>A path-qualified alias is also a second way out of the ambiguity in the previous section — rename one side of a collision (or both) on the way in, and each alias refers unambiguously to its own class from then on:</p>
 <pre><code>intern finance/Account
@@ -184,8 +185,8 @@ intern other/ship
 
 print(ship(10))</code></pre>
 <p>a bare call is rejected the same way a bare class reference is:</p>
-<pre class="text"><code>Ambiguous reference to 'ship': interned from other.ship and trade.ship.
-Call one directly by its qualified name, e.g. other.ship(...).</code></pre>
+<pre class="text">Ambiguous reference to 'ship': interned from other.ship and trade.ship.
+Call one directly by its qualified name, e.g. other.ship(...).</pre>
 <p>The fix looks similar to a class's qualified name, but is spelled differently — with <code>.</code> rather than <code>/</code>:</p>
 <pre><code>intern trade/ship
 intern other/ship
@@ -203,7 +204,7 @@ end
 
 print(trade.ship(10))  -- 11</code></pre>
 <p>The parameter <code>trade</code> belongs to <code>use</code> alone, so the top-level call still reaches the module. Inside <code>use</code>, however, <code>trade.ship(&hellip;)</code> would be an ordinary member access on the parameter — avoid reusing an intern path segment as a local name in a routine that also calls that module.</p>
-<p>A multi-segment path is written the same way, one more <code>.</code>:</p>
+<p>A multi-segment path is written the same way, using <code>.</code> separated names:</p>
 <pre><code>intern trade/core/ship
 
 print(trade.core.ship(10))</code></pre>
@@ -211,47 +212,92 @@ print(trade.core.ship(10))</code></pre>
 </section>
 <section class="level2" data-number="24.7" id="designing-module-boundaries">
 <h2 class="anchored" data-anchor-id="designing-module-boundaries" data-number="24.7"> Designing Module Boundaries</h2>
-<p>A good file boundary usually matches a good class boundary. As a rough rule:</p>
+<p>A good file boundary usually matches a good class boundary. In Nex, the class is the unit of meaning. It has a name, a set of features, and contracts that say what it promises. A file built around one such class is easy to describe, and <code>intern</code> already works this way: <code>intern finance/Account</code> looks for a file named after the class. So the natural starting point is <strong>one main class per file, with the file named after it</strong>.</p>
+<p>A file can still hold more than one class. What matters is whether a second class has an identity of its own. <code>Interval_Cursor</code> in <a href="chapter_15.html" title="Chapter 15: Generic Classes">Chapter 15</a> exists only so that <code>across</code> can walk an <code>Interval</code>. No other code creates one, and it changes whenever <code>Interval</code> does, so it belongs in <code>Interval</code>&rsquo;s file. <code>Transaction</code> in the ledger example below is different. Accounts use it, but so may reports, imports, and tests, each in its own way. It is a concept in its own right, so it gets its own file.</p>
+<p>The layout to avoid is the &ldquo;misc&rdquo; or &ldquo;utils&rdquo; file, where routines go because they had nowhere else to live. Its name tells a reader nothing about what is inside it. It also costs more in Nex than it might seem. <code>intern</code> brings in a whole file, every class and free function in it. It also brings in everything that file interns, all visible under their bare names. So a program that interns a grab-bag file for one helper gets all the others too, and each extra name is another chance of an ambiguous reference (<a href="#namespaces-and-ambiguous-references">Section 23.5</a>).</p>
+<p>Before settling on a file, it helps to answer three questions about it:</p>
 <ul>
-<li>one main class per file</li>
-<li>helper classes in their own files when they have an identity of their own</li>
-<li>unrelated utility code should not be stuffed into a random “misc” file</li>
+<li><strong>What concept does it define?</strong> If the answer needs an &ldquo;and&rdquo;, as in &ldquo;accounts and report formatting&rdquo;, the file probably holds two concepts.</li>
+<li><strong>Who needs to know about it?</strong> The files that intern it are its clients. They should need only its public features and its contracts.</li>
+<li><strong>What can stay hidden?</strong> Helper routines and fields that clients have no reason to touch belong in a <code>private feature</code> section (<a href="chapter_12.html" title="Chapter 12: Classes">Chapter 12</a>). The less a file exposes, the more freely it can change later.</li>
 </ul>
-<p>Ask of every file:</p>
-<ul>
-<li>what concept does this file define?</li>
-<li>what other files should know about it?</li>
-<li>what can remain private to this file’s class or classes?</li>
-</ul>
-<p>Files are design documents as much as storage containers.</p>
+<p>Answered well, these questions make the file layout a summary of the design. Someone new to the program can list the files and learn what concepts it is built from before reading any code.</p>
 </section>
 <section class="level2" data-number="24.8" id="what-belongs-together">
 <h2 class="anchored" data-anchor-id="what-belongs-together" data-number="24.8"> What Belongs Together</h2>
-<p>These belong together:</p>
+<p>A useful test for whether two pieces of code belong in the same file is to ask what would make each of them change. Code that changes for the same reason belongs together. Code that changes for different reasons belongs apart.</p>
+<p>The booking program of <a href="chapter_22.html" title="Chapter 22: Writing Robust Code">Chapter 22</a> shows the test at work. It has three parts:</p>
 <ul>
-<li>a <code>Stack</code> class and helper routines whose only purpose is to support the stack</li>
+<li><code>Request</code>, together with <code>parse_count</code> and <code>parse_request</code>. The two functions exist only to turn text into a <code>Request</code>. If the format customers type changes, all three change together, so they share one file, <code>booking/Request.nex</code>.</li>
+<li><code>Show</code>, which changes when the rules for seats or the way bookings are saved change. Neither change has anything to do with how a request is typed, so it gets its own file, <code>booking/Show.nex</code>.</li>
+<li><code>handle_request</code>, the desk, which connects the other two. It is the part of the program a user meets, and it changes when the conversation with the customer changes. It lives in the main program file, which interns the other two.</li>
 </ul>
-<p>These do not:</p>
-<ul>
-<li><code>Stack</code>, <code>Customer</code>, and <code>Image_Loader</code> in the same file</li>
-</ul>
-<p>If you feel tempted to group code by when it was written rather than by what it means, stop and redesign.</p>
-<p>The best modules reduce mental load. A reader opening a file should have a good guess what they are about to find.</p>
+<p>Now picture the opposite: <code>Stack</code>, <code>Customer</code>, and <code>Image_Loader</code> in a single file. Each changes for its own reason. Someone editing how customers are stored has to work around a stack and an image loader, and someone looking for <code>Customer</code> would never think to open a file named after a stack. Worse, a program that only wanted a stack would also bring in <code>Customer</code>, <code>Image_Loader</code>, and whatever graphics library <code>Image_Loader</code> interns.</p>
+<p>The same test rules out grouping code by when it was written. A file of &ldquo;features added this month&rdquo; holds code that has nothing in common except its date, and it gets harder to understand every month. If you notice code being grouped that way, take it as a sign that the concepts have not been named yet, and name them.</p>
+<p>The aim is a file layout that reduces how much a reader must hold in mind at once. Opening a file should hold no surprises: its name says which concept is inside, and everything inside serves that concept.</p>
 </section>
 <section class="level2" data-number="24.9" id="intern-and-contracts">
 <h2 class="anchored" data-anchor-id="intern-and-contracts" data-number="24.9"> Intern and Contracts</h2>
-<p>Contracts become even more important once code is split across files. When a class is used from another module, the reader of the calling code should not have to open the original file to learn its basic obligations and guarantees; good preconditions, postconditions, and invariants are what make module boundaries trustworthy.</p>
-<p>In a multi-file program, the contract is often the first and most important documentation of a class.</p>
+<p>Once a class lives in another file, often written by someone else, its users stop reading its code. A program that interns <code>bank/Account</code> sees a name and a list of features, and must decide from those alone how to use it. The question is what it can rely on without opening the file.</p>
+<p>The contracts are the answer. Here is <code>Account</code> as its author might write it:</p>
+<pre><code>class Account
+create
+  make(name: String)
+  do
+    owner := name
+  end
+feature
+  owner: String
+  balance: Real
+
+  deposit(amount: Real)
+  require
+    positive_amount: amount &gt; 0.0
+  do
+    balance := balance + amount
+  ensure
+    increased: balance = old balance + amount
+  end
+
+  withdraw(amount: Real)
+  require
+    positive_amount: amount &gt; 0.0
+    enough_funds: amount &lt;= balance
+  do
+    balance := balance - amount
+  ensure
+    decreased: balance = old balance - amount
+  end
+invariant
+  never_negative: balance &gt;= 0.0
+end</code></pre>
+<p>A user of this class needs only the headers and the contracts. The <code>require</code> clauses say what the caller must check before each call. The <code>ensure</code> clauses say what each call achieves, and the invariant says what is always true of an account. The bodies, the lines between <code>do</code> and <code>ensure</code>, are the author&rsquo;s business. They can be rewritten at any time, and callers are unaffected as long as the contracts still hold.</p>
+<p>Nex can produce this outside view for you. <code>nex doc</code> reads a file and writes a summary of each class&rsquo;s features with their contracts, and leaves out the bodies:</p>
+<pre class="text"><code>$ nex doc lib/bank/Account.nex Account.md</code></pre>
+<p>For <code>withdraw</code>, the summary lists the parameter <code>amount: Real</code>, the preconditions <code>positive_amount</code> and <code>enough_funds</code>, and the postcondition <code>decreased</code>. That is everything a caller needs and nothing a caller should depend on.</p>
+<p>Contracts also settle who is at fault when something goes wrong across the boundary. Suppose a program withdraws more than the balance:</p>
+<pre><code>intern bank/Account
+
+let a := create Account.make("Ada")
+a.deposit(100.0)
+a.withdraw(150.0)</code></pre>
+<p>Running it reports:</p>
+<pre class="text"><code>Error: Precondition violation: enough_funds
+  The call at line 5 does not meet the precondition `enough_funds` of Account.withdraw.</code></pre>
+<p>The message points at line 5 of the <em>calling</em> program. The bug is on the caller&rsquo;s side of the boundary, and there is no need to look inside <code>Account</code> at all. If instead <code>withdraw</code> took the wrong amount from the balance, the failure would name the routine in the other file:</p>
+<pre class="text"><code>Error: Postcondition violation: decreased
+  Account.withdraw, called at line 5, does not deliver its postcondition `decreased`.</code></pre>
+<p>Here the call was correct, and the bug is in <code>Account</code>. Either way, the boundary between the two files is also the boundary of responsibility, and the error message says which side broke the agreement.</p>
 </section>
 <section class="level2" data-number="24.10" id="a-worked-example-splitting-a-small-ledger">
 <h2 class="anchored" data-anchor-id="a-worked-example-splitting-a-small-ledger" data-number="24.10"> A Worked Example: Splitting a Small Ledger</h2>
-<p>Imagine a program with these concepts:</p>
-<ul>
-<li><code>Transaction</code></li>
-<li><code>Account</code></li>
-<li><code>Ledger_Report</code></li>
-</ul>
-<p>A clean structure would be:</p>
+<p>A small ledger program records the money going in and out of an account and prints statements. It is built from three concepts: a single <code>Transaction</code>, an <code>Account</code> that collects transactions, and a <code>Ledger_Report</code> that presents an account to a reader. Applying the tests from the last few sections gives this layout:</p>
+<pre class="text"><code>ledger/
+  main.nex
+  lib/finance/Transaction.nex
+  lib/finance/Account.nex
+  lib/finance/Ledger_Report.nex</code></pre>
+<p>Each library file holds one class and is named after it, so <code>intern finance/Account</code> finds <code>lib/finance/Account.nex</code> (<a href="#how-intern-resolves-files">Section 23.3</a>). The interesting part is the reasoning behind each boundary, so take the files one at a time.</p>
 <p><code>finance/Transaction.nex</code></p>
 <pre><code>class Transaction
 create
@@ -264,6 +310,7 @@ feature
   description: String
   amount: Real
 end</code></pre>
+<p>A transaction could have been a pair of fields inside <code>Account</code>. It gets a class and a file of its own because other code deals with transactions directly: the main program creates them, the report lists them, and an import from a bank file would produce them. It is a concept in its own right, not a detail of accounts.</p>
 <p><code>finance/Account.nex</code></p>
 <pre><code>intern finance/Transaction
 
@@ -289,6 +336,7 @@ feature
     end
   end
 end</code></pre>
+<p><code>Account</code> interns <code>Transaction</code> because its fields and routines are written in terms of it. The dependency goes one way only: a transaction knows nothing about the accounts that hold it.</p>
 <p><code>finance/Ledger_Report.nex</code></p>
 <pre><code>intern finance/Account
 
@@ -298,14 +346,41 @@ feature
   do
     print(a.owner + ": " + a.balance.to_string)
   end
+
+  print_statement(a: Account)
+  do
+    print("Statement for " + a.owner)
+    across a.entries as entry do
+      print("  " + entry.description + ": " + entry.amount.to_string)
+    end
+    print_balance(a)
+  end
 end</code></pre>
-<p>Each file has one job. The design is visible in the file structure itself.</p>
+<p>This is the boundary that most needs a reason. <code>print_balance</code> and <code>print_statement</code> could easily have been methods of <code>Account</code>, and the program would work just the same. Apply the test from <a href="#what-belongs-together">Section 23.8</a>: what makes each piece change? <code>Account</code> changes when the rules about money change, for example to forbid an overdraft or to add interest. The report changes when someone wants the output to look different, such as aligned columns, a currency symbol, or a statement for one month only. Those are different reasons, often coming from different people, so they belong in different files. As a bonus, a second kind of report, say one that writes a CSV file, can be added without touching <code>Account</code>.</p>
+<p>Finally, the main program ties the pieces together:</p>
+<pre><code>intern finance/Transaction
+intern finance/Account
+intern finance/Ledger_Report
+
+let a := create Account.make("Ada")
+a.add_entry(create Transaction.make("salary", 3000.0))
+a.add_entry(create Transaction.make("rent", -1200.0))
+
+let report := create Ledger_Report
+report.print_statement(a)</code></pre>
+<pre class="text"><code>$ nex main.nex
+"Statement for Ada"
+"  salary: 3000.0"
+"  rent: -1200.0"
+"Ada: 1800.0"</code></pre>
+<p>Strictly, the first two <code>intern</code> lines are not needed. As <a href="#designing-module-boundaries">Section 23.7</a> explained, a file brings in everything it interns, so <code>intern finance/Ledger_Report</code> alone would make <code>Account</code> and <code>Transaction</code> available too, and the program would run the same. Write them anyway. <code>main.nex</code> uses all three classes by name, so it should say so. If it relied on the chain instead, its correctness would depend on how the other files happen to be written today. Suppose a later version of <code>Ledger_Report</code> worked only with account summaries and stopped interning <code>Account</code>. Then <code>main.nex</code> would break, even though nothing it uses had changed. The rule is to <strong>intern every class you name</strong>. Interning a file that also arrives through another file is harmless, because it is the same class reached two ways.</p>
 </section>
 <section class="level2" data-number="24.11" id="extending-a-class-from-another-file">
 <h2 class="anchored" data-anchor-id="extending-a-class-from-another-file" data-number="24.11"> Extending a Class from Another File</h2>
 <p>Sometimes the class that needs a new feature is not yours to edit. It comes from a library, or from a module another part of the program owns. Suppose a report needs the average amount of an account&rsquo;s entries, and <code>finance/Account</code> is shared code you would rather not change. A free function <code>average_entry(a)</code> would work, but then callers write <code>a.balance</code> for one question about an account and <code>average_entry(a)</code> for the next.</p>
 <p>An <code>extend</code> block adds features to an existing class from outside its file:</p>
-<pre><code>intern finance/Account
+<pre><code>intern finance/Transaction
+intern finance/Account
 
 extend Account
 feature
@@ -321,7 +396,11 @@ let a := create Account.make("Ada")
 a.add_entry(create Transaction.make("salary", 3000.0))
 a.add_entry(create Transaction.make("rent", -1200.0))
 print(a.average_entry)     -- 900.0</code></pre>
-<p>Callers now write <code>a.average_entry</code>, as if <code>Account</code> had declared it. The feature is inherited by heirs of <code>Account</code>, its precondition is checked like any other, and <code>Account</code>&rsquo;s invariant is checked around the call. Calling it on an account with no entries fails at the caller, as a precondition should:</p>
+<p>Inside an extension, the body is written as if it were in the class itself. <code>balance</code> and <code>entries</code> are the account&rsquo;s own features, used by name without qualification. As in a regular method, <code>this</code> refers to the account the feature was called on, so <code>balance</code> could equally be written <code>this.balance</code>.</p>
+<p>Callers now write <code>a.average_entry</code>, as if <code>Account</code> had declared it. The feature is inherited by heirs of <code>Account</code>, its precondition is checked like any other, and <code>Account</code>&rsquo;s invariant is checked around the call. Calling it on an account with no entries fails at the caller, as a precondition should. Add two lines to the end of the program:</p>
+<pre><code>let empty := create Account.make("Bo")
+print(empty.average_entry)</code></pre>
+<p>The second of them is line 19 of the program, and that is where the error points:</p>
 <pre class="text"><code>Error: Precondition violation: has_entries
   The call at line 19 does not meet the precondition `has_entries` of Account.average_entry.</code></pre>
 <p>An extension is written by a <em>client</em> of the class, not by its author, and the rules follow from that:</p>
@@ -333,7 +412,35 @@ print(a.average_entry)     -- 900.0</code></pre>
 </ul>
 <p>So an extension can never break a class: everything it does goes through the class&rsquo;s own contracts.</p>
 <h3>Adding an Operation to a Family of Classes</h3>
-<p>Extensions matter most for a family of classes. Suppose a <code>geometry/Shapes</code> module declares a deferred <code>Shape</code> with heirs <code>Circle</code> and <code>Rect</code>, and a second module, <code>geometry/Areas</code>, adds an operation to the whole family:</p>
+<p>Extensions matter most for a family of classes. Suppose a <code>geometry/Shapes</code> module declares a deferred <code>Shape</code> with two heirs, <code>Circle</code> and <code>Rect</code>. The heirs are small and only make sense as members of the family, so they share the file with <code>Shape</code>:</p>
+<p><code>geometry/Shapes.nex</code></p>
+<pre><code>deferred class Shape
+end
+
+class Circle inherit Shape
+create
+  make(r: Real)
+  do
+    radius := r
+  end
+feature
+  radius: Real
+end
+
+class Rect inherit Shape
+create
+  make(w, h: Real)
+  do
+    width := w
+    height := h
+  end
+feature
+  width: Real
+  height: Real
+end</code></pre>
+<p>The file holds no class called <code>Shapes</code>. Like <code>intern trade/ship</code> in <a href="#aliases">Section 23.6</a>, whose file holds only a function, the <code>intern</code> path names a file, and everything in that file comes in.</p>
+<p>A second module, <code>geometry/Areas</code>, adds an operation to the whole family without touching <code>Shapes.nex</code>:</p>
+<p><code>geometry/Areas.nex</code></p>
 <pre><code>intern geometry/Shapes
 
 extend Shape
@@ -361,13 +468,29 @@ feature
   end
 end</code></pre>
 <p><code>area</code> is deferred in <code>Shape</code>, so every concrete heir must have one, and each implementation inherits the postcondition. A call <code>s.area</code> on a <code>Shape</code> dispatches on the object&rsquo;s class, as for any routine.</p>
-<p>Now a third module, <code>geometry/Triangles</code>, adds a new heir, <code>Triangle</code>, knowing nothing about areas. A program that interns both modules is rejected:</p>
-<pre class="text"><code>Type error in .../geometry/Triangles.nex: Class 'Triangle' does not implement
+<p>Now a third module, <code>geometry/Triangles</code>, adds a new heir, <code>Triangle</code>, knowing nothing about areas:</p>
+<p><code>geometry/Triangles.nex</code></p>
+<pre><code>intern geometry/Shapes
+
+class Triangle inherit Shape
+create
+  make(b, h: Real)
+  do
+    base := b
+    height := h
+  end
+feature
+  base: Real
+  height: Real
+end</code></pre>
+<p>A program that interns both <code>geometry/Areas</code> and <code>geometry/Triangles</code> is rejected:</p>
+<pre class="text">Type error in .../geometry/Triangles.nex: Class 'Triangle' does not implement
 deferred feature 'area', declared by 'extend Shape' at .../geometry/Areas.nex,
 line 3. Add 'extend Triangle feature area ... end', give 'area' a default body
-in 'extend Shape', or declare 'Triangle' 'deferred'.</code></pre>
-<p>The program that brings the two together supplies the missing piece:</p>
-<pre><code>intern geometry/Areas
+in 'extend Shape', or declare 'Triangle' 'deferred'.</pre>
+<p>Neither module is wrong on its own. The gap appears only when the two meet, so the program that brings them together supplies the missing piece:</p>
+<pre><code>intern geometry/Shapes
+intern geometry/Areas
 intern geometry/Triangles
 
 extend Triangle
@@ -378,13 +501,17 @@ feature
   end
 end
 
-let shapes: Array[Shape] := [create Circle.make(1.0), create Triangle.make(4.0, 3.0)]
+let shapes: Array[Shape] := [create Circle.make(1.0), create Rect.make(2.0, 3.0), create Triangle.make(4.0, 3.0)]
 across shapes as s do
   print(s.area)
 end</code></pre>
-<p>This is worth pausing on. A family of classes can grow in two directions: new heirs, and new operations on all of them. Inheritance makes the first easy and the second hard; a <code>match</code> over a <code>union</code> does the opposite. With extensions both are easy, neither requires editing existing files, and the compiler still guarantees that every heir has every deferred operation. When not every heir should have an operation, give the <code>Shape</code> extension a default body instead of <code>deferred</code>, and let the heirs that can do better redefine it.</p>
+<pre class="text"><code>3.14159
+6.0
+6.0</code></pre>
+<p>The program interns <code>geometry/Shapes</code> as well, even though both other modules bring it in. It names <code>Shape</code>, <code>Circle</code> and <code>Rect</code> itself, and, as the ledger example showed, a file should intern every class it names.</p>
+<p>I think we should pause a bit and let the idea sink in. A family of classes can grow in two directions: new heirs, and new operations on all of them. Inheritance makes the first easy and the second hard; a <code>match</code> over a <code>union</code> does the opposite. Language designers call this conflict the <em>expression problem</em>, a name Philip Wadler gave it in 1998: how to add both new cases and new operations without editing existing code, while the compiler still checks that every case has every operation. Extensions are Nex&rsquo;s answer. Both kinds of growth are easy, neither requires editing existing files, and the compiler still guarantees that every heir has every deferred operation. The check happens when modules are combined. That is why the program that brought <code>geometry/Areas</code> and <code>geometry/Triangles</code> together had to supply <code>Triangle</code>&rsquo;s <code>area</code>: someone must write each missing pairing, and Nex makes sure nobody forgets one. When not every heir should have an operation, give the <code>Shape</code> extension a default body instead of <code>deferred</code>, and let the heirs that can do better redefine it.</p>
 <h3>Extending Built-in Types</h3>
-<p>Built-in types can be extended too. In the body, <code>this</code> is the value, and the type&rsquo;s own features can be used without it, as in a class:</p>
+<p>Built-in types can be extended the same way as user-defined classes. Let's see how the <code>String</code> type can be extended with a query that does the palindrome check:</p>
 <pre><code>extend String
 feature
   is_palindrome: Boolean
@@ -406,7 +533,7 @@ end
 
 print("Level".is_palindrome)     -- true
 print("Nex".is_palindrome)       -- false</code></pre>
-<p>Because <code>length</code> and <code>to_lower</code> name features of <code>String</code>, a local of the routine may not use those names; the compiler says so rather than guess which one you meant.</p>
+<p>Because <code>length</code> and <code>to_lower</code> name features of <code>String</code>, a local of the routine may not use those names.</p>
 <p>A generic built-in type is extended with its own parameter names, and a constraint limits an extension to some type arguments:</p>
 <pre><code>extend Array [T -&gt; Comparable]
 feature
@@ -456,7 +583,7 @@ print(["pear", "apple", "plum"].maximum)     -- "plum"</code></pre>
 <p><strong>5.</strong> Write two small libraries that each define a class with the same name, then intern both into one program. Show two different ways to use both classes: a qualified reference, and an alias.</p>
 <p><strong>6.</strong> Write two small libraries that each define a free function with the same name, then intern both into one program. Show the ambiguous-reference error a bare call produces, then fix it with a qualified call to each.</p>
 <p><strong>7.</strong> Write a module that extends <code>finance/Account</code> with a query <code>largest_entry: Transaction</code>, with a precondition. Try to make the extension assign <code>owner</code>, and read the error.</p>
-<p><strong>8.</strong> Split the shapes example of <em>Adding an Operation to a Family of Classes</em> into its four files. Add a <code>perimeter</code> operation in a module of its own, then a <code>Square</code> heir in another, and write the program that uses all of them.</p>
+<p><strong>8.</strong> Starting from the files of <em>Adding an Operation to a Family of Classes</em>, add a <code>perimeter</code> operation in a module of its own, then a <code>Square</code> heir in another, and write the program that uses all of them. Which existing files did you have to edit?</p>
 <p><strong>9.*</strong> Choose a program idea of your own, about the size of the spreadsheet in Chapters 27 to 29. Before writing any code, propose the file structure and justify each file in one sentence.</p>
 </section>
 

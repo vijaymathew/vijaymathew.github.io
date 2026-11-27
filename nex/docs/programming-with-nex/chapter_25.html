@@ -29,23 +29,17 @@
     <h1 class="opener-title">Testing Your Programs</h1>
   </div>
   <div class="prose">
-<p>Contracts improve correctness, but they do not remove the need for tests. A contract states what must always be true; a test chooses specific examples and checks that the program behaves correctly on them. Good software uses both.</p>
+<p>Contracts improve correctness, but they do not remove the need for tests. A contract states what must be true on every call. A test picks particular calls and checks what actually happens. This chapter is about writing tests in Nex: how to check results, how to check that a contract refuses a bad call, how to test code that depends on the outside world, and how to keep a program&rsquo;s tests in one place where they can be run at any time.</p>
 <section class="level2" data-number="26.1" id="what-tests-add">
 <h2 class="anchored" data-anchor-id="what-tests-add" data-number="26.1"> What Tests Add</h2>
-<p>A contract can tell us:</p>
-<ul>
-<li>the balance decreases by <code>amount</code></li>
-<li>the result is non-negative</li>
-<li>the stack is not empty before <code>pop</code></li>
-</ul>
-<p>But a test can still reveal problems that contracts may not express directly or completely:</p>
+<p><a href="chapter_20.html#contracts-and-tests" title="Section 20.5: Contracts and Tests">Section 20.5</a> drew the line between the two: the contract defines the law, and tests exercise representative cases under it. Tests catch what contracts tend to miss:</p>
 <ul>
 <li>a boundary case the programmer forgot</li>
-<li>a wrong algorithm that satisfies a weak postcondition</li>
-<li>an interaction between several routines</li>
-<li>a regression after later changes</li>
+<li>a wrong algorithm that still satisfies a weak postcondition</li>
+<li>a problem that appears only when several routines are used together</li>
+<li>a regression, where a later change breaks something that used to work</li>
 </ul>
-<p>Tests are the concrete examples that keep abstractions reliable.</p>
+<p>The last of these is the strongest reason to write tests down. A test you ran once by hand protects nothing. A test kept in a file and run after every change keeps protecting the program for as long as it exists.</p>
 </section>
 <section class="level2" data-number="26.2" id="test-small-things-first">
 <h2 class="anchored" data-anchor-id="test-small-things-first" data-number="26.2"> Test Small Things First</h2>
@@ -63,16 +57,16 @@ nex&gt; square(5)
 
 nex&gt; square(-3)
 9</code></pre>
-<p>The point is to choose cases that exercise the routine’s meaning:</p>
+<p>The three calls are chosen to exercise the routine&rsquo;s meaning, not picked at random:</p>
 <ul>
-<li>a neutral case</li>
-<li>a typical case</li>
-<li>an edge or surprising case</li>
+<li>a neutral case (<code>0</code>)</li>
+<li>a typical case (<code>5</code>)</li>
+<li>a case that might surprise (<code>-3</code>, whose square is positive)</li>
 </ul>
 </section>
 <section class="level2" data-number="26.3" id="a-tiny-test-harness-in-nex">
 <h2 class="anchored" data-anchor-id="a-tiny-test-harness-in-nex" data-number="26.3"> A Tiny Test Harness in Nex</h2>
-<p>Nex does not need a large testing framework before you can begin writing useful tests. The check itself is already in the language. The <code>assert</code> statement states what must be true at the point it appears, and raises a contract violation when it is not:</p>
+<p>Checking results by eye works once. To make the checks repeatable, write them down as code. Nex needs no testing framework for this, because the check is already in the language. The <code>assert</code> statement states what must be true at the point it appears, and raises an <code>Assertion_Violation</code> when it is not:</p>
 <pre><code>nex&gt; function test_square()
      do
        assert square_zero: square(0) = 0
@@ -80,158 +74,232 @@ nex&gt; square(-3)
        assert square_negative: square(-3) = 9
        print("square tests passed")
      end</code></pre>
-<p>The label before the colon is the name of the case, and it is what the failure reports:</p>
-<pre><code>Assertion violation: square_positive</code></pre>
-<p>When a name would only repeat the expression, the label may be left out, and the failure reports the source line instead:</p>
-<pre><code>nex&gt; assert square(5) = 25</code></pre>
-<p>Because a failed <code>assert</code> raises, the first failing case stops the routine. That is usually what you want from a single test; running many cases and collecting every failure is the job of a test runner, which you can build on top of <code>rescue</code>.</p>
-<p>A helper routine is still worth writing when you want the failure message to carry the values involved, which an assertion label cannot:</p>
-<pre><code>nex&gt; function assert_equal_integer(actual, expected: Integer, label: String)
+<p>The label before the colon names the case, and it is what a failure reports:</p>
+<pre><code>Error: Assertion violation: square_positive</code></pre>
+<p>When a name would only repeat the expression, the label may be left out, and the failure reports the line instead, such as <code>Assertion violation (line 18)</code>.</p>
+<p>Because a failed <code>assert</code> raises an exception, the first failing case stops the test. That is usually what you want: fix the first failure, then run the tests again.</p>
+<p>An assertion says <em>that</em> a check failed, not what the values were. When the values would help, as they usually do for a comparison, write a small helper whose message includes them:</p>
+<pre><code>nex&gt; function assert_equal(actual, expected: Integer, label: String)
      do
        if actual /= expected then
-         raise "test failed: " + label
+         raise label + ": expected " + expected.to_string + ", got " + actual.to_string
        end
-     end</code></pre>
-<p>A boolean helper in the same style is no longer worth writing: <code>assert condition</code> already says exactly that. Reach for a helper only when it's required to report something the assertion cannot.</p>
-<p>Then:</p>
-<pre><code>nex&gt; function test_square_values()
-     do
-       assert_equal_integer(square(0), 0, "square zero")
-       assert_equal_integer(square(5), 25, "square positive")
-       assert_equal_integer(square(-3), 9, "square negative")
-       print("square tests passed")
-     end</code></pre>
-<p>Neither form is elaborate, but either is enough to establish the core habit: expected behavior should be checked automatically, not only by eye.</p>
+     end
+
+nex&gt; assert_equal(square(3), 6, "square three")
+Error: square three: expected 6, got 9</code></pre>
+<p>The message now says everything needed to start looking for the bug. A helper is worth writing only when it reports more than <code>assert</code> would. A helper that just checks a condition adds nothing, because <code>assert</code> already does that.</p>
 </section>
 <section class="level2" data-number="26.4" id="testing-contracts">
 <h2 class="anchored" data-anchor-id="testing-contracts" data-number="26.4"> Testing Contracts</h2>
-<p>Contracts and tests reinforce each other. Tests should include valid cases that satisfy the precondition and confirm the promised behavior, and they should also include deliberate invalid calls when appropriate, to confirm that contract violations occur exactly where expected.</p>
-<p>One direct way to test an expected failure is to use <code>rescue</code>:</p>
-<pre><code>nex&gt; function test_empty_stack_pop()
-     do
-       let s := create Stack[Integer]
-       let reached_unexpected_success: Boolean := false
-       s.pop()
-       reached_unexpected_success := true
-       raise "test failed: empty pop should fail"
-     rescue
-       if reached_unexpected_success then
-         raise "test failed: empty pop should fail"
-       else
-         print("empty-pop test passed")
+<p>A test should also check that a contract does its job: that a bad call is refused, at the place it should be. The examples in this section and the next use the <code>Stack</code> from <a href="chapter_17.html#a-worked-example-removing-the-last-stack-element" title="Section 17.8: A Worked Example: Removing the Last Stack Element">Section 17.8</a>, whose <code>pop</code> has the precondition <code>not_empty</code>:</p>
+<pre><code>nex&gt; class Stack [G]
+     create
+       make
+       do
+         items := []
+       end
+     feature
+       items: Array[G]
+
+       push(value: G)
+       do
+         items.add(value)
+       ensure
+         last_is_value: items.get(items.length - 1) = value
+       end
+
+       pop: G
+       require
+         not_empty: items.length &gt; 0
+       do
+         result := items.get(items.length - 1)
+         items.remove(items.length - 1)
+       ensure
+         length_decreased_by_one: items.length = old items.length - 1
        end
      end</code></pre>
-<p>This pattern distinguishes the two cases:</p>
+<p>To test that <code>pop</code> on an empty stack is refused, make the call and catch what it raises. A contract violation arrives in <code>rescue</code> as an object of a built-in class (<a href="chapter_21.html#built-in-exceptions" title="Section 21.6: Built-in Exceptions">Section 21.6</a>):</p>
+<pre><code>nex&gt; function test_pop_on_empty_stack_is_refused()
+     do
+       let s := create Stack[Integer].make
+       let popped := s.pop
+       raise "pop on an empty stack returned " + popped.to_string
+     rescue
+       if convert exception to v: Precondition_Violation then
+         assert refused_by_not_empty: v.label = "not_empty"
+         print("empty-pop test passed")
+       else
+         raise exception
+       end
+     end
+
+nex&gt; test_pop_on_empty_stack_is_refused()
+"empty-pop test passed"</code></pre>
+<p>The test covers each way things could go wrong:</p>
 <ul>
-<li>if <code>pop()</code> raises immediately, the test passes</li>
-<li>if execution reaches the explicit <code>raise</code>, then the expected contract failure did not happen</li>
+<li>If <code>pop</code> returns a value instead of failing, the <code>raise</code> after it reports that, and the test fails.</li>
+<li>If <code>pop</code> fails for some other reason, the exception is not a <code>Precondition_Violation</code>, and the <code>else</code> branch raises it again, so the test fails with the real cause.</li>
+<li>If a precondition fails but it is the wrong one, the <code>assert</code> on <code>v.label</code> fails. A different precondition being violated would be a different bug, and the test should say so.</li>
 </ul>
-<p>For a stack:</p>
-<ul>
-<li>create a new stack</li>
-<li>push one element, then pop it</li>
-<li>push several elements and check last-in, first-out behavior</li>
-<li>deliberately call <code>pop</code> on an empty stack and confirm the precondition fails</li>
-</ul>
-<p>The valid tests check behavior. The invalid test checks the interface boundary.</p>
+<p>Only if <code>pop</code> is refused by <code>not_empty</code> itself does the test pass.</p>
 </section>
 <section class="level2" data-number="26.5" id="testing-classes-through-sequences">
 <h2 class="anchored" data-anchor-id="testing-classes-through-sequences" data-number="26.5"> Testing Classes Through Sequences</h2>
-<p>Class tests are often more meaningful as sequences of operations than as isolated calls.</p>
-<p>For <code>Account</code>:</p>
-<ol type="1">
-<li>create with initial balance <code>100.0</code></li>
-<li>deposit <code>25.0</code></li>
-<li>withdraw <code>40.0</code></li>
-<li>check that the balance is <code>85.0</code></li>
-</ol>
-<pre><code>nex&gt; function test_account()
+<p>A class keeps state between calls, so most of its behaviour shows only across several calls in a row. A stack is the clearest case: its whole point is the order in which values come back.</p>
+<pre><code>nex&gt; function test_stack_order()
      do
-       let a := create Account.make(100.0)
-       a.deposit(25.0)
-       a.withdraw(40.0)
-       if a.balance /= 85.0 then
-         raise "test failed: account sequence"
-       end
-       print("account tests passed")
-     end</code></pre>
-<p>The whole sequence has to be tested together, because the behavior of later operations depends on earlier ones.</p>
+       let s := create Stack[Integer].make
+       s.push(1)
+       s.push(2)
+       s.push(3)
+       assert_equal(s.pop, 3, "last in")
+       assert_equal(s.pop, 2, "then the one before")
+       s.push(9)
+       assert_equal(s.pop, 9, "a later push comes off first")
+       assert_equal(s.pop, 1, "first in, last out")
+       assert empty_again: s.items.is_empty
+       print("stack order tests passed")
+     end
+
+nex&gt; test_stack_order()
+"stack order tests passed"</code></pre>
+<p>No single call here proves anything. The sequence does: it mixes pushes and pops, so an implementation that took values from the wrong end, or lost one in the middle, would fail one of the checks. The contracts on <code>push</code> and <code>pop</code> are checked on every call as well, so the test exercises them too.</p>
 </section>
 <section class="level2" data-number="26.6" id="choosing-good-test-cases">
 <h2 class="anchored" data-anchor-id="choosing-good-test-cases" data-number="26.6"> Choosing Good Test Cases</h2>
-<p>Choose tests that represent different categories of behavior:</p>
-<p><em>Normal cases</em>: the routine works under ordinary, expected inputs.</p>
-<p><em>Boundary cases</em>: empty arrays, one-element arrays, zero, the maximum allowed value, the minimum allowed value.</p>
-<p><em>Error cases</em>: inputs that should violate a contract or trigger a controlled failure.</p>
-<p><em>Representative combinations</em>: for classes, sequences of operations that exercise state changes.</p>
-<p>One of the most common beginner mistakes is to test only happy-path examples. Real confidence comes from boundary and failure cases.</p>
+<p>Good tests cover different kinds of behaviour:</p>
+<p><em>Normal cases</em>: ordinary, expected inputs, to show that the routine does its job at all.</p>
+<p><em>Boundary cases</em>: an empty array, a one-element array, zero, the largest and smallest allowed values, and the value exactly at a dividing line. Bugs gather at boundaries, because that is where <code>&lt;</code> and <code>&lt;=</code> differ.</p>
+<p>Some boundary cases come from how the code works rather than from what it promises. <code>"to  be".split(" ")</code> gives <code>["to", "", "be"]</code>: two spaces in a row leave an empty piece between them. A routine that counts words by splitting on spaces therefore needs a test with repeated spaces, or it may count the empty string as a word without anyone noticing. A test like that also protects the fix: once the routine skips empty pieces, the test keeps it that way after later changes.</p>
+<p><em>Error cases</em>: calls that a contract should refuse, tested as in <a href="#testing-contracts">Section 25.4</a>.</p>
+<p><em>Sequences</em>: for classes, runs of operations that take an object through its states.</p>
+<p>A common mistake is to test only the normal case. Tests become valuable at the boundaries and in the cases that should fail.</p>
 </section>
-<section class="level2" data-number="26.7" id="organizing-tests">
-<h2 class="anchored" data-anchor-id="organizing-tests" data-number="26.7"> Organizing Tests</h2>
-<p>As programs grow, tests should be kept separate from the main code wherever possible. One reasonable structure is:</p>
-<ul>
-<li>source files under <code>src/</code> or application directories</li>
-<li>Nex examples and tutorial code in their own files</li>
-<li>host-side or repository-level automated tests under <code>test/</code></li>
-</ul>
-<p>This repository already includes automated test commands for the implementation itself, and for your own Nex tutorial programs a similar habit is worth forming: create test routines, group them clearly, and run them together.</p>
-</section>
-<section class="level2" data-number="26.8" id="a-worked-example-testing-a-frequency-counter">
-<h2 class="anchored" data-anchor-id="a-worked-example-testing-a-frequency-counter" data-number="26.8"> A Worked Example: Testing a Frequency Counter</h2>
-<p>Return to the word-frequency routine:</p>
-<pre><code>nex&gt; function word_frequencies(text: String): Map[String, Integer]
+<section class="level2" data-number="26.7" id="testing-code-that-touches-the-outside-world">
+<h2 class="anchored" data-anchor-id="testing-code-that-touches-the-outside-world" data-number="26.7"> Testing Code That Touches the Outside World</h2>
+<p>Some code depends on things a test cannot control like the network or a random number generator. Consider a greeting that depends on system time:</p>
+<pre><code>nex&gt; intern time/Date_Time
+
+nex&gt; deferred class Clock
+     feature
+       hour: Integer
+       deferred
+     end
+
+nex&gt; class System_Clock inherit Clock
+     feature
+       hour: Integer
+       do
+         result := create Date_Time.now().hour()
+       end
+     end
+
+nex&gt; function greeting(clock: Clock): String
+     require
+       valid_hour: 0 &lt;= clock.hour and clock.hour &lt; 24
      do
-       result := {}
-       let words := text.to_lower.split(" ")
-       across words as w do
-         if w /= "" then
-           let count := result.try_get(w, 0)
-           result.set(w, count + 1)
-         end
+       let h := clock.hour
+       if h &lt; 12 then
+         result := "Good morning"
+       elseif h &lt; 18 then
+         result := "Good afternoon"
+       else
+         result := "Good evening"
        end
      end</code></pre>
-<p>A useful test routine:</p>
-<pre><code>nex&gt; function test_word_frequencies()
+<p>Had <code>greeting</code> read the time itself, it could only be tested by running the test at different times of day. Instead it receives a <code>Clock</code>. The program passes a <code>System_Clock</code>, which reads the real time. A test passes a clock it controls:</p>
+<pre><code>nex&gt; class Fixed_Clock inherit Clock
+     create
+       make(h: Integer)
+       do
+         fixed_hour := h
+       end
+     feature
+       fixed_hour: Integer
+       hour: Integer
+       do
+         result := fixed_hour
+       end
+     end
+
+nex&gt; function test_greeting()
      do
-       let freq := word_frequencies("To be or not to be")
-       assert_equal_integer(freq.get("to"), 2, "count of to")
-       assert_equal_integer(freq.get("be"), 2, "count of be")
-       assert_equal_integer(freq.get("or"), 1, "count of or")
-
-       let spaced := word_frequencies("to  be")
-       assert_equal_integer(spaced.get("to"), 1, "count of to with repeated spaces")
-       assert_equal_integer(spaced.get("be"), 1, "count of be with repeated spaces")
-       assert_equal_integer(spaced.try_get("", 0), 0, "no empty token from repeated spaces")
-
-       print("word frequency tests passed")
+       assert morning: greeting(create Fixed_Clock.make(9)) = "Good morning"
+       assert noon: greeting(create Fixed_Clock.make(12)) = "Good afternoon"
+       assert evening: greeting(create Fixed_Clock.make(18)) = "Good evening"
+       assert midnight: greeting(create Fixed_Clock.make(0)) = "Good morning"
+       print("greeting tests passed")
      end</code></pre>
-<p>The <code>if w /= ""</code> guard is important. A naive <code>split(" ")</code> creates empty pieces for repeated spaces, so a good test should make that behavior explicit instead of leaving it accidental.</p>
-<p>This test now checks several representative behaviors:</p>
-<ul>
-<li>ordinary repeated words</li>
-<li>case-insensitive counting</li>
-<li>repeated spaces without creating an empty-string key</li>
-</ul>
-<p>Tests grow naturally by exploring the routine’s meaning.</p>
+<p><code>Fixed_Clock</code> is a <em>fake</em>: a real implementation of the abstraction, written for testing, that does no more than the test needs. With it, the test can check exactly the hours that matter: a normal morning, the boundaries at 12 and 18, and midnight.</p>
+<p>This is the same design that <a href="chapter_24.html#keeping-the-boundary-small" title="Section 24.2: Working with Java">Chapter 24</a> recommended for Java: keep the code that touches the outside world small and behind an abstraction, and the rest of the program can be tested with ordinary values. <a href="chapter_27.html#testing-without-a-sheet" title="Section 27.8: Testing Without a Sheet">Chapter 27</a> will use a fake in the same way to test spreadsheet formulas without a spreadsheet.</p>
+</section>
+<section class="level2" data-number="26.8" id="organizing-tests">
+<h2 class="anchored" data-anchor-id="organizing-tests" data-number="26.8"> Organizing and Running Tests</h2>
+<p>Tests are only useful if they get run, and they get run only if that is easy. A simple arrangement that works well is to keep the program&rsquo;s tests in one file, <code>tests.nex</code>, next to the program:</p>
+<pre class="text"><code>greeter/
+  main.nex
+  tests.nex
+  lib/greeting/Greeting.nex</code></pre>
+<p><code>Greeting.nex</code> holds <code>Clock</code>, <code>System_Clock</code> and <code>greeting</code>. <code>main.nex</code> is the program itself. <code>tests.nex</code> interns the same module, defines what only the tests need, and calls each test function at the end:</p>
+<pre><code>intern greeting/Greeting
+
+class Fixed_Clock inherit Clock
+create
+  make(h: Integer)
+  do
+    fixed_hour := h
+  end
+feature
+  fixed_hour: Integer
+  hour: Integer
+  do
+    result := fixed_hour
+  end
+end
+
+function test_greeting()
+do
+  assert morning: greeting(create Fixed_Clock.make(9)) = "Good morning"
+  assert noon: greeting(create Fixed_Clock.make(12)) = "Good afternoon"
+  assert evening: greeting(create Fixed_Clock.make(18)) = "Good evening"
+  assert midnight: greeting(create Fixed_Clock.make(0)) = "Good morning"
+  print("greeting tests passed")
+end
+
+test_greeting()
+print("all tests passed")</code></pre>
+<p>The fake lives in <code>tests.nex</code>, not in the library. It exists for the tests, and the program has no use for it. Running the tests is one command:</p>
+<pre class="text"><code>$ nex tests.nex
+"greeting tests passed"
+"all tests passed"</code></pre>
+<p>Suppose a later change slips in an off-by-one error, so that 6 p.m. is still called afternoon (<code>h &lt;= 18</code> instead of <code>h &lt; 18</code>). The next run names the case that broke, and the line of the test:</p>
+<pre class="text"><code>$ nex tests.nex
+Error: Assertion violation: evening
+  at line 21, in test_greeting
+  called from line 26</code></pre>
+<p>As the program grows, add one <code>test_&hellip;</code> function for each part of it, and a call to each at the bottom of <code>tests.nex</code>. The first failure stops the run. For a program of this size that is fine: fix it, and run the tests again. Run them after every change, and they will catch regressions while the change is still fresh in your mind.</p>
 </section>
 <section class="level2" data-number="26.9" id="summary">
 <h2 class="anchored" data-anchor-id="summary" data-number="26.9"> Summary</h2>
 <ul>
-<li>Contracts and tests serve different purposes and are both necessary</li>
-<li>Tests should cover boundary and failure cases, not only normal ones</li>
-<li>The built-in <code>assert</code> statement is enough to begin; a handmade routine adds value only when the message should carry the values involved</li>
-<li>Class tests are often best written as sequences of operations</li>
-<li>Weak specifications should be reinforced with targeted tests</li>
-<li>Good test organization keeps checking repeatable and easy to run</li>
+<li>Contracts state the law, and tests check particular cases under it; tests also catch regressions after later changes</li>
+<li>The built-in <code>assert</code> statement, with a label naming the case, is enough to begin. Write a helper only when its message should carry the values involved</li>
+<li>Test that a contract refuses a bad call by catching the <code>Precondition_Violation</code> and checking its <code>label</code>, and re-raise anything else</li>
+<li>Test classes through sequences of operations</li>
+<li>Cover boundary and error cases, not only normal ones</li>
+<li>Code that depends on the outside world should receive it through an abstraction, so a test can pass a fake</li>
+<li>Keep a program&rsquo;s tests in <code>tests.nex</code> and run them with <code>nex tests.nex</code> after every change</li>
 </ul>
 </section>
 <section class="level2" data-number="26.10" id="exercises">
 <h2 class="anchored" data-anchor-id="exercises" data-number="26.10"> Exercises</h2>
-<p><strong>1.</strong> Write a tiny assertion routine for strings and use it to test a <code>reverse(s: String): String</code> function.</p>
-<p><strong>2.</strong> Write tests for the <code>Stack[G]</code> class that cover push, pop, peek, and the empty-stack precondition.</p>
-<p><strong>3.</strong> Design a test sequence for <code>Bank_Account</code> that checks deposit, withdrawal, and one invalid call.</p>
-<p><strong>4.</strong> Improve <code>test_word_frequencies</code> with at least two additional cases that probe boundary or formatting behavior.</p>
-<p><strong>5.*</strong> Pick one routine whose contract is weaker than its true intent. Write a set of tests that would catch an incorrect implementation even if the current postcondition would not.</p>
+<p><strong>1.</strong> Write an <code>assert_equal_string</code> helper whose message shows both strings, and use it to test a <code>reverse(s: String): String</code> function, including the empty string and a one-character string.</p>
+<p><strong>2.</strong> Add a <code>peek</code> query to the <code>Stack</code> of this chapter, with a precondition. Write tests for it: one that checks it returns the top value without removing it, and one that checks it is refused on an empty stack.</p>
+<p><strong>3.</strong> Design a test sequence for the <code>Account</code> class of <a href="chapter_16.html#a-worked-example-transfer-between-accounts" title="Section 16.8: A Worked Example: Transfer Between Accounts">Chapter 16</a> that checks deposit, withdrawal, a transfer, and one call that should be refused.</p>
+<p><strong>4.</strong> Write <code>test_word_frequencies</code> for the <code>word_frequencies</code> routine of <a href="chapter_10.html#a-worked-example-word-frequency-counter" title="Section 10.10: A Worked Example: Word Frequency Counter">Chapter 10</a>. Include an ordinary sentence, words that differ only in case, repeated spaces, an empty string and a string of only spaces. Some of these tests will fail. Find out why, fix the routine, and run the tests again.</p>
+<p><strong>5.</strong> A dice game rolls a die with <code>Random</code>. Put the roll behind a <code>deferred class Die</code>, write a fake that returns rolls from a fixed list, and use it to test the rule that a double six wins.</p>
+<p><strong>6.*</strong> Pick one routine whose contract is weaker than what it really promises. Write tests that would catch an incorrect implementation that the current postcondition would let through.</p>
 </section>
 
   </div>
